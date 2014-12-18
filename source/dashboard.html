@@ -1,0 +1,39 @@
+﻿
+<html>
+<head>
+	<title>Dashboard - Plus</title>
+	<link href="css/style.css" rel="stylesheet" type="text/css">
+    <link href="css/tooltip.css" rel="stylesheet" type="text/css">
+	<script type="text/javascript" src="libs/jquery.min.js"></script>
+	<script type="text/javascript" src="libs/jsapi.js"></script>
+	<script type="text/javascript" src="libs/formatchart.js"></script>
+	<script type="text/javascript" src="shared.js"></script>
+	<script type="text/javascript" src="dashboard.js"></script>
+</head>
+<body style="font-family: arial; font-size: 16px;">
+    <h3 align="center" id="topTitle">Plus Dashboard</h3>
+	<a style="display:none" id="reportLink" href="" target="_blank">Recent entries report</a>
+    <div style="display:none;"  id="boardMarkersContainer" class="agile_arrow_closed agile_arrow_container">
+        <p id="headerMarker" class="agile_arrow_title"><b>Board Markers</b></p>
+        <div style="display:none;margin-bottom:1.5em;margin-top:0.5em;margin-left:1em;" id="boardMarkersContent">
+            <button disabled id="createNewMarker">New marker</button>
+            <div style="display:none" id="divCreateNew">
+                <select id="userMarked"></select>
+                <input maxlength="40" placeholder="marker name" type="text" id="markerName" />
+            </div>
+            <table id="tableMarkers"></table>
+        </div>
+    </div>
+    <div id="filtersContainer" class="agile_arrow_closed agile_arrow_container">
+        <p id="headerFilter" class="agile_arrow_title"><b>Filters</b></p>
+        <div style="display:none;margin-left:0.5em;" id="report_filter_section">
+            <iframe seamless id="frameFilter" src="" frameborder="0" style="overflow:hidden;height:0px;width:100%"></iframe>
+        </div>
+    </div>
+    <p id="progress">Loading...</p>
+    <div id="visualization" style="width:100%;height:70%"></div>
+    <div style="text-align: center;">
+        <div id="visualizationBottom" style="display: inline-block; width: 60%; margin-top: 45px; margin-bottom: 20px;"></div>
+    </div>
+</body>
+</html>	

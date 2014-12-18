@@ -1,0 +1,51 @@
+﻿{
+	"name" : "Plus for Trello (time tracking - scrum)",
+	"short_name" : "Plus for Trello",
+	"version" : "2.11.2",
+	"manifest_version" : 2,
+	"description" : "Track Spent and Estimate time by card - list - board - user - team with timers, historical reports, charts, offline and more!",
+	"icons": {
+		"16": "images/icon16.png",
+		"48": "images/icon48.png",
+		"128": "images/icon128.png"
+	},
+	"offline_enabled": true,
+	"background": {
+	"page": "background.html"
+	},
+	
+	"oauth2": {
+    "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
+	"scopes": [
+	  "https://spreadsheets.google.com/feeds",
+	  "https://docs.google.com/feeds"
+	]
+	},
+
+	"browser_action": {
+          "default_icon": {              
+            "19": "images/icon19.png"
+          },
+          "default_title": "Plus for Trello",
+          "default_popup": "popup.html"
+        },
+
+	"content_scripts" : [
+	{
+		"matches" : ["https://trello.com/*"],
+		 "js" : ["libs/jquery.min.js", "libs/jquery-ui.custom.min.js", "libs/jquery.cookie.js", "libs/jquery.zoomooz.min.js", "libs/jsapi.js", "libs/formatchart.js",  "libs/jquery.grumble.js",
+					"shared.js", "app.js", "card.js", "labels.js", "labels.js", 
+				"language.js", "help.js", "buttons.js", "plus.js", "plusconfig.js", "board.js", "tour.js"],
+		 "css" : ["css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css"]
+	 }
+	],
+	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+    "web_accessible_resources": [
+        "images/*.png",
+        "images/*.gif",
+        "*.html",
+        "manifest.json"
+    ],
+    "optional_permissions": [ "webRequest","https://trello.com/1/*"],
+	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/","https://spreadsheets.google.com/","https://docs.google.com/", "https://www.googleapis.com/"]
+}

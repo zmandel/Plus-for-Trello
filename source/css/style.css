@@ -1,0 +1,1366 @@
+﻿.ui-autocomplete.ui-menu{font-size:0.7em;}
+
+.ui-autocomplete {
+    max-height: 50%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+div.agile_box {
+	border: 0;
+	border-radius: 3px;
+	color: black;
+	float: left;
+	font: 15px Helvetica;   
+	padding: 2px 4px 2px 4px;
+	text-align: center;
+	width: auto;
+}
+
+.agile_box_partialUpdate {
+    color: #777777 !important;
+}
+
+.agile_plus_filter_old {
+    background:#45A155 !important;
+}
+
+.agile_plus_filter_span {
+    border-radius: 3px;
+    margin-right:0.5em;
+    margin-top:0.35em;
+    padding-left:0.15em;
+    padding-right:0.15em;
+    padding-bottom:0em;
+    font-size:12px !important;
+    color: #F6F6F6;
+}
+
+.agile_plus_filter_span:hover {
+    background: #1E638B !important;
+}
+
+div.agile_estimation_box {
+	background-color: #C5CDDE;
+    margin-right: 5px;
+}
+
+div.agile_spent_box {
+	background-color: #F2CECE;
+	margin-right: 5px;
+}
+
+div.agile_remaining_box {
+	background-color: #CAE3CA;
+}
+
+div.agile_total_box {
+	float: right;
+	margin-right: 10px;
+	margin-top: 5px;
+    cursor:default;
+}
+
+.agile_miniHelp_container {
+    margin-top:-9px !important;
+    float:right !important;
+    margin-right:-1em;
+}
+
+label.agile_ignore_filters_option {
+	float: right;
+	font-weight: normal;
+}
+
+	label.agile_ignore_filters_option input {
+		vertical-align: middle;
+		margin: 0 5px 0 0;
+	}
+
+.agile_hidden {
+	display: none !important;
+}
+
+.agile_badge {
+	color: black !important;
+	padding-left: 4px !important;
+}
+
+div.agile_badge_estimate {
+	background: #C5CDDE;
+	border: 1px solid #C5CDDE;
+}
+
+div.agile_badge_spent {
+	background: #F2CECE;
+	border: 1px solid #F2CECE;
+}
+
+div.agile_badge_remaining {
+	background: #CAE3CA;
+	border: 1px solid #CAE3CA;
+}
+
+.agile_badge_hashtag_primary {
+	line-height: 1em;
+	color: black;
+	background: #FBF3D7;
+	border: 1px solid gray;
+	font-weight: bold;
+	padding: 2px 4px 2px 4px !important;
+	border-radius: 10px !important;
+}
+
+.agile_badge_hashtag_secondary {
+	line-height: 1em;
+	color: black;
+	background: #FBF3D7;
+	border: 1px solid gray;
+	padding: 2px 4px 2px 4px !important;
+	border-radius: 10px !important;
+}
+
+a.agile_close_button {
+	color: #444;
+	text-indent: 0 !important;
+}
+
+.agile_help_button {
+	padding: 0 5px 0 5px !important;
+}
+
+.agile_spreadsheet_note_a {
+	color: white !important;
+	background-color: #D64141 !important;
+}
+
+.agile_spreadsheet_note_b {
+	color: black !important;
+	background-color: white !important;
+}
+
+.agile_plus_header_error {
+	background-color: #D64141 !important;
+}
+
+.agile_plus_burndown_link {
+	float: right;
+	margin-right: 10px;
+	margin-top: 5px;
+}
+
+/*
+ * QUnit
+ */
+div#qunit-container {
+	left: 10px;
+	position: absolute;
+	top: 10px;
+	width: 500px;
+	z-index: 1000;
+}
+
+/*
+ * Help
+ */
+div#agile_help_container {
+	outline: #999999 1px solid;
+	background: #FAFAFA;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	color: black;
+	left: 0;
+	padding: 12px;
+	padding-bottom: 10px;
+	padding-top: 10px;
+	position: absolute;
+	top: 0em;
+	width: 60em;
+	z-index: 1001;
+	overflow: scroll;
+}
+
+/*
+ * Help
+ */
+div#spent_serviceUrlConfig_container {
+	background: GhostWhite;
+	border-top-right-radius: 5px;
+	border-bottom-right-radius: 5px;
+	border-top-left-radius: 5px;
+	border-bottom-left-radius: 5px;
+	color: black;
+	left: 30px;
+	padding: 12px;
+	padding-bottom: 10px;
+	padding-top: 10px;
+	position: fixed;
+	top: 0px;
+	width: 65em;
+	z-index: 1001;
+	border: 1px;
+	border-style: solid;
+	border-color: black;
+}
+
+
+
+
+.agile_topLevelTooltipContainer {
+	font-family: arial !important;
+}
+
+.agile_tooltip_scroller {
+	overflow: auto !important;
+	display: block;
+	//width: 100%;
+}
+
+.agile_tooltip_scroller_Short {
+    max-height: 208px;
+}
+
+
+.agile_report_tab {
+    margin: 0px;
+    padding: 0px;
+    border-left: 1px solid #BBBBBB;
+    border-right: 1px solid #BBBBBB;
+    border-bottom: 1px solid #BBBBBB;
+}
+
+.agile_format_container {
+padding-bottom: 3px;
+padding-top: 5px;
+padding-left:4px;
+}
+
+.agile_scroller {
+	overflow: auto !important;
+}
+
+.agile_simpleTooltip {
+    background:#E8EBEE;
+    box-shadow: 7px 7px 5px #888888;
+    border: solid 2px;
+    border-color: #6095B3 !important;
+    border-radius: 5px;
+}
+
+.agile_tooltipTable {
+	border: 0px !important;
+	border-spacing: 0px !important;
+	font-family: arial !important;
+	font-size: 14px !important;
+    width: 100% !important;
+}
+
+.agile_tooltipContainer {
+	background: #E8EBEE !important;
+	position: fixed;
+	left: 50%;
+	top: 50%;
+	margin-top: -110px;
+	outline: none;
+	box-shadow: 7px 7px 5px #888888;
+	border: solid 2px;
+	border-color: #6095B3 !important;
+	border-radius: 5px;
+	padding: 5px !important;
+	padding-top: 4px !important;
+    padding-bottom: 2px !important;
+}
+
+.agile_tooltipContainerAbsolute {
+	left: 0px !important;
+	top: 0px !important;
+	margin-top: 200px !important;
+	position: absolute !important;
+}
+
+div#agile_help_container h1 {
+	margin-top: 10px;
+}
+
+.agile_help_close {
+	cursor: pointer;
+    position:fixed !important;
+}
+
+.agile-help-firstTime {
+    display: inline-block !important;
+    border-radius:6px !important;
+    padding:4px !important;
+    margin-bottom:5px !important;
+}
+
+.agile_help_close:hover {
+    opacity:1 !important;
+}
+
+.agile_force_no_opacity {
+     opacity:1 !important;
+}
+
+.agile_help_close_drilldown {
+	float: right;
+	font-size: 15px;
+	cursor: pointer;
+}
+
+#checkDontShowAgainSyncWarn {
+	min-height: 10px !important;
+}
+
+.agile_checkHelp {
+	min-height: 10px !important;
+	vertical-align: text-top !important;
+}
+
+div#agile_help_container img {
+	border-radius: 5px;
+	//border: 1px solid #BBBBBB;
+}
+
+div#agile_help_container a {
+	//color: white;
+}
+
+div#agile_help_container p {
+	//color: #CAE3CA;
+}
+
+div#agile_help_container h3 {
+	//color: #A8CAA8;
+}
+
+
+.agile_help_setup_link {
+	color: white;
+	background-color: #5289A9;
+	padding: 4px !important;
+	border-radius: 2px;
+}
+
+.agile_help_setup_link:hover {
+		color: black;
+	}
+
+.agile_spent_item {
+	width: 550px !important;
+	margin-bottom: 15px;
+	margin-left: 45px;
+}
+
+.agile_spent_item_newTrello {
+	margin-left: 45px !important;
+}
+
+
+.agile_module_newtrello {
+	float: none;
+}
+
+.agile_spent_items_container {
+	margin-top: 6px;
+	margin-right: 50px;
+	width: 1210px !important;
+	margin-left: -7px !important;
+	float: none !important;
+    overflow:hidden !important;
+}
+
+
+
+.agile_spent_item_title_zoomable:hover {
+    color:#23719F !important;
+    
+}
+
+.agile_spent_item_title {
+	margin-bottom: 12px;
+	margin-left: 38px;
+}
+
+	.agile_spent_item_title h3 {
+		display: inline;
+	}
+
+.agile_spent_item_title_newTrello {
+	width: 500px !important;
+}
+
+.agile-card-listitem {
+	padding-right: 8px !important;
+}
+
+.agile-lineitem_newTrello {
+	line-height: 26px !important;
+}
+
+.agile-card-background {
+	background-color: #F0F0F0 !important;
+}
+
+td.agile_cell_drilldown {
+	padding: 3px !important;
+	white-space: nowrap !important;
+	border: 0px !important;
+	vertical-align: top !important;
+    padding-right:10px !important;
+}
+
+.agile_nowrap {
+    white-space: nowrap !important;
+}
+
+
+.agile_pivotCell {
+    text-align:center;
+    background-color: white;
+    padding-right:7px !important;
+    padding-left:7px !important;
+}
+
+.agile_pivotCell_Zero {
+    color: white;
+}
+
+.agile_hoverZoom:hover {
+    background:#F6F7F8 !important;
+    color: black !important;
+}
+
+.agile_pivotFirstCol{
+    text-align:left;
+    background-color:#D0D0D0;
+}
+
+.agile_header_pivot {
+    background-color:#D0D0D0;
+}
+
+.agile_table_pivot tr td {
+    border:1px solid #CAD1D8;
+}
+
+.agile_table_pivot tr th {
+    border:1px solid #CAD1D8;
+    color: #393939 !important;
+}
+
+.agile_table_pivot {
+    border:1px solid #D1D7DD;
+    font-size: 14px;
+}
+
+th.agile_drill_th {
+	white-space: nowrap !important;
+	text-align: left !important;
+	padding: 1px !important;
+	border: none !important;
+	color: #393939 !important;
+    min-width:30px !important;
+    padding-right:5px !important;
+}
+
+th.agile_drill_th_extend {
+	width: 100% !important;
+}
+
+
+.agile_drilldown_select {
+	cursor: pointer;
+	float: right;
+	font-size: 15px;
+    margin-left:10px;
+    margin-right:10px;
+}
+
+.agile_drilldown_h {
+	margin-top: 0px;
+	text-align: center;
+	color: #393939 !important;
+	font-size: 16px !important;
+    font-weight:bold !important;
+    display: inline !important;
+    padding-right:10px;
+}
+
+.agile-drilldown-header {
+	background-color: #D0D0D0 !important;
+	color: #393939 !important;
+	line-height: 20px !important;
+}
+
+.agile-drilldown-row {
+	background: #E8EBEE;
+}
+
+.agile-drilldown-row:hover {
+		background-color: #F8F8F8 !important;
+	}
+
+.agile-drilldown-row-toggle {
+	background: #FFFFCC !important;
+}
+
+.agile-drilldown-row-toggle:hover {
+		background-color: white !important;
+	}
+
+.agile-drilldown-row-error {
+	background: #E17575;
+}
+
+.agile-drilldown-row-error:hover {
+		background-color: white !important;
+	}
+
+.agile_selection_totals {
+    margin-left:60px;
+}
+
+.agile-card-background-header {
+	background-color: #D0D0D0 !important;
+    white-space: nowrap !important;
+}
+
+.agile-card-statrow-data {
+    white-space: nowrap !important;
+}
+
+.agile_card_report_link {
+    margin-left: 40px;
+    display: block;
+    margin-bottom:2px;
+    width:10em;
+}
+
+.agile-se-bar-table {
+	border: 0px !important;
+	padding: 0px !important;
+	margin: 0px !important;
+}
+
+table#idTableSpentItemsHome {
+	border: none !important;
+}
+
+table#idTableSpentItemsHome td {
+		border: none !important;
+	}
+
+table#tableMarkers {
+	padding: 0px;
+	margin: 0px;
+	//border: 1px solid lightgrey;
+}
+
+table#tableMarkers th {
+		font-size: 12px;
+		padding: 7px;
+		//border: 1px solid lightgrey;
+	}
+
+table#tableMarkers td {
+		font-size: 12px;
+		padding: 7px;
+		margin: 0px;
+		//border: 1px;
+	}
+
+.agile-se-stats {
+	border: 1px !important;
+	width: 200px;
+	margin-bottom: 10px !important;
+	margin-left: 40px !important;
+}
+
+.agile-card-statrow {
+	line-height: 0.7em !important;
+}
+
+.agile-spent-icon-cardtimer {
+	width: 14px;
+	height: 14px;
+	margin-right: 6px;
+	margin-left: 2px;
+	margin-bottom: -1px;
+}
+
+.agile-spent-icon-shifted {
+	width: 22px;
+	height: 22px;
+	margin-right: 12px;
+	margin-left: -25px;
+	margin-bottom: -5px;
+}
+
+.agile-spent-icon-header {
+	width: 22px;
+	height: 22px;
+	margin-right: 2px;
+	margin-left: -2px;
+	margin-bottom: -6px;
+    cursor:help !important;
+}
+
+.agile-spent-icon-header_cardwindow {
+    float:right;
+}
+
+.agile-icon-new-header {
+	margin-bottom: -6px;
+    margin-right: 2px;
+}
+
+.agile_maincontent_margin {
+	margin-left: 0px !important;
+	width: 1300px !important;
+}
+
+
+.agile_plus_header_link {
+	text-decoration: none !important;
+	padding: 2px !important;
+	border-radius: 3px !important;
+	color: #f3f3f3 !important;
+	vertical-align: top !important;
+	font-size: 9px !important;
+}
+
+.agile_plus_header_link:hover {
+	background-color: #E0E0E0 !important;
+	color: #444 !important;
+}
+
+.agile_tour_link_mini {
+    text-decoration: none !important;
+	padding: 2px !important;
+    margin-right:8px !important;
+	border-radius: 3px !important;
+	vertical-align: top !important;
+	font-size: 10px !important;
+    font-weight:bold !important;
+    color:#393939 !important;
+    cursor: pointer !important;
+}
+
+.agile_tour_link_mini:hover {
+		background-color: #E0E0E0 !important;
+		color: #888 !important;
+	}
+
+
+
+.agile_plus_header_link_zoomhover {
+    -webkit-transition-timing-function: ease-in;
+    -webkit-transition-duration: 100ms;
+}
+
+.agile_plus_header_link_zoomhoverActive {
+		font-size: 11px !important;
+	}
+
+#agile_divSearch_container {
+    width:100%;
+    padding-left:6px;
+    padding-top:3px;
+}
+
+#agile_boardSearch {
+    padding:2px;
+    width:230px;
+    border-radius: 3px;
+    border: 1px solid #318ec4;
+}
+
+.agile_board_dashboardItem_name {
+    font-weight: bold;
+    font-size:14px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+    margin-bottom: 3px;
+}
+
+.agile_board_dashboardItem_row2 {
+    padding-right:5px;
+    color:rgba(0,0,0,0.45);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    display: inline-block;
+}
+
+.agile_board_dashboardItem_row2_fixWidth {
+        width:16em;
+}
+
+.agile_board_dashboardItem_nameCard {
+    font-weight: normal !important;
+}
+
+.agile_board_dashboardItem {
+    margin:5px;
+    height:30px;
+    border: none;
+    background-color: #E6EFF4;
+    border-radius: 3px;
+    cursor: pointer;
+    padding:8px;
+    padding-top:5px;
+    vertical-align:middle;
+    color:#393939;
+}
+
+.agile_board_dashboardItem_Card {
+    background-color: #FFFFFF;
+}
+
+.agile_board_dashboardItem_Card:hover {
+    background-color: #F2F2F2 !important;
+}
+
+.agile_board_dashboardItem_Card:focus {
+    background-color: #F2F2F2 !important;
+}
+
+.agile_board_dashboardItem:hover {
+    background-color: #CFE0EA;
+}
+
+.agile_board_dashboardItem:focus {
+    background-color: #CFE0EA;
+}
+
+.agile_board_dashboardItem img {
+    opacity: 0.1;
+}
+
+.agile_noOpacity {
+    opacity: 1 !important;
+}
+
+.agile_noOpacity:hover {
+     opacity: 1 !important;
+}
+
+.agile_board_dashboardItem img:hover{
+    opacity: 0.7;
+}
+
+.agile_img_popup {
+    float:right;
+    margin-left:3px;
+    margin-right:3px;
+    margin-top:-3px;
+}
+
+.agile_img_boardheader {
+    float:right;
+    margin-right:14px;
+    margin-top:8px;
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.agile_img_boardheader:hover {
+    opacity: 1;
+}
+
+.agile_link_noUnderline {
+     text-decoration: none !important;
+}
+
+.agile_link_noUnderline:hover {
+     text-decoration: underline !important;
+}
+
+.agile_all_button {
+	float: left;
+	width: 35px;
+	min-width: 35px !important;
+	padding-left: 1px !important;
+	padding-right: 1px !important;
+	margin-left: 0px !important;
+	margin-right: 5px !important;
+	text-align: center !important;
+}
+
+.agile-spent-icon-cardcommentSE {
+	width: 14px !important;
+	height: 14px !important;
+	margin-right: 19px;
+	margin-left: 18px;
+	margin-bottom: -4px;
+}
+
+.agile_plus_addCardSE {
+	width: 100%;
+	border: 0px !important;
+	border-width: 0px !important;
+	margin: 0px !important;
+	margin-top: 6px !important;
+	margin-bottom: 6px !important;
+	padding: 0px !important;
+}
+
+.agile_tablecellItem {
+	border: 0px !important;
+	border-width: 0px !important;
+	margin: 0px !important;
+	padding: 0px !important;
+	padding-right: 3px !important;
+	vertical-align: middle;
+}
+
+.agile_tablecellItemLast {
+	border: 0px !important;
+	border-width: 0px !important;
+	margin: 0px !important;
+	padding: 0px !important;
+	vertical-align: middle;
+}
+
+.agile_users_box_input {
+	text-align: center !important;
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 14px !important;
+	//padding: 1px !important;
+	background-color: white !important;
+	width: 60px;
+	height: 22px;
+	display: inline !important;
+	-webkit-appearance: none;
+}
+
+.agile_days_box_input {
+	text-align: center !important;
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 14px !important;
+	//padding: 1px !important;
+	background-color: white !important;
+	width: 30px;
+	height: 22px;
+	display: inline !important;
+	-webkit-appearance: none;
+	border-color: #BFBFBF !important;
+	border-radius: 3px !important;
+}
+
+.agile_users_combo_element {
+	background-color: #5188A8 !important;
+}
+
+.agile_weeks_combo_element {
+    background-color: #5188A8 !important;
+}
+
+.agile_users_combo_element_disabled {
+	color: #5188A8 !important;
+}
+
+.agile_card_error {
+	background-color: #FF00FF !important;
+}
+
+.agile_users_combo {
+	text-decoration: none !important;
+	padding: 0px !important;
+	color: #f3f3f3 !important;
+	vertical-align: top !important;
+	font-size: 9px !important;
+	text-align: center !important;
+	margin-top: 4px !important;
+	margin-bottom: 0px !important;
+	background: rgba(255,255,255,0) !important;
+	width: 35px;
+	height: 18px;
+	min-height: 18px !important;
+	display: inline !important;
+	-webkit-appearance: none;
+	border-color: rgba(255,255,255,0) !important;
+	border-radius: 3px !important;
+}
+
+.agile_bubbleArrow {
+    font-size:1.4em;
+    cursor:pointer;
+    -webkit-transform-origin: 50% 50%;
+    text-align:center;
+    vertical-align:top;
+}
+
+.agile_bubbleClose {
+    font-size:1.4em;
+    cursor:pointer;
+    margin-left:0.7em;
+    margin-right:0.7em;
+    text-align:center;
+    vertical-align:top;
+
+}
+
+.agile_bubble_helptext {
+    font-size:85%;
+}
+
+.agile_bubbleClose_bottom {
+    margin-top:0.5em;
+   vertical-align:bottom !important;
+}
+
+.agile_ballonBody {
+    cursor:default;
+}
+
+.agile_rotated {
+    -webkit-transform: rotate(-180deg)  !important;
+}
+
+.agile_weeks_combo {
+	text-decoration: none !important;
+	padding: 0px !important;
+	color: #f3f3f3 !important;
+	vertical-align: top !important;
+	font-size: 12px !important;
+    font-weight:bold !important;
+	text-align: right !important;
+	margin-top: 4px !important;
+	margin-bottom: 0px !important;
+	margin-right: 0px !important;
+    padding-right: 0px !important;
+	background: rgba(255,255,255,0) !important;
+	width: 6em;
+	height: 20px;
+	display: inline !important;
+	-webkit-appearance: none;
+	border-width: 1px !important;
+    border-radius: 3px !important;
+    border-color: rgba(255,255,255,0) !important;
+}
+
+.agile_weeks_combo:hover {
+		border-color: #F0F0F0 !important;
+}
+.agile_tour_link {
+    margin-right:3px;
+    cursor: pointer;
+}
+
+::-webkit-input-placeholder {
+    color:    #C7C7C7 !important;
+    font-style:italic !important;
+    font-size: 0.8em !important;
+}
+
+.agile_spent_box_input {
+	text-align: center !important;
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 10px !important;
+	padding: 1px !important;
+	background-color: #FFFAFA !important;
+	width: 40px;
+	display: inline !important;
+}
+
+.agile_estimation_box_input {
+	text-align: center !important;
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 10px !important;
+	padding: 1px !important;
+	background-color: #FAFAFF !important;
+	width: 40px;
+	display: inline !important;
+}
+
+
+.agile_comment_box_input {
+	display: inline !important;
+	padding: 1px !important;
+	padding-left: 4px !important;
+	margin: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 10px !important;
+	width: 100% !important;
+	background-color: white !important;
+}
+
+.agile_enter_box_input {
+	display: inline !important;
+	padding: 0px !important;
+	padding-left: 2px !important;
+	padding-right: 2px !important;
+	margin: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 10px !important;
+	background-image: none !important;
+	background: none !important;
+	background-color: #D0D0D0 !important;
+	border: 1px !important;
+}
+
+.agile_box_input_hilite {
+	background-color: yellow !important;
+    color:black !important;
+}
+
+.agile_box_more_hilite {
+	background-color: #F0F0F0 !important;
+    color: #444 !important;
+}
+
+.agile_all_pressed {
+	//color: white !important;
+	//font-size: 9px !important;
+}
+
+.agile_all_unpressed {
+	//color: white !important;
+	//font-size: 9px !important;
+}
+
+.agile_timer_icon_small {
+	margin-left: 4px;
+	width: 14px;
+	width: 14px;
+}
+
+
+.agile_sync_state {
+	background-color: #266F99 !important;
+    color: #f3f3f3 !important;
+}
+
+.agile_sync_state:hover {
+	background-color: #266F99 !important;
+    color: #f3f3f3 !important;
+}
+
+.agile_report_tabselector {
+ text-decoration: none;
+ color: #C1DAEB;
+ font-size:14px !important;
+ font-weight:bold;
+ padding:5px;
+ padding-right:15px;
+ padding-left:15px;
+}
+
+.agile_report_tabselector:hover {
+    //color:#D3AB33;
+    color: #4088AC !important;
+}
+
+.agile_report_tabselector_selected {
+ color:black;
+}
+
+.agile_report_tabselector_selected:hover {
+    color:black !important;
+    cursor:default;
+}
+
+.agile_tabselector_list {
+    margin-bottom:0px;
+    margin-top:10px;
+}
+
+.agile_tabselector_list table tr {
+    border: solid transparent;
+}
+
+
+.agile_urlUser {
+	color: #f3f3f3 !important;
+    padding: 0px !important;
+    margin: 0px !important;
+}
+
+
+.agile_urlUserTable {
+    display:inline-table !important;
+    border: none !important;
+    font-size: 9px;
+    border-radius: 3px !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    margin: 0px  !important;
+    margin-bottom:2px !important;
+    margin-top:2px !important;
+    width:auto  !important;
+    line-height: 1em  !important;
+    padding: 1px !important;
+    vertical-align:middle !important;
+    margin-top: 0em !important;
+    cursor: pointer !important;
+}
+
+.agile_urlUserTable:hover {
+	background-color: #E0E0E0 !important;
+	color: #444 !important;
+}
+
+.agile_urlUserTable tbody {
+    background-color: transparent !important;
+    vertical-align:middle !important;
+}
+
+.agile_urlUserTable tbody tr {
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding: 0px !important;
+    vertical-align:middle !important;
+}
+
+.agile_urlUserTable tbody tr td {
+    border: none !important;
+    border-top: none !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    padding-top: 0px !important;
+    padding-bottom: 0px !important;
+    padding-left: 4px !important;
+    padding-right: 4px !important;
+    text-align:center !important;
+    vertical-align:middle !important;
+    font-weight:700 !important;
+}
+
+.agile_tabselector_list table tr td {
+    border: solid transparent;
+    border-top-left-radius:5px;
+    border-top-right-radius:5px;
+    border-bottom: solid 1px #BBBBBB;
+    border-top: 1px;
+    border-left: 1px;
+    border-right: 1px;
+    white-space: nowrap !important;
+    background:#F9FCFE;
+    padding-left:0px;
+    padding-right:0px;
+    border-top:solid 1px #F5F8FA;
+    border-left:solid 1px #F5F8FA;
+    border-right:solid 1px #F5F8FA;
+}
+
+
+.agile_tab_first {
+     /*border-left: 0px !important; */
+}
+
+.agile_tabselector_list table tr td:hover {
+        background: #F5F8FA;
+}
+
+.agile_tab_dummyLast {
+    background:white !important;
+    border-top:none !important;
+    border-left:none !important;
+    border-right:none !important;
+}
+
+.agile_tab_dummyLast:hover {
+    background:white !important;
+}
+
+.agile_tabcell_selected {
+    border-top:solid 1px #BBBBBB !important;
+    border-left:solid 1px #BBBBBB !important;
+    border-right:solid 1px #BBBBBB !important;
+    border-bottom: solid 1px #E8EBEE !important;
+    background: #E8EBEE !important;
+}
+
+.agile_report_filters {
+	//margin-bottom: 30px;
+}
+
+.agile_report_filter_label {
+    margin-top: 6px !important;
+}
+
+.agile_report_container {
+	margin-bottom: 0px;
+}
+
+.agile_toplevel_report_container {
+	font-family: arial !important;
+	font-size: 12px !important;
+}
+
+.agile_report_filter {
+	margin-right: 3px;
+    margin-bottom: 0px !important;
+    margin-top: 0px !important;
+	display: inline-block;
+}
+
+.agile_report_filter_group {
+    margin-top: 0px !important;
+	display: inline-block;
+}
+
+#agile_reload_page {
+    font-weight:normal !important;
+    display:none;
+    float:right;
+    margin-right:2em;
+    color:darkgreen;
+}
+
+#agile_title_header_report {
+    font-weight: bold;
+    font-size: 14px;
+}
+
+.agile_report_filter p {
+		margin: 0px;
+		margin-top: 0px;
+        margin-bottom: 0px;
+	}
+
+.agile_report_filter_input_short {
+	width: 78px;
+}
+
+.agile_report_filter_input_long {
+	width: 90px;
+}
+
+
+.agile_arrow_title {
+    cursor: pointer !important;
+    display:table !important;
+    margin-top:0px;
+    margin-bottom:0px;
+}
+
+.agile_arrow_container {
+   margin-top:0.7em;
+   margin-bottom:0px;
+}
+
+.agile_arrow_closed p:before {
+	content: "►";
+}
+
+.agile_arrow_opened p:before {
+	content: "▼";
+}
+
+.agile_busy {
+    cursor: wait !important;
+}
+
+.agile_notbusy {
+    cursor: default !important;
+}
+
+.agile_format_under {
+    width:50px;
+    text-align:center;
+    margin:0px;
+}
+
+.agile_format_over {
+    width:50px;
+    text-align:center;
+    margin:0px;
+}
+
+.agile_colorpicker {
+    padding: 0px !important;
+    border: none;
+    height: 22px;
+    width: 25px;
+    vertical-align: top;
+    background: #E8EBEE;
+    margin-top:1px;
+}
+
+.agile_timer_running {
+    background: #BBD0DB !important;
+    color: #4F4F4F !important;
+}
+
+.agile-open-card-composer {
+    text-decoration:none;
+    color:#939393;
+    padding-left: 10px;  /* increase click area */
+    padding-right: 10px;
+    padding-bottom:3px;
+    padding-top:2px;
+    border-radius:2px;
+    vertical-align:middle;
+}
+
+.agile-open-card-composer:hover {
+    color:#222;
+    font-weight:bold;
+    background: #C3C3C3;
+}
+
+.agile_timer_button_popup {
+    border-radius: 3px;
+    width:9em;
+    border:1px solid #d6d6d6;
+    height:2em;
+    white-space:nowrap;
+    font:14px "Helvetica Neue",Arial,Helvetica,sans-serif;
+    font-weight:bold;
+    color:#444;
+    cursor:pointer;
+}
+
+.agile_toc_link {
+     margin-bottom: 15px !important;
+}
+
+.agile_new_report_items:link {
+    color: #D64141 !important;
+}
+
+.agile_new_report_items:visited {
+    color: #D64141 !important;
+}
+
+.agile_new_report_items:hover {
+    color: #D64141 !important;
+}
+
+.agile_new_report_items:active {
+    color: #D64141 !important;
+}
+
+.agile_popup_topLinks:link {
+    color: black;
+}
+
+.agile_popup_topLinks:visited {
+    color: black;
+}
+
+.agile_popup_topLinks:hover {
+    color: black;
+}
+
+.agile_popup_topLinks:active {
+    color: black;
+}
+
+.agile_disabled_color {
+    color: gray !important;
+}

@@ -1,0 +1,231 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Report- Plus</title>
+    <link href="css/style.css" rel="stylesheet" type="text/css">
+    <link href="css/tooltip.css" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
+    <script type="text/javascript" src="libs/jquery.min.js"></script>
+    <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
+    <script type="text/javascript" src="shared.js"></script>
+    <script type="text/javascript" src="report.js"></script>
+</head>
+<body style="font-family: arial; font-size: 16px;margin-bottom:0px;margin-top:5px;overflow:hidden">
+    <div id="divMain" style="margin:0;padding:0;display:none">
+        <iframe id="remember" name="remember" class="agile_hidden" src="about:blank"></iframe>
+        <div class="agile_toplevel_report_container">
+            <div id= "report_top_section" align="center" style="margin-bottom:10px;">
+                <div style="width:100%" id="agile_title_header_report">
+                <span>Report - Plus</span>
+                <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
+                <a style="float:right;text-decoration:none;cursor:help;" href="http://plusfortrello.blogspot.com/2014/04/plus-for-trello-custom-report.html" target="_blank">Reports Help</A>&nbsp;
+                    <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
+                </div>
+                <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
+                <img src="" style="display:none;" class="agile_img_popup" id="backImg" title='Back' />
+            </div>
+            <div class="agile_report_filters">
+                <div class="agile_report_filter">
+                    <p style="margin-right: 0px;">
+                        <input style="vertical-align: middle; margin: 0px; padding:0px;" type="checkbox" value="checked" id="checkNoCrop"/>
+                        <label for="checkNoCrop">No Crop</label>
+                    </p>
+                    <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
+                </div>
+                <div title="Note: grouping only affects the Report tab" class="agile_report_filter agile_groupby_report_section">
+                    <p class="agile_report_filter_label">Group by</p>
+                    <select id="groupBy">
+                        <option value="">None</option>
+                        <option value="idBoardH">Board</option>
+                        <option value="idBoardH-nameList">Board-List</option>
+                        <option value="idBoardH-user">Board-User</option>
+                        <option value="idCardH">Card</option>
+                        <option value="idCardH-user">Card-User</option>
+                        <option value="user">User</option>
+                        <option value="dateString">Date</option>
+                        <option value="dateString-user">Date-User</option>
+                        <option value="dateString-idBoardH">Date-Board</option>
+                        <option value="dateString-idCardH">Date-Card</option>
+                    </select>
+                </div>
+                <div class="agile_report_filter">
+                    <p class="agile_report_filter_label">Pivot by</p>
+                    <select id="pivotBy">
+                        <option value="month">Month</option>
+                        <option value="">Week</option>
+                        <option value="day">Day</option>
+                    </select>
+                </div>
+                <div class="agile_report_filter agile_orderby_report_section">
+                    <p class="agile_report_filter_label">Order by</p>
+                    <select id="orderBy">
+                        <option value="date">Date</option>
+                        <option value="remain" title="This will also remove all zero R.">R</option>
+                        <option value="spent">S</option>
+                        <option value="est">E</option>
+                        <option value="user">User</option>
+                        <option value="nameBoard">Board</option>
+                        <option value="nameCard">Card</option>
+                    </select>
+                </div>
+                <div class="agile_report_filter" id="groupDateSimple">
+                    <p class="agile_report_filter_label">Since</p>
+                    <select id="sinceSimple">
+                        <option value="d-1">today</option>
+                        <option value="d-2">2 days</option>
+                        <option value="d-3">3 days</option>
+                        <option value="d-4">4 days</option>
+                        <option value="d-5">5 days</option>
+                        <option value="d-6">6 days</option>
+                        <option value="d-7">7 days</option>
+                        <option value="w-1">this week</option>
+                        <option value="w-2">2 weeks</option>
+                        <option value="w-3">3 weeks</option>
+                        <option value="w-4">4 weeks</option>
+                        <option value="w-5">5 weeks</option>
+                        <option value="w-10">10 weeks</option>
+                        <option value="w-15">15 weeks</option>
+                        <option value="w-53">53 weeks</option>
+                        <option value="">all</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+                <div class="agile_report_filter_group" id="groupDateAdvanced">
+                    <form title="Examples:
+2014
+2014-W12" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder=" begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
+                    </form>
+                    <form title="Examples:
+2014
+2014-W15" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
+                    </form>
+                    <form title="Examples:
+2014
+2014-02" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Month start</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
+                    </form>
+                    <form title="Examples:
+2014
+2014-07" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Month end</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
+                    </form>
+                </div>
+                <div class="agile_report_filter" title="To find NOT containing, start with !">
+                    <p class=" agile_report_filter_label">User</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="user" name="user" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter" title="To find NOT containing, start with !">
+                    <p class=" agile_report_filter_label">Board</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="board" name="board" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+Example: !doing finds history on cards with lists not containing 'doing'">
+                    <p class="agile_report_filter_label">List</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="list" name="list" /><input type="submit" class="agile_hidden" />
+                </div>
+                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !
+Example: !#low finds cards without a '#low' hashtag">
+                    <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
+                </form>
+                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !">
+                    <p class="agile_report_filter_label">Note</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="comment" name="comment" /><input type="submit" class="agile_hidden" />
+                </form>
+                <div class="agile_report_filter" title="Filter by changed estimate.
+
+ALL: No E-type filter.
++E: filters on rows that increased the card estimate for the user reporting that row.
+-E: filters on rows that decreased it
+NEW: filters on rows with a new estimate (1ˢᵗ estimate on the card reported per user.)">
+                    <p class="agile_report_filter_label">E.type</p>
+                    <select id="eType">
+                        <option value="all">ALL</option>
+                        <option value="eincr">+E</option>
+                        <option value="edecr">-E</option>
+                        <option value="enew">NEW</option>
+                    </select>
+                </div>
+
+                <div style="display:none"  class="agile_report_filter" title="Filter by archived card, list or board.">
+                    <p class="agile_report_filter_label">Archived</p>
+                    <select id="archived">
+                        <option value="">All</option>
+                        <option value="1">Archived</option>
+                        <option value="0">Not Archived</option>
+                    </select>
+                </div>
+
+                <div style="display:none" class="agile_report_filter" title="Filter by deleted card.">
+                    <p class="agile_report_filter_label">Deleted</p>
+                    <select id="deleted">
+                        <option value="-1">All</option>
+                        <option value="1">Deleted</option>
+                        <option value="0" selected="selected">Not Deleted</option>
+                    </select>
+                </div>
+
+                <div style="display:none" class="agile_report_filter" title="Leave blank to show all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink"><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank to show all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink"><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
+                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="Show only rows after this row number.
+Leave blank to display all.">
+                    <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />
+                </form>
+            </div>
+            <div id="tabs" style="background: #E8EBEE;padding:0px;">
+                <div class="agile_tabselector_list" style="background: white;">
+                    <table border="0" style="border-spacing: 0;" cellpadding="5">
+                        <tr>
+                            <td class="agile_tab_first">
+                                <a href="#tabs-0" class="agile_report_tabselector">Report</a>
+                            </td>
+                            <td>
+                                <a href="#tabs-1" class="agile_report_tabselector">Spent By User</a>
+                            </td>
+                            <td>
+                                <a href="#tabs-2" class="agile_report_tabselector">Spent By Board</a>
+                            </td>
+                            <td style="width:100%" class="agile_tab_dummyLast"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="tabs-0" style="display:none;padding-top:6px;" class="agile_report_container agile_report_tab"></div>
+                <div id="tabs-1" style="display: none;" class="agile_report_tab">
+                    <div class="agile_format_container">
+                        <span title="Leave blank to remove format.">under </span>
+                        <input class="agile_format_under" type="number" title="Leave blank to remove format." />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Click to change color." value="#E8EBEE" />
+                        <span title="Leave blank to remove format." style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" title="Leave blank to remove format." />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Click to change color." value="#E8EBEE" />
+                        <select class="agile_report_optionsFormat" style="margin-left: 15px;">
+                            <option value="smooth" title="note: current week always ignores 'under' format.">Smooth format</option>
+                            <option value="strict" title="note: current week always ignores 'under' format.">Strict format</option>
+                            <option value="off">No format</option>
+                        </select>
+                        <img class="agile_drilldown_select agile_fixed" />
+
+                    </div>
+                    <div class="agile_report_container_byUser agile_report_containerScroll" style="overflow: auto;"></div>
+                </div>
+                <div id="tabs-2" style="display: none;" class="agile_report_tab">
+                    <div class="agile_format_container">
+                        <span title="Leave blank to remove format.">under </span>
+                        <input class="agile_format_under" type="number" title="Leave blank to remove format." />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Click to change color." value="#E8EBEE" />
+                        <span title="Leave blank to remove format." style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" title="Leave blank to remove format." />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Click to change color." value="#E8EBEE" />
+                        <select class="agile_report_optionsFormat" style="margin-left: 15px;" title="current week always ignores 'under' format.">
+                            <option value="smooth">Smooth format</option>
+                            <option value="strict">Strict format</option>
+                            <option value="off">No format</option>
+                        </select>
+                        <img class="agile_drilldown_select" />
+                    </div>
+                    <div class="agile_report_container_byBoard agile_report_containerScroll" style="overflow: auto;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>	

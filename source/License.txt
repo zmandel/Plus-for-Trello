@@ -1,0 +1,3 @@
+﻿Plus for Trello (the "software") is open source, licenced under the GNU GENERAL PUBLIC LICENSE, http://www.gnu.org/licenses/gpl-3.0.txt
+Copyright (c) 2013 Zig Mandel <zmandel@gmail.com>
+This software started based on the chrome extension "Trello 3000" by Tudor Munteanu, but it no longer uses a substancial portion of that source code.
