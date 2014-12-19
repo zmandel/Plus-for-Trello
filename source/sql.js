@@ -3,6 +3,7 @@ var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var g_bAcceptSFT = false;
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
+var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
 
 function isDbOpened() {
     if (typeof (g_db) == "undefined") //in case its called from a global object
@@ -17,7 +18,7 @@ function testResetVersion() {
     alert("changing sql db version.");
     var db = g_db;
     var versionCur = parseInt(db.version,10) || 0;
-    db.changeVersion(versionCur, 15);
+    db.changeVersion(versionCur, 19);
 }
 
 function notifyTruncatedSyncState(msgErr) {
@@ -822,10 +823,12 @@ function loadBackgroundOptions(callback) {
     var keybEnableTrelloSync = "bEnableTrelloSync";
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
+    var keyUnits = "units";
     assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
 
-    chrome.storage.sync.get([SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment],
+    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment],
                              function (objSync) {
+                                 UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
@@ -849,6 +852,7 @@ function insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet) {
 }
 
 function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTrelloComments) {
+    assert(g_db);
 	var i = 0;
 	var cProcessedTotal = 0;
 	var cInsertedTotal = 0;
@@ -1359,126 +1363,139 @@ function convertDowStart(dowStart,sendResponse, response) {
 var g_bOpeningDb = false;
 
 function handleOpenDB(options, sendResponseParam, cRetries) {
-    var db = null;
-    var bDidSetOpening = false;
 
-    if (cRetries === undefined)
-        cRetries = 10;
+    loadBackgroundOptions(function () {
+        handleOpenDBWorker(options, sendResponseParam, cRetries);
+    });
 
-    if (g_bOpeningDb) {
-        cRetries--;
-        if (cRetries < 0) {
-            sendResponseParam({ status: "error: database busy, try later." });
+    function handleOpenDBWorker(options, sendResponseParam, cRetries) {
+        var db = null;
+        var bDidSetOpening = false;
+
+        if (cRetries === undefined)
+            cRetries = 10;
+
+        if (g_bOpeningDb) {
+            cRetries--;
+            if (cRetries < 0) {
+                sendResponseParam({ status: "error: database busy, try later." });
+                return;
+            }
+            setTimeout(function () {
+                handleOpenDB(options, sendResponseParam, cRetries);
+            }, 2000);
             return;
         }
-        setTimeout(function () {
-            handleOpenDB(options, sendResponseParam, cRetries);
-        }, 2000);
-        return;
-    }
 
-    if (g_db != null) {
-        handleGetTotalRows(false, sendResponse, true);
-        return;
-    }
-
-    g_bOpeningDb = true; //prevent timing situations (mostly while debugging with breakpoints in background page) where the db might be partially open yet we allow opening the partial cache from another opendb call
-    bDidSetOpening = true; //remember it was us
-
-    function finalResponse(thisResponse) {
-        if (thisResponse.status == STATUS_OK) {
-            if (db) //db null returning the cache
-                g_db = db; //cache forever
-        }
-        else if (g_db && g_db == db) //review zig ideally we should store the cache above only but there are dependencies with g_db used within funcions called that expect g_db set
-            g_db = null; //on error clear the cache that we set just before.
-        if (bDidSetOpening)
-            g_bOpeningDb = false;
-        updatePlusIcon();
-        sendResponseParam(thisResponse);
-    }
-
-    function sendResponse(thisResponse) {
-        if (thisResponse.status != STATUS_OK) {
-            finalResponse(thisResponse);
+        if (g_db != null) {
+            handleGetTotalRows(false, sendResponse, true);
             return;
         }
-        //wrapper to handle db conversion on dowStart mismatch
-        //review zig: currently called also when g_db is already cached. when fixed, consider case where this fails (thisResponse.status)
-        var sql = "select dowStart FROM GLOBALS LIMIT 1";
-        var request = { sql: sql, values: [] };
-        handleGetReport(request,
-            function (response) {
-                if (response.status == STATUS_OK && response.rows && response.rows.length == 1) {
-                    var dowStart = response.rows[0].dowStart;
-                    if (!(dowStart === undefined || dowStart < 0 || dowStart > 6)) {
-                        if (options && typeof (options.dowStart) == "number" && (options.dowStart != dowStart)) {
-                            convertDowStart(options.dowStart, finalResponse, thisResponse);
-                            return;
-                        }
-                        else {
-                            DowMapper.setDowStart(dowStart); //init background version of the global
-                            thisResponse.dowStart = dowStart;
-                            finalResponse(thisResponse);
-                            return;
-                        }
-                        assert(false); //should never get here
+
+        g_bOpeningDb = true; //prevent timing situations (mostly while debugging with breakpoints in background page) where the db might be partially open yet we allow opening the partial cache from another opendb call
+        bDidSetOpening = true; //remember it was us
+
+        function finalResponse(thisResponse) {
+            if (thisResponse.status == STATUS_OK) {
+                if (db) {//db null returning the cache
+                    g_db = db; //cache forever
+                    if (localStorage[LS_KEY_detectedErrorLegacyUpgrade]) {
+                        handleShowDesktopNotification({
+                            notification: "Plus detected a migration error. 'Reset sync' from Utilities in Plus help to recover missing legacy S/E rows.",
+                            timeout: 40000
+                        });
                     }
                 }
-                if (response.status == STATUS_OK)
-                    thisResponse.status = "error";
-                finalResponse(thisResponse);
-            },
-            true);
-        return;
-    }
+            }
+            else if (g_db && g_db == db) //review zig ideally we should store the cache above only but there are dependencies with g_db used within funcions called that expect g_db set
+                g_db = null; //on error clear the cache that we set just before.
+            if (bDidSetOpening)
+                g_bOpeningDb = false;
+            updatePlusIcon();
+            sendResponseParam(thisResponse);
+        }
 
-    function PreHandleGetTotalRows(response) {
-        if (response.status !=STATUS_OK) {
-            sendResponse(response);
+        function sendResponse(thisResponse) {
+            if (thisResponse.status != STATUS_OK) {
+                finalResponse(thisResponse);
+                return;
+            }
+            //wrapper to handle db conversion on dowStart mismatch
+            //review zig: currently called also when g_db is already cached. when fixed, consider case where this fails (thisResponse.status)
+            var sql = "select dowStart FROM GLOBALS LIMIT 1";
+            var request = { sql: sql, values: [] };
+            handleGetReport(request,
+                function (response) {
+                    if (response.status == STATUS_OK && response.rows && response.rows.length == 1) {
+                        var dowStart = response.rows[0].dowStart;
+                        if (!(dowStart === undefined || dowStart < 0 || dowStart > 6)) {
+                            if (options && typeof (options.dowStart) == "number" && (options.dowStart != dowStart)) {
+                                convertDowStart(options.dowStart, finalResponse, thisResponse);
+                                return;
+                            }
+                            else {
+                                DowMapper.setDowStart(dowStart); //init background version of the global
+                                thisResponse.dowStart = dowStart;
+                                finalResponse(thisResponse);
+                                return;
+                            }
+                            assert(false); //should never get here
+                        }
+                    }
+                    if (response.status == STATUS_OK)
+                        thisResponse.status = "error";
+                    finalResponse(thisResponse);
+                },
+                true);
             return;
         }
-        assert(db);
-        g_db = db; //cache temporarily. might be reverted to null later. review zig: would be best to cache it later only, but there is code afterwards that depends on the global, like handleGetTotalRows
-        insertPendingSERows(function (responseInsertSE) {
-            handleGetTotalRows(false, sendResponse, true); //note we ignore responseInsertSE. failure to insert pending rows shouldnt prevent opening the db. a later sync will insert them before sync starts
-        },
-        true); //allow calling during db opening
-    }
 
-    if (g_callbackOnAssert==null)
-        g_callbackOnAssert = notifyTruncatedSyncState;
+        function PreHandleGetTotalRows(response) {
+            if (response.status != STATUS_OK) {
+                sendResponse(response);
+                return;
+            }
+            assert(db);
+            g_db = db; //cache temporarily. might be reverted to null later. review zig: would be best to cache it later only, but there is code afterwards that depends on the global, like handleGetTotalRows
+            insertPendingSERows(function (responseInsertSE) {
+                handleGetTotalRows(false, sendResponse, true); //note we ignore responseInsertSE. failure to insert pending rows shouldnt prevent opening the db. a later sync will insert them before sync starts
+            },
+            true); //allow calling during db opening
+        }
 
-	db = openDatabase('trellodata', '', 'Trello database', 100 * 1024 * 1024); //100mb though extension asks for unlimited so it should grow automatically.
-	var versionCur = parseInt(db.version,10) || 0;
+        if (g_callbackOnAssert == null)
+            g_callbackOnAssert = notifyTruncatedSyncState;
 
-	var M = new Migrator(db, PreHandleGetTotalRows);
-	//note: use SELECT * FROM sqlite_master to list tables and views in the console.
-	//review zig: if the migration fails, we dont detect it and never call it again. shouldnt fail but its desastrous if it does.
-	//NOTE: remember to update handleDeleteDB and properly use CREATE TABLE IF NOT EXISTS
-	M.migration(1, function (t) {
-		//delete old saved tokens (Before we used chrome.identity)
-		var scopeOld = encodeURI("https://spreadsheets.google.com/feeds/");
-		delete localStorage["oauth_token" + scopeOld];
-		delete localStorage["oauth_token_secret" + scopeOld];
+        db = openDatabase('trellodata', '', 'Trello database', 100 * 1024 * 1024); //100mb though extension asks for unlimited so it should grow automatically.
+        var versionCur = parseInt(db.version, 10) || 0;
 
-		localStorage["rowSsSyncEndLast"] = 0; //reset when creating database
+        var M = new Migrator(db, PreHandleGetTotalRows);
+        //note: use SELECT * FROM sqlite_master to list tables and views in the console.
+        //review zig: if the migration fails, we dont detect it and never call it again. shouldnt fail but its desastrous if it does.
+        //NOTE: remember to update handleDeleteDB and properly use CREATE TABLE IF NOT EXISTS
+        M.migration(1, function (t) {
+            //delete old saved tokens (Before we used chrome.identity)
+            var scopeOld = encodeURI("https://spreadsheets.google.com/feeds/");
+            delete localStorage["oauth_token" + scopeOld];
+            delete localStorage["oauth_token_secret" + scopeOld];
 
-		t.executeSql('CREATE TABLE IF NOT EXISTS BOARDS ( \
+            localStorage["rowSsSyncEndLast"] = 0; //reset when creating database
+
+            t.executeSql('CREATE TABLE IF NOT EXISTS BOARDS ( \
 							idBoard TEXT PRIMARY KEY  NOT NULL, \
 							name TEXT  NOT NULL \
 							)');
 
-		//FOREIGN KEY (idBoard) REFERENCES BOARDS(idBoard) not supported by chrome
-		t.executeSql('CREATE TABLE IF NOT EXISTS CARDS ( \
+            //FOREIGN KEY (idBoard) REFERENCES BOARDS(idBoard) not supported by chrome
+            t.executeSql('CREATE TABLE IF NOT EXISTS CARDS ( \
 							idCard TEXT PRIMARY KEY  NOT NULL, \
 							idBoard TEXT NOT NULL, \
 							name TEXT  NOT NULL \
 							)');
 
-	    //FOREIGN KEY (idCard) REFERENCES CARDS(idCard) not supported by chrome
-	    //NOTE: HISTORY.idCard could be ID_PLUSCOMMAND, in which case the card wont exist in CARDS. consider when joining etc.
-		t.executeSql('CREATE TABLE IF NOT EXISTS HISTORY ( \
+            //FOREIGN KEY (idCard) REFERENCES CARDS(idCard) not supported by chrome
+            //NOTE: HISTORY.idCard could be ID_PLUSCOMMAND, in which case the card wont exist in CARDS. consider when joining etc.
+            t.executeSql('CREATE TABLE IF NOT EXISTS HISTORY ( \
 							idHistory TEXT PRIMARY KEY  NOT NULL, \
 							date INT   NOT NULL, \
 							idBoard TEXT NOT NULL, \
@@ -1491,8 +1508,8 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 							comment TEXT NOT NULL \
 							)');
 
-	    //CARDBALANCE only keeps track of cards with pending balance per user, or balance per user issues (negative Spent, etc)
-		t.executeSql('CREATE TABLE IF NOT EXISTS CARDBALANCE ( \
+            //CARDBALANCE only keeps track of cards with pending balance per user, or balance per user issues (negative Spent, etc)
+            t.executeSql('CREATE TABLE IF NOT EXISTS CARDBALANCE ( \
 							idCard TEXT NOT NULL, \
 							user TEXT NOT NULL, \
 							spent REAL  NOT NULL,\
@@ -1501,59 +1518,59 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 							date INT NOT NULL \
 							)');
 
-	    //these two will be created later, but there are timing issues where they could be used while migration happens.
-        //review zig: establish practice of creating all tables and indexes here, and keep duplicating for migration. except sqlite doesnt support "if not exists" for add column
-		t.executeSql('CREATE TABLE IF NOT EXISTS GLOBALS ( \
+            //these two will be created later, but there are timing issues where they could be used while migration happens.
+            //review zig: establish practice of creating all tables and indexes here, and keep duplicating for migration. except sqlite doesnt support "if not exists" for add column
+            t.executeSql('CREATE TABLE IF NOT EXISTS GLOBALS ( \
 							dowStart INT NOT NULL \
 							)');
 
-		t.executeSql('CREATE TABLE IF NOT EXISTS LOGMESSAGES ( \
+            t.executeSql('CREATE TABLE IF NOT EXISTS LOGMESSAGES ( \
 							date INT NOT NULL, \
 							message TEXT NOT NULL \
 							)');
-	});
+        });
 
 
-	M.migration(2, function (t) {
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByDate ON HISTORY(date DESC)'); //global history
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByCard ON HISTORY(idCard,date DESC)'); //used by sync code when inserting new rows (where it updates idBoard), also for card history
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByUserCard ON HISTORY(user, date DESC)'); //for drilldowns into users history by admins
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByWeekUser ON HISTORY(week,user,date DESC)'); //for weekly report and (date) drill-down
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByBoardUser ON HISTORY(idBoard, date ASC)'); //for board history
-		t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_cardbalanceByCardUserUnique ON CARDBALANCE(idCard, user ASC)'); //for insert integrity
-	});
+        M.migration(2, function (t) {
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByDate ON HISTORY(date DESC)'); //global history
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByCard ON HISTORY(idCard,date DESC)'); //used by sync code when inserting new rows (where it updates idBoard), also for card history
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByUserCard ON HISTORY(user, date DESC)'); //for drilldowns into users history by admins
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByWeekUser ON HISTORY(week,user,date DESC)'); //for weekly report and (date) drill-down
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByBoardUser ON HISTORY(idBoard, date ASC)'); //for board history
+            t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_cardbalanceByCardUserUnique ON CARDBALANCE(idCard, user ASC)'); //for insert integrity
+        });
 
 
-	M.migration(3, function (t) {
-		t.executeSql('ALTER TABLE HISTORY ADD COLUMN bSynced INT DEFAULT 0');  // 0 == ETYPE_NONE
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histBySynced ON HISTORY(bSynced ASC)'); // to quickly find un-synced 
-	});
+        M.migration(3, function (t) {
+            t.executeSql('ALTER TABLE HISTORY ADD COLUMN bSynced INT DEFAULT 0');  // 0 == ETYPE_NONE
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histBySynced ON HISTORY(bSynced ASC)'); // to quickly find un-synced 
+        });
 
 
-	M.migration(4, function (t) {
-		//bug in v2.2 caused bad row ids. fix them.
-		var strFixIds = "UPDATE HISTORY set idHistory='id'||replace(idHistory,'-','') WHERE bSynced=0";
-		t.executeSql(strFixIds, [], null,
-			function (t2, error) {
-				logPlusError(error.message);
-				return true; //stop
-			}
-		);
-	});
+        M.migration(4, function (t) {
+            //bug in v2.2 caused bad row ids. fix them.
+            var strFixIds = "UPDATE HISTORY set idHistory='id'||replace(idHistory,'-','') WHERE bSynced=0";
+            t.executeSql(strFixIds, [], null,
+                function (t2, error) {
+                    logPlusError(error.message);
+                    return true; //stop
+                }
+            );
+        });
 
 
-	M.migration(5, function (t) {
-		t.executeSql('CREATE TABLE IF NOT EXISTS LOGMESSAGES ( \
+        M.migration(5, function (t) {
+            t.executeSql('CREATE TABLE IF NOT EXISTS LOGMESSAGES ( \
 							date INT NOT NULL, \
 							message TEXT NOT NULL \
 							)');
-	});
+        });
 
-	M.migration(6, function (t) {
-		//BOARDMARKERS use rowid to calculate the SUMs for S/E instead of dates so that once a marker is started or stopped and calculated,
-		// it wont be modified by back-reporting (-1d etc)
-		//because rows are never deleted, sqLite will always autoincrement rowids, thus we can filter by them (http://sqlite.org/autoinc.html)
-		t.executeSql('CREATE TABLE IF NOT EXISTS BOARDMARKERS ( \
+        M.migration(6, function (t) {
+            //BOARDMARKERS use rowid to calculate the SUMs for S/E instead of dates so that once a marker is started or stopped and calculated,
+            // it wont be modified by back-reporting (-1d etc)
+            //because rows are never deleted, sqLite will always autoincrement rowids, thus we can filter by them (http://sqlite.org/autoinc.html)
+            t.executeSql('CREATE TABLE IF NOT EXISTS BOARDMARKERS ( \
 							idBoard INT NOT NULL, \
 							dateStart INT NOT NULL, \
 							rowidHistoryStart INT NOT NULL, \
@@ -1568,140 +1585,155 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 							userMarking TEXT NOT NULL \
 							)');
 
-		//dateEnd NULL iff marker is open
-		//index note: would be cool to use sqlite partial indexes so we enforce uniqueness only on open markers, but its not supported in chrome
-		//because the sqlite version in chrome is 3.7.x and partial indexes are supported from 3.8.0 (http://www.sqlite.org/partialindex.html)
-		//currently we manually enforce the unique name on (userMarking, userMarked, nameMarker) WHERE dateEnd IS NULL (open markers)
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByBoard ON BOARDMARKERS(idBoard, userMarking, userMarked, nameMarker, dateEnd)'); //fast finds and row commit
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByUserMarked ON BOARDMARKERS(userMarked, dateEnd)'); //fast finds
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByUserMarking ON BOARDMARKERS(userMarking, dateEnd)'); //fast finds
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByBoard ON CARDS(idBoard, idCard)'); //future fast join/filter by board
-	});
+            //dateEnd NULL iff marker is open
+            //index note: would be cool to use sqlite partial indexes so we enforce uniqueness only on open markers, but its not supported in chrome
+            //because the sqlite version in chrome is 3.7.x and partial indexes are supported from 3.8.0 (http://www.sqlite.org/partialindex.html)
+            //currently we manually enforce the unique name on (userMarking, userMarked, nameMarker) WHERE dateEnd IS NULL (open markers)
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByBoard ON BOARDMARKERS(idBoard, userMarking, userMarked, nameMarker, dateEnd)'); //fast finds and row commit
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByUserMarked ON BOARDMARKERS(userMarked, dateEnd)'); //fast finds
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardmarkersByUserMarking ON BOARDMARKERS(userMarking, dateEnd)'); //fast finds
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByBoard ON CARDS(idBoard, idCard)'); //future fast join/filter by board
+        });
 
-	M.migration(7, function (t) {
-		t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%disconnected port%'");
-		t.executeSql("ALTER TABLE HISTORY ADD COLUMN eType INT");
-		updateAllETypes(t);
-	});
+        M.migration(7, function (t) {
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%disconnected port%'");
+            t.executeSql("ALTER TABLE HISTORY ADD COLUMN eType INT");
+            updateAllETypes(t);
+        });
 
-	M.migration(8, function (t) {
-		t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff");
-		t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserSpent");
-		t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserEst");
-		
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new ON CARDBALANCE(user ASC, diff ASC)'); //for updating rows on insert and verifications
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserSpent_new ON CARDBALANCE(user ASC, spent ASC)'); //for fast reports
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserEst_new ON CARDBALANCE(user ASC, est ASC)'); //for fast reports
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByDate ON CARDBALANCE(date DESC)'); //for fast reports
-	});
+        M.migration(8, function (t) {
+            t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff");
+            t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserSpent");
+            t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserEst");
 
-	M.migration(9, function (t) {
-		t.executeSql("drop INDEX IF EXISTS idx_histByBoardRowId");
-		t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByBoardRowId_new ON HISTORY(idBoard, user ASC, week DESC)'); //report and to calculate board mark balances. note sqlite doesnt allow including rowid here.
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new ON CARDBALANCE(user ASC, diff ASC)'); //for updating rows on insert and verifications
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserSpent_new ON CARDBALANCE(user ASC, spent ASC)'); //for fast reports
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserEst_new ON CARDBALANCE(user ASC, est ASC)'); //for fast reports
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByDate ON CARDBALANCE(date DESC)'); //for fast reports
+        });
 
-	});
+        M.migration(9, function (t) {
+            t.executeSql("drop INDEX IF EXISTS idx_histByBoardRowId");
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByBoardRowId_new ON HISTORY(idBoard, user ASC, week DESC)'); //report and to calculate board mark balances. note sqlite doesnt allow including rowid here.
 
-	M.migration(10, function (t) {
-        //dowStart: day that a week starts. Default to 0=sunday. Needs to be part of the db as history.week depends on this.
-	    t.executeSql('CREATE TABLE IF NOT EXISTS GLOBALS ( \
+        });
+
+        M.migration(10, function (t) {
+            //dowStart: day that a week starts. Default to 0=sunday. Needs to be part of the db as history.week depends on this.
+            t.executeSql('CREATE TABLE IF NOT EXISTS GLOBALS ( \
 							dowStart INT NOT NULL \
 							)', []);
-	});
+        });
 
-	M.migration(11, function (t) {
-	    //due to a (rare) bug in db v10, we need to recreate the globals row here
-	    t.executeSql('select dowStart FROM GLOBALS', [], function (tx2, results) {
-							    if (!results.rows || results.rows.length==0)
-							        tx2.executeSql("INSERT INTO GLOBALS (dowStart) VALUES (0)");
-							});
-	});
-    
-	M.migration(12, function (t) {
-	    updateCardRecurringStatusInHistory(t);
-	});
-    
-	M.migration(13, function (t) {
-	    //dateSzLastTrello is a text date (iso datetime like 2007-06-09T17:46:2.123)
-	    t.executeSql('ALTER TABLE CARDS ADD COLUMN dateSzLastTrello TEXT DEFAULT NULL');
-	    t.executeSql("ALTER TABLE CARDS ADD COLUMN idList TEXT DEFAULT '" + IDLIST_UNKNOWN+"' NOT NULL");
-	    t.executeSql('ALTER TABLE CARDS ADD COLUMN bArchived INT DEFAULT 0');
-	    t.executeSql('ALTER TABLE CARDS ADD COLUMN idLong TEXT DEFAULT NULL');
+        M.migration(11, function (t) {
+            //due to a (rare) bug in db v10, we need to recreate the globals row here
+            t.executeSql('select dowStart FROM GLOBALS', [], function (tx2, results) {
+                if (!results.rows || results.rows.length == 0)
+                    tx2.executeSql("INSERT INTO GLOBALS (dowStart) VALUES (0)");
+            });
+        });
 
-	    t.executeSql('ALTER TABLE BOARDS ADD COLUMN dateSzLastTrello TEXT DEFAULT NULL');
-	    t.executeSql('ALTER TABLE BOARDS ADD COLUMN idActionLast TEXT DEFAULT NULL');
-	    t.executeSql('ALTER TABLE BOARDS ADD COLUMN bArchived INT DEFAULT 0');
-	    t.executeSql('ALTER TABLE BOARDS ADD COLUMN idLong TEXT DEFAULT NULL');
+        M.migration(12, function (t) {
+            updateCardRecurringStatusInHistory(t);
+        });
 
-	    //idList IDLIST_UNKNOWN is unique, (there isnt one per board)
-	    t.executeSql('CREATE TABLE IF NOT EXISTS LISTS (idList TEXT PRIMARY KEY, idBoard TEXT NOT NULL, name TEXT NOT NULL, dateSzLastTrello TEXT, bArchived INT DEFAULT 0)');
-	    //REVIEW ZIG post beta t.executeSql('CREATE TABLE IF NOT EXISTS LISTCARDS (idList TEXT NOT NULL,  idCard TEXT NOT NULL, dateSzIn TEXT NOT NULL, dateSzOut TEXT, userIn TEXT NOT NULL, userOut TEXT)');
+        M.migration(13, function (t) {
+            //dateSzLastTrello is a text date (iso datetime like 2007-06-09T17:46:2.123)
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN dateSzLastTrello TEXT DEFAULT NULL');
+            t.executeSql("ALTER TABLE CARDS ADD COLUMN idList TEXT DEFAULT '" + IDLIST_UNKNOWN + "' NOT NULL");
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN bArchived INT DEFAULT 0');
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN idLong TEXT DEFAULT NULL');
 
-        //these two arent unique as it could contain unknown. unique is a remnant from old versions
-	    t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsIdLongUnique ON CARDS(idLong)'); //for integrity
-	    t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardsIdLongUnique ON BOARDS(idLong)'); //for integrity
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN dateSzLastTrello TEXT DEFAULT NULL');
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN idActionLast TEXT DEFAULT NULL');
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN bArchived INT DEFAULT 0');
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN idLong TEXT DEFAULT NULL');
 
-	    //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzInUnique ON LISTCARDS(idCard, dateSzIn)'); //for insert integrity
-	    //note that CARDS.idList should always be equal to LISTCARDS.idList where dateSzOut is null
-	    //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzOutUnique ON LISTCARDS(idCard, dateSzOut)'); //for integrity and to guarantee null dateSzOut unique
-	    t.executeSql("INSERT INTO BOARDS (idBoard, idLong, name) VALUES (?,?,?)", [IDBOARD_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_BOARD]); //cant fail since  the id cant be used by trello
-	    t.executeSql("INSERT INTO LISTS (idList, idBoard, name) VALUES (?,?,?)", [IDLIST_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_LIST]); //cant fail since  the ids cant be used by trello
+            //idList IDLIST_UNKNOWN is unique, (there isnt one per board)
+            t.executeSql('CREATE TABLE IF NOT EXISTS LISTS (idList TEXT PRIMARY KEY, idBoard TEXT NOT NULL, name TEXT NOT NULL, dateSzLastTrello TEXT, bArchived INT DEFAULT 0)');
+            //REVIEW ZIG post beta t.executeSql('CREATE TABLE IF NOT EXISTS LISTCARDS (idList TEXT NOT NULL,  idCard TEXT NOT NULL, dateSzIn TEXT NOT NULL, dateSzOut TEXT, userIn TEXT NOT NULL, userOut TEXT)');
 
-	});
+            //these two arent unique as it could contain unknown. unique is a remnant from old versions
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsIdLongUnique ON CARDS(idLong)'); //for integrity
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardsIdLongUnique ON BOARDS(idLong)'); //for integrity
 
-	M.migration(14, function (t) {
-	    //dateSzLastTrello is a text date (iso datetime like 2007-06-09T17:46:2.123)
-	    t.executeSql('ALTER TABLE CARDS ADD COLUMN bDeleted INT DEFAULT 0');
-	});
+            //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzInUnique ON LISTCARDS(idCard, dateSzIn)'); //for insert integrity
+            //note that CARDS.idList should always be equal to LISTCARDS.idList where dateSzOut is null
+            //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzOutUnique ON LISTCARDS(idCard, dateSzOut)'); //for integrity and to guarantee null dateSzOut unique
+            t.executeSql("INSERT INTO BOARDS (idBoard, idLong, name) VALUES (?,?,?)", [IDBOARD_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_BOARD]); //cant fail since  the id cant be used by trello
+            t.executeSql("INSERT INTO LISTS (idList, idBoard, name) VALUES (?,?,?)", [IDLIST_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_LIST]); //cant fail since  the ids cant be used by trello
 
-	M.migration(15, function (t) {
-	    t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%updateTitle (%'");
-	});
+        });
 
-	M.migration(16, function (t) {
-	    //rare timing when using trello sync and other team users write new history rows with outdated card info (idBoard or card.name)
-	    //card name change can affect [R] thus recalculate all etypes
-	    //also in very rare cases, plus missed a recurring state change leaving the card history with incorrect etypes. that was fixed so upgrade data.
-	    updateCardRecurringStatusInHistory(t);
-	    t.executeSql("update HISTORY set idBoard=(select CARDS.idBoard from CARDS WHERE CARDS.idCard=HISTORY.idCard) WHERE HISTORY.idCard <> '"+ID_PLUSCOMMAND+"'");
-	});
+        M.migration(14, function (t) {
+            //dateSzLastTrello is a text date (iso datetime like 2007-06-09T17:46:2.123)
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN bDeleted INT DEFAULT 0');
+        });
 
-	M.migration(17, function (t) {
-	    //to simplify v3 code, convert history ids by removing user from th eend of the history id,
-	    //"ids"+messageId+user   to   "ids"+messageId
-        //this allows stronger handling when trello users are renamed. there is no need of the user in there.
-	    t.executeSql("update HISTORY set idHistory = replace(idHistory, user, '') where idHistory like 'idc%' and replace(idHistory, user, '')||user=idHistory");
-	});
+        M.migration(15, function (t) {
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%updateTitle (%'");
+        });
 
-	M.migration(18, function (t) {
-	    //iRow must use autoincrement to prevent rowid reuse
-	    //note: sqlite creates the "sqlite_sequence" table automatically because of autoincrement usage here. https://www.sqlite.org/autoinc.html 
-	    t.executeSql('CREATE TABLE IF NOT EXISTS QUEUEHISTORY ( \
+        M.migration(16, function (t) {
+            //rare timing when using trello sync and other team users write new history rows with outdated card info (idBoard or card.name)
+            //card name change can affect [R] thus recalculate all etypes
+            //also in very rare cases, plus missed a recurring state change leaving the card history with incorrect etypes. that was fixed so upgrade data.
+            updateCardRecurringStatusInHistory(t);
+            t.executeSql("update HISTORY set idBoard=(select CARDS.idBoard from CARDS WHERE CARDS.idCard=HISTORY.idCard) WHERE HISTORY.idCard <> '" + ID_PLUSCOMMAND + "'");
+        });
+
+        M.migration(17, function (t) {
+            //to simplify v3 code, convert history ids by removing user from th eend of the history id,
+            //"ids"+messageId+user   to   "ids"+messageId
+            //this allows stronger handling when trello users are renamed. there is no need of the user in there.
+            t.executeSql("update HISTORY set idHistory = replace(idHistory, user, '') where idHistory like 'idc%' and replace(idHistory, user, '')||user=idHistory");
+        });
+
+        M.migration(18, function (t) {
+            //iRow must use autoincrement to prevent rowid reuse
+            //note: sqlite creates the "sqlite_sequence" table automatically because of autoincrement usage here. https://www.sqlite.org/autoinc.html 
+            t.executeSql('CREATE TABLE IF NOT EXISTS QUEUEHISTORY ( \
 							iRow INTEGER PRIMARY KEY AUTOINCREMENT , \
 							obj TEXT NOT NULL \
 							)');
 
-	    //USERS table is not yet used on history and cardbalance. there are issues to solve
-	    //review zig: when a user is deleted from trello, trello will remove it from previous history and a 
-	    //trello first sync after a user is deleted will never know the users real name. because we allow to impersonate users in s/e comments
-	    //plus wont know how to match the deleted users with those impersoanted comment users.
-	    //thus, we simply use this table as a cache of the last "known good" state for a user.
-	    //from now on, deleted users during plus usage (not before first sync) will be matched with the deleted user.
-	    //Since this table is not deleted during "reset", further resets will continue to match deleted users.
-	    //and will also allow implementing a future automatic user rename on past history/cardbalance without requiring to reset plus
-	    //this is low prioirity as its rare to rename or delete users.
-        //another idea to mitigate easily deleted users is to provide a utility to rename users
-	    t.executeSql('CREATE TABLE IF NOT EXISTS USERS ( \
+            //USERS table is not yet used on history and cardbalance. there are issues to solve
+            //review zig: when a user is deleted from trello, trello will remove it from previous history and a 
+            //trello first sync after a user is deleted will never know the users real name. because we allow to impersonate users in s/e comments
+            //plus wont know how to match the deleted users with those impersoanted comment users.
+            //thus, we simply use this table as a cache of the last "known good" state for a user.
+            //from now on, deleted users during plus usage (not before first sync) will be matched with the deleted user.
+            //Since this table is not deleted during "reset", further resets will continue to match deleted users.
+            //and will also allow implementing a future automatic user rename on past history/cardbalance without requiring to reset plus
+            //this is low prioirity as its rare to rename or delete users.
+            //another idea to mitigate easily deleted users is to provide a utility to rename users
+            t.executeSql('CREATE TABLE IF NOT EXISTS USERS ( \
 							idMemberCreator TEXT PRIMARY KEY, \
 							username TEXT NOT NULL, \
                             dateSzLastTrello TEXT NOT NULL \
                             )');
 
-        //saves keyword used when entered from card comment. for future reporting features
-	    t.executeSql('ALTER TABLE HISTORY ADD COLUMN keyword TEXT DEFAULT NULL');
-	    t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByKeyword ON HISTORY(keyword ASC, date DESC)'); //for reports
-	});
+            //saves keyword used when entered from card comment. for future reporting features
+            t.executeSql('ALTER TABLE HISTORY ADD COLUMN keyword TEXT DEFAULT NULL');
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_histByKeyword ON HISTORY(keyword ASC, date DESC)'); //for reports
+        });
 
-	M.doIt();
+        M.migration(19, function (t) {
+            //bug in 2.11.1 caused to treat certain legacy rows as bad format. save it to alert the user later to reset sync
+            var sql = "SELECT H.rowid FROM HISTORY H WHERE COMMENT LIKE '%[error: bad d for non-admin]%' AND keyword <> '@tareocw' LIMIT 1";
+            t.executeSql(sql, [],
+                    function (tx2, results) {
+                        if (results.rows.length > 0)
+                            localStorage[LS_KEY_detectedErrorLegacyUpgrade] = "1"; //existance of property means it detected. "reset sync" will remove it
+                    },
+                    function (trans, error) {
+                        logPlusError(error.message + " sql: " + sql);
+                        return true; //stop
+                    });
+        });
+
+        M.doIt();
+    }
 }
 
 function updateCardRecurringStatusInHistory(t) {

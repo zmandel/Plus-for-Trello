@@ -138,6 +138,7 @@ function loadOptions(callback) {
     var keybEnableTrelloSync = "bEnableTrelloSync";
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
+    var keyUnits = "units";
 
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
@@ -149,11 +150,12 @@ function loadOptions(callback) {
 
     //get options from sync. If not there, might be in local (older version), so upgrade it.
     //review zig: remove local check by aug.c2014
-    chrome.storage.sync.get([keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT, keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync, keyHidePendingCards, keyDowStart,
+    chrome.storage.sync.get([keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT, keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync, keyHidePendingCards, keyDowStart,
                              keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor, keyPropbSumFilteredCardsOnly],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
+                                 UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;      
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;

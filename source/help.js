@@ -300,8 +300,8 @@ var Help = {
         helpWin.para('The first time you enter <b>E</b> it becomes your card\'s 1ˢᵗ estimate <b>E 1ˢᵗ</b> for comparison with the current estimate <b>E sum</b>.');
         helpWin.para('Plus expects that you keep E up-to-date by increasing or decreasing E if necessary and warns if S goes over E.');
 	    helpWin.para('To turn that off or to never use estimates, allow "negative remaining" in Preferences.');
-	    helpWin.para('You can choose any unit you want however card timers assume <b>hour units</b>.');
-	    helpWin.para('&nbsp');
+		helpWin.para('You can choose any unit you want however card timers assume <b>hour units</b>.');
+	    helpWin.para('&nbsp'); //review zig timers
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_trellosync">Trello sync</h2></b>');
@@ -486,10 +486,6 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_units">Units</h2></b>');
-	    helpWin.para('Set your spent/estimate units in Preferences. Timers will use your units.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices</h2></b>');
 	    helpWin.para('&bull; Follow the rule of reaching S equals E on finished cards so you can compare 1ˢᵗ versus final estimates using "E.type" reports.');
@@ -525,8 +521,10 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
 	    helpWin.para("&bull; Start a timer from any card.");
-	    helpWin.para("&bull; Timers assume your units are in <i>hours</i>.");
-	    helpWin.para("&bull; See and stop a timer started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
+	    //helpWin.para("&bull; Timers use the units you select in Preferences.");
+	    //review zig timers
+		helpWin.para("&bull; Timers assume your units are in <i>hours</i>.");
+		helpWin.para("&bull; See and stop a timer started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start the timer, type a value in the 'S' box before starting it.");
 	    helpWin.para("&bull; Stop the timer to pre-fill the 'S' box. Add an estimate or note and press ENTER.");
 	    helpWin.para('&bull; If you already had values typed in the S/E boxes, stopping the timer will add to them.');
@@ -580,6 +578,30 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
+	    if (false) { //units
+	        var pComboUnits = helpWin.para('Work units: <select style="width:auto">. Card timers will use this unit.');
+	        var comboUnits = pComboUnits.children("select");
+	        pComboUnits.append(comboUnits);
+	        comboUnits.append($(new Option("minutes", UNITS.minutes)));
+	        comboUnits.append($(new Option("hours", UNITS.hours)));
+	        comboUnits.append($(new Option("days", UNITS.days)));
+	        comboUnits.val(UNITS.current);
+
+	        comboUnits.change(function () {
+	            var pair = {};
+	            var comboThis = $(this);
+	            var valCombo = comboThis.val();
+	            pair["units"] = valCombo;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError !== undefined) {
+	                    comboThis.val(UNITS.current); //reset
+	                } else {
+	                    UNITS.current = valCombo;
+	                }
+	            });
+	        });
+	    }
+
 	    if (bSpentBackendCase) {
 	        helpWin.para('&bull; Spent backend users cannot allow negative Remaining or import from Scrum for Trello');
 	    } else {

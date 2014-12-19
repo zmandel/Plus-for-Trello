@@ -137,16 +137,15 @@ function handleRawSync(sendResponseParam) {
                         sendResponse(responseOpen);
                         return;
                     }
-                    loadBackgroundOptions(function () {
-                        if (!g_optEnterSEByComment.IsEnabled() && ( urlSync == null || urlSync.length == 0)) {
-                            sendResponse({ status: "sync not configured" });
-                            return;
-                        }
+                    //g_optEnterSEByComment initialized while inside handleOpenDb
+                    if (!g_optEnterSEByComment.IsEnabled() && (urlSync == null || urlSync.length == 0)) {
+                        sendResponse({ status: "sync not configured" });
+                        return;
+                    }
 
-                        handleSyncDB({ config: responseConfig }, function (responseSync) {
-                            sendResponse(responseSync);
-                        },true);
-                    });
+                    handleSyncDB({ config: responseConfig }, function (responseSync) {
+                        sendResponse(responseSync);
+                    }, true);
                 });
             });
         });
@@ -232,14 +231,33 @@ function processTimerCounter() {
                     var msDeltaMinutes = (msEnd - msStart) / 1000 / 60;
                     var msRemain = (msDeltaMinutes - Math.floor(msDeltaMinutes)) * 60 * 1000;
                     var time=getTimerElemText(msStart, msEnd,true);
-                    var text="";
-                    if (time.hours>9)
-                        text = time.hours+"+";
-                    else {
-                        if (time.hours == 0)
-                            text = time.minutes + (time.minutes<10?" m": "m");
+                    var text = "";
+                    var unit = UNITS.current;
+
+                    if (unit == UNITS.hours) {
+                        if (time.hours > 9)
+                            text = time.hours + "+";
+                        else {
+                            if (time.hours == 0)
+                                text = time.minutes + (time.minutes < 10 ? " m" : "m");
+                            else
+                                text = time.hours + ":" + prependZero(time.minutes);
+                        }
+                    }
+                    else if (unit == UNITS.minutes) {
+                        if (time.minutes > 999)
+                            text = "+999";
                         else
-                            text = time.hours + ":" + prependZero(time.minutes);
+                            text = time.minutes;
+                    }
+                    else {
+                        assert(unit == UNITS.days);
+                        if (time.days > 99) {
+                            text = Math.round(((msEnd - msStart) / 1000 / 60 / 60 / 60) * 10) / 10;
+                        }
+                        else {
+                            text = time.days + ":" + time.hours;
+                        }
                     }
                     response(text, msRemain);
                 });

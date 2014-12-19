@@ -246,7 +246,8 @@ function clearAllStorage(callback) {
 					        'msStartPlusUsage': g_msStartPlusUsage,
 					        'bSyncOutsideTrello': g_bSyncOutsideTrello,
 					        'bChangeCardColor': g_bChangeCardColor,
-					        'bSumFilteredCardsOnly': g_bCheckedbSumFiltered
+					        'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
+					        'units' : UNITS.current
 					    },
 							function () {
 							    if (callback !== undefined)

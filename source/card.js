@@ -619,7 +619,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
 				updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
 				updateTimerChromeIcon();
 				var ms = msEndCur - msStartCur;
-				var sCalc = ms / (1000 * 60 * 60);
+				var sCalc = ms / (MAP_UNITS[UNITS.current] || (1000*60*60));
 				var sUse = parseFixedFloat(sCalc);
 				if (sUse != 0)
 				    addSEFieldValues(sCalc, isRecurringCard()? sCalc : 0, g_strEndTimerComment);
@@ -802,13 +802,15 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
     var seBarElems = $(".agile-se-bar-table *");
     var bEnabled = false;
     seBarElems.prop('disabled', true);
+    $(".agile_enter_box_input").text("...");
 
     function enableSEBar() {
         if (bEnabled)
             return;
         bEnabled = true;
         seBarElems.prop('disabled', false);
-        $(".agile_comment_box_input").focus();
+        $(".agile_spent_box_input").focus();
+        $(".agile_enter_box_input").text("Enter");
     }
 
     function finished() {

@@ -340,10 +340,11 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, oldUsernameM
                 return true; //continue
             }
 
+            var deltaMin = (keyword == "@tareocw"? -2 : -10);
             //support spent backend legacy rules for legacy rows
-            if (deltaParsed < -2 && date < g_dateMinCommentSEWithDateOverBackend) {
+            if (deltaParsed < deltaMin && date < g_dateMinCommentSEWithDateOverBackend) {
                 if (from != "zigmandel" && from != "julioberrospi" && from != "juanjoserodriguez2") {
-                    pushErrorObj("bad d for non-admin");
+                    pushErrorObj("bad d for legacy entry"); //used to say "bad d for non-admin"
                     return true; //continue
                 }
             }

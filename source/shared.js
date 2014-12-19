@@ -83,6 +83,18 @@ var EVENTS = {
     FIRST_SYNC_RUNNING : "firstsyncrunning"
 };
 
+var UNITS = {
+    minutes: "m",
+    hours: "h",
+    days: "d",
+    current: "h" //current units, hours by default
+};
+
+var MAP_UNITS = {
+    "m": 1000 * 60,
+    "h": 1000 * 60 * 60,
+    "d": 1000 * 60 * 60 * 24
+};
 
 /* DowMapper
  *
@@ -1076,10 +1088,21 @@ function getTimerElemText(msStart, msEnd, bValuesOnly) {
     var ms = 0;
     if (msStart != null)
         ms = msEnd - msStart;
+    var unit = UNITS.current;
+    var divisor = (MAP_UNITS[UNITS.current] || (1000 * 60 * 60));
+    var days = 0;
+    var hours = 0;
 
-    var divisor = 1000 * 60 * 60;
-    var hours = Math.floor(ms / divisor);
-    ms -= hours * divisor;
+    //review zig: generalize
+    if (unit == UNITS.days) {
+        days = Math.floor(ms / divisor);
+        ms -= days * divisor;
+    }
+    if (unit != UNITS.minutes) {
+        divisor = 1000 * 60 * 60;
+        hours = Math.floor(ms / divisor);
+        ms -= hours * divisor;
+    }
     divisor = 1000 * 60;
     var minutes = Math.floor(ms / divisor);
     ms -= minutes * divisor;
@@ -1087,9 +1110,10 @@ function getTimerElemText(msStart, msEnd, bValuesOnly) {
     var seconds = Math.floor(ms / divisor);
 
     if (bValuesOnly) {
-        return { hours: hours, minutes: minutes, seconds: seconds };
+        return { days:days, hours: hours, minutes: minutes, seconds: seconds };
     }
     else {
+		//review zig timers
         txt = "" + getWithZeroPrefix(hours) + ":" + getWithZeroPrefix(minutes) + ":" + getWithZeroPrefix(seconds) + "s";
         return txt;
     }
