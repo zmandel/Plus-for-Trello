@@ -51,16 +51,18 @@ function updateNewLink() {
     }, 2000);
 }
 
+
 document.addEventListener('DOMContentLoaded', function () {
 	if (g_bLoaded)
 		return;
 	g_bLoaded = true;
-	updateNewLink();
-	setTimeout(function () {
-	    updateNewLink();
-	}, 200);
-	
-	loadPopup();
+
+	loadSharedOptions(function () {
+	    setTimeout(function () {
+	        updateNewLink();
+	    }, 200);
+	    loadPopup();
+	});
 });
 
 function showError(strError) {
@@ -88,9 +90,9 @@ function getCardAndBoard(idCard,callback) {
 function updateButtonTitle(button, idCardTimer) {
     getCardAndBoard(idCardTimer, function (data) {
         if (data && data.board && data.card) 
-            button.prop("title", "Go to card\n" + data.card + "\n" + data.board);
+            button.prop("title", "Click to open card\n" + data.card + "\n" + data.board);
         else
-            button.prop("title", "Go to card"); // if card isnt on db
+            button.prop("title", "Click to open card"); // if card isnt on db
     });
 }
 
@@ -223,7 +225,7 @@ function listAllBoards() {
 	        setPopupClickHandler(imgReport, urlReport);
 	        if (row.maxDate) {
 	            var date = new Date(row.maxDate * 1000);
-	            item.attr("title", row.name + "\nLast reported: " + date.toLocaleDateString());
+	            item.attr("title", row.name + "\nLast S/E " + date.toLocaleDateString());
 	        }
 	        setPopupClickHandler(item, "https://trello.com/b/" + row.idBoard); // must be in a function outside loop
 	        item.append(a1);
@@ -398,9 +400,9 @@ function fillCardResults(divResults, val, bSearchComments, chSplit, cSearchCur) 
 			//setPopupClickHandler(imgReport, urlReport);
 			var titleUse = null;
 			if (bSearchComments)
-				titleUse = row.nameCard + "\nNote: " + row.comment + "\nReported: " + date;
+				titleUse = row.nameCard + "\nNote: " + row.comment + "\nOn: " + date;
 			else
-				titleUse = row.nameCard + "\nLast reported: " + date;
+			    titleUse = row.nameCard + "\nLast S/E " + date;
 
 			item.attr("title", titleUse);
 			setPopupClickHandler(item, "https://trello.com/c/" + row.idCard);

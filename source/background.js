@@ -10,7 +10,6 @@ var PLUS_BACKGROUND_CALLER = true; //allows us to tell shared.js we are calling
 var g_bInstalledNetworkDetection = false;
 var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
-var g_bAlwaysShowSpentChromeIcon = false;
 
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
 	var data = null;
@@ -43,6 +42,15 @@ function doCallUrlConfig(urlConfig, userTrello, callback) {
 		callback(config);
 		return;
 	}
+
+	handleShowDesktopNotification({
+	    notification: "Incorrect google sync url",
+	    timeout: 40000
+	});
+
+	callback(null);
+	return;
+    //review zig: remove
 	var xhr = new XMLHttpRequest();
 	xhr.timeout = g_msFetchTimeout*10;
 	xhr.open("GET", urlConfig + "?view=jsonconfig&user=" + userTrello, true);
@@ -108,7 +116,6 @@ function standarizeSpreadsheetValue(value) {
 }
 
 function handleRawSync(sendResponseParam) {
-    var PROP_TRELLOUSER = "plustrellouser";
     var PROP_SERVICEURL = "serviceUrl";
 
     function sendResponse(response) {
@@ -156,6 +163,7 @@ var g_strBadgeText = "";
 var PLUS_COLOR_SPENTBADGE = "#B10013";
 
 function setIconBadgeText(text, bAsTimer) {
+    text = "" + text; //in case its not string yet
     if (!bAsTimer) {
         g_strBadgeText = text;
     }
@@ -207,8 +215,10 @@ function processTimerCounter() {
     var bChangedIdCard = false;
     function getTimerText(response) {
         assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
-        chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, SYNCPROP_bAlwaysShowSpentChromeIcon], function (obj) {
+        var keyUnits = "units";
+        chrome.storage.sync.get([keyUnits, SYNCPROP_ACTIVETIMER, SYNCPROP_bAlwaysShowSpentChromeIcon], function (obj) {
             var idCardTimer = null;
+            UNITS.current = obj[keyUnits] || UNITS.current; //reload
             g_bAlwaysShowSpentChromeIcon = obj[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
             if (obj[SYNCPROP_ACTIVETIMER] !== undefined)
                 idCardTimer = obj[SYNCPROP_ACTIVETIMER];
@@ -228,36 +238,31 @@ function processTimerCounter() {
                     }
                     var msStart = stored.msStart;
                     var msEnd = new Date().getTime();
-                    var msDeltaMinutes = (msEnd - msStart) / 1000 / 60;
-                    var msRemain = (msDeltaMinutes - Math.floor(msDeltaMinutes)) * 60 * 1000;
+                    var minutesDelta= (msEnd - msStart) / 1000 / 60;
+                    var msRemain = (minutesDelta - Math.floor(minutesDelta)) * 60 * 1000;
                     var time=getTimerElemText(msStart, msEnd,true);
                     var text = "";
                     var unit = UNITS.current;
 
                     if (unit == UNITS.hours) {
                         if (time.hours > 9)
-                            text = time.hours + "+";
+                            text = "" + Math.round(UNITS.TimeToUnits(msEnd - msStart) * 10) / 10;
                         else {
                             if (time.hours == 0)
-                                text = time.minutes + (time.minutes < 10 ? " m" : "m");
+                                text = "0:" + time.minutes; //cleaner
                             else
-                                text = time.hours + ":" + prependZero(time.minutes);
+                                text = "" + time.hours + ":" + prependZero(time.minutes);
                         }
                     }
                     else if (unit == UNITS.minutes) {
-                        if (time.minutes > 999)
-                            text = "+999";
+                        if (time.minutes > 9999)
+                            text = "+9999";
                         else
-                            text = time.minutes;
+                            text = "" + time.minutes;
                     }
                     else {
                         assert(unit == UNITS.days);
-                        if (time.days > 99) {
-                            text = Math.round(((msEnd - msStart) / 1000 / 60 / 60 / 60) * 10) / 10;
-                        }
-                        else {
-                            text = time.days + ":" + time.hours;
-                        }
+                        text = "" + Math.round(UNITS.TimeToUnits(msEnd - msStart) * 10) / 10;
                     }
                     response(text, msRemain);
                 });
@@ -1120,7 +1125,8 @@ function onAuthorized(url, params, sendResponse, oauth, bRetry, postBody, conten
 	xhr.setRequestHeader('GData-Version', '3.0');
 	xhr.setRequestHeader('Content-Type', contentType);
 	xhr.setRequestHeader('Cache-Control', 'no-cache');
-	xhr.setRequestHeader('Authorization', 'Bearer ' + oauth);
+	if (oauth) //oauth not used for reading/writting a public spreadsheet
+	    xhr.setRequestHeader('Authorization', 'Bearer ' + oauth);
 	if (bAddIfMatchStar)
 		xhr.setRequestHeader('If-Match', '*');
 	xhr.send(postBody);

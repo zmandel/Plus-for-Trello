@@ -72,7 +72,7 @@ function insertPlusFeed(bForce) {
 			if (data !== undefined)
 				stateFeed = data;
 			var msNow = (new Date()).getTime();
-			var msWait = 1000 * 60 * 60 * 3.5; //3.5 hours (there is a quota of 10,000 queries/day for all users)
+			var msWait = 1000 * 60 * 60 * 3; //3 hours (there is a quota of 50,000 queries/day for all users) code.google.com/apis/console/b/0/?noredirect#project:147493868263:stats
 			//msWait = 1000; //1 sec, for test
 			if (msNow - stateFeed.msLastQuery > msWait) {
 				setTimeout(function () { //delay a few seconds because usually happens on trello page load, wait until that settles
@@ -129,7 +129,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 	var bShowRecentIcon = false;
 	var pathImgRecent = "images/newgray.png";
 	var msNow = (new Date()).getTime();
-	var dmsOldestShow = 1000 * 60 * 60 * 24 * 10; //10 days
+	var dmsOldestShow = 1000 * 60 * 60 * 24 * 8; //8 days
 	var titleTipBase = "New Plus features!";
 
 	if (stateFeed.msLastPostReadByUser < stateFeed.msLastPostRetrieved) {

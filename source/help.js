@@ -182,23 +182,23 @@ var Help = {
 	        }, 4000);
 	    }, 4000);
 
-	    helpWin.para('<h1>Plus for Trello Help</h1>');
+	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
+	    helpWin.raw('<span style="float:right;padding-right:3em;">version ' + Help.m_manifestVersion + ' &nbsp&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp&nbsp \
+			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Send Feedback</a> &nbsp&nbsp\
+			<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/details">View Change Log</a> &nbsp&nbsp\
+			<a href="https://plus.google.com/109669748550259696558/posts" \
+   rel="publisher" target="_blank"> \
+<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/>&nbsp;Follow</a></span>');
+	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
 	        hiliteOnce(elemFirstTime, 10000);
 	        g_bFirstTimeUse = false;
 	        helpWin.bStartTourBubbleOnClose = true;
 	    }
-	    helpWin.para('version ' + Help.m_manifestVersion + ' &nbsp&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp&nbsp \
-			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Send Feedback</a> &nbsp&nbsp\
-			<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/details">View Change Log</a> &nbsp&nbsp\
-			<a href="https://plus.google.com/109669748550259696558/posts" \
-   rel="publisher" target="_blank"> \
-<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/>&nbsp;Follow</a>');
 	    if (helpWin.totalDbMessages > 0) {
 	        helpWin.para('Alert: Error log has entries. <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>.').css("color", COLOR_ERROR);
 	    }
-
 	    if (bNotSetUp && helpWin.totalDbRowsHistory > 0) {
 	        helpWin.para('<h2><b>NOTE:</b></h2>').css("color", COLOR_ERROR);
 	        helpWin.para('<b>Enable both "Trello sync" options to see team S/E or use from mobile.</b>');
@@ -216,62 +216,74 @@ var Help = {
 	        if (!bSEByComments && helpWin.totalDbRowsHistoryNotSync > 0) {
 	            var strPre = "" + helpWin.totalDbRowsHistoryNotSync + ' S/E rows pending spreadsheet sync verification. ';
 	            if (helpWin.totalDbRowsHistoryNotSync > 9) { //simple sync test. could happen also if user entered a lot of s/e rows within 5 minutes.
-	                helpWin.para(strPre + 'Check again in 10 minutes while Trello is open and help closed.').css("color", COLOR_ERROR);
-	                helpWin.para('If still not synced, make sure spreadsheet sharing is setup correctly with Write access to you.').css("color", COLOR_ERROR);
+	                helpWin.para('If still not synced in 10 minutes, make sure spreadsheet sharing is setup correctly with Write access to you.').css("color", COLOR_ERROR);
 	            } else {
 	                helpWin.para(strPre + 'Plus will do so in the next 10 minutes.');
 	            }
-	            helpWin.para('Note: Rows may already be in the sync spreadsheet but Plus considers them pending until it verifies them in the next sync.');
 	            helpWin.para('&nbsp');
 	        }
 	    }
 
-	    var divDonations = $('<div></div>').hide();
-	    this.m_container.append(divDonations);
-	    helpWin.para('I want to keep improving Plus but I need <b>your</b> help! There are many useful features pending:', divDonations);
-	    helpWin.para("&bull; Mobile view and drill-down of card S/E right inside the iOS/Android app ", divDonations);
-	    helpWin.para("&bull; See each card's time spent per list", divDonations);
-	    helpWin.para("&bull; Track unanswered comments that you sent or received", divDonations);
-	    helpWin.para('&bull; Board Flow charts for task count, time per list over time and much more!', divDonations);
-	    helpWin.para('&nbsp;', divDonations);
-	    helpWin.para('Donate securely with Paypal. <b>You dont need a Paypal account</b> just a credit card (and a &#9825; :)', divDonations);
+	    var strUsingPlusDays = "";
+	    var cDaysUsingPlus = 0;
+	    if (g_msStartPlusUsage != null) {
+	        var dms = (new Date().getTime() - g_msStartPlusUsage);
+	        cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
+	        if (cDaysUsingPlus > 2)
+	            strUsingPlusDays = '' + cDaysUsingPlus + ' days with Plus. ';
+	    }
+	    var divDonations = $('<div></div>');
+	    var bInsertDonationAsSection = false;
+	    if (cDaysUsingPlus > 1) {
+	        this.m_container.append(divDonations);
+	        divDonations.hide();
+	    }
+	    else
+	        bInsertDonationAsSection = true;
+	    if (cDaysUsingPlus > 7) {
+	        helpWin.para('I need <b>your help</b> to keep improving Plus! There are many useful features pending:', divDonations);
+	        helpWin.para("&bull; Mobile view and drill-down of card S/E inside the iOS/Android app", divDonations);
+	        helpWin.para("&bull; Track unanswered comments sent or received", divDonations);
+	        helpWin.para("&bull; Card's time spent per list", divDonations);
+	        helpWin.para('&bull; Board flow-charts for task count or time per list over time and much more!', divDonations);
+	        helpWin.para('&nbsp;', divDonations);
+	    }
+	    else {
+	        helpWin.para('I need <b>your</b> help to keep improving Plus!', divDonations);
+	    }
+	    helpWin.para('Donate securely with Paypal. <b>You don\'t need a Paypal account</b> just a credit card.', divDonations);
 	    helpWin.para('<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">\
 <input type="hidden" name="cmd" value="_s-xclick">\
 <input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----">\
 <input type="image" style="margin-bottom:0px" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" title="Your donation counts a lot! Thank you!">\
 </form>', divDonations);
 
-	    if (g_msStartPlusUsage != null) {
-	        var dms = (new Date().getTime() - g_msStartPlusUsage);
-	        var cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
-	        if (cDaysUsingPlus > 7)
-	            helpWin.para('Using Plus for ' + cDaysUsingPlus + ' days.');
-	    }
-	    var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks!</input>').css("marginBottom", 0).children('input:checkbox:first');
-	    if (g_bUserDonated) {
-	        checkDonated[0].checked = true;
-	        divDonations.hide();
-	    } else {
-	        divDonations.show();
-	    }
-	    checkDonated.click(function () {
-	        var bValue = checkDonated.is(':checked');
-	        var pair = {};
-	        pair["bUserSaysDonated"] = bValue;
-	        if (bValue)
-	            divDonations.slideUp();
-	        else
-	            divDonations.slideDown();
-	        chrome.storage.sync.set(pair, function () {
-	            if (chrome.runtime.lastError == undefined)
-	                g_bUserDonated = bValue;
-	            checkDonated[0].checked = g_bUserDonated;
+	    if (!bInsertDonationAsSection) {
+	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
+					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,281. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+	        if (g_bUserDonated) {
+	            checkDonated[0].checked = true;
+	            divDonations.hide();
+	        } else {
+	            divDonations.show();
+	        }
+	        checkDonated.click(function () {
+	            var bValue = checkDonated.is(':checked');
+	            var pair = {};
+	            pair["bUserSaysDonated"] = bValue;
+	            if (bValue)
+	                divDonations.slideUp();
+	            else
+	                divDonations.slideDown();
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bUserDonated = bValue;
+	                checkDonated[0].checked = g_bUserDonated;
+	            });
 	        });
-	    });
-
-	    helpWin.para('Donations so far: US$1,180. Over 1 year of continuous improvement. New features every two weeks!');
 	    helpWin.para('&nbsp');
+        }
+
 	    helpWin.para("<h2>Contents</h2><ul id='tocAgileHelp'></ul>");
 	    helpWin.para('&nbsp');
 	    var bSpentBackendCase = isBackendMode();
@@ -300,8 +312,7 @@ var Help = {
         helpWin.para('The first time you enter <b>E</b> it becomes your card\'s 1ˢᵗ estimate <b>E 1ˢᵗ</b> for comparison with the current estimate <b>E sum</b>.');
         helpWin.para('Plus expects that you keep E up-to-date by increasing or decreasing E if necessary and warns if S goes over E.');
 	    helpWin.para('To turn that off or to never use estimates, allow "negative remaining" in Preferences.');
-		helpWin.para('You can choose any unit you want however card timers assume <b>hour units</b>.');
-	    helpWin.para('&nbsp'); //review zig timers
+	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_trellosync">Trello sync</h2></b>');
@@ -488,14 +499,15 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices</h2></b>');
-	    helpWin.para('&bull; Follow the rule of reaching S equals E on finished cards so you can compare 1ˢᵗ versus final estimates using "E.type" reports.');
+	    helpWin.para('&bull; Follow the rule of reaching S equal E on finished cards so you can compare 1ˢᵗ with final estimates.');
 	    helpWin.para('&bull; When a user finishes a card but has Remaining, she should reduce E by entering negative E.');
 	    helpWin.para('&bull; Similarly if S goes over E, enter more E.');
-	    helpWin.para('&bull; You can use the <b>Hours:Minutes</b> format to enter S/E.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 means 1 hour 25 minutes equals 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
-	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Changes wont be reflected in reports or balances until you "Reset sync".');
+	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (Hours:Minutes when using Hour units)');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = 1 hour and 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
+	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Those will not be reflected in Plus until you "Reset sync".');
 	    helpWin.para('&bull; Add <b>#hashtags</b> to card titles. See them in boards and search them in reports.');
-	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user unless you do a "Reset sync". Deleted users may lose their username and get a user number instead.');
+	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted users may lose their username and get a user number instead.');
 	    helpWin.para('&bull; Renaming, moving, archiving or deleting cards, lists and boards is automatically handled by "Trello sync".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -520,15 +532,13 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 
 	    helpWin.para('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
-	    helpWin.para("&bull; Start a timer from any card.");
-	    //helpWin.para("&bull; Timers use the units you select in Preferences.");
-	    //review zig timers
-		helpWin.para("&bull; Timers assume your units are in <i>hours</i>.");
+	    helpWin.para("&bull; Start a timer from any card. The active timer is always visible in the Chrome Plus icon and menu.");
+		helpWin.para("&bull; Timers use the units set in Preferences.");
 		helpWin.para("&bull; See and stop a timer started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
-	    helpWin.para("&bull; If you forgot to start the timer, type a value in the 'S' box before starting it.");
-	    helpWin.para("&bull; Stop the timer to pre-fill the 'S' box. Add an estimate or note and press ENTER.");
+	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
+	    helpWin.para("&bull; Stop the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
 	    helpWin.para('&bull; If you already had values typed in the S/E boxes, stopping the timer will add to them.');
-	    helpWin.para('&nbsp;&nbsp;This allows to <b>pause a timer</b> by stopping it and starting it again later (without closing the card screen)');
+	    helpWin.para('&bull; Pause a timer by stopping it and leaving the card open (which has the pre-filled \'S\') and starting the timer later again.');
 	    helpWin.para('&bull; Cards with active timers will have a hourglass icon in its Board and in the Chrome Plus menu.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -565,20 +575,18 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_moreless">More - Less</h2></b>');
-	    helpWin.para("&bull; Clicking 'Less' on the top bar hides boards not entered for over 2 weeks ago and cards with last activity over 4 weeks ago.");
-	    helpWin.para('&bull; Cards will hide only if you <A target="_blank" href="http://help.trello.com/article/810-enabling-power-ups"> enable the Card Aging power-up</A> on each board.');
+	    helpWin.para("&bull; Clicking 'Less' on the top bar hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
+	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/810-enabling-power-ups">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">Only for "Scrum for Trello" extension users</h2></b>');
-	    helpWin.para('<A href="https://support.google.com/chrome/answer/187443" target="_blank">Turn it off</A> while you try Plus.');
-	    helpWin.para('Once you enter Plus S/E on a card with S/E on its title, Plus will remove S/E from the title.');
-	    helpWin.para('Before you start entering S/E see <b>Preferences</b> to enable parsing card titles using the Scrum for Trello format.');
+	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-notes-for-users-of.html">Read migration instructions</A> and see <b>Preferences</b> to accept reading S/E with Scrum for Trello card title format.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
-	    if (false) { //units
+	    if (true) { //units
 	        var pComboUnits = helpWin.para('Work units: <select style="width:auto">. Card timers will use this unit.');
 	        var comboUnits = pComboUnits.children("select");
 	        pComboUnits.append(comboUnits);
@@ -597,6 +605,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	                    comboThis.val(UNITS.current); //reset
 	                } else {
 	                    UNITS.current = valCombo;
+	                    updateTimerChromeIcon();
 	                }
 	            });
 	        });
@@ -606,8 +615,8 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	        helpWin.para('&bull; Spent backend users cannot allow negative Remaining or import from Scrum for Trello');
 	    } else {
 	        var checkIgnoreZeroEst = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedIgnoreZeroEstimates" \
->Allow negative Remaining. Cards with negative Remaining will not appear in Pending cards.</input> You will lose ability to').css("margin-bottom",0).children('input:checkbox:first');
-	        helpWin.para('measure remaining effort.').css("margin-left", "1.5em");
+>Allow negative Remaining. Cards with negative Remaining will not appear in \"Remaining balance cards\".</input>').css("margin-bottom",0).children('input:checkbox:first');
+	        helpWin.para('You will lose ability to measure remaining effort.').css("margin-left", "1.5em");
 
 	        if (g_bAllowNegativeRemaining)
 	            checkIgnoreZeroEst[0].checked = true;
@@ -624,10 +633,10 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	        });
 	    }
 
-	    //option to hide pending cards in Trello home
+	    //option to hide "Remaining balance cards" in Trello home
 	    if (true) {
 	        var checkHidePending = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedHidePending">\
-Hide "Pending Cards" section in Trello home.</input>').children('input:checkbox:first');
+Hide "Remaining balance cards" section in Trello home.</input>').children('input:checkbox:first');
 	        if (g_bHidePendingCards)
 	            checkHidePending[0].checked = true;
 
@@ -646,7 +655,7 @@ Hide "Pending Cards" section in Trello home.</input>').children('input:checkbox:
 	    //option to allow sync outside Trello.
 	    if (true) {
 	        var checkSyncOutsideTrello = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedSyncOutsideTrello">\
-Background sync every 10 minutes while Chrome is open, even if Trello is not open.</input>').children('input:checkbox:first');
+Background sync every 10 minutes while Chrome is open even if Trello is not open.</input>').children('input:checkbox:first');
 	        if (g_bSyncOutsideTrello)
 	            checkSyncOutsideTrello[0].checked = true;
 
@@ -669,11 +678,11 @@ Background sync every 10 minutes while Chrome is open, even if Trello is not ope
 	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>');
 	        var comboDowStart = $('<select style="width:auto">');
 	        pComboDow.append(comboDowStart);
-	        //comboDowStart.append($(new Option("saturday", "6"))); //review dom: not ready
+	        //comboDowStart.append($(new Option("saturday", "6"))); //dom: saturday not ready. many edge cases not handled.
 	        comboDowStart.append($(new Option("sunday", "0")));
 	        comboDowStart.append($(new Option("monday", "1")));
 	        comboDowStart.val(DowMapper.getDowStart());
-	        pComboDow.append($('<span>. All users should use the same setting.</span>'));
+	        pComboDow.append($('<span>. You can change it anytime.</span>'));
 	        var statusDow = $("<b></b>").hide();
 	        pComboDow.append(statusDow);
 	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
@@ -718,6 +727,25 @@ Background sync every 10 minutes while Chrome is open, even if Trello is not ope
 	        });
 	    }
 
+	    //option to not warn on parallel timers
+	    if (true) {
+	        var checkDontWarnParallelTimers = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontWarnParallelTimers">\
+Do not warn when starting multiple timers in parallel.</input>').children('input:checkbox:first');
+	        if (g_bDontWarnParallelTimers)
+	            checkDontWarnParallelTimers[0].checked = true;
+
+	        checkDontWarnParallelTimers.click(function () {
+	            var bValue = checkDontWarnParallelTimers.is(':checked');
+	            var pair = {};
+	            pair["bDontWarnParallelTimers"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bDontWarnParallelTimers = bValue;
+	                checkDontWarnParallelTimers[0].checked = g_bDontWarnParallelTimers;
+	            });
+	        });
+	    }
+
 	    if (true) { //always show Spent in the Chrome icon, even when a timer is active.
 	        var checkShowSpentWithTimer = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedShowSWT">\
 Always show Spent in the Chrome Plus icon even when a timer is active.</input>').children('input:checkbox:first');
@@ -758,7 +786,7 @@ Set the card background based on its first label color.</input>').children('inpu
 
 	    if (true) {
 	        var checkAcceptScrumForTrello = helpWin.raw('<span style="vertical-align:middle;margin-bottom:0px;"><input style="vertical-align:middle;margin-bottom:0px;" type="checkbox"  value="checkedAcceptSFT">\
-Accept the Scrum for Trello format &nbsp;&nbsp;&nbsp;<i>(Estimate) card title [Spent]</i>. All users must have the same setting.</input></span>').children('input:checkbox:first');
+Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All users should have the same setting.</input></span>').children('input:checkbox:first');
 	        if (g_bAcceptSFT)
 	            checkAcceptScrumForTrello[0].checked = true;
 
@@ -825,7 +853,7 @@ Accept the Scrum for Trello format &nbsp;&nbsp;&nbsp;<i>(Estimate) card title [S
 	    helpWin.para('&bull; Chrome local: ' + helpWin.storageTotalLocal + " bytes.");
 	    helpWin.para('&bull; html5 localStorage: ' + helpWin.storageTotalLocalStorage + " bytes.");
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
-	    helpWin.para('&bull; Reset storage by doing a "Reset sync".');
+	    helpWin.para('Empty storage by doing a "Reset sync".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -842,6 +870,12 @@ Accept the Scrum for Trello format &nbsp;&nbsp;&nbsp;<i>(Estimate) card title [S
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
+	    if (bInsertDonationAsSection) {
+	        helpWin.para('<b><h2 id="agile_help_donate">Donate</h2></b>');
+	        this.m_container.append(divDonations);
+	        helpWin.para('&nbsp');
+	        helpWin.para('&nbsp');
+	    }
 	    var body = $('body');
 	    container.hide();
 	    var toc = container.find("#tocAgileHelp");
@@ -853,7 +887,7 @@ Accept the Scrum for Trello format &nbsp;&nbsp;&nbsp;<i>(Estimate) card title [S
 	        var id = el.attr("id");
 	        if (id) {
 	            var link = "#" + id;
-	            var li = $("<li style='line-height: 1.5em;'><span>&nbsp;&bull;&nbsp</span></li>");
+	            var li = $("<li style='line-height: 1.5em;'><span>&nbsp;&nbsp</span></li>");
 	            var a = $("<a class='agile_toc_link agile_link_noUnderline'>").attr("href", link).text(title);
 	            li.append(a);
 	            toc.append(li);

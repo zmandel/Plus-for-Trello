@@ -299,7 +299,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
             }
 
             function onFinishedAll(status) {
-                saveAsFile({ totalCards: rgRenamedCards.length, cards: rgRenamedCards }, "plus for trello renamed cards.json", true);
+                saveAsFile({ totalCards: rgRenamedCards.length, cards: rgRenamedCards }, "plus for trello renamed cards json.txt", true);
                 handleShowDesktopNotification({
                     notification: "Finished renaming "+rgRenamedCards.length+" cards.\nAll renamed cards are in the downloaded file.",
                     timeout: 20000

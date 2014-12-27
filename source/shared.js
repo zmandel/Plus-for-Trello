@@ -4,6 +4,9 @@ var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE r
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
+var g_bAlwaysShowSpentChromeIcon = false; //review zig these 3  need initialization. reuse loadBackgroundOptions
+var g_bAcceptSFT = false;
+var g_userTrelloBackground = null;
 
 var ID_PLUSCOMMAND = "/PLUSCOMMAND";
 var PREFIX_PLUSCOMMAND = "^";
@@ -87,7 +90,20 @@ var UNITS = {
     minutes: "m",
     hours: "h",
     days: "d",
-    current: "h" //current units, hours by default
+    current: "h", //current units, hours by default
+    ColonFactor: function () {
+        return (this.current == "d" ? 24 : 60);
+    },
+    TimeToUnits: function (time) {
+        var mult=MAP_UNITS[this.current];
+        assert(mult);
+        return time/mult;
+    },
+    UnitsToTime: function (time) {
+        var mult = MAP_UNITS[this.current];
+        assert(mult);
+        return time * mult;
+    },
 };
 
 var MAP_UNITS = {
@@ -95,6 +111,7 @@ var MAP_UNITS = {
     "h": 1000 * 60 * 60,
     "d": 1000 * 60 * 60 * 24
 };
+
 
 /* DowMapper
  *
@@ -143,6 +160,30 @@ var DowMapper = {
         return this;
     }
 }.init();
+
+function loadSharedOptions(callback) {
+
+    var keyAcceptSFT = "bAcceptSFT";
+    var keybEnableTrelloSync = "bEnableTrelloSync";
+    var keybEnterSEByCardComments = "bEnterSEByCardComments";
+    var keyrgKeywordsforSECardComment = "rgKWFCC";
+    var keyUnits = "units";
+    assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
+
+    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment],
+                             function (objSync) {
+                                 UNITS.current = objSync[keyUnits] || UNITS.current;
+                                 g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
+                                 g_bAcceptSFT = objSync[keyAcceptSFT] || false;
+                                 g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
+                                 g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
+
+                                 chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
+                                     g_userTrelloBackground = (obj[PROP_TRELLOUSER] || null);
+                                     callback();
+                                 });
+                             });
+}
 
 function errFromXhr(xhr) {
     var errText = "error: " + xhr.status;
@@ -466,7 +507,7 @@ function parseColonFormatSE(val, bExact) {
     h = Math.abs(h);
     var m = parseInt(rg[1], 10) || 0;
 
-    var retVal = sign * (h + (m / 60));
+    var retVal = sign * (h + (m / UNITS.ColonFactor()));
     if (bExact)
         return retVal;
     return parseFixedFloat(retVal);
@@ -476,7 +517,7 @@ function parseColonFormatSE(val, bExact) {
 //parseFixedFloat
 //round to two decimals.
 //input can be string or number
-//if text contains colon, will assume hours:minutes format
+//if text contains colon, will assume units:subunits format
 //returns a float
 function parseFixedFloat(text, bDontZeroNan, bOneDecimal) {
     var val = null;
@@ -1089,7 +1130,8 @@ function getTimerElemText(msStart, msEnd, bValuesOnly) {
     if (msStart != null)
         ms = msEnd - msStart;
     var unit = UNITS.current;
-    var divisor = (MAP_UNITS[UNITS.current] || (1000 * 60 * 60));
+    var divisor = (MAP_UNITS[UNITS.current]);
+    assert(divisor);
     var days = 0;
     var hours = 0;
 
@@ -1114,7 +1156,7 @@ function getTimerElemText(msStart, msEnd, bValuesOnly) {
     }
     else {
 		//review zig timers
-        txt = "" + getWithZeroPrefix(hours) + ":" + getWithZeroPrefix(minutes) + ":" + getWithZeroPrefix(seconds) + "s";
+        txt = (days==0? "": ""+days+"d ") + (unit == UNITS.minutes? "" : getWithZeroPrefix(hours) + ":") + getWithZeroPrefix(minutes) + ":" + getWithZeroPrefix(seconds) + "s";
         return txt;
     }
 }

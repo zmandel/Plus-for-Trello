@@ -225,7 +225,7 @@ function handleCardTour() {
        {
            selector: ".agile-card-statrow-data",
            focus: ".agile-card-statrow-data",
-           text: "Users with positive <b>R</b><br>have pending work.<br><br>Mouse-over the user<br>to see their last report date.<br><br>Click the user to drill-down.<br>",
+           text: "Users with positive <b>R</b><br>have remaining work.<br><br>Mouse-over the user<br>to see their last S/E date.<br><br>Click the user to drill-down.<br>",
            angle: 180,
            distance: 0,
            size: 200

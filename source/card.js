@@ -282,7 +282,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	}
 	var dateLast = new Date(rowData.date * 1000);
 	if (!bHeader)
-	    u.attr("title", "last reported: " + dateLast.toLocaleDateString() + "\nClick to drill-down");
+	    u.attr("title", "last S/E " + dateLast.toLocaleDateString() + "\nClick to drill-down");
 	row.append(u).append(s).append(eOrig).append(e).append(r);
 	tableStats.append(row);
 }
@@ -563,73 +563,82 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
         return bRecurring;
     }
 
-	getCardTimerData(hash, function (obj) { //get it again in case it changed from another device
-		hash = obj.hash;
-		var stored = obj.stored;
-		if (stored === undefined || (stored.msStart != null && stored.msEnd != null) ||
-			(stored.msStart == null && stored.msEnd == null)) {
-		    //START
-		    var elemSpent = $("#plusCardCommentSpent");
-		    var sCur = null;
-		    var bClearSpentBox = false;
-		    if (elemSpent.length == 1) {
-		        sCur = parseSEInput(elemSpent, false, true);
-		        if (sCur != null) {
-		            if (parseFixedFloat(g_sTimerLastAdd) == sCur)
-		                sCur = g_sTimerLastAdd;
-		            msDateClick = msDateClick - sCur * 60 * 60 * 1000;
-		            bClearSpentBox = true;
-		        }
-		    }
+    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER], function (objActiveTimer) {
+        var idCardActiveTimer = null;
+        idCardActiveTimer = (objActiveTimer[SYNCPROP_ACTIVETIMER] || null);
 
-		    stored = { msStart: msDateClick, msEnd: null };
-			var objNew = {};
-			objNew[hash] = stored;
-			objNew[SYNCPROP_ACTIVETIMER] = idCard;
-		    //uncommon case of having two card windows open, start timer from A, stop from B, stop again A
-			clearTimerInterval(timerStatus);
-			chrome.storage.sync.set(objNew, function () {
-				if (chrome.runtime.lastError !== undefined)
-					return;
-				timerStatus.bRunning = true;
-				updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
-				configureTimerInterval(timerElem, timerStatus, stored.msStart);
-				updateTimerChromeIcon();
-				if (bClearSpentBox) {
-				    var elemComment = $("#plusCardCommentComment");
-				    elemSpent.val("");
-				    if (isRecurringCard())
-				        $("#plusCardCommentEstimate").val("");
-				    clearBlinkButtonInterval();
-				    $("#plusCardCommentEnterButton").removeClass("agile_box_input_hilite");
-				    if (elemComment.val() == g_strEndTimerComment)
-				        elemComment.val("");
-				}
-			});
-		}
-		else if (stored.msStart != null && stored.msEnd == null) {
-			//STOP
-			var msStartCur = stored.msStart;
-			var msEndCur = msDateClick;
-			chrome.storage.sync.remove([hash, SYNCPROP_ACTIVETIMER], function () {
-				if (chrome.runtime.lastError !== undefined)
-					return;
-				clearTimerInterval(timerStatus);
-				updateTimerElemText(timerElem, msStartCur, msStartCur); //just so it shows 0:0
-				updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
-				updateTimerChromeIcon();
-				var ms = msEndCur - msStartCur;
-				var sCalc = ms / (MAP_UNITS[UNITS.current] || (1000*60*60));
-				var sUse = parseFixedFloat(sCalc);
-				if (sUse != 0)
-				    addSEFieldValues(sCalc, isRecurringCard()? sCalc : 0, g_strEndTimerComment);
-				else {
-				    sendDesktopNotification("Ellapsed time too short.\nMake sure to wait at least 40 seconds before stopping the timer.", 10000);
-				}
-				findNextActiveTimer();
-			});
-		}
-	});
+        getCardTimerData(hash, function (obj) { //get it again in case it changed from another device
+            hash = obj.hash;
+            var stored = obj.stored;
+            if (stored === undefined || (stored.msStart != null && stored.msEnd != null) ||
+                (stored.msStart == null && stored.msEnd == null)) {
+                //START
+                if (idCardActiveTimer && !g_bDontWarnParallelTimers) {
+                    if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n[See Plus help Preferences to disable this warning]"))
+                        return;
+                }
+                var elemSpent = $("#plusCardCommentSpent");
+                var sCur = null;
+                var bClearSpentBox = false;
+                if (elemSpent.length == 1) {
+                    sCur = parseSEInput(elemSpent, false, true);
+                    if (sCur != null) {
+                        if (parseFixedFloat(g_sTimerLastAdd) == sCur)
+                            sCur = g_sTimerLastAdd;
+                        msDateClick = msDateClick - UNITS.UnitsToTime(sCur);
+                        bClearSpentBox = true;
+                    }
+                }
+
+                stored = { msStart: msDateClick, msEnd: null };
+                var objNew = {};
+                objNew[hash] = stored;
+                objNew[SYNCPROP_ACTIVETIMER] = idCard;
+                //uncommon case of having two card windows open, start timer from A, stop from B, stop again A
+                clearTimerInterval(timerStatus);
+                chrome.storage.sync.set(objNew, function () {
+                    if (chrome.runtime.lastError !== undefined)
+                        return;
+                    timerStatus.bRunning = true;
+                    updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
+                    configureTimerInterval(timerElem, timerStatus, stored.msStart);
+                    updateTimerChromeIcon();
+                    if (bClearSpentBox) {
+                        var elemComment = $("#plusCardCommentComment");
+                        elemSpent.val("");
+                        if (isRecurringCard())
+                            $("#plusCardCommentEstimate").val("");
+                        clearBlinkButtonInterval();
+                        $("#plusCardCommentEnterButton").removeClass("agile_box_input_hilite");
+                        if (elemComment.val() == g_strEndTimerComment)
+                            elemComment.val("");
+                    }
+                });
+            }
+            else if (stored.msStart != null && stored.msEnd == null) {
+                //STOP
+                var msStartCur = stored.msStart;
+                var msEndCur = msDateClick;
+                chrome.storage.sync.remove([hash, SYNCPROP_ACTIVETIMER], function () {
+                    if (chrome.runtime.lastError !== undefined)
+                        return;
+                    clearTimerInterval(timerStatus);
+                    updateTimerElemText(timerElem, msStartCur, msStartCur); //just so it shows 0:0
+                    updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
+                    updateTimerChromeIcon();
+                    var ms = msEndCur - msStartCur;
+                    var sCalc = UNITS.TimeToUnits(ms);
+                    var sUse = parseFixedFloat(sCalc);
+                    if (sUse != 0)
+                        addSEFieldValues(sCalc, isRecurringCard() ? sCalc : 0, g_strEndTimerComment);
+                    else {
+                        sendDesktopNotification("Ellapsed time too small (under 0.01). Timer ignored\n.", 10000);
+                    }
+                    findNextActiveTimer();
+                });
+            }
+        });
+    });
 }
 
 var g_intervalBlinkButton = null;

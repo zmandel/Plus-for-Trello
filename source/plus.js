@@ -129,7 +129,7 @@ function setWeekSummaryProgress(elem) {
 	if (elemTable.hasClass(strClass))
 		return false;
 	elemTable.addClass(strClass);
-	elem.attr("title", "Syncing...\nHover the Plus Chrome icon for progress ↗");
+	elem.attr("title", "Syncing...\nTo see progress hover Chrome's Plus icon ↗");
 	return true;
 }
 
@@ -227,7 +227,7 @@ function initialIntervalsSetup() {
 		    //needed because trello plays with navigation and we can end up with the cache even though we are on another page (like a board page)
 		    if (!bAtTrelloHome()) {
 		        g_chartsCache = {};
-		        cancelZoomin(null, true); //review zig: find a better way that is not timing-related, like a chrome url-changed notif, or change the href of recent/pending to handlers
+		        cancelZoomin(null, true); //review zig: find a better way that is not timing-related, like a chrome url-changed notif, or change the href of recent/remaining to handlers
 		    }
 
 			setTimeout(function () { doAllUpdates(); }, 100); //breathe
@@ -391,7 +391,7 @@ function programUnZoom(userElem) {
 var g_cRowsHistoryLast = 0;
 var g_bFirstTimeUse = false;
 var g_bAllowNegativeRemaining = false;
-var g_bAcceptSFT = false;
+var g_bDontWarnParallelTimers = false;
 var g_bUserDonated = false;
 var g_bHidePendingCards = false;
 var g_msStartPlusUsage = null; //ms of date when plus started being used. will be null until user enters the first row
@@ -442,7 +442,7 @@ function checkFirstTimeUse() {
 			            bShowHelp = true;
 			        }
 			        else {
-			            if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24 * 15) { //every 15 days
+			            if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24 * 15) { //every 15 days (15%7=1 thus will shift the day of the week every time)
 			                bForceShowHelp = true;
 			                bShowHelp = true;
 			            }
@@ -1139,8 +1139,8 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		waiter.SetWaiting(true);
 		chartModuleLoader(waiter, divSpentItems, cellA, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left");
 		chartModuleLoader(waiter, divSpentItems, cellB, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left");
-		var divItemDashboardRecent = addModuleSection(false, cellC, "Recently reported cards", idRecentModule, true, "left");
-		var divItemDashboardUnspent = addModuleSection(false, cellD, "Pending balance cards", idPendingModule, true, "left");
+		var divItemDashboardRecent = addModuleSection(false, cellC, "Recent card S/E", idRecentModule, true, "left");
+		var divItemDashboardUnspent = addModuleSection(false, cellD, "Remaining balance cards", idPendingModule, true, "left");
 		loadDashboards(waiter, divItemDashboardRecent, divItemDashboardUnspent, user);
 	} else {
 		var divItemDashboardRecent2 = $("#" + idRecentModule);
@@ -1353,7 +1353,7 @@ function handleLoadPending(listElem, data) {
 			break;
 		var url = "https://trello.com/c/" + row.idCard;
 		var cDays = dateDiffInDays(new Date(), new Date(row.msDate));
-		var tooltip = "Last reported " + cDays;
+		var tooltip = "Last S/E " + cDays;
 
 		if (cDays == 1)
 			tooltip += " day ago.";
@@ -1393,7 +1393,7 @@ function handleLoadUnspent(listElem, data) {
 			break;
 		var badge = BadgeFactory.makeRemainingBadge();
 		badge.contents().last()[0].textContent = data[i][3];
-		var tooltip = "Last reported: " + row[4] + (row[4] == "1" ? " day ago." : " days ago.");
+		var tooltip = "Last S/E " + row[4] + (row[4] == "1" ? " day ago." : " days ago.");
 		var color = null;
 		if (row[4] > 7 && !bError)
 			color = "darkgray";

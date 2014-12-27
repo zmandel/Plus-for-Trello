@@ -25,24 +25,6 @@ function processCardFullWindows() {
 	if (sidebars.length == 0)
 		return;
 
-	if (false) { //was: isBackendMode()
-	    //review zig: will be handled in v3 with native trello sync. its too slow when the card has a lot of comments
-		var siblings = sidebars.prev();
-		var elems = $(".atMention:contains(" + "@" + getSpentSpecialUser() + ")");
-		var cElems = Math.min(10, elems.length);
-		var j = 0;
-		for (j = 0; j < cElems; j++) {
-		    var mentioned = elems.eq(j);
-		    var elem = mentioned.parent().parent().parent().parent();
-		    if (elem.length == 0)
-		        continue;
-			if (true) {
-			    var sibling = $(elem).next();
-				sibling.find($(".js-edit-action")).hide();
-				sibling.find($(".js-confirm-delete-action")).hide();
-			}
-		}
-	}
 	var actions = sidebars.find($("h3:contains(Actions)"));
 	var divInsert = actions.next();
 	if (divInsert.find($("#agile_timer")).size() == 0) {
@@ -125,8 +107,10 @@ function entryPoint() {
 	checkEnableMoses();
 }
 
+//review zig: merge with loadSharedOptions
 function loadOptions(callback) {
     var keyAllowNegativeRemaining = "bIgnoreZeroECards";
+    var keyDontWarnParallelTimers = "bDontWarnParallelTimers";
     var keyAcceptSFT = "bAcceptSFT";
     var keyAlreadyDonated = "bUserSaysDonated";
     var keyHidePendingCards = "bHidePendingCards";
@@ -150,13 +134,14 @@ function loadOptions(callback) {
 
     //get options from sync. If not there, might be in local (older version), so upgrade it.
     //review zig: remove local check by aug.c2014
-    chrome.storage.sync.get([keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT, keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync, keyHidePendingCards, keyDowStart,
+    chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT, keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync, keyHidePendingCards, keyDowStart,
                              keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor, keyPropbSumFilteredCardsOnly],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
-                                 g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;      
+                                 g_bDontWarnParallelTimers = objSync[keyDontWarnParallelTimers] || false;
+                                 g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
@@ -257,8 +242,8 @@ function ResetPlus() {
 
                         if (response.bSyncing) {
                             //note: this isnt perfect but will cover many concurrency cases
-                            alert("Plus is currently syncing. Try again later.");
-                            return;
+                            if (!confirm("Plus is currently syncing.\nYou should press Cancel unless Plus is stuck in this state.\nAre you sure you want to reset?"))
+                                return;
                         }
 
 

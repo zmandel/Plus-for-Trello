@@ -1,7 +1,6 @@
 ﻿var g_db = null;
 var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
-var g_bAcceptSFT = false;
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
 
@@ -469,9 +468,9 @@ function appendRowToSpreadsheet(row, idSsUser, idUserSheetTrello, sendResponse) 
 function appendLogToPublicSpreadsheet(message, sendResponse) {
 	var atom = makeMessageAtom(message);
 	var url = "https://spreadsheets.google.com/feeds/list/" + "0AneAYB2jAvLQdHpraGVneGQ3Z2ZjRUtTdVk0ZU5vd2c" + "/" + gid_to_wid(0) + "/private/full";
-	handleApiCall(url, {}, true, function (response) {
-		sendResponse(); //note this serializes all appends, so we dont overwhelm google quotas
-	}, atom);
+	onAuthorized(url, {}, function (response) {
+	    sendResponse(); //note this serializes all appends, so we dont overwhelm google quotas
+	}, null, true, atom);
 }
 
 /* handleGetReport
@@ -815,34 +814,14 @@ function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
 	);
 }
 
-var g_userTrelloBackground = null; //set by loadBackgroundOptions
-
 function loadBackgroundOptions(callback) {
 
-    var keyAcceptSFT = "bAcceptSFT";
-    var keybEnableTrelloSync = "bEnableTrelloSync";
-    var keybEnterSEByCardComments = "bEnterSEByCardComments";
-    var keyrgKeywordsforSECardComment = "rgKWFCC";
-    var keyUnits = "units";
-    assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
-
-    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment],
-                             function (objSync) {
-                                 UNITS.current = objSync[keyUnits] || UNITS.current;
-                                 g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
-                                 g_bAcceptSFT = objSync[keyAcceptSFT] || false;
-                                 g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
-                                 g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
-
-                                 if (!g_bEnableTrelloSync) {
-                                     g_syncStatus.setStage("", 0); //reset
-                                 }
-
-                                 chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
-                                     g_userTrelloBackground = (obj[PROP_TRELLOUSER] || null);
-                                     callback();
-                                 });
-                             });
+    loadSharedOptions(function () {
+        if (!g_bEnableTrelloSync) {
+            g_syncStatus.setStage("", 0); //reset
+        }
+        callback();
+    });
 }
 
 function insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet) {
@@ -1044,7 +1023,7 @@ function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callback
 	var rowidHistory = rowidInner;
 	var userMarked = rowInner.user;
 	var comment = rowInner.comment;
-	var idBoard = rowInner.idBoard; //note: if the card where the activity was reported is later moved to another board, we use the old board. thats intended.
+	var idBoard = rowInner.idBoard; //note: if the card where the activity was entered is later moved to another board, we use the old board. thats intended.
 	var date = rowInner.date;
 	var patt = /^(\[by ([^ \t\r\n\v\f]+)\][ \t]+)?\^(markboard|unmarkboard)([ \t]+(.*))?/;
 	var rgResults = patt.exec(comment);
@@ -1162,11 +1141,14 @@ function handleWriteLogToPlusSupport(request, sendResponse) {
             if (response.rows && response.rows.length > 0) {
                 response.rows.forEach(function (row) {
                     var strDate = new Date(row.date * 1000).toGMTString();
-                    rgPostPublicLog.push(strDate + " " + row.message);
+                    var strMessage = strDate + " " + row.message;
+					// < > break ss api.
+                    strMessage = strMessage.replace(/</g, "-").replace(/>/g, "-");
+                    rgPostPublicLog.push(strMessage);
                 });
             }
             if (rgPostPublicLog.length > 0)
-                startWritePublicLog(rgPostPublicLog, "plus_user");
+                startWritePublicLog(rgPostPublicLog, request.username);
             else
                 response.status = "Nothing to send!";
             sendResponse(response);
@@ -1203,11 +1185,24 @@ function handleDeleteAllLogMessages(request, sendResponse) {
 	});
 }
 
-function handleDeleteDB(request, sendResponse) {
+function handleDeleteDB(request, sendResponseParam) {
+    g_bOpeningDb = true;
+
+    function sendResponse(response) {
+        g_bOpeningDb = false;
+        sendResponseParam(response);
+    }
+
 	var db = g_db;
 	if (db == null) {
-		sendResponse({ status: "ERROR: handleDeleteDB no g_db" });
-		return;
+	    db = rawOpenDb(); //open it without migration. maybe migration failed before
+	}
+
+	if (!db) {
+        //in theory it cant get here
+	    logPlusError("handleDeleteDB no db");
+	    sendResponse({ status: "ERROR: handleDeleteDB no g_db" });
+	    return;
 	}
 	var versionCur = parseInt(db.version,10) || 0;
 	db.changeVersion(versionCur, 0, function (t) {
@@ -1362,6 +1357,10 @@ function convertDowStart(dowStart,sendResponse, response) {
 
 var g_bOpeningDb = false;
 
+function rawOpenDb() {
+    return openDatabase('trellodata', '', 'Trello database', 100 * 1024 * 1024); //100mb though extension asks for unlimited so it should grow automatically.
+}
+
 function handleOpenDB(options, sendResponseParam, cRetries) {
 
     loadBackgroundOptions(function () {
@@ -1466,7 +1465,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         if (g_callbackOnAssert == null)
             g_callbackOnAssert = notifyTruncatedSyncState;
 
-        db = openDatabase('trellodata', '', 'Trello database', 100 * 1024 * 1024); //100mb though extension asks for unlimited so it should grow automatically.
+        db = rawOpenDb();
         var versionCur = parseInt(db.version, 10) || 0;
 
         var M = new Migrator(db, PreHandleGetTotalRows);

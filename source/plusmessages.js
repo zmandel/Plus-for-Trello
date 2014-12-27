@@ -25,9 +25,11 @@ function loadReport() {
 	});
 
 	$("#buttonSendToDev").click(function () {
-	    if (!confirm('The log text below will be sent securely to a Google Spreadsheet.\nYour google email will also be sent so Plus can get back to you. OK?'))
+
+	    var username = prompt("Log will be sent securely to Plus support.\n\nEnter your email so we can get back to you:", "anonymous");
+	    if (!username)
 	        return;
-	    sendExtensionMessage({ method: "writeLogToPlusSupport" },
+	    sendExtensionMessage({ method: "writeLogToPlusSupport", username: username },
 			function (response) {
 			    if (response.status != STATUS_OK) {
 			        alert(response.status);

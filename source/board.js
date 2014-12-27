@@ -437,20 +437,26 @@ function updateWorker(bShowBoardTotals) {
 var g_strLastBoardNameIdSaved = null;
 
 function removeTimerForCard(idCardParsed) {
-    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER], function (obj) {
+    var hash = getCardTimerSyncHash(idCardParsed);
+    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, hash], function (obj) {
         var bDeleteActive = false;
-        var hash = getCardTimerSyncHash(idCardParsed);
         if (obj[SYNCPROP_ACTIVETIMER] !== undefined && obj[SYNCPROP_ACTIVETIMER] == idCardParsed)
             bDeleteActive = true;
-        var rgPropsRemove = [hash];
+        var rgPropsRemove = [];
+        if (obj[hash])
+            rgPropsRemove.push(hash);
         if (bDeleteActive)
             rgPropsRemove.push(SYNCPROP_ACTIVETIMER);
+
+        if (rgPropsRemove.length == 0)
+            return;
         chrome.storage.sync.remove(rgPropsRemove, function () {
             if (chrome.runtime.lastError !== undefined)
                 return;
             updateTimerChromeIcon();
             if (bDeleteActive)
                 findNextActiveTimer();
+            sendDesktopNotification("Deleted timer for this card.", 10000);
         });
     });
 }
@@ -469,6 +475,24 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
 
     if (boardCur == null || remainingTotal == null) {
         var idCardParsed = getIdCardFromUrl(document.URL);
+        if (!boardCur && !idCardParsed && document.URL.toLowerCase() == "https://trello.com/plusreset") {
+            var linkReset = $("#plusEmergencyReset");
+            var elemDetect = $(".big-message h1");
+            if (linkReset.length == 0 && elemDetect.length > 0) {
+                elemDetect.text("");
+                $(".big-message p").text("");
+                linkReset = $("<button id='plusEmergencyReset'>click to perform a Plus emergency 'Reset'</button>");
+                $(".big-message").append(linkReset);
+                linkReset = $("#plusEmergencyReset");
+                linkReset.click(function (e) {
+                    linkReset.prop('disabled', true);
+                    linkReset.hide();
+                    e.preventDefault();
+                    ResetPlus();
+                });
+            }
+        }
+
         if (boardCur == null && idCardParsed) {
             //see if its a deleted card
             var elemDetect = $(".big-message h1");

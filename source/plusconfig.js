@@ -234,6 +234,7 @@ function clearAllStorage(callback) {
                         //keep the important user preferences
 					    chrome.storage.sync.set({
 					        'serviceUrl': g_strServiceUrl,
+					        'bDontWarnParallelTimers' : g_bDontWarnParallelTimers,
 					        'bIgnoreZeroECards': g_bAllowNegativeRemaining,
 					        'bAcceptSFT': g_bAcceptSFT,
 					        'bUserSaysDonated': g_bUserDonated,

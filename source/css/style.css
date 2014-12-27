@@ -175,7 +175,7 @@ div#agile_help_container {
 	padding-top: 10px;
 	position: absolute;
 	top: 0em;
-	width: 60em;
+	width: 56em;
 	z-index: 1001;
 	overflow: scroll;
 }
@@ -1102,6 +1102,10 @@ table#tableMarkers td {
     padding: 1px !important;
     vertical-align:middle !important;
     margin-top: 0em !important;
+    cursor: pointer !important;
+}
+
+#plusEmergencyReset {
     cursor: pointer !important;
 }
 
