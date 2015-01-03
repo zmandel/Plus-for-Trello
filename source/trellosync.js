@@ -99,6 +99,11 @@ function handleGetTrelloCardData(request, sendResponseParam) {
     }
 }
 
+function makeLastStatusSync(statusRead, statusWrite, date) {
+    if (!date)
+        date=(new Date()).getTime();
+    return { statusRead: statusRead, statusWrite: statusWrite, date: date };
+}
 
 /* handleSyncBoards
  *
@@ -111,10 +116,11 @@ function handleSyncBoards(request, sendResponseParam) {
             if (g_optEnterSEByComment.IsEnabled()) {
                 var pairDateLast = {};
                 var pairLastStatus = {};
+                var dateNow = (new Date()).getTime();
                 if (response.status == STATUS_OK)
-                    pairDateLast["plus_datesync_last"] = (new Date()).getTime();
+                    pairDateLast["plus_datesync_last"] = dateNow;
                 chrome.storage.local.set(pairDateLast, function () {
-                    pairLastStatus["plusSyncLastStatus"] = { statusRead: response.status, statusWrite: STATUS_OK };
+                    pairLastStatus["plusSyncLastStatus"] = makeLastStatusSync(response.status, STATUS_OK, dateNow);
                     chrome.storage.local.set(pairLastStatus, function () {
                         sendResponseParam(response);
                     });

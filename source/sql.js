@@ -262,7 +262,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
             g_cErrorSync++;
 
         if (!bEnterSEByComments) {
-            pairLastStatus["plusSyncLastStatus"] = { statusRead: response.status, statusWrite: response.statusLastWriteSync || STATUS_OK };
+            pairLastStatus["plusSyncLastStatus"] = makeLastStatusSync(response.status, response.statusLastWriteSync || STATUS_OK);
             chrome.storage.local.set(pairLastStatus, function () {
                 if (bNeedUpdateIcon)
                     updatePlusIcon();
@@ -414,7 +414,7 @@ function setLastWriteStatus(status) {
     chrome.storage.local.get([keyplusSyncLastStatus], function (obj) {
         var statusLastSync = obj[keyplusSyncLastStatus];
         var pairLastStatus = {};
-        pairLastStatus["plusSyncLastStatus"] = { statusRead: statusLastSync.statusRead, statusWrite: status };
+        pairLastStatus["plusSyncLastStatus"] = makeLastStatusSync(statusLastSync.statusRead, status);
         chrome.storage.local.set(pairLastStatus, function () {
             if (bChanged)
                 updatePlusIcon(false);
@@ -1659,8 +1659,8 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzInUnique ON LISTCARDS(idCard, dateSzIn)'); //for insert integrity
             //note that CARDS.idList should always be equal to LISTCARDS.idList where dateSzOut is null
             //REVIEW ZIG post beta t.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS idx_listCardsDateSzOutUnique ON LISTCARDS(idCard, dateSzOut)'); //for integrity and to guarantee null dateSzOut unique
-            t.executeSql("INSERT INTO BOARDS (idBoard, idLong, name) VALUES (?,?,?)", [IDBOARD_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_BOARD]); //cant fail since  the id cant be used by trello
-            t.executeSql("INSERT INTO LISTS (idList, idBoard, name) VALUES (?,?,?)", [IDLIST_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_LIST]); //cant fail since  the ids cant be used by trello
+            t.executeSql("INSERT OR REPLACE INTO BOARDS (idBoard, idLong, name) VALUES (?,?,?)", [IDBOARD_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_BOARD]); //cant fail since  the id cant be used by trello
+            t.executeSql("INSERT OR REPLACE INTO LISTS (idList, idBoard, name) VALUES (?,?,?)", [IDLIST_UNKNOWN, IDBOARD_UNKNOWN, STR_UNKNOWN_LIST]); //cant fail since  the ids cant be used by trello
 
         });
 

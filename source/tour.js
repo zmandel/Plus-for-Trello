@@ -43,6 +43,14 @@ function handleHomeTour() {
         },
 
         {
+            selector: ".agile-spent-icon-header",
+            text: "Use the arrows<br>here or on your<br>keyboard to<br>navigate this tour",
+            angle: 180,
+            distance: 0,
+            size: 150
+        },
+
+        {
             selector: "#urlUser",
             text: "<br>This report<br>shows your total daily <b>S</b>pent breakdown<br>",
             angle: 180,
@@ -133,7 +141,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "Each <b>S/E row</b> will appear in a card comment, drill-downs and reports.<br><br>",
+        text: "Each <b>S/E row</b><br>appears in a card comment,<br>drill-downs and reports.<br><br>",
         angle: 90,
         distance: 0,
         size: 200
@@ -141,7 +149,7 @@ function handleCardTour() {
       {
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
-          text: "The first<br><b>S/E row</b> entered<br>should have<br>empty <b>S</b>pent<br>and a<br>positive <b>E</b>stimate<br>",
+          text: "The first<br><b>S/E row</b> entered<br>should have<br>empty <b>S</b>pent<br>and a<br>positive <b>E</b>stimate.<br>",
           angle: 90,
           distance: 0,
           size: 200
@@ -149,7 +157,7 @@ function handleCardTour() {
       {
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
-          text: "That first <b>S/E row</b><br>entered per user is their<br><b>1ˢᵗ Estimate</b> and cannot be modified.<br><br>This is useful to later detect and compare changed estimates.<br>",
+          text: "That first S/E row<br>entered per user is<br>their <b>1ˢᵗ Estimate</b><br>and cannot be modified.<br><br>Useful to later detect<br>and compare changed estimates.<br>",
           angle: 90,
           distance: 0,
           size: 200
@@ -158,7 +166,23 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "Then, you<br>consume that Estimate<br>by entering more rows with positive <b>S</b>pent and<br>empty <b>E</b>stimate<br><br>",
+        text: "<b>Spend</b> units<br>by entering more 'S/E rows' with positive <b>S</b>pend and<br>empty <b>E</b>stimate.<br><br>",
+        angle: 90,
+        distance: 0,
+        size: 200
+    },
+     {
+         selector: ".agile-se-bar-entry",
+         focus: ".agile_days_box_input",
+         text: "<br><br><b>S and E are cummulative</b>.<br><br><br>Their current value is the sum in all S/E rows.<br>",
+         angle: 90,
+         distance: 0,
+         size: 200
+     },
+    {
+        selector: ".agile-se-bar-entry",
+        focus: ".agile_days_box_input",
+        text: "The best practice suggested is to<br><b>S</b>pend enough to make it<br>equal to the current <b>E</b>stimate.",
         angle: 90,
         distance: 0,
         size: 200
@@ -166,7 +190,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "If you later<br>realize you need more Estimate<br>simply enter more <b>E</b><br><br><b>Spent and Estimate are cummulative</b>",
+        text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so it<br>doesn't go negative.<br><br>The Plus bar defaults E<br>automatically in that case.",
         angle: 90,
         distance: 0,
         size: 200
@@ -174,7 +198,7 @@ function handleCardTour() {
         {
             selector: ".agile-se-bar-entry",
             focus: ".agile_days_box_input",
-            text: "Likewise<br>if you are done with the card but there is still <b>R</b>emaining, enter a negative <b>E</b><br><br>",
+            text: "Likewise<br>if you finish a card and<br>still has <b>R</b>emaining,<br>reduce your Estimate<br>(enter negative <b>E</b>)<br>so <b>R</b> gets to zero.<br><br>",
             angle: 90,
             distance: 0,
             size: 200
@@ -190,7 +214,7 @@ function handleCardTour() {
       {
           selector: ".agile_spent_box_input",
           focus: ".agile_spent_box_input",
-          text: "<b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate<br>",
+          text: "<b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
           angle: 180,
           distance: 0,
           size: 200
@@ -207,7 +231,7 @@ function handleCardTour() {
            {
                selector: ".agile_comment_box_input",
                focus: ".agile_comment_box_input",
-               text: "Type an<br>optional note and press the Enter key or button",
+               text: "Type an<br>optional note and press the Enter key or button.",
                angle: 180,
                distance: 0,
                size: 150
@@ -216,7 +240,7 @@ function handleCardTour() {
        {
            selector: ".agile_card_report_link",
            focus: ".agile_card_report_link",
-           text: "Once there are<br>S/E rows entered, this shows a breakdown per user.<br>Click it to drill-down",
+           text: "Once there are<br>S/E rows entered, this shows a breakdown<br>per user.<br>Click it to drill-down.",
            angle: 180,
            distance: 0,
            size: 200
@@ -287,7 +311,7 @@ function handleCardTour() {
        {
            selector: "#agile_timer",
            focus: "#agile_timer",
-           text: "<b>Card Timer</b><br><br>Start or stop a timer<br><br>",
+           text: "<b>Card Timer</b><br><br>Start or stop a timer.<br><br>",
            angle: (180 + 45),
            distance: 0,
            size: 150
@@ -297,7 +321,7 @@ function handleCardTour() {
         {
             selector: "#agile_timer",
             focus: "#agile_timer",
-            text: "<br>Once started<br>the timer also shows in the Chrome Plus menu<br><br>(top-right in Chrome)<br>",
+            text: "<br>Once started<br>the timer also shows in the Chrome Plus menu.<br><br>(top-right in Chrome)<br>",
             angle: (180 + 45),
             distance: 0,
             size: 200,
@@ -318,7 +342,7 @@ function handleCardTour() {
        {
            selector: ".agile_spent_box_input",
            focus: ".agile_spent_box_input",
-           text: "The timer fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/stopping the timer to add to it",
+           text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/stopping the timer.",
            angle: 180-45,
            distance: 0,
            size: 200
@@ -327,7 +351,7 @@ function handleCardTour() {
         {
             selector: ".agile_spent_box_input",
             focus: ".agile_spent_box_input",
-            text: "If you<br>forgot to start a timer, just type here the current approximate Spent and start the timer.<br><br>It will start at that value.",
+            text: "If you forgot<br>to start a timer, type here the Spent so far and start the timer<br>to start at that value.<br>",
             angle: 180 - 45,
             distance: 0,
             size: 200
@@ -345,7 +369,7 @@ function handleCardTour() {
          {
              selector: "#plusCardCommentEnterButton",
              focus: "#plusCardCommentEnterButton",
-             text: "Once a timer fills Spent,<br>you need to Enter it.",
+             text: "Once a timer pre-fills Spent,<br>you need to Enter it.",
              angle: 180 - 45,
              distance: 0,
              size: 200
@@ -428,6 +452,7 @@ function stopTour() {
     if (boardCur != null)
         updateCards(boardCur, null, true);
     refreshCardTableStats();
+    $(document).unbind("keydown.tourPlusArrows");
 }
 
 function handleTourStart(bFromClick) {
@@ -445,8 +470,33 @@ function handleTourStart(bFromClick) {
             handleBoardTour();
         else if (bAtTrelloHome())
             handleHomeTour();
-        else if (bFromClick)
-            sendDesktopNotification("Go to trello.com to start the tour.",5000);
+        else if (bFromClick) {
+            sendDesktopNotification("Go to trello.com to start the tour.", 5000);
+            return;
+        }
+        //msNow: the bubble code has a timing bug when quickly showing next bubble it can get out of sync with its
+        //internal bubble array and leave bubbles floating arround.
+        //its easy to repro using arrow keys by just keeping the keystroke down, thus ignore repeating keys
+        var msNow = new Date().getTime();
+        var cc = 0;
+        $(document).bind("keydown.tourPlusArrows", function (event) {
+            function isRepeating() {
+                return (event.originalEvent && event.originalEvent.repeat);
+            }
+
+            if (event.which == 37) {
+                event.preventDefault();
+                if (isRepeating())
+                    return;
+                showNextBubble(-1);
+            }
+            else if (event.which == 39) {
+                event.preventDefault();
+                if (isRepeating())
+                    return;
+                showNextBubble(1, event.shiftKey);
+            }
+            });
     }, 0);
 }
 

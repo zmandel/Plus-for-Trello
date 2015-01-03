@@ -91,6 +91,20 @@ var UNITS = {
     hours: "h",
     days: "d",
     current: "h", //current units, hours by default
+    FormatWithColon: function (f) {
+        assert(typeof f == "number");
+        assert(f >= 0); //floor would need to change
+        if (f == 0)
+            return "";
+        var units = Math.floor(f);
+        var str = "";
+        var subunits = Math.round((f - units) * this.ColonFactor());
+        if (subunits == 0)
+            str = "" + units;
+        else
+            str = "" + (units == 0 ? "" : units) + ":" + subunits;
+        return str;
+    },
     ColonFactor: function () {
         return (this.current == "d" ? 24 : 60);
     },
@@ -99,11 +113,11 @@ var UNITS = {
         assert(mult);
         return time/mult;
     },
-    UnitsToTime: function (time) {
+    UnitsToTime: function (units) {
         var mult = MAP_UNITS[this.current];
         assert(mult);
-        return time * mult;
-    },
+        return units * mult;
+    }
 };
 
 var MAP_UNITS = {

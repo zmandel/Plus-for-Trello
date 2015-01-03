@@ -468,6 +468,8 @@ function updateCRowsTotalState(cRowsTotal, config, user) {
     var bNewRows = (cRowsOld != g_cRowsHistoryLast);
     if (bNewRows || cRowsTotal == 0) { //cRowsTotal==0 is a hack so the "first sync" status text gets updated after a first sync with no rows
         g_bForceUpdate = true;
+        g_seCardCur.s = null; //mark as uninitialized. will be set on the refresh below
+        g_seCardCur.e = null;
         doWeeklyReport(config, user, false, true);
     }
 }

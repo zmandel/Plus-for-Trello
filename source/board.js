@@ -472,12 +472,12 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
         if (responseParam)
             responseParam();
     }
-
+    var elemDetect = null;
     if (boardCur == null || remainingTotal == null) {
         var idCardParsed = getIdCardFromUrl(document.URL);
         if (!boardCur && !idCardParsed && document.URL.toLowerCase() == "https://trello.com/plusreset") {
             var linkReset = $("#plusEmergencyReset");
-            var elemDetect = $(".big-message h1");
+            elemDetect = $(".big-message h1");
             if (linkReset.length == 0 && elemDetect.length > 0) {
                 elemDetect.text("");
                 $(".big-message p").text("");
@@ -495,7 +495,7 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
 
         if (boardCur == null && idCardParsed) {
             //see if its a deleted card
-            var elemDetect = $(".big-message h1");
+            elemDetect = $(".big-message h1");
             if (elemDetect.length > 0 && elemDetect[0].innerText.indexOf("Card not found") >= 0) {
                 removeTimerForCard(idCardParsed);
             }

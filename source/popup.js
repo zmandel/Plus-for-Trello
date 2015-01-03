@@ -188,8 +188,8 @@ function configData() {
 }
 
 function listAllBoards() {
-	var sql = "SELECT b.idBoard, b.name, MAX(h.date) as maxDate FROM boards AS b LEFT OUTER JOIN history as H ON b.idBoard=h.idBoard WHERE b.idBoard <> ? AND b.bArchived=0 GROUP BY b.idBoard ORDER BY maxDate DESC";
-	var status = $("#progress");
+    var sql = "SELECT b.idBoard, b.name, MAX(h.date) as maxDate FROM boards AS b LEFT OUTER JOIN history as H ON b.idBoard=h.idBoard WHERE b.idBoard <> ? AND b.bArchived=0 GROUP BY b.idBoard ORDER BY " + (g_bEnableTrelloSync ? "b.dateSzLastTrello" : "maxDate")+" DESC";
+    var status = $("#progress");
 	var cardResults = $("#agile_popup_cards_container");
 	var urlBaseDashboard = chrome.extension.getURL("dashboard.html") + "?";
 	var urlBaseReport = chrome.extension.getURL("report.html")+"?weekStartRecent=true&idBoard=";
@@ -325,7 +325,7 @@ function fillCardResults(divResults, val, bSearchComments, chSplit, cSearchCur) 
 	var sDateLimit = Math.round(((new Date()).getTime() / 1000) - 60 * 60 * 24 * cDays);
 	var paramsSql = [sDateLimit];
 
-	var sql = "SELECT c.idCard, c.name AS nameCard, b.name as nameBoard, c.idBoard, MAX(cb.date) as maxDate FROM cards AS c LEFT OUTER JOIN cardbalance AS cb ON c.idCard=cb.idCard JOIN boards AS b ON b.idBoard=c.idBoard WHERE  (cb.date is NULL or cb.date >?) AND LOWER(c.name) GLOB ? GROUP BY c.idCard ORDER BY maxDate DESC LIMIT 10";
+	var sql = "SELECT c.idCard, c.name AS nameCard, b.name as nameBoard, c.idBoard, MAX(cb.date) as maxDate FROM cards AS c LEFT OUTER JOIN cardbalance AS cb ON c.idCard=cb.idCard JOIN boards AS b ON b.idBoard=c.idBoard WHERE  (cb.date is NULL or cb.date >?) AND LOWER(c.name) GLOB ? GROUP BY c.idCard ORDER BY  " + (g_bEnableTrelloSync ? "c.dateSzLastTrello" : "maxDate") + " DESC LIMIT 10";
 	
 	if (bSearchComments)
 		sql = "SELECT h.comment, c.idCard, c.name AS nameCard, b.name as nameBoard, c.idBoard, MAX(h.date) as maxDate FROM cards AS c JOIN history AS h ON c.idCard=h.idCard JOIN boards AS b ON b.idBoard=h.idBoard WHERE h.date>? AND LOWER(h.comment) GLOB ? GROUP BY c.idCard ORDER BY maxDate DESC LIMIT 10";
@@ -343,7 +343,7 @@ function fillCardResults(divResults, val, bSearchComments, chSplit, cSearchCur) 
 			sql += "AND LOWER(c.name) GLOB ? ";
 			paramsSql.push("*" + parts[i] + "*");
 		}
-		sql+="GROUP BY c.idCard ORDER BY maxDate DESC LIMIT 10";
+		sql += "GROUP BY c.idCard ORDER BY " + (g_bEnableTrelloSync ? "c.dateSzLastTrello" : "maxDate") + " DESC LIMIT 10";
 	} else {
 		paramsSql.push("*" + val + "*");
 	}

@@ -1,6 +1,6 @@
 ﻿var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
-var g_strEndTimerComment="end timer. ";
+var g_strNoteBase = "type note and Enter.";
 
 function validateSEKey(evt) {
 	var theEvent = evt || window.event;
@@ -13,21 +13,93 @@ function validateSEKey(evt) {
 	}
 }
 
-var g_seCardCur = { s: 0, e: 0 }; //keeps stats about the user's last open card. used for "se bar" validation
+var g_seCardCur = { s: null, e: null }; //keeps stats about the user's last open card. used for "se bar" validation. null means not initialized
+
+function updateEOnSChange() {
+    var comment = $("#plusCardCommentComment");
+    var spinS = $("#plusCardCommentSpent");
+    var spinE = $("#plusCardCommentEstimate");
+
+    setTimeout(function () {
+        var valS = spinS.val() || "";
+        bHilite = false;
+        if (isRecurringCard()) {
+            spinE.val(valS);
+            bHilite = true;
+        }
+        else if (!g_bAllowNegativeRemaining) {
+            if (g_seCardCur.s === null || g_seCardCur.e === null)
+                return; //should never happen but just in case
+            var sNew = g_seCardCur.s + parseSEInput(spinS, false, true);
+            var floatDiff = sNew - g_seCardCur.e;
+            if (floatDiff <= 0)
+                floatDiff = 0;
+            var diff = parseFixedFloat(floatDiff);
+            if (diff <= 0) {
+                diff = "";
+                floatDiff = 0;
+            }
+
+            if (spinE.val() != diff) {
+                if (diff) {
+                    if (valS.indexOf(":") >= 0) {
+                        diff = UNITS.FormatWithColon(floatDiff);
+                    }
+                }
+                spinE.val(diff);
+                bHilite = true;
+            }
+        }
+        if (bHilite)
+            hiliteOnce(spinE, 500);
+        updateNoteR();
+    }, 1);
+}
+
+function updateNoteR() {
+    var comment = $("#plusCardCommentComment");
+    var spinS = $("#plusCardCommentSpent");
+    var spinE = $("#plusCardCommentEstimate");
+    if (comment.length == 0 || spinS.length == 0 || spinE.length == 0)
+        return;
+
+    if (g_seCardCur.s == null)
+        return; //should never happen but just in case
+
+    var sRaw = spinS.val();
+    var eRaw = spinE.val();
+
+    var sParsed = parseSEInput(spinS, false, true);
+    var eParsed = parseSEInput(spinE, false, true);
+
+    if ((sRaw.length == 0 && eRaw.length == 0) || sParsed == null || eParsed == null) {
+        comment.attr("placeholder", g_strNoteBase);
+        return;
+    }
+
+
+    var sumS = sParsed + g_seCardCur.s;
+    var sumE = eParsed + g_seCardCur.e;
+    var rDiff = parseFixedFloat(sumE - sumS);
+    comment.attr("placeholder", g_strNoteBase + " R will be " + rDiff + "."+(rDiff!=0? "":" Increase E if you are not done." ));
+}
+
+function isRecurringCard() {
+    var elemTitle = $(".window-title-text");
+    if (elemTitle.length == 0)
+        return false; //no longer in card window. just pretend not recurring
+    var titleCur = elemTitle.text();
+    var bRecurring = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
+    return bRecurring;
+}
+
 
 function createCardSEInput(parentSEInput, spentParam, estimateParam, commentParam) {
 	var bHasSpentBackend = isBackendMode();
+	g_seCardCur.s = null;
+	g_seCardCur.e = null;
 
-	function isRecurringCard() {
-	    var elemTitle = $(".window-title-text");
-	    if (elemTitle.length == 0)
-	        return false; //no longer in card window. just pretend not recurring
-	    var titleCur = elemTitle.text();
-	    var bRecurring = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
-	    return bRecurring;
-	}
-
-	var container = $("<div></div>").addClass(g_inputSEClass);
+	var container = $("<div></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry'></table>");
@@ -50,25 +122,13 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	}
 	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input"));
 
-	function onSChange(e) {
-	    setTimeout(function () {
-	        if (isRecurringCard()) {
-	            var valS = spinS.val();
-	            if (valS) {
-	                spinE.val(valS);
-	                //hiliteOnce(spinE);
-	            }
-	        }
-	    }, 1);
-
-	}
-
 	spinS[0].onkeypress = function (e) { validateSEKey(e); };
-	spinS.bind("keypress paste", function (e) { onSChange(e);});
+	spinS.bind("keydown keyup paste", function (e) { updateEOnSChange(); });
 	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E"></input>').addClass("agile_estimation_box_input"));
 	spinE[0].onkeypress = function (e) { validateSEKey(e); };
+	spinE.bind("keydown keyup paste", function (e) { updateNoteR(); });
 	var slashSeparator = setSmallFont($("<span />").text("/"));
-	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="type note and Enter."/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input"));
+	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input"));
 
 	spinS.focus(function () { $(this).select(); });
 	spinE.focus(function () { $(this).select(); }); //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
@@ -123,16 +183,16 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	        return false;
 	    }
 	});
-
-	var statsElem = container;
-	statsElem.hide();
-	parentSEInput.before(statsElem);
+	
+	parentSEInput.before(container);
 	fillCardSEStats(tableStats, function () {
-	    statsElem.show();
+	    container.show();
 	});
 }
 
 function verifyValidInput(s, e) {
+    if (g_seCardCur.s === null || g_seCardCur.e === null)
+        return false; //shouldnt happen as the bar is hidden until this is loaded, but just in case
     var sTotal = parseFixedFloat(g_seCardCur.s + s);
     var eTotal = parseFixedFloat(g_seCardCur.e + e);
     var rTotal = parseFixedFloat(eTotal - sTotal);
@@ -218,6 +278,7 @@ function fillCardSEStats(tableStats,callback) {
                 else {
                     elemRptLink.hide();
                 }
+                updateNoteR();
                 if (callback)
                     callback();
             });
@@ -554,15 +615,6 @@ function updateTimerElemText(timerElem, msStart, msEnd) {
 
 
 function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard) {
-    function isRecurringCard() {
-        var elemTitle = $(".window-title-text");
-        if (elemTitle.length == 0)
-            return false; //no longer in card window. just pretend not recurring
-        var titleCur = elemTitle.text();
-        var bRecurring = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
-        return bRecurring;
-    }
-
     chrome.storage.sync.get([SYNCPROP_ACTIVETIMER], function (objActiveTimer) {
         var idCardActiveTimer = null;
         idCardActiveTimer = (objActiveTimer[SYNCPROP_ACTIVETIMER] || null);
@@ -606,12 +658,10 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     if (bClearSpentBox) {
                         var elemComment = $("#plusCardCommentComment");
                         elemSpent.val("");
-                        if (isRecurringCard())
-                            $("#plusCardCommentEstimate").val("");
+                        $("#plusCardCommentEstimate").val("");
+                        updateNoteR();
                         clearBlinkButtonInterval();
                         $("#plusCardCommentEnterButton").removeClass("agile_box_input_hilite");
-                        if (elemComment.val() == g_strEndTimerComment)
-                            elemComment.val("");
                     }
                 });
             }
@@ -629,8 +679,9 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     var ms = msEndCur - msStartCur;
                     var sCalc = UNITS.TimeToUnits(ms);
                     var sUse = parseFixedFloat(sCalc);
-                    if (sUse != 0)
-                        addSEFieldValues(sCalc, isRecurringCard() ? sCalc : 0, g_strEndTimerComment);
+                    if (sUse != 0) {
+                        addSEFieldValues(sCalc, "");
+                    }
                     else {
                         sendDesktopNotification("Ellapsed time too small (under 0.01). Timer ignored\n.", 10000);
                     }
@@ -657,7 +708,7 @@ var g_sTimerLastAdd = 0; //used for improving timer precision (because of roundi
  * s,e: float
  * will add given s/e to existing values in the controls
  **/
-function addSEFieldValues(s, e, comment) {
+function addSEFieldValues(s, comment) {
 	var elemSpent = $("#plusCardCommentSpent");
 	var elemEst = $("#plusCardCommentEstimate");
 	var sCur = parseSEInput(elemSpent,false,true);
@@ -668,17 +719,12 @@ function addSEFieldValues(s, e, comment) {
 	    eCur = 0;
 	g_sTimerLastAdd = s + sCur;
 	s = parseFixedFloat(g_sTimerLastAdd);
-	if (e != 0)
-	    e = parseFixedFloat(e);
-    else
-	    e = parseFixedFloat(eCur);
 	if (s == 0)
 		s = "";
-	if (e == 0)
-		e = "";
+
 	$("#plusCardCommentDays").val(g_strNowOption);
 	elemSpent.val(s);
-	elemEst.val(e);
+	updateEOnSChange();
 	$("#plusCardCommentComment").val(comment);
 	var elemEnter = $("#plusCardCommentEnterButton");
 	var classBlink = "agile_box_input_hilite";
@@ -824,9 +870,7 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
 
     function finished() {
         enableSEBar();
-        setTimeout(function () { //wait a bit until it finishes insertion in db. REVIEW zig: make bHandleNoBackendDbEntry async and handle correctly the update
-            g_bForceUpdate = true;
-        }, 200);
+        //reports etc will refresh in the NEW_ROWS notification handler
     }
 
     //pause sync. otherwise, it will still work ok, but we want to avoid randomness in the order things happen. When adding a comment,

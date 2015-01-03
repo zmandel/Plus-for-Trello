@@ -778,6 +778,14 @@ table#tableMarkers td {
      text-decoration: underline !important;
 }
 
+.agile_link_noUnderlineNever {
+     text-decoration: none !important;
+}
+
+.agile_link_noUnderlineNever:hover {
+     text-decoration: none !important;
+}
+
 .agile_all_button {
 	float: left;
 	width: 35px;

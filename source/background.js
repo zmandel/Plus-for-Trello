@@ -50,26 +50,6 @@ function doCallUrlConfig(urlConfig, userTrello, callback) {
 
 	callback(null);
 	return;
-    //review zig: remove
-	var xhr = new XMLHttpRequest();
-	xhr.timeout = g_msFetchTimeout*10;
-	xhr.open("GET", urlConfig + "?view=jsonconfig&user=" + userTrello, true);
-	//xhr.setRequestHeader('Cache-Control', 'no-cache'); //review zig: commented because now GAS fails with this header
-	xhr.onreadystatechange = function () {
-		if (xhr.readyState == 4) {
-			var resp = {status:"generic error reading spent backend user configuration"};
-			if (xhr.status == 200 && xhr.responseText && xhr.responseText != "") {
-				localStorage["configData"] = xhr.responseText;
-				resp = JSON.parse(xhr.responseText);
-			}
-			else {
-			    if (xhr.statusText && xhr.statusText != STATUS_OK)
-			        resp.status = xhr.statusText;
-			}
-			callback(resp);
-		}
-	};
-	xhr.send();
 }
 
 var DATAVERSION_SIMPLEPLUS = 1;
@@ -492,11 +472,11 @@ function updatePlusIcon(bTooltipOnly) {
     var keyLastSyncViewed = "rowidLastHistorySyncedViewed";
     var key_plus_datesync_last = "plus_datesync_last";
     var keyplusSyncLastStatus = "plusSyncLastStatus";
+    var msNow = (new Date()).getTime();
 
 	//prevent changing tooltip too often
     //note: checks typeof as this could be called from within a global constructor.
     if (bTooltipOnly && typeof g_syncStatus != "undefined" && typeof g_dataSyncLast != "undefined" && g_syncStatus.bSyncing) {
-        var msNow = (new Date()).getTime();
         if (g_dataSyncLast.stage != g_syncStatus.stage) {
             g_dataSyncLast.stage = g_syncStatus.stage;
         }
@@ -562,7 +542,8 @@ function updatePlusIcon(bTooltipOnly) {
             if (g_bOffline)
                 tooltip = tooltip + "\nChrome is offline.";
             chrome.browserAction.setTitle({ title: tooltip });
-            return (syncStatus.length ==0);
+            var dateLastStatus = statusLastSync.date || msNow;
+            return (syncStatus.length ==0 || (msNow-dateLastStatus>1000*60*20)); //pretend there wasnt a sync error if its old (over 20 min)
         }
 
         bErrorSync = false;

@@ -183,12 +183,13 @@ var Help = {
 	    }, 4000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:3em;">version ' + Help.m_manifestVersion + ' &nbsp&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp&nbsp \
-			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Send Feedback</a> &nbsp&nbsp\
-			<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/details">View Change Log</a> &nbsp&nbsp\
-			<a href="https://plus.google.com/109669748550259696558/posts" \
-   rel="publisher" target="_blank"> \
-<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/>&nbsp;Follow</a></span>');
+	    helpWin.raw('<span style="float:right;padding-right:3em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
+			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
+<a href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
+			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/109669748550259696558/posts" rel="publisher" target="_blank"> \
+<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
+<a class="agile_link_noUnderlineNever" href="https://twitter.com/PlusForTrello" rel="publisher" target="_blank"> \
+<img src="https://abs.twimg.com/favicons/favicon.ico" alt="Follow on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
@@ -309,9 +310,9 @@ var Help = {
         helpWin.para('Ideally you first enter an estimate as in 0/2 and later spend it with 2/0.');
         helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it.');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R is zero.');
-        helpWin.para('The first time you enter <b>E</b> it becomes your card\'s 1ˢᵗ estimate <b>E 1ˢᵗ</b> for comparison with the current estimate <b>E sum</b>.');
-        helpWin.para('Plus expects that you keep E up-to-date by increasing or decreasing E if necessary and warns if S goes over E.');
-	    helpWin.para('To turn that off or to never use estimates, allow "negative remaining" in Preferences.');
+        helpWin.para('The first time you enter <b>E</b> it becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) for comparison with the current estimate <b>E sum</b>.');
+        helpWin.para('If you type <b>S</b> that would cause <b>S sum</b> to be greated than <b>E sum</b>, Plus automatically pre-fills <b>E</b> to make <b>R</b> zero.');
+	    helpWin.para('To turn that off or to never use estimates, "allow negative remaining" in Preferences.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -501,7 +502,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices</h2></b>');
 	    helpWin.para('&bull; Follow the rule of reaching S equal E on finished cards so you can compare 1ˢᵗ with final estimates.');
 	    helpWin.para('&bull; When a user finishes a card but has Remaining, she should reduce E by entering negative E.');
-	    helpWin.para('&bull; Similarly if S goes over E, enter more E.');
+	    helpWin.para('&bull; Similarly if S goes over E, enter more E. The Plus card bar automatically pre-fills E in this case.');
 	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (Hours:Minutes when using Hour units)');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = 1 hour and 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
 	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Those will not be reflected in Plus until you "Reset sync".');
@@ -565,7 +566,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
 	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu of from a board toolbar.');
-	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to send to the clipboard. Then paste on a spreadsheet or email.');
+	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to send to the clipboard. Paste on a spreadsheet or email.');
 	    helpWin.para('&bull; Drill-down on any chart bar or pivot cell to get a detailed report.');
 	    helpWin.para('&bull; Reports and dashboards work offline from the Chrome Plus menu and can be bookmarked or emailed by URL.');
 	    helpWin.para('&bull; The <b>E.type</b> column tells if the row Estimate is new, increases (+E) or decreases (-E) the card estimate per user.');
@@ -581,15 +582,15 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">Only for "Scrum for Trello" extension users</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-notes-for-users-of.html">Read migration instructions</A> and see <b>Preferences</b> to accept reading S/E with Scrum for Trello card title format.');
+	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-notes-for-users-of.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
 	    if (true) { //units
-	        var pComboUnits = helpWin.para('Work units: <select style="width:auto">. Card timers will use this unit.');
-	        var comboUnits = pComboUnits.children("select");
-	        pComboUnits.append(comboUnits);
+	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
+	        var comboUnits = $('<select style="width:auto">');
+	        pComboUnits.append(comboUnits).append($('<span> Card timers convert from time to your units.</span>'));
 	        comboUnits.append($(new Option("minutes", UNITS.minutes)));
 	        comboUnits.append($(new Option("hours", UNITS.hours)));
 	        comboUnits.append($(new Option("days", UNITS.days)));
@@ -615,8 +616,8 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	        helpWin.para('&bull; Spent backend users cannot allow negative Remaining or import from Scrum for Trello');
 	    } else {
 	        var checkIgnoreZeroEst = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedIgnoreZeroEstimates" \
->Allow negative Remaining. Cards with negative Remaining will not appear in \"Remaining balance cards\".</input>').css("margin-bottom",0).children('input:checkbox:first');
-	        helpWin.para('You will lose ability to measure remaining effort.').css("margin-left", "1.5em");
+>Allow negative Remaining (or never use Estimates). Cards with negative Remaining will not appear in \"Remaining balance cards\"\
+. You will lose ability to measure remaining effort and "E" will not autocomplete as you type "S".</input>').children('input:checkbox:first');
 
 	        if (g_bAllowNegativeRemaining)
 	            checkIgnoreZeroEst[0].checked = true;
