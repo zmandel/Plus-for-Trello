@@ -393,12 +393,6 @@ function logException(e, str) {
 	logPlusError(str + " :: " + e.stack, false);
 }
 
-function sendDesktopNotification(strNotif, timeout) {
-    if (timeout === undefined)
-        timeout = 4000;
-
-    sendExtensionMessage({ method: "showDesktopNotification", notification: strNotif, timeout: timeout }, function (response) { });
-}
 
 var g_plusLogMessages = []; //queues an error log which is regularly purged
 var g_lastLogPush = null;
@@ -495,10 +489,7 @@ function selectElementContents(el) {
 		sendExtensionMessage({ method: "copyToClipboard", html: el.innerHTML }, function (response) {
 			if (response.status != STATUS_OK)
 				return;
-			setTimeout(function () {
-			    removeSelection();
-			    sendDesktopNotification("Copied to the clipboard.\nPaste anywhere like excel or email.");
-			}, 100); //timeout is only for user visual cue 
+			setTimeout(function () { removeSelection(); }, 100); //timeout is only for user visual cue 
 		});
 	}
 }

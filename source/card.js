@@ -424,7 +424,6 @@ You may use @me to add yourself.\n\n\
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp());
 				
 				createCardSEInput(elemParent);
-				insertCardTimer();
 				break;
 			}
 		}

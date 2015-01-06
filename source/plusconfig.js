@@ -260,6 +260,13 @@ function clearAllStorage(callback) {
 	});
 }
 
+function sendDesktopNotification(strNotif, timeout) {
+	if (timeout === undefined)
+		timeout = 4000;
+
+	sendExtensionMessage({ method: "showDesktopNotification", notification: strNotif, timeout: timeout }, function (response) { });
+}
+
 function RequestNotificationPermission(callback) {
 	window.webkitNotifications.requestPermission(callback);
 }

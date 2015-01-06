@@ -422,7 +422,7 @@ function checkFirstTimeUse() {
 	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()) { //sync not set up
 	            if (msDateLastSetupCheck !== undefined) {
 	                if (totalDbRowsHistory > 0) {
-	                    if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24) //nag once a day
+	                    if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24 * 2) //nag every 2 days
 	                        bShowHelp = true;
 	                }
 	            }

@@ -638,7 +638,7 @@ function addBadgesToBoardElem(boardElem, value) {
 	else
 		spentBadge = list;
 
-	spentBadge.html(parseFixedFloat(value.s, false, true)); //one decimal
+	spentBadge.html(value.s);
 	g_totalSpentAllBoards += value.s;
 	list = container.find(".agile_estimation_box");
 	var estimateBadge = null;
@@ -646,7 +646,7 @@ function addBadgesToBoardElem(boardElem, value) {
 		estimateBadge = InfoBoxFactory.makeInfoBox(ESTIMATION);
 	else
 		estimateBadge = list;
-	estimateBadge.html(parseFixedFloat(value.e,false,true)); //one decimal
+	estimateBadge.html(value.e);
 	container.prepend(estimateBadge);
 	container.prepend(spentBadge);
 	
