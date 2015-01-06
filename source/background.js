@@ -58,19 +58,28 @@ function doGetJsonConfigSimplePlus(url, user) {
 	var objRet = { version: DATAVERSION_SIMPLEPLUS, bSimplePlus: true };
 	var strFindKey = "key=";
 	var iKey = url.indexOf(strFindKey);
+	var bNewSheet = false;
 	if (iKey <= 0) {
-		objRet.status = "No spreadsheet key.";
-		return objRet;
+	    strFindKey = "/d/";
+	    iKey = url.indexOf(strFindKey);
+	    if (iKey <= 0) {
+	        objRet.status = "No spreadsheet key.";
+	        return objRet;
+	    }
+	    bNewSheet = true;
 	}
 	var strRight = url.substr(iKey + strFindKey.length);
 	var parts = strRight.split("#gid=");
 	objRet.userTrello = user;
 	objRet.urlSsUser = url;
 	var partLeft = parts[0];
-	if (partLeft.indexOf("&") < 0)
-		objRet.idSsUser = partLeft;
-	else
-		objRet.idSsUser = (partLeft.split("&"))[0];
+	if (partLeft.indexOf("&") >=0)
+	    partLeft = (partLeft.split("&"))[0];
+
+	if (bNewSheet && partLeft.indexOf("/") >= 0) //new sheets have "/edit"
+	    partLeft = (partLeft.split("/"))[0];
+
+	objRet.idSsUser = partLeft;
 	objRet.idUserSheetTrello = gid_to_wid(parts[1]);
 	objRet.status = STATUS_OK;
 	return objRet;
@@ -491,7 +500,7 @@ function updatePlusIcon(bTooltipOnly) {
         var rowidLastSync = obj[keyLastSync];
         var rowidLastSyncViewed = obj[keyLastSyncViewed];
         var msplus_datesync_last = obj[key_plus_datesync_last];
-        var statusLastSync = obj[keyplusSyncLastStatus];
+        var statusLastSync = obj[keyplusSyncLastStatus]; //can be undefined the first time or after reset sync
         var bNew = false;
 
         if (rowidLastSync != null && (rowidLastSyncViewed == null || rowidLastSyncViewed < rowidLastSync))
@@ -522,7 +531,8 @@ function updatePlusIcon(bTooltipOnly) {
                 if (g_msRequestedSyncPause > 0) {
                     tooltip = tooltip + "Sync is paused until help is closed.\n";
                 }
-                syncStatus = buildSyncErrorTooltip(statusLastSync);
+                if (statusLastSync)
+                    syncStatus = buildSyncErrorTooltip(statusLastSync);
                 tooltip = tooltip + syncStatus;
             }
 
@@ -542,7 +552,7 @@ function updatePlusIcon(bTooltipOnly) {
             if (g_bOffline)
                 tooltip = tooltip + "\nChrome is offline.";
             chrome.browserAction.setTitle({ title: tooltip });
-            var dateLastStatus = statusLastSync.date || msNow;
+            var dateLastStatus = (statusLastSync && statusLastSync.date) || msNow;
             return (syncStatus.length ==0 || (msNow-dateLastStatus>1000*60*20)); //pretend there wasnt a sync error if its old (over 20 min)
         }
 
@@ -899,7 +909,8 @@ function handleCreateSs(sendResponse) {
     var postData = null;
     if (true) {
         postData = {title:"Plus for Trello sync spreadsheet",description:"Do NOT modify this spreadsheet"};
-        url = "https://www.googleapis.com/drive/v2/files/0AuP6m1j2b6F4dE1BbGNkTnpzaTdFNG05WVZRellmbmc/copy";
+        //review zig: change to 1zD8BfQDOvGt6e7ZgZ7a6tRIGwp0SzHzQ0DvfoIw4xdQ once I can handle a non-zero gid.
+		url = "https://www.googleapis.com/drive/v2/files/0AuP6m1j2b6F4dE1BbGNkTnpzaTdFNG05WVZRellmbmc/copy";
         handleApiCall(url, {convert:false, ocr:false}, true, function (response) {
             var id = null;
             if (response.data && response.data.id)

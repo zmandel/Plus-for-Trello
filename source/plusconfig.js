@@ -68,7 +68,7 @@
 		container.append(setFont($('<p>Example: https://docs.google.com/...?key=blahblah#gid=0</p>')));
 		if (g_strServiceUrl != null && g_strServiceUrl != "") {
 		    var urlClean = g_strServiceUrl.split("#")[0];
-		    var strSharingNote = " <A target='_blank' href='" + urlClean + "&usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
+		    var strSharingNote = " <A target='_blank' href='" + urlClean + (urlClean.indexOf("?")<0 ? "?" : "&") + "usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
 		    container.append(setFont($('<p>' + strSharingNote + '</p>')));
 		}
 		
@@ -128,8 +128,16 @@
 				alert("Invalid url format. Enter the correct url, or cancel.");
 				return;
 			}
-			if (bSimplePlus && (url.indexOf("key=") < 0 || url.indexOf("#gid=") < 0)) {
-				alert("Invalid Google spreadsheet url format. It must have a 'key' and '#gid'.");
+
+			if (url.indexOf("/d/")>=0) {
+			    var parts = url.split("#gid=");
+			    if (parts.length < 2 || parts[1] != "0") {
+			        alert("Only new google sheets with #gid=0 can be accepted.");
+			        return;
+			    }
+			}
+			if (bSimplePlus && ((url.indexOf("key=") < 0 && url.indexOf("/d/") < 0) || url.indexOf("#gid=") < 0)) {
+				alert("Invalid Google spreadsheet url format. Make sure it has #gid=");
 				return;
 			}
 
