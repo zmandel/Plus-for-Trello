@@ -1,9 +1,9 @@
 ﻿{
 	"name" : "Plus for Trello (time tracking - scrum)",
 	"short_name" : "Plus for Trello",
-	"version" : "2.11.6",
+	"version" : "2.11.7",
 	"manifest_version" : 2,
-	"description" : "Track Spent and Estimate by card - list - board - user - team with timers, reports, charts, history, offline and more!",
+	"description" : "Timers, hashtags, boards & cards offline menu, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
 	"icons": {
 		"16": "images/icon16.png",
 		"48": "images/icon48.png",
@@ -15,7 +15,7 @@
 	},
 	
 	"oauth2": {
-    "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
+    "client_id": "147493868263-o4og92rttq5uqjkmdqf5a4m9rb49t9qh.apps.googleusercontent.com",
 	"scopes": [
 	  "https://spreadsheets.google.com/feeds",
 	  "https://docs.google.com/feeds"
@@ -47,5 +47,5 @@
         "manifest.json"
     ],
     "optional_permissions": [ "webRequest","https://trello.com/1/*"],
-	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/","https://spreadsheets.google.com/","https://docs.google.com/", "https://www.googleapis.com/"]
+	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/","https://spreadsheets.google.com/", "https://www.googleapis.com/"]
 }
