@@ -16,22 +16,40 @@ function getSpentSpecialUser() {
 	return "";
 }
 
-function processCardFullWindows() {
- 
-	if (!g_bReadGlobalConfig)
-		return;
+//insertCardTimer
+//
+function insertCardTimer() {
 
-	var sidebars = $(".window-sidebar");
-	if (sidebars.length == 0)
-		return;
+    tryInsert();
 
-	var actions = sidebars.find($("h3:contains(Actions)"));
-	var divInsert = actions.next();
-	if (divInsert.find($("#agile_timer")).size() == 0) {
-		var url = document.URL;
-		var idCardCur = getIdCardFromUrl(url);
-		if (idCardCur)
-			divInsert.prepend(loadCardTimer(idCardCur));
+	function tryInsert() {
+	    if (!inserted())
+	        setTimeout(tryInsert, 200);
+	}
+
+	function inserted() {
+	    if (!g_bReadGlobalConfig)
+	        return false;
+
+	    var url = document.URL;
+	    var idCardCur = getIdCardFromUrl(url);
+
+	    if (!idCardCur)
+	        return true;
+
+	    var sidebars = $(".window-sidebar");
+	    if (sidebars.length == 0)
+	        return false;
+
+	    var actions = sidebars.find($("h3:contains(Actions)"));
+	    if (actions.length == 0)
+	        return false;
+	    var divInsert = actions.next();
+	    if (divInsert.find($("#agile_timer")).size() != 0)
+	        return true;
+
+	    divInsert.prepend(loadCardTimer(idCardCur));
+	    return true;
 	}
 }
 
@@ -159,7 +177,6 @@ function loadOptions(callback) {
 
 function doAllUpdates() {
 	markForUpdate();
-	processCardFullWindows();
 	addCardCommentHelp();
 }
 

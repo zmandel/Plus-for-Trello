@@ -16,7 +16,7 @@ var Help = {
 		xhr.onreadystatechange = function (e) {
 		    if (xhr.readyState == 4 && xhr.status == 200) {
 		        try {
-		            var manifest = JSON.parse(xhr.responseText);
+		            var manifest = JSON.parse(xhr.responseText.replace(/\s+[/][/].*/g,"")); //remove simple " //comments." initial space required
 		            Help.m_manifestVersion = manifest.version;
 		        }
 		        catch (e)
@@ -172,6 +172,21 @@ var Help = {
 	    var elemClose = helpWin.para('<div style="float:right;width:18px;"><img class="agile_help_close" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
 	    elemClose = elemClose.find(".agile_help_close");
 	    elemClose.click(function () {
+	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()) {
+	            if (!confirm("You have not enabled both Trello sync options. You will not see your team data.\nClick Cancel to configure Trello sync, or click OK to use without Sync.")) {
+	                var section = $("#agile_help_trellosync");
+	                var top = section.offset().top;
+	                top = top;
+	                container.animate({
+	                    scrollTop: top + container[0].scrollTop
+	                }, 1000, function () {
+	                    hiliteOnce(checkEnableTrelloSync.parent(),2000);
+	                    hiliteOnce(checkEnterSEByCardComments.parent(),2000);
+
+	                });
+	                return;
+	            }
+	        }
 	        Help.close(false);
 	    });
 
