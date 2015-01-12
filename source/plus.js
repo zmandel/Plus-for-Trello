@@ -9,6 +9,7 @@ var g_bNeedRefreshReports = false; //for delaying refresh when tab is not active
 var g_bCheckedbSumFiltered = null; //null means not yet initialized (From sync storage)
 var DELAY_FIRST_SYNC = 2000;
 var g_cRetryingSync = 0;
+var g_cRowsWeekByUser = 0; //gets set after making the chart. Used by the tour
 
 //review zig: this was the easy way to prevent charts from rendering until their container is attached to the dom.
 //  in the home page case, we dont attach the plus 2x2 table until all its cells have loaded, so that its full height
@@ -567,6 +568,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry) {
 
         cRetries--;
         //when bEnterSEByComments, we want to go through google sync, which will route it to trello sync and take care of uptading history rows related stuff
+        //review zig: this option will soon be imposible to configure in help, but legacy users could have it (thou they get reminded daily to fix it)
         if (g_bEnableTrelloSync && !bDidTrelloSync && !bEnterSEByComments) {
             sendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello },
             function (response) {
@@ -643,7 +645,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
 
 	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc";
 	var values = [weekCur];
-
+	g_cRowsWeekByUser = 0;
 	getSQLReport(sql, values,
 		function (response2) {
 			var curUser = getCurrentTrelloUser();
@@ -678,7 +680,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
 						row[c] = parseFixedFloat(row[c]); //reformat so charts dont have to
 				}
 			}
-
+			g_cRowsWeekByUser = ordered.length; //used by tour
 			var dataWeek = { config: config, status: response2.status, table: ordered, drilldownData: drilldownData, sWeek: 0, bReuseCharts: bReuseCharts };
 			dataWeek.weekSummary = { rows: [] };
 			if (iCurrentUserOrder >= 0) {

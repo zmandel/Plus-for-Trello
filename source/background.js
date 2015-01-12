@@ -734,6 +734,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 				sendResponse({ config: retConfig });
 		}, bSkipCache);
 	}
+	else if (request.method == "animateChromeIconFlip") {
+	    animateFlip();
+	    sendResponse({ status: STATUS_OK });
+	}
 	else if (request.method == "requestWebRequestPermission") {
 	    handleWebRequestPermission(sendResponse);
 	}
@@ -755,6 +759,8 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	    }
 	    else
 	        updatePlusIcon();
+	    if (request.bAnimate)
+	        animateFlip();
 	    sendResponse({status : STATUS_OK});
 	}
 	else if (request.method == "checkLoggedIntoChrome") {

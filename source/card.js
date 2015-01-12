@@ -833,8 +833,8 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 
 	if (bNoSpentBackend && !g_optEnterSEByComment.IsEnabled() && g_configData && g_strServiceUrl && g_strServiceUrl != "") {
 	    //legacy option to rename card titles. Keep it on if user has configured google sync and hasnt configured reading S/E from comments
-	    //note that we dont rename card titles if there is no service url. this can affect a few users, but its best because it avoids new
-        //team users that never enable "S/E by card comments" and just start using Plus without any configuration.
+	    //note that we dont rename card titles if there is no service url. this can affect a few users, but its best because it avoids issues with new
+        //team users that never enable sync and just start using Plus without any configuration.
 		var estimation = parseFixedFloat(e + se.estimate);
 		var spent = parseFixedFloat(s + se.spent);
 

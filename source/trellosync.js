@@ -17,11 +17,17 @@ var g_syncStatus = {
     stage: "",
     cTotalStages: TOTAL_SYNC_STAGES,
     stageNum: 0,
+    rgStepHistory: [], //review zig: for debugging errors in steps
     msStart: 0,
     msLast: 0,
     bSingleStep: false,
     bExtraRenameStep:false,
-    setStage: function (name, cSteps, bSingleStep) { //bSingleStep indicates this stage always has one step
+    setStage: function (name, cSteps, bSingleStep, bFirstStep) { //bSingleStep indicates this stage always has one step
+        //review zig: a rare bug causes stageNum to be != cTotalStages when sync finishes ok. I have reviewed the flow many times but havent
+        //found the cause. Seems that it would need two sync at the same time but a global prevents that already.
+        //since its very rare, I suspect it happens when a specific step fails an ajax call (no interenet etc) and plus doesnt recover properly.
+        //I have reviewed the error handlers and they seem ok. eventually should use bFirstStep as safety but
+        //not done yet so rgStepHistory in error logs can tell me when this bug happens.
         assert(name=="" || this.bSyncing || this.stage == ""); //first stage or already syncing. first stage is special because bSyncing isnt yet set (so progress wouldnt read a bad stage)
         this.bSingleStep = bSingleStep || false;
         var bSyncingOld = this.bSyncing;
@@ -36,9 +42,13 @@ var g_syncStatus = {
             if (!bSyncingOld) {
                 this.stageNum = 0; //reset
             }
+
+            if (this.stageNum == 0 && bFirstStep)
+                this.rgStepHistory = [];
             this.stageNum++;
             this.bSyncing = true;
             name = "Stage " + this.stageNum + " of " + this.cTotalStages + ": " + name;
+            this.rgStepHistory.push(name);
         }
         this.stage = name;
         this.postfixStage = ""; //reset
@@ -172,7 +182,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
 
     //first stage
     g_syncStatus.setStage("", 0); //reset in case somehow a previous one was pending
-    g_syncStatus.setStage("Detecting boards to update", 1, true); //note that this will cause g_syncStatus.bSyncing=true
+    g_syncStatus.setStage("Detecting boards to update", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
     startSyncProcess();
 
     function startSyncProcess() {
@@ -220,7 +230,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
         if (response.status == STATUS_OK) {
 		//review zig: this should be assert. got it once and couldnt find cause (related to breakpoints set but didnt want to block entire sync process for this)
             if (g_syncStatus.cTotalStages != g_syncStatus.stageNum)
-                logPlusError("Finished with stageNum != cTotalStages " + g_syncStatus.stageNum+"/"+g_syncStatus.cTotalStages);
+                logPlusError("Finished with stageNum != cTotalStages " + g_syncStatus.stageNum + "/" + g_syncStatus.cTotalStages + ":"+JSON.stringify(g_syncStatus.rgStepHistory));
         }
         
         g_syncStatus.setStage("", 0);
@@ -260,7 +270,8 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK || responseReport.rows.length == 0) {
-                g_syncStatus.setStage("Removing S/E from card names", 1,true); //pretent step happened anyway (as status could be OK so caller expects all steps to finish)
+                if (responseReport.status == STATUS_OK)
+                    g_syncStatus.setStage("Removing S/E from card names", 1, true); //pretent step happened anyway (as status could be OK so caller expects all steps to finish)
                 sendResponse(responseReport);
                 return;
             }

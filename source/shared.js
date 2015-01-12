@@ -6,8 +6,8 @@ var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
 var g_bAlwaysShowSpentChromeIcon = false; //review zig these 3  need initialization. reuse loadBackgroundOptions
 var g_bAcceptSFT = false;
+var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
-
 var ID_PLUSCOMMAND = "/PLUSCOMMAND";
 var PREFIX_PLUSCOMMAND = "^";
 var PROP_TRELLOUSER = "plustrellouser";
@@ -1126,8 +1126,8 @@ function verifyActiveTimer(idCard) {
 }
 
 
-function updateTimerChromeIcon() {
-    sendExtensionMessage({ method: "updatePlusIcon", bOnlyTimer: true }, function (response) { });
+function updateTimerChromeIcon(bAnimate) {
+    sendExtensionMessage({ method: "updatePlusIcon", bOnlyTimer: true, bAnimate: bAnimate || false }, function (response) { });
 }
 
 function findNextActiveTimer() {

@@ -82,7 +82,12 @@ function handleHomeTour() {
 
          {
              selector: ".classid_spent_week_users",
-             text: "<br><br>Click on a chart title to zoom it full-window.<br><br>Click on any chart bar to drill-down",
+             text: "<br><br>Click on a chart title to zoom it full-window.<br><br>Click on any chart bar to drill-down.",
+             getText: function () {
+                 if (g_cRowsWeekByUser > 0)
+                     return this.text;
+                 return this.text + "<br>There is no data to chart this week yet.";
+             },
              angle: 90,
              distance: 0,
              size: 200
@@ -554,7 +559,8 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
             showNextBubble(delta);
             return;
         }
-        var text = '<span class="agile_ballonBody">' + step.text + '<div style="padding-top:1em">';
+        var textStep = (step.getText ? step.getText() : step.text);
+        var text = '<span class="agile_ballonBody">' + textStep + '<div style="padding-top:1em">';
         if (!bFirst)
             text = text + '<span title="Previous tip" style="display:inline-block" class="agile_bubbleArrow agile_bubbleArrowLeft agile_rotated">&#10152;</span>';
 

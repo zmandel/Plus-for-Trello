@@ -68,6 +68,8 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             h2 = $(el);
         else
             h2 = $(el).children('h2');
+
+        var bExcludeList = (h2.text().toLowerCase().search(g_regexExcludeList) >= 0);
         var listCur = h2.parent();
         var cards = List.cards(el);
         var divSE = null;
@@ -327,10 +329,12 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             divSE.prop("title", titleSE);
             divSE.show();
         }
-        globalTotalEstimation += totalEstimation;
-        globalTotalSpent += totalSpent;
-        globalTotalEstimationFiltered += totalEstimationFiltered;
-        globalTotalSpentFiltered += totalSpentFiltered;
+        if (!bExcludeList) {
+            globalTotalEstimation += totalEstimation;
+            globalTotalSpent += totalSpent;
+            globalTotalEstimationFiltered += totalEstimationFiltered;
+            globalTotalSpentFiltered += totalSpentFiltered;
+        }
     }
 
     List.all().each(forEachList);

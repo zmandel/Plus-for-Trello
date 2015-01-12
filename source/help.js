@@ -339,19 +339,18 @@ var Help = {
 	    if (helpWin.hasLegacyRows)
 	        helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html"><b>Legacy "Google sync" users read here</b></A>.');
 	    var checkEnableTrelloSync = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnableTrelloSync" \
->Enable Trello sync</input>').css("marginBottom", 0).children('input:checkbox:first');
+>Enable Trello sync. Plus syncs all boards you have joined.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	    if (g_bEnableTrelloSync)
 	        checkEnableTrelloSync[0].checked = true;
 
-	    var txtSEByCardComments = '<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnterSEByCardComments" \
->Enter and read card S/E using card comments by starting a Trello card comment with this keyword:<input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150"></input> <input type="button" value="Save"/> Separate multiple keywords with comma.';
-	    txtSEByCardComments = txtSEByCardComments + '</input>';
-	    txtSEByCardComments = txtSEByCardComments + "<br>To enter S/E as a card comment, imitate the comment that the Plus card bar makes. <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>format help</A>.";
-	    txtSEByCardComments = txtSEByCardComments + "<br>Plus will sync all boards you have joined.";
-	    
-        var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments);
+	    var txtSEByCardComments = '&nbsp;&nbsp;<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnterSEByCardComments" \
+>Enter and read card S/E using card comments by starting a comment with this keyword:</input><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150"></input><input type="button" value="Save"/> Separate multiple keywords with comma.';
+	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team has S/E before december 2014, also include 'plus s/e' <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>as your last keyword</A>.";
+	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To enter S/E as a card comment, imitate the comment that the Plus card bar makes.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>Format help</A>.";
+	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments);
 	    var checkEnterSEByCardComments = paraEnterSEByCardComments.children('input:checkbox:first');
-	    var inputKeywords = checkEnterSEByCardComments.next('input');
+	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
 
 
@@ -458,7 +457,7 @@ var Help = {
 	                inputKeywords.val(inputKeywords.val() + ", " + SEKEYWORD_LEGACY);
 	                doSaveKeywords(false);
 	                hiliteOnce(inputKeywords);
-	                alert("the legacy keyword 'Plus S/E' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset plus without missing legacy card comments.");
+	                alert("the legacy keyword 'plus s/e' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset plus without missing legacy card comments.");
 	            }
 	        }
 	        else if (!bDontChangeTrelloSyncCheck) {
@@ -715,7 +714,7 @@ Background sync every 10 minutes while Chrome is open even if Trello is not open
 
 	                    comboDowStart.val(DowMapper.getDowStart()); //reset
 	                } else {
-	                    strError = " Saved. ";
+	                    strError = " Saved... ";
 	                    bError = false;
 	                }
 	                statusDow.text(strError);
@@ -776,7 +775,7 @@ Always show Spent in the Chrome Plus icon even when a timer is active.</input>')
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bAlwaysShowSpentChromeIcon = bValue;
 	                checkShowSpentWithTimer[0].checked = g_bAlwaysShowSpentChromeIcon;
-	                updateTimerChromeIcon();
+	                updateTimerChromeIcon(true);
 	            });
 	        });
 	    }

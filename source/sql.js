@@ -707,7 +707,7 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 
 		assert(rowCard);
 	    //note on rowCard.dateSzLastTrello: when sync is enabled but the card hasnt been updated from trello sync yet,
-	    //go ahead and update the card based on this history row. even if we dont do it here, it will be done eventually y trello sync when
+	    //go ahead and update the card based on this history row. even if we dont do it here, it will be done eventually by trello sync when
 	    //it processes the card's history (and sets dateSzLastTrello). but doing it here gets the change faster to the user.  
 		if ((!g_bEnableTrelloSync || rowCard.dateSzLastTrello == null || rowCard.dateSzLastTrello == dateEarliestTrello) && (bCardRenamed || bCardMoved)) {
 		    if (bCardRenamed)
@@ -1223,7 +1223,7 @@ function handleDeleteDB(request, sendResponseParam) {
 			console.error("Error!: %s", err.message);
 		sendResponse({ status: "ERROR: handleDeleteDB" });
 	}, function () {
-		localStorage["rowSsSyncEndLast"] = 0; //just in case, thou shoud be set also when opening the db on migration 1.
+		localStorage["rowSsSyncEndLast"] = 0; //just in case, thou should be set also when opening the db on migration 1.
 		g_db = null;
 		sendResponse({ status: STATUS_OK });
 	});
