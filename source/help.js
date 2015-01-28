@@ -16,7 +16,7 @@ var Help = {
 		xhr.onreadystatechange = function (e) {
 		    if (xhr.readyState == 4 && xhr.status == 200) {
 		        try {
-		            var manifest = JSON.parse(xhr.responseText.replace(/\s+[/][/].*/g,"")); //remove simple " //comments." initial space required
+		            var manifest = JSON.parse(xhr.responseText);
 		            Help.m_manifestVersion = manifest.version;
 		        }
 		        catch (e)

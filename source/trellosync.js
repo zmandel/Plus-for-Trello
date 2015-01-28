@@ -145,6 +145,10 @@ function handleSyncBoards(request, sendResponseParam) {
             return;
         }
 
+        //first stage
+        g_syncStatus.setStage("", 0); //reset in case somehow a previous one was pending
+        g_syncStatus.setStage("Detecting boards to update", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
+
         //if there are pending rows, we must commit them before because they reference board/card names/ids that could change during sync
         //and sync only maintains the history table, not the queuehistory
         insertPendingSERows(function (responseInsertSE) {
@@ -180,9 +184,6 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     g_lastLogError = ""; //reset
     updatePlusIcon(false);
 
-    //first stage
-    g_syncStatus.setStage("", 0); //reset in case somehow a previous one was pending
-    g_syncStatus.setStage("Detecting boards to update", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
     startSyncProcess();
 
     function startSyncProcess() {
@@ -1587,7 +1588,7 @@ function getBoardsLastInfoWorker(tokenTrello, callback, userTrello, waitRetry) {
                         }
                     }
                     else if (xhr.status == 404) {
-                        objRet.status = "user not found. If you renamed your trello user, please to to trello.com\n"+errFromXhr(xhr);
+                        objRet.status = "user not found. If you renamed your trello user, please go to trello.com\n"+errFromXhr(xhr);
                     }
                     else {
                         objRet.status = errFromXhr(xhr);

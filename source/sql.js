@@ -1731,6 +1731,11 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
                     });
         });
 
+        M.migration(20, function (t) {
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%cTotalStages%'");
+        });
+
+
         M.doIt();
     }
 }
