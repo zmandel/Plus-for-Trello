@@ -527,6 +527,13 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_help_reportingSE">Mobile Plus for Trello</b>');
+	    helpWin.para('The app lets you view s/e per card. Soon it will have card timers.');
+	    helpWin.para('Make sure you have enabled Trello sync "Enter and read card S/E using card comments".');
+	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+
 	    helpWin.para('<b><h2 id="agile_help_plusmenu">Plus menu</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/plusmenu.png") + '"/>');
 	    helpWin.para('<A href="https://www.youtube.com/watch?v=gbAZXtaRi5o" target="_blank">Don\'t see the Plus menu icon?</A>');

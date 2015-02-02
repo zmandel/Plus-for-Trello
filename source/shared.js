@@ -204,7 +204,7 @@ function errFromXhr(xhr) {
     if (xhr.statusText || xhr.responseText)
         errText = errText + "\n" + xhr.statusText + "\n" + xhr.responseText;
     else if (xhr.status == 0)
-        errText = errText + "\nNo network connection.";
+        errText = errText + "\nNo connection.";
     console.log(errText);
     return errText;
 }

@@ -398,7 +398,14 @@ function addCardCommentHelp() {
 		for (i = 0; i < elems.length; i++) {
 			var elem = elems.eq(i);
 			var elemParent = elem.parent();
-			if (elemParent.hasClass("new-comment")) {
+			var bNewCommentFound = elemParent.hasClass("new-comment");
+
+			if (!bNewCommentFound) {
+			    elemParent = elemParent.parent();
+			    bNewCommentFound = elemParent.hasClass("new-comment")
+
+			}
+			if (bNewCommentFound) {
 				var classSpentCommentHelp = "agile_plushelp_cardCommentHelp";
 				if (elem.eq(0).children("." + classSpentCommentHelp).length == 0) {
 				    var help = null;

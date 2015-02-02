@@ -109,9 +109,14 @@ function selectTab(iTab, href, bForce) {
     }
 	var params = getUrlParams();
 	iTab = selectTabUI(iTab, href);
-	params["tab"] = iTab;
 	g_iTabCur = iTab;
-	updateUrlState("report.html", params);
+	if (params["tab"] != iTab) {
+	    if (params["tab"] || iTab != 0) { //not just an optimization. Print (ctrl+print) causes a resize. updating the url causes the print dialog to go away in windows chrome.
+	        params["tab"] = iTab;
+	        updateUrlState("report.html", params);
+	    }
+	}
+
 	var sectionGroupBy = $(".agile_groupby_report_section");
 	var sectionOrderBy = $(".agile_orderby_report_section");
 
