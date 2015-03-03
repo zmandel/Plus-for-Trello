@@ -402,7 +402,7 @@ function addCardCommentHelp() {
 
 			if (!bNewCommentFound) {
 			    elemParent = elemParent.parent();
-			    bNewCommentFound = elemParent.hasClass("new-comment")
+			    bNewCommentFound = elemParent.hasClass("new-comment");
 
 			}
 			if (bNewCommentFound) {

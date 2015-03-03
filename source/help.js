@@ -176,7 +176,6 @@ var Help = {
 	            if (!confirm("You have not enabled both Trello sync options. You will not see your team data.\nClick Cancel to configure Trello sync, or click OK to use without Sync.")) {
 	                var section = $("#agile_help_trellosync");
 	                var top = section.offset().top;
-	                top = top;
 	                container.animate({
 	                    scrollTop: top + container[0].scrollTop
 	                }, 1000, function () {
