@@ -114,7 +114,7 @@ $(function () {
         loadOptions(function () {
             entryPoint();
         });
-    }, 1);
+    },1);
 });
 
 function entryPoint() {

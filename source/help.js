@@ -870,6 +870,11 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_licences">Open-source licences</h2></b>');
+	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2015/02/plus-for-trello-licences.html">View all licences</A>.');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+	    
 	    helpWin.para('<b><h2 id="agile_help_storage">Storage used</h2></b>');
 	    helpWin.para('&bull; Chrome sync: ' + helpWin.storageTotalSync + " bytes.");
 	    helpWin.para('&bull; Chrome local: ' + helpWin.storageTotalLocal + " bytes.");

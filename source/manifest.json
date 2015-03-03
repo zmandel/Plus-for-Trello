@@ -36,7 +36,8 @@
 		 "js" : ["libs/jquery.min.js", "libs/jquery-ui.custom.min.js", "libs/jquery.cookie.js", "libs/jquery.zoomooz.min.js", "libs/jsapi.js", "libs/formatchart.js",  "libs/jquery.grumble.js",
 					"shared.js", "app.js", "card.js", "labels.js", "labels.js", 
 				"language.js", "help.js", "buttons.js", "plus.js", "plusconfig.js", "board.js", "tour.js"],
-		 "css" : ["css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css"]
+        "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css" ],
+        "run_at" : "document_idle"
 	 }
 	],
 	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",

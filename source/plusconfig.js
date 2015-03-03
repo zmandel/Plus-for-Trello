@@ -99,7 +99,7 @@
 				}
 				btnCreate.text("Spreadsheet created OK");
 				btnCreate.prop('disabled', true);
-				var urlCreated = "https://docs.google.com/spreadsheet/ccc?key=" + response.id + "#gid=0";
+				var urlCreated = "https://docs.google.com/spreadsheets/d/" + response.id + "/edit#gid=0";
 				input.val(urlCreated);
 				btnOk.css("background", "yellow");
 				if (true) {

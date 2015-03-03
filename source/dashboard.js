@@ -432,12 +432,11 @@ function drawChartUser() {
 			viewWindowMode: 'pretty',
 			useFormatFromData: false,
 			formatOptions: {
-				source: "inline",
-				suffix: "h"
+				source: "inline"
 			},
 			slantedText: false,
 			minValue: 0,
-			format: "0.#'h'",
+			format: "0.#",
 			viewWindow: {
 				max: null,
 				min: null

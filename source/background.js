@@ -916,7 +916,7 @@ function handleCreateSs(sendResponse) {
     if (true) {
         postData = {title:"Plus for Trello sync spreadsheet",description:"Do NOT modify this spreadsheet"};
         //review zig: change to 1zD8BfQDOvGt6e7ZgZ7a6tRIGwp0SzHzQ0DvfoIw4xdQ once I can handle a non-zero gid.
-		url = "https://www.googleapis.com/drive/v2/files/0AuP6m1j2b6F4dE1BbGNkTnpzaTdFNG05WVZRellmbmc/copy";
+        url = "https://www.googleapis.com/drive/v2/files/1jmM21xlsHIzcCpTwrSs2RmOF--AwIrRmajrhZf9c9Rc/copy";
         handleApiCall(url, {convert:false, ocr:false}, true, function (response) {
             var id = null;
             if (response.data && response.data.id)

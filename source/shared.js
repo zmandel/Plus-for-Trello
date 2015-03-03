@@ -1018,7 +1018,8 @@ function cloneObject(obj) {
 }
 
 
-var g_weekNumUse = null;
+var g_weekNumUse = null; //"2015-W05"; //set for testing only
+
 function getCurrentWeekNum(date, dowStartOpt) {
 	if (date === undefined) {
 		if (g_weekNumUse != null)

@@ -1090,7 +1090,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 	var strPostfixStatus = "_status";
 
 	if (divSpentItems.length == 0) {
-		divSpentItems = $('<div></div>').addClass(classContainer);
+	    divSpentItems = $('<div></div>').addClass(classContainer);
 		
 		var divInsertAfter = null;
 
@@ -1106,15 +1106,14 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		    divSpentItems.css("opacity", 0);
 
 		var waiter = CreateWaiter(4, function () {
-
-		            divSpentItems.insertAfter(divInsertAfter);
+		    divSpentItems.insertAfter(divInsertAfter);
 		            var heightPlusHome = divSpentItems.height();
 		            divSpentItems.css("height", 0);
-		            divSpentItems.show();
-		            if (g_bPreventChartDraw) {
-		                g_bPreventChartDraw = false;
-		                redrawAllCharts();
-		            }
+		    divSpentItems.show();
+		    if (g_bPreventChartDraw) {
+		        g_bPreventChartDraw = false;
+		        redrawAllCharts();
+		    }
 		            var optionsAnimate = { height: heightPlusHome };
 
 		            if (bAnimateOpacity)
