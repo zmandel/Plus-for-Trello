@@ -36,7 +36,7 @@ function isBackendMode(configData) {
 
 
 function setupPlusConfigLink(bParam) {
-    var span = $('<span></span>').text("Setup Google sync").css('cursor', 'pointer');
+    var span = $('<span></span>').text("Click to setup Google sync").css('cursor', 'pointer');
 	span.appendTo(bParam);
 	span.click(function () {
 		PlusConfig.display(bParam);
@@ -305,8 +305,13 @@ function setSyncErrorStatus(urlUser, status, statusLastTrelloSync) {
 
 	var statusSet = "";
 
-    if (status != STATUS_OK)
-        statusSet = "error: " + status;
+	if (status != STATUS_OK) {
+	    if (status.indexOf("error:") >= 0)
+	        statusSet = status;
+	    else
+	        statusSet = "error: " + status;
+	}
+
 
     if (statusLastTrelloSync != STATUS_OK) {
         if (statusSet != "")

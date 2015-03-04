@@ -287,6 +287,17 @@ div#agile_help_container h1 {
     position:fixed !important;
 }
 
+.agile_help_top {
+	cursor: pointer;
+    position:fixed !important;
+    margin-left:-27px !important;
+
+}
+
+.agile_help_top:hover {
+    opacity:1 !important;
+}
+
 .agile-help-firstTime {
     display: inline-block !important;
     border-radius:6px !important;

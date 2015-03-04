@@ -273,10 +273,10 @@ function ResetPlus() {
 
                                 if (response.cRowsTotal > 0 && !g_optEnterSEByComment.IsEnabled()) {
                                     if (g_strServiceUrl && g_strServiceUrl.length > 0) {
-                                        if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
+                                        if (!confirm("You have pending s/e rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
                                             return;
                                     }
-                                    else if (!confirm("You have not enabled 'Enter and read card S/E using card comments.' Rows wont come back until you do so.'\nAre you sure you want to lose those rows?"))
+                                    else if (!confirm("You have not fully enabled Sync. Past s/e rows wont come back until you do so.'\nAre you sure you want to reset now?"))
                                         return;
                                 }
 

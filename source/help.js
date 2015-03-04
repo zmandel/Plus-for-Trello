@@ -1,5 +1,11 @@
 ﻿var g_bNeedStartTourBubble = false;
-var g_bNotYetEnabledSEByCardComments = true; //to prevent plus from not letting check only "trello sync" without the 2nd one
+var g_bNotYetEnabledSEByCardComments = true; //to prevent plus from not letting check only "trello sync" without the 2nd one //hipri new sync
+
+var SYNCMETHOD = {
+    disabled:0,
+    trelloComments: 1,
+    googleSheetLegacy: 2
+};
 
 var Help = {
     m_bShowing: false, //necessary to catch the possibility of null m_container on a consecutive display call
@@ -169,11 +175,12 @@ var Help = {
 	        return true; //do default action for this element
 	    });
 	    helpWin.m_container = container;
-	    var elemClose = helpWin.para('<div style="float:right;width:18px;"><img class="agile_help_close" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
+	    var elemClose = helpWin.raw('<div style="float:right;width:18px;"><img class="agile_help_close" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
 	    elemClose = elemClose.find(".agile_help_close");
 	    elemClose.click(function () {
 	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()) {
-	            if (!confirm("You have not enabled both Trello sync options. You will not see your team data.\nClick Cancel to configure Trello sync, or click OK to use without Sync.")) {
+				
+	            if (!confirm("You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.")) {
 	                var section = $("#agile_help_trellosync");
 	                var top = section.offset().top;
 	                container.animate({
@@ -189,15 +196,23 @@ var Help = {
 	        Help.close(false);
 	    });
 
+	    var elemTop = helpWin.raw('<div style="float:right;width:18px;"><img class="agile_help_top" src="' + chrome.extension.getURL("images/helptop.png") + '"></img></div>');
+	    elemTop = elemTop.find(".agile_help_top");
+	    elemTop.click(function () {
+	        helpWin.m_container.animate({ scrollTop: helpWin.m_container.offset().top }, 350);
+	    });
 	    //dim help button after a few seconds. css hover will make it black again
 	    setTimeout(function () {
 	        elemClose.animate({
 	            opacity: 0.33
 	        }, 4000);
-	    }, 4000);
+	        elemTop.animate({
+	            opacity: 0.33
+	        }, 4000);
+	    }, 8000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:3em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/109669748550259696558/posts" rel="publisher" target="_blank"> \
@@ -215,8 +230,7 @@ var Help = {
 	        helpWin.para('Alert: Error log has entries. <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>.').css("color", COLOR_ERROR);
 	    }
 	    if (bNotSetUp && helpWin.totalDbRowsHistory > 0) {
-	        helpWin.para('<h2><b>NOTE:</b></h2>').css("color", COLOR_ERROR);
-	        helpWin.para('<b>Enable both "Trello sync" options to see team S/E or use from mobile.</b>');
+	        helpWin.para('<b>Enable "sync" to see team S/E, full Chrome Plus menu and use from mobile.</b>').css("color", COLOR_ERROR);
 	        var checkDontShowAgainSyncWarn = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontSW">Dont show this warning on startup.</input>').children('input:checkbox:first');
 	        if (helpWin.bDontShowAgainSyncWarn)
 	            checkDontShowAgainSyncWarn[0].checked = true;
@@ -275,7 +289,7 @@ var Help = {
 
 	    if (!bInsertDonationAsSection) {
 	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,281. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,554. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	        if (g_bUserDonated) {
 	            checkDonated[0].checked = true;
 	            divDonations.hide();
@@ -344,9 +358,10 @@ var Help = {
 
 	    var txtSEByCardComments = '&nbsp;&nbsp;<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnterSEByCardComments" \
 >Enter and read card S/E using card comments by starting a comment with this keyword:</input><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150"></input><input type="button" value="Save"/> Separate multiple keywords with comma.';
-	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team has S/E before december 2014, also include 'plus s/e' <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>as your last keyword</A>.";
-	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To enter S/E as a card comment, imitate the comment that the Plus card bar makes.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To enter S/E directly as a card comment, imitate the comment that the Plus card bar makes.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>Format help</A>.";
+	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team has S/E before december 2014, also include 'plus s/e' as your last keyword. <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
+	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team uses 'Google Sync', disable this 2nd option and configure 'Google sync' at the bottom of this help.";
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments);
 	    var checkEnterSEByCardComments = paraEnterSEByCardComments.children('input:checkbox:first');
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
@@ -429,7 +444,7 @@ var Help = {
 	                g_bEnableTrelloSync = bValue;
 	            }
 	            checkEnableTrelloSync[0].checked = g_bEnableTrelloSync;
-	            if (g_bEnableTrelloSync && !isBackendMode() && g_bNotYetEnabledSEByCardComments) {
+	            if (g_bEnableTrelloSync && !isBackendMode() && g_bNotYetEnabledSEByCardComments && g_strServiceUrl == "") {
 	                //by default also check the other option. eventually both will be one
 	                checkEnterSEByCardComments[0].checked = true;
 	                updateCheckStateEnterSEByCardComments(true);
@@ -439,7 +454,7 @@ var Help = {
 	    }
 
 	    checkEnterSEByCardComments.click(function () {
-	        updateCheckStateEnterSEByCardComments();
+	        updateCheckStateEnterSEByCardComments(g_strServiceUrl != "");
 	    });
 	    
 	    function updateCheckStateEnterSEByCardComments(bDontChangeTrelloSyncCheck) {
@@ -463,7 +478,8 @@ var Help = {
 	            setEnableTrelloSyncValue(false);
 	            bDisabledTrelloSync = true; //call above is async, so remember we disabled sync
 	            alert("'Trello sync' has also been disabled. You need to enable both options if you want to use 'Trello sync' properly.\n\n\
-Otherwise if you only enable 'Trello sync', S/E entered later by comments will be skipped by 'Trello sync' until you 'Reset plus'.");
+Otherwise if you only enable 'Trello sync', S/E entered later by comments will be skipped by 'Trello sync' until you 'Reset plus'.\n\n\
+(ignore this if you are about to enable 'Google sync' instead.)");
 	        }
 
 	        var pair = {};
@@ -522,12 +538,15 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&bull; Add <b>#hashtags</b> to card titles. See them in boards and search them in reports.');
 	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted users may lose their username and get a user number instead.');
-	    helpWin.para('&bull; Renaming, moving, archiving or deleting cards, lists and boards is automatically handled by "Trello sync".');
-	    helpWin.para('&nbsp');
+	    helpWin.para('&bull; Renaming, moving, archiving or deleting cards, lists and boards is automatically handled when Sync is enabled.');
+	    
+		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_reportingSE">Mobile Plus for Trello</b>');
-	    helpWin.para('The app lets you view s/e per card. Soon it will have card timers.');
+	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile Plus for Trello</b>');
+	    helpWin.para('View card s/e. Pin cards to your phone. Offline enabled.');
+	    helpWin.para('The app\'s few features work well but basic features are missing. I just finished the groundwork to make them happen.');
+	    helpWin.para('Soon it will have card timers and the s/e bar. Until then, once you are on a card in the app and wish to add s/e, it lets you go directly to the card in the trello app to enter s/e as a comment.');
 	    helpWin.para('Make sure you have enabled Trello sync "Enter and read card S/E using card comments".');
 	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
 	    helpWin.para('&nbsp');
@@ -540,7 +559,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('Click the menu to open a board, card, report or dashboard even when offline.');
 	    helpWin.para('Find boards, top 10 cards (last 12 months) and Plus notes (last 4 months).');
         helpWin.para('Type words in any order. Cards are searched if you type three or more characters.');
-	    helpWin.para('Use pattern matching with <b>*</b> for "any characters" and <b>?</b> for "single character" called <a target="_blank" href="http://en.wikipedia.org/wiki/Glob_(programming)#Syntax">GLOB syntax</a>.');
+	    helpWin.para('Use pattern matching with <b>*</b> for "any characters" and <b>?</b> for "single character" (<a target="_blank" href="http://en.wikipedia.org/wiki/Glob_(programming)#Syntax">GLOB syntax</a>).');
 	    helpWin.para('Examples:');
 	    helpWin.para('&bull; "informaci<b>?</b>n" matches "informaci<b>o</b>n" or "informaci<b>&oacute;</b>n".');
 	    helpWin.para('&bull; "hel?? world" or "hel*ld" matches "hello world"');
@@ -607,10 +626,11 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
+	    helpWin.para('Refresh all open Trello tabs after changing preferences.');
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
-	        pComboUnits.append(comboUnits).append($('<span> Card timers convert from time to your units.</span>'));
+	        pComboUnits.append(comboUnits).append($('<span> Card timers convert clock time to your units.</span>'));
 	        comboUnits.append($(new Option("minutes", UNITS.minutes)));
 	        comboUnits.append($(new Option("hours", UNITS.hours)));
 	        comboUnits.append($(new Option("days", UNITS.days)));
@@ -703,7 +723,7 @@ Background sync every 10 minutes while Chrome is open even if Trello is not open
 	        comboDowStart.append($(new Option("sunday", "0")));
 	        comboDowStart.append($(new Option("monday", "1")));
 	        comboDowStart.val(DowMapper.getDowStart());
-	        pComboDow.append($('<span>. You can change it anytime.</span>'));
+	        pComboDow.append($('<span>. You can change it anytime. All users should have the same setting.</span>'));
 	        var statusDow = $("<b></b>").hide();
 	        pComboDow.append(statusDow);
 	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
@@ -823,25 +843,24 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	        });
 	    }
 
-	    helpWin.para('Refresh Trello after changing preferences.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
-	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset.');
+	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted card s/e comments.');
 	    var buttonReset = paraReset.children('input:button:first');
 	    buttonReset.click(function () {
 	        ResetPlus();
 	    });
 
-	    if (g_optEnterSEByComment.IsEnabled()) {
-	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with s/e history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/>');
+	    if (g_optEnterSEByComment.IsEnabled()) { //review zig enable also for stealth sheet sync mode
+	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with s/e history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switched sync methods or used scrum for trello.');
 	        var buttonRenameCardsWithSE = paraRenameCards.children('input:button:first');
 	        var buttonRenameCardsAll = paraRenameCards.children('input:button:last');
 	        function handleButtonRename(bOnlyCardsWithHistory) {
 	            sendExtensionMessage({ method: "queueRenameAllCards", bOnlyCardsWithHistory: bOnlyCardsWithHistory },
                                     function (response) {
-                                        alert("Renaming will happen at the end of the next Trello sync\nafter you close this help.\nSee progress while syncing by hovering the Chrome Plus icon.");
+                                        alert("Renaming will happen at the end of the next sync\nafter you close this help.\nHover the Chrome Plus icon (top-right) to see sync progress.");
                                         helpWin.bStartSyncOnClose = true;
                                     });
 	        }
@@ -859,13 +878,13 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	        });
 	    }
 	    else {
-	        helpWin.para('To allow removal of S/E from card titles, enable "Enter and read card S/E using card comments" and open this help again.');
+	        helpWin.para('To allow removal of S/E from card titles, enable "Enter and read card S/E using card comments" and open this help again.'); //review zig stealth
 	    }
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy and security</h2></b>');
-	    helpWin.para('Plus secures all your data and does not have access to it outside your browser. <A target="_blank" href="http://plusfortrello.blogspot.com/2014/02/plus-for-trello-security-notes.html">More</A>.');
+	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://plusfortrello.blogspot.com/2014/02/plus-for-trello-security-notes.html">More</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -879,7 +898,7 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    helpWin.para('&bull; Chrome local: ' + helpWin.storageTotalLocal + " bytes.");
 	    helpWin.para('&bull; html5 localStorage: ' + helpWin.storageTotalLocalStorage + " bytes.");
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
-	    helpWin.para('Empty storage by doing a "Reset sync".');
+	    helpWin.para('Empty storage by doing a "Reset sync" from Utilities.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -892,6 +911,10 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
+	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2015/03/plus-for-trello-faq.html" >see existing user questions or add a new one.</a>');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
 	    helpWin.para('&nbsp');

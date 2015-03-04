@@ -42,7 +42,7 @@ function Migrator(db, sendResponse) {
 			db.changeVersion(db.version, String(number), function (t) {
 				migrations[number](t);
 			}, function (err) {
-			    var strErr = "Error: " + err.message;
+			    var strErr = "error: " + err.message;
 			    if (console.error) console.error(strErr);
 			    sendResponse({ status: strErr });
 			    return true; //stop
@@ -205,7 +205,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
     }
 
     if (g_cReadSyncLock < 0) {
-        logPlusError("Error: g_cReadSyncLock");
+        logPlusError("error: g_cReadSyncLock<0");
         sendResponseParam({ status: "error." });
         return;
     }
@@ -518,7 +518,7 @@ function handleGetReport(request, sendResponse, bAllowWhileOpening, cRetries) {
 
 	function errorTransaction() {
 		logPlusError("error in handleGetReport: " + sql);
-		sendResponse({ status: "ERROR: handleGetReport" });
+		sendResponse({ status: "error: handleGetReport" });
 	},
 
 	function okTransaction() {
@@ -990,7 +990,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 
 	function errorTransaction() {
 		logPlusError("error in insertIntoDB");
-		sendResponse({ status: "ERROR: insertIntoDB." });
+		sendResponse({ status: "error: insertIntoDB." });
 	}
 
 	function okTransaction() {
@@ -1160,7 +1160,7 @@ function handleDeleteAllLogMessages(request, sendResponse) {
 	var db = g_db;
 	var ret = { status: "" };
 	if (db == null) {
-		ret.status = "ERROR: handleDeleteAllLogMessages no g_db";
+	    ret.status = "error: handleDeleteAllLogMessages no g_db";
 		logPlusError(ret.status);
 		sendResponse(ret);
 		return;
@@ -1201,7 +1201,7 @@ function handleDeleteDB(request, sendResponseParam) {
 	if (!db) {
         //in theory it cant get here
 	    logPlusError("handleDeleteDB no db");
-	    sendResponse({ status: "ERROR: handleDeleteDB no g_db" });
+	    sendResponse({ status: "error: handleDeleteDB no g_db" });
 	    return;
 	}
 	var versionCur = parseInt(db.version,10) || 0;
@@ -1221,7 +1221,7 @@ function handleDeleteDB(request, sendResponseParam) {
 	}, function (err) {
 		if (console.error)
 			console.error("Error!: %s", err.message);
-		sendResponse({ status: "ERROR: handleDeleteDB" });
+		sendResponse({ status: "error: handleDeleteDB" });
 	}, function () {
 		localStorage["rowSsSyncEndLast"] = 0; //just in case, thou should be set also when opening the db on migration 1.
 		g_db = null;
@@ -1343,7 +1343,7 @@ function convertDowStart(dowStart,sendResponse, response) {
     },
 
 	function errorTransaction() {
-	    response.status = "ERROR: convertDowStart";
+	    response.status = "error: convertDowStart";
 	    logPlusError(response.status);
 	    sendResponse(response);
 	},

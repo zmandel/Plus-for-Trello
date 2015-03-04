@@ -53,7 +53,7 @@
 		else {
 		    btnCreate.hide();
 		    if (g_optEnterSEByComment.IsEnabled() && (g_strServiceUrl == null || g_strServiceUrl == ""))
-		        container.append(setFont($('<p>You cannot create a new spreadsheet while "Enter and read card S/E using card comments" is enabled.</p>')));
+		        container.append(setFont($('<p>You cannot create a new spreadsheet while "Enter and read card S/E using card comments" is enabled.</p>'))); //review zig: unreachable soon
 		    else {
 		        container.append(setFont($('<p>To create a new spreadsheet, first clear this one and press OK.</p>')));
 		        bAppendTeamSpreadsheetText = true;
@@ -90,7 +90,7 @@
 				setBusy(false);
 				if (response.status != STATUS_OK) {
 					setTimeout(function () { //review zig: convert all requests to sendmessage. here timeout needed because alert causes exception
-						alert("Error: " + response.status);
+						alert("error: " + response.status);
 						btnCreate.text(strCreate);
 						btnCreate.prop('disabled', false);
 						return;
@@ -147,7 +147,7 @@
 				if (!confirm("By changing the URL, all local data will be cleared and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
 				    return;
 				if (g_optEnterSEByComment.IsEnabled())
-				    alert('Because you have enabled "Enter and read card S/E using card comments", the google spreasheet will not be used');
+				    alert('Because you have enabled "Enter and read card S/E using card comments", the google spreasheet will not be used'); //review zig unreachable soon
 			}
 
 			sendExtensionMessage({ method: "isSyncing" },
@@ -184,7 +184,20 @@
 					            var pairUrlLocal = {};
 					            pairUrlLocal['serviceUrlLast'] = g_strServiceUrl;
 					            chrome.storage.local.set(pairUrlLocal, function () {
-					                PlusConfig.close(true);
+					                if (g_strServiceUrl != "" && !g_bEnableTrelloSync) {
+					                    var pairTrelloSync = {};
+					                    pairTrelloSync["bEnableTrelloSync"] = true; //enable trello sync automatically
+					                    chrome.storage.sync.set(pairTrelloSync, function () {
+					                        if (chrome.runtime.lastError != undefined)
+					                            return;
+					                        g_bEnableTrelloSync = true;
+					                        alert("Your first sync will start now.\nKeep using Trello normally but do not close it until sync finishes.");
+					                        PlusConfig.close(true);
+					                    });
+					                }
+					                else {
+					                    PlusConfig.close(true);
+					                }
 					            });
 					        }
 

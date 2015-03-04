@@ -926,7 +926,7 @@ function configReport(elemsParam, bRefreshPage) {
 							setReportData(rows, elems["checkNoCrop"] == "true", elems);
 						}
 						catch (e) {
-							var strError = "Error: " + e.message;
+							var strError = "error: " + e.message;
 							showError(strError);
 						}
 					});

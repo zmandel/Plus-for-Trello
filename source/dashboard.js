@@ -66,7 +66,7 @@ function configBoardBurndownData(idBoard) {
                             setChartData(rows, idBoard);
                         }
                         catch (e) {
-                            var strError = "Error: " + e.message;
+                            var strError = "error: " + e.message;
                             showError(strError);
                         }
                     });

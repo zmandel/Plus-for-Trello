@@ -1,9 +1,9 @@
 ﻿{
 	"name" : "Plus for Trello (time tracking - scrum)",
 	"short_name" : "Plus for Trello",
-	"version" : "2.11.12",
+	"version" : "2.11.13",
 	"manifest_version" : 2,
-	"description" : "Timers, hashtags, boards & cards offline menu, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
+	"description" : "Timers, hashtags, boards+cards offline search, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
 	"icons": {
 		"16": "images/icon16.png",
 		"48": "images/icon48.png",
@@ -47,6 +47,6 @@
         "*.html",
         "manifest.json"
     ],
-    "optional_permissions": [ "webRequest","https://trello.com/1/*"],
+    "optional_permissions": [ "webRequest","https://trello.com/1/*","https://trello.com/2/*"],
 	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/","https://spreadsheets.google.com/", "https://www.googleapis.com/"]
 }

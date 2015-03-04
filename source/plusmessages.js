@@ -69,7 +69,7 @@ function configReport() {
 							setReportData(rows);
 						}
 						catch (e) {
-							var strError = "Error: " + e.message;
+							var strError = "error: " + e.message;
 							showError(strError);
 						}
 					});
