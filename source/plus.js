@@ -51,7 +51,7 @@ function configureSsLinks(bParam) {
 	}
 	else {
 		chrome.storage.sync.get("serviceUrl", function (obj) {
-			var strUrlNew = obj["serviceUrl"]; //note: its still called serviceUrl even though it might store a sheet url too.
+			var strUrlNew = obj["serviceUrl"]; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
 			if (strUrlNew === undefined || strUrlNew == null)
 				strUrlNew = ""; //means simple trello
 			strUrlNew = strUrlNew.trim();
@@ -149,8 +149,6 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 		return;
 	}
 
-
-
 	var urlUserElem = $('#urlUser');
 	if (urlUserElem.length == 0) {
 		g_bCreatedPlusHeader = true;
@@ -167,35 +165,57 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 		onReadGlobalConfig(g_configData, userElem);
 		return;
 	}
-	
-	sendExtensionMessage({ method: "getConfigData", userTrello: userElem, urlService: url, bSkipCache: bSkipConfigCache },
-		function (respConfig) {
 
-			if (!bSkipConfigCache && respConfig.config.userTrello !== undefined && respConfig.config.userTrello != userElem) {
-				//happens if users share the same chrome user (or no user). We detect if data is from another user. if so clear all storage
-			    //note: respConfig.config.userTrello is undefined when configData is in an intermediate state. will get refreshed below when it detects new version.
-			    sendDesktopNotification("Plus detected a renamed user. Please go to/refresh trello.com, then verify your Plus preferences.",10000);
-				clearAllStorage(function () {
-					//Need to refresh the cached g_configData
-					configureSsLinksWorker(b, url, true); //reload all
-				});
-				return;
-			}
+	function part2() {
+	    sendExtensionMessage({ method: "getConfigData", userTrello: userElem, urlService: url, bSkipCache: bSkipConfigCache },
+            function (respConfig) {
 
-			if (respConfig.config.status != STATUS_OK) {
-				setTimeout(function () {
-					//set error text later, to avoid cases when user navigates back/away while on this xhr call.
-					setSyncErrorStatus(urlUserElem, respConfig.config.status);
-				}, 500);
-				return;
-			}
+                if (!bSkipConfigCache && respConfig.config.userTrello !== undefined && respConfig.config.userTrello != userElem) {
+                    //happens if users share the same chrome user (or no user). We detect if data is from another user. if so clear all storage
+                    //note: respConfig.config.userTrello is undefined when configData is in an intermediate state. will get refreshed below when it detects new version.
+                    sendDesktopNotification("Plus detected a renamed user. Please go to/refresh trello.com, then verify your Plus preferences.", 10000);
+                    clearAllStorage(function () {
+                        //Need to refresh the cached g_configData
+                        configureSsLinksWorker(b, url, true); //reload all
+                    });
+                    return;
+                }
 
-			g_configData = respConfig.config; //cache
-			g_bReadGlobalConfig = true;
-			onReadGlobalConfig(g_configData, userElem);
-			configureSsLinksAdmin(respConfig, b);
-			urlUserElem.attr("title", g_tipUserTopReport);
-		});
+                if (respConfig.config.status != STATUS_OK) {
+                    setTimeout(function () {
+                        //set error text later, to avoid cases when user navigates back/away while on this xhr call.
+                        setSyncErrorStatus(urlUserElem, respConfig.config.status);
+                    }, 500);
+                    return;
+                }
+
+                g_configData = respConfig.config; //cache
+                g_bReadGlobalConfig = true;
+                onReadGlobalConfig(g_configData, userElem);
+                configureSsLinksAdmin(respConfig, b);
+                urlUserElem.attr("title", g_tipUserTopReport);
+            });
+	}
+
+	if (!g_bCheckedTrelloSyncEnable && !g_bEnableTrelloSync) {
+	    g_bCheckedTrelloSyncEnable = true;
+	    chrome.storage.sync.set({ "bCheckedTrelloSyncEnable": g_bCheckedTrelloSyncEnable }, function () { });
+	    if (confirm("Press OK to enable Trello Sync and improve your spreadsheet sync. If you cancel you can enable it later manually from Plus help.\nEnable now?")) {
+	        var pairTrelloSync = {};
+	        pairTrelloSync["bEnableTrelloSync"] = true;
+	        chrome.storage.sync.set(pairTrelloSync, function () {
+	            if (chrome.runtime.lastError != undefined)
+	                alert(chrome.runtime.lastError);
+                else
+	                g_bEnableTrelloSync = true; //note: this is a safe place to init this global. be careful if init code changes.
+	            part2();
+	        });
+	        return; //dont continue and call part2 again
+	    }
+	}
+
+    part2();
+
 }
 
 var g_bDidInitialIntervalsSetup = false;

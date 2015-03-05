@@ -141,7 +141,7 @@ function loadOptions(callback) {
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
-
+    var keyCheckedTrelloSyncEnable = "bCheckedTrelloSyncEnable";
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
             sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message);
@@ -152,14 +152,16 @@ function loadOptions(callback) {
 
     //get options from sync. If not there, might be in local (older version), so upgrade it.
     //review zig: remove local check by aug.c2014
-    chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT, keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync, keyHidePendingCards, keyDowStart,
-                             keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor, keyPropbSumFilteredCardsOnly],
+    chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
+                             keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor, keyPropbSumFilteredCardsOnly],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bDontWarnParallelTimers = objSync[keyDontWarnParallelTimers] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
+                                 g_bCheckedTrelloSyncEnable = objSync[keyCheckedTrelloSyncEnable] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null

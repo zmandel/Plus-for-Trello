@@ -347,6 +347,7 @@ var Help = {
 	    helpWin.para('<b><h2 id="agile_help_trellosync">Trello sync</h2></b>');
 	    if (!g_bEnableTrelloSync) {
 	        helpWin.para('<b>Enable both options</b> to see S/E from all users, enter S/E from mobile or other browsers and see "lists" in reports.');
+	        helpWin.para('Once enabled, creating, renaming, moving, archiving or deleting cards, lists and boards is automatically handled.');
 	    }
 	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/08/plus-for-trello-beta-sync-features.html"><b>Read here for more details</b></A>.');
 	    if (helpWin.hasLegacyRows)
@@ -532,13 +533,14 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&bull; Follow the rule of reaching S equal E on finished cards so you can compare 1ˢᵗ with final estimates.');
 	    helpWin.para('&bull; When a user finishes a card but has Remaining, she should reduce E by entering negative E.');
 	    helpWin.para('&bull; Similarly if S goes over E, enter more E. The Plus card bar automatically pre-fills E in this case.');
-	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (Hours:Minutes when using Hour units)');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = 1 hour and 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
 	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Those will not be reflected in Plus until you "Reset sync".');
+	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (hours:minutes when using "hour" units)');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = 1 hour and 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
 	    helpWin.para('&bull; Add <b>#hashtags</b> to card titles. See them in boards and search them in reports.');
+	    helpWin.para('&bull; Add <b>[exclude]</b> to list names to exclude them from board sums on the trello board header.<br>\
+&nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
 	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted users may lose their username and get a user number instead.');
-	    helpWin.para('&bull; Renaming, moving, archiving or deleting cards, lists and boards is automatically handled when Sync is enabled.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted users may lose their username in reports and show a user number instead.');
 	    
 		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -626,7 +628,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
-	    helpWin.para('Refresh all open Trello tabs after changing preferences.');
+	    helpWin.para('Refresh this and other Trello chrome tabs after changing preferences.');
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
@@ -860,7 +862,7 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	        function handleButtonRename(bOnlyCardsWithHistory) {
 	            sendExtensionMessage({ method: "queueRenameAllCards", bOnlyCardsWithHistory: bOnlyCardsWithHistory },
                                     function (response) {
-                                        alert("Renaming will happen at the end of the next sync\nafter you close this help.\nHover the Chrome Plus icon (top-right) to see sync progress.");
+                                        alert("Renaming will happen at the end of the next sync\nafter you close help.\nHover the Chrome Plus icon (top-right) to see sync progress.");
                                         helpWin.bStartSyncOnClose = true;
                                     });
 	        }

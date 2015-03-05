@@ -19,7 +19,8 @@ var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_bAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon";
 var SEKEYWORD_DEFAULT = "plus!";
 var SEKEYWORD_LEGACY = "Plus S/E";
-var g_bEnableTrelloSync = false; //must be initialized by caller
+var g_bEnableTrelloSync = false; //review zig must be initialized by caller
+var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment
 
 var g_dateMinCommentSELegacy = new Date(2014, 11, 12);
