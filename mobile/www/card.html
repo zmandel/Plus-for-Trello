@@ -1,0 +1,93 @@
+﻿<!DOCTYPE html>
+<html>
+    <body>
+        <div data-role="page" id="pageCardDetail" data-dialog="true">
+            <div data-role="content" class="cardBackground">
+            <div style="height:1em;"></div>
+                <div class="seSuperWrapper">
+                    <div id="panelAddSEContainer" class="animateTransitions">
+                        <a id="addSE" href="#" data-role="button" data-icon="plus" data-mini="true" data-inline="true">add S/E</a>
+                        <input type="checkbox" tabindex="-1" data-inline="true" data-theme="b" data-role="flipswitch" id="cardPin" data-on-text="pinned" data-off-text="pin" data-wrapper-class="custom-label-flipswitch">
+                        <a class="floatRight ui-nodisc-icon" id="openTrelloCard" href="#" data-role="button" data-icon="trelloOpen" data-inline="true" data-mini="true">Trello</a>
+                    </div>
+                </div>
+                <form id="panelAddSE" class="opacityZero animateTransitions">
+                    <table id="daysAndUserContent">
+                        <tr>
+                            <td class="noWrapElem plusCardCommentUser-width">
+                                <select data-inline="true" data-mini="true" id="plusCardCommentUser" class="agile_days_box_input noshadow">
+                                    <option value="me">me me me me me</option>
+                                    <option value="other">other</option>
+                                </select>
+                            </td>
+                            <td class="noWrapElem plusCardCommentUser-width">
+                                <select data-inline="true" data-mini="true" id="plusCardCommentDays" class="agile_days_box_input noshadow">
+                                    <option value="m">now</option>
+                                    <option value="h">-1d</option>
+                                    <option value="d">-2d</option>
+                                    <option value="d">-3d</option>
+                                    <option value="d">-4d</option>
+                                    <option value="d">-5d</option>
+                                    <option value="d">-6d</option>
+                                    <option value="d">-7d</option>
+                                    <option value="d">custom</option>
+                                </select>
+                            </td>
+                            <td align="right" class="tdVisibleOverflow">
+                                <a id="plusCardCommentCancelButton" href="#" tabindex="9801" class="ui-btn ui-icon-delete ui-btn-icon-notext ui-corner-all"></a>
+                            </td>
+                        </tr>
+                    </table>
+                    <table id="#seTable">
+                        <tr>
+                            <td>
+
+                                <input id="plusCardCommentSpent" type="number" class="agile_spent_box_input seInputStyles seNumbers seFormElem" data-role="none" data-inline="true" />
+                                <span id="spentUnit" class="hmsLabel textSmaller">h </span>
+                                <input id="plusCardCommentSpent2" type="number" class="agile_spent_box_input seInputStyles seNumbers seFormElem" data-role="none" data-inline="true" step="15" />
+                                <span id="spentSubUnit" class="hmsLabel textSmaller">m </span><span class="textSmaller">spent</span>
+                                <br />
+                                <input id="plusCardCommentEst" type="number" class="agile_estimation_box_input seInputStyles seNumbers seFormElem" data-role="none" data-inline="true" />
+                                <span id="spentUnit2" class="hmsLabel textSmaller">h </span>
+                                <input id="plusCardCommentEst2" type="number" class="agile_estimation_box_input seInputStyles seNumbers seFormElem" data-role="none" data-inline="true" step="15" />
+                                <span id="spentSubUnit2" class="hmsLabel textSmaller">m </span><span class="textSmaller">estimate</span>
+                            </td>
+                        </tr>
+                    </table>
+                    <table style="width:100%;">
+                        <tr>
+                            <td class="noWrapElem noMarginPaddingTop" style="width:100%;" valign="top">
+                                <input style="width:100%;" id="plusCardCommentNote" placeholder=" note" type="text" data-wrapper-class="ui-custom-noborders" class="agile_note_box_input seInputStyles textSmaller seFormElem" data-role="none" />
+                                <div class="textSmaller">hello<br />world</div>
+                            </td>
+                            <td valign="bottom" class="tdVisibleOverflow" align="right">
+                                <a id="plusCardCommentEnterButton" href="#" tabindex="9800" class="tdvisibleoverflow ui-btn ui-icon-check ui-btn-icon-notext ui-corner-all"></a>
+                            </td>
+                        </tr>
+                    </table>
+                </form>
+                <br />
+                <div id="cardBottomContainer" class="animateTransitions">
+                    <div id="seContainer" style="display:none;">
+                        <table style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th class="colUser">User</th>
+                                    <th class="colSSum">S <span style="font-size:0.80em">sum</span></th>
+                                    <th class="colEFirst">E 1<sup>st</sup></th>
+                                    <th class="colESum">E <span style="font-size:0.80em">sum</span></th>
+                                    <th class="colR">R <span style="font-size:0.80em">(E-S)</span></th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <h3 id="cardTitle" ></h3>
+                    <div style="margin-bottom: 1em;"><span id="cardBoard"></span><span style="color:#BDBDBD;"> in </span><span id="cardList"></span></div>
+                    <div id="cardDesc" style="margin-bottom: .1em;word-wrap: break-word;"></div>
+                </div>
+            <div id="cardBottomPadding"></div>
+            </div><!-- /content -->
+        </div><!-- /page -->
+</body>
+</html>

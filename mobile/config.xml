@@ -1,0 +1,20 @@
+<?xml version='1.0' encoding='utf-8'?>
+<widget id="com.zigmandel.plusfortrello" version="0.2.4" xmlns="http://www.w3.org/ns/widgets" xmlns:cdv="http://cordova.apache.org/ns/1.0">
+    <name>Plus for Trello</name>
+    <description>
+        Companion for Plus for Trello in the Chrome store
+    </description>
+    <author email="zmandel@gmail.com" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf">
+        Zig Mandel
+    </author>
+	<icon src="www/img/icon.png" />
+  <preference name="BackgroundColor" value="0xFF0079BF"/>
+  <preference name="AndroidLaunchMode" value="singleTask" />
+  <preference name="android-minSdkVersion" value="10" />
+  <preference name="android-targetSdkVersion" value="21" />
+  <preference name="exit-on-suspend" value="false" />
+    <content src="index.html" />
+    <access origin="*" />
+  <platform name="android">
+  </platform>
+</widget>

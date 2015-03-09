@@ -1,0 +1,416 @@
+
+
+#daysAndUser {
+    width:4em;
+}
+
+
+.agile_flat_border {
+border-radius: 0 !important;
+}
+
+.ui-input-text.ui-custom-noborders {
+   border: none;
+   box-shadow: none;
+   border-image:none !important;
+    border-image-width: 0px;
+    border-color:transparent !important;
+    border-style:none !important;
+    border-radius: 0 !important;
+}
+
+.seInputStyles {
+    box-shadow: none !important;
+    border-image:none !important;
+    border-image-width: 0px;
+    border-color:transparent !important;
+    border-style:none !important;
+    border-radius: 0 !important;
+    border:none !important;
+    margin:4px !important;
+}
+
+.seNumbers {
+    width: 2em !important;
+    text-align: right !important;
+    margin-right:0px !important;
+}
+
+.hmsLabel {
+    color:#AEAEAE !important;
+}
+
+.custom-label-flipswitch.ui-flipswitch .ui-btn.ui-flipswitch-on {
+    text-indent:-3.7em !important;
+}
+
+.custom-label-flipswitch.ui-flipswitch .ui-flipswitch-off {
+    text-indent: 1em !important;
+}
+
+/* prevent click on flipswitch from causing a "hover" effect on text */
+.ui-page-theme-b .ui-btn:hover, html .ui-bar-b .ui-btn:hover, html .ui-body-b .ui-btn:hover, html body .ui-group-theme-b .ui-btn:hover, html head + body .ui-btn.ui-btn-b:hover
+{
+color:inherit !important;
+text-shadow:inherit !important;
+}
+
+.topPageTitle {
+    color:white;
+    text-shadow:0;
+    text-align:center;
+}
+
+
+.pageText {
+    color:white;
+    text-shadow:0;
+    text-align:left;
+}
+
+.cardBackground {
+background-color:#FAFAFA !important;
+}
+
+#cardDesc a {
+font-weight:normal !important;
+}
+
+[data-role="page"] {
+     min-height:100px !important; /* jqm sets pages height too big. can be seen if you try to scroll a page that fits whole. without this it will scroll */
+    -webkit-transform: translate3d(0px,0px,0px);
+    transform: translate3d(0px,0px,0px);
+}
+
+[data-role="content"] {
+    padding:6px;
+}
+
+.pinnedCardSubtext {
+    margin:0 !important;
+    padding:0 !important;
+}
+
+.pinnedCardElement {
+    padding-top:6px !important;
+    padding-bottom:6px !important;
+}
+
+.ui-icon-syncAnim {
+	background-image: url("../img/sync.png");
+    background-size: 17px 17px;
+    background-repeat:no-repeat;
+    padding-left:4.5px;
+    padding-top:8px;
+    margin-right:40px !important;
+    -webkit-animation:spin .7s linear infinite;
+    -moz-animation:spin .7s linear infinite;
+    animation:spin .7s linear infinite;
+}
+
+.ui-icon-trelloOpen {
+	background-image: url("../img/trelloOpen.png");
+    background-size: 27px 17px;
+    background-repeat:no-repeat;
+    background-position:left;
+}
+
+
+@-moz-keyframes spin { 100% { -moz-transform: rotate(360deg); } }
+@-webkit-keyframes spin { 100% { -webkit-transform: rotate(360deg); } }
+@keyframes spin { 100% { -webkit-transform: rotate(360deg); transform:rotate(360deg); } }
+
+.ui-icon-syncStatic {
+	background-image: none;
+}
+
+#plusCardCommentEnterButton {
+margin-top:0em;
+margin-bottom:0em;
+}
+
+
+#plusCardCommentNote {
+    margin-top:0px !important;
+    padding-top:1px !important;
+    padding-left:3px !important;
+}
+
+.noMarginPaddingTop {
+    margin-top:0px !important;
+    padding-top:0px !important;
+}
+
+#plusCardCommentCancelButton {
+border-width:0px;
+margin-top:-10px;
+margin-right:-0px;
+}
+
+#seContainer table,#seContainer th,#seContainer td {
+border-collapse: collapse;
+border: 1px solid #EEEEEE;
+padding:2px;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+
+#seContainer {
+margin-bottom:1em;
+}
+
+#cardTitle {
+display:inline-table;
+margin-bottom: .1em;
+margin-top:0px;
+}
+
+th, td {
+overflow: hidden;
+white-space: nowrap;
+border-collapse: collapse;
+}
+
+.colUser {
+    min-width: 2em;
+    max-width: 6em;
+}
+
+.colSSum {
+    min-width: 2em;
+    max-width: 4em;
+}
+
+.colEFirst {
+    min-width: 2em;
+    max-width: 4em;
+}
+
+.colESum {
+    min-width: 2em;
+    max-width: 4em;
+}
+
+.colR {
+    min-width: 2em;
+    max-width: 4em;
+}
+
+.ui-dialog .ui-dialog-contain
+{
+    margin-top: 0;
+}
+
+.floatRight {
+    float:right !important;
+}
+
+#plusWelcome, #plusWelcome a{
+   vertical-align: middle;
+   color:white;
+}
+
+#imgDonate
+{
+    display:block;
+    margin:auto;
+    cursor:pointer;
+}
+
+.imgLogin
+{
+    display:inline;
+}
+
+.imgHeader
+{
+    display:inline;
+    margin-top:0px;
+    margin-right:3px;
+    padding-left:5px;
+}
+
+.userTrello {
+    float:left;
+    margin-top:6px;
+    width:20%;
+}
+
+.userTrello div {
+display:inline-block;
+margin-left:.3em;
+vertical-align:top;
+font-weight:normal;
+text-overflow:clip !important;
+white-space: nowrap;
+overflow: hidden;
+width:100%;
+margin-top:2px;
+font-size:.7em;
+}
+
+.userTrello img {
+        margin-top: -7px;
+        margin-left: 4px;
+    }
+
+.noshadow {
+	-webkit-box-shadow: none;
+	-moz-box-shadow: none;
+	box-shadow: none;
+	}
+
+.headerShadow {
+    -webkit-box-shadow: 0px 3px 3px 0px rgba(0,0,0,0.3);
+    -moz-box-shadow: 0px 3px 3px 0px rgba(0,0,0,0.3);
+    box-shadow: 0px 3px 3px 0px rgba(0,0,0,0.3);
+}
+
+.plusHeader {
+    padding-top: 7px;
+    color: white;
+    border: none;
+    cursor: default;
+    background: #00407F;
+    height: 34px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.animateTransitions {
+    -webkit-transition: all 0.2s linear !important;
+    -moz-transition: all 0.2s linear !important;
+    -o-transition: all 0.2s linear !important;
+    transition: all 0.2s linear !important;
+    -webkit-backface-visibility: hidden;
+    -moz-backface-visibility: hidden;
+    -ms-backface-visibility: hidden;
+    -o-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+.clicks-not-active {
+   pointer-events: none !important;
+}
+
+
+.shiftUp {
+    transform: translate3d(0,-3em,0) !important;
+    -ms-transform:translate3d(0,-3em,0) !important;
+     -webkit-transform:  translate3d(0,-3em,0) !important;
+    opacity:0 !important;
+  }
+
+#panelAddSEContainer {
+    transform-origin: left top !important;
+    -webkit-transform-origin:left top !important;
+    -ms-transform: scale(1,1); /* IE 9 */
+   	-webkit-transform: scale(1,1); /* Chrome, Safari, Opera */
+    transform: scale(1,1);
+}
+
+.seSuperWrapper {
+    height:3em !important;
+    overflow:hidden !important;
+}
+
+#pageCardDetail .ui-dialog-contain .ui-content {
+overflow-x:visible !important;
+}
+
+#panelAddSE {
+    margin-top:-3.5em !important;
+    transform-origin: left top !important;
+    -webkit-transform-origin:left top !important;
+    border: solid;
+    border-color:#DDDDDD;
+    border-width:1px;
+    border-radius:1px;
+    padding:5px;
+    margin-left:-11px;
+    margin-right:-11px;
+    margin-bottom:5px;
+    background-color:#F7F7F7;
+    box-shadow: 0px 3px 3px #AAAAAA;
+}
+
+.opacityFull {
+    opacity:1;
+    z-index:9999 !important;
+     -ms-transform: scale(1,1) translate3d(0, 0, 0) !important; /* IE 9 */
+   	-webkit-transform: scale(1,1) translate3d(0, 0, 0) !important; /* Chrome, Safari, Opera */
+    transform: scale(1,1) translate3d(0, 0, 0) !important;
+}
+
+.opacityZero {
+    opacity:0;
+    -ms-transform: scale(0.2,0.2) translate3d(0, 0, 0) !important; /* IE 9 */
+   	-webkit-transform: scale(0.2,0.2) translate3d(0, 0, 0) !important; /* Chrome, Safari, Opera */
+    transform: scale(0.2,0.2) translate3d(0, 0, 0) !important;
+    z-index:-9999 !important;
+    pointer-events: none;
+}
+
+.plusShiftTop {
+    -ms-transform: translate3d(0px,-41px,0) !important; /* IE 9 */
+   	-webkit-transform: translate3d(0px,-41px,0) !important; /* Chrome, Safari, Opera */
+    transform: translate3d(0px,-41px,0) !important;
+}
+
+#daysAndUserContent {
+overflow-x: hidden;
+overflow-y: hidden;
+white-space: nowrap;
+width:100%;
+}
+
+.noWrapElem {
+display:inline-block !important;
+}
+
+#cardBottomContainer {
+margin-top: -10.2em !important;
+}
+
+
+.plusShiftBottom {
+    -ms-transform: translate3d(0px,9.5em,0); /* IE 9 */
+   	-webkit-transform: translate3d(0px,9.5em,0); /* Chrome, Safari, Opera */
+    transform: translate3d(0px,9.5em,0);
+}
+
+#cardBottomPadding {
+    padding-bottom:8.6em !important;
+}
+
+.plusCardCommentUser-width {
+max-width:60% !important;
+overflow:hidden !important;
+}
+
+.tdVisibleOverflow {
+overflow:visible !important;
+}
+
+
+.textSmaller {
+font-size:85%;
+}
+
+.seMinusPlusOp {
+font-size:200%;
+font-weight:bold;
+padding:0;
+margin:0;
+width:1.4em;
+margin-left:0.15em;
+margin-right:0.15em;
+}
+
+
+.plusHeader h1 {
+margin-top:-6px !important;
+white-space: nowrap;
+overflow: hidden;
+text-overflow:clip !important;
+}

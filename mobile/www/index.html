@@ -1,0 +1,67 @@
+﻿<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="format-detection" content="telephone=no" />
+        <meta name="msapplication-tap-highlight" content="no" />
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+        <meta name="viewport" content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <link rel="stylesheet" type="text/css" href="css/trelloblue.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/jquery.mobile.icons.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/jquery.mobile.structure-1.4.5.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <title>Plus for Trello</title>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type='application/javascript' src='js/fastclick.js'></script>
+        <script type="text/javascript" src="js/jquery.js"></script>
+        <script type="text/javascript" src="js/jquery.mobile-1.4.5.min.js"></script>
+        <script type="text/javascript" src="js/lz-string.min.js"></script>
+        <script type="text/javascript" src="js/trello.js"></script>
+        <script type="text/javascript" src="js/Markdown.Converter.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+    </head>
+    <body>
+    <div class="plusHeader" data-role="header" data-position="fixed" data-tap-toggle="false" width="100%" style="display:none;">
+        <span class="userTrello"></span><h1 style="font-weight:normal"><img src="img/login.png" class="imgHeader" width="20" align="top" />Home</h1>
+        <a class="ui-btn-right noshadow ui-nodisc-icon" data-iconpos="middle" style="margin-top:11px;border:none;" data-mini="true" id="syncButton" href="#" data-role="button" data-icon="syncStatic" data-inline="true"></a>
+        <a class="ui-btn-right noshadow" data-iconpos="right" style="margin-top:10px;border:none;" data-mini="true" id="settings" href="#" data-role="button" data-icon="gear" data-inline="true"></a>
+
+    </div><!-- /header -->
+
+    <div data-role="page" id="pageLogin" style="display:none;overflow: auto">
+        <div data-role="content">
+            <ul id=listCardsPinned data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
+                <li data-role="list-divider">Pinned cards</li>
+            </ul>
+            <ul id=listBoardsRecent data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
+                <li data-role="list-divider">Recent boards</li>
+            </ul>
+            <ul data-role="listview" data-inset="true" data-divider-theme="a">
+                <li><a id="viewBoards" href="#">All boards</a></li>
+            </ul>
+            <a id="login" href="#" data-role="button" data-icon="arrow-r" style="display:none">Login to Trello</a>
+        </div><!-- /content -->
+    </div><!-- /page -->
+
+        <div data-role="page" id="pageListBoards">
+            <div data-role="content">
+                <ul id=boardsList data-role="listview" data-inset="true" data-filter="true"></ul>
+            </div><!-- /content -->
+        </div><!-- /page -->
+
+    <div data-role="page" id="pageListLists">
+        <div data-role="content">
+            <div class="topPageTitle titleListLists" style="font-weight:bold"></div>
+            <ul id=listsList data-role="listview" data-inset="true" data-divider-theme="a"></ul>
+        </div><!-- /content -->
+    </div><!-- /page -->
+
+    <div data-role="page" id="pageListCards">
+        <div data-role="content">
+            <div class="topPageTitle titleListCards" style="font-weight:bold"></div>
+            <ul id=cardsList data-role="listview" data-inset="true"></ul>
+        </div><!-- /content -->
+    </div><!-- /page -->
+
+</body>
+</html>
