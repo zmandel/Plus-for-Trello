@@ -1,5 +1,6 @@
 var PROP_TRELLOKEY = "trellokey";
-var TRELLO_APPKEY = "xxx";
+var TRELLO_APPKEY = "xxx"; //create your own trello api key.
+var g_idGlobalAnalytics= "UA-xxxxxx-y"; //create your own in google analytics
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
@@ -146,7 +147,7 @@ var g_analytics = {
             return;
         msDelay = msDelay || 1000;
         this.init();
-        var payload = "v=1&tid=UA-58924888-1&cid=" + encodeURIComponent(g_analytics.idAnalytics);
+        var payload = "v=1&tid="+g_idGlobalAnalytics +"&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         };
