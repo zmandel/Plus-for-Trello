@@ -443,13 +443,47 @@ function completeMissingListData(tokenTrello, alldata, sendResponse) {
     }
 }
 
+function matchesCardShortLinkFromTrelloWelcomeBoard(shortLink) {
+    var rg = [
+"YdSxoGcc",
+"XNItoCqd",
+"B5h0PIBw",
+"tVOKKKJS",
+"1FzNqM9E",
+"jOERTc2e",
+
+"3MOoOZAk",
+"FUKG6oiY",
+"3E8uiAEk",
+"LrrmgFyd",
+"HMWuGKCb",
+"kn935e6l",
+"TFHJb9F2",
+
+"uoe6rcDL",
+"Tek4fCNQ",
+"bVlkHq2d",
+"JSccv2Cq",
+"sfAshneN",
+"xa7yvDpA",
+];
+    for (var i = 0; i < rg.length; i++) {
+        if (rg[i] == shortLink)
+            return true;
+    }
+    return false;
+}
+
 function preProcessActionsCaches(tokenTrello, actions, alldata, nextAction) {
     for (var i = 0; i < actions.length; i++) {
         var action = actions[i];
         var card = action.data.card;
-        if (card && card.shortLink)
-            alldata.cardsByLong[card.id] = card.shortLink; //populate cache. needed later for cards missing shortLink
-        
+        if (card && card.shortLink) {
+            if (matchesCardShortLinkFromTrelloWelcomeBoard(card.shortLink))
+                card.shortLink = undefined; //trello bug. see note below.
+            else
+                alldata.cardsByLong[card.id] = card.shortLink; //populate cache. needed later for cards missing shortLink
+        }
 
         function preProcessBoardSourceTarget(board) {
             if (board) {
@@ -466,7 +500,8 @@ function preProcessActionsCaches(tokenTrello, actions, alldata, nextAction) {
 
         var board = action.data.board;
         if (board) {
-            //NOTE: in some rare cases (presumably a trello bug) board.shortLink != action.idBoardSrc
+			//in .com.pe https://mail.google.com/mail/ca/u/0/#apps/to%3Asupport%40trello.com+shortlink/148d1f65e49605b2
+            //NOTE: confirmed trello bug where board.shortLink != action.idBoardSrc
             //Ive seen it happen on a customer, where an updateList action had board.shortLink be the trello welcome board, but idBoardSrc was the copy that trello makes.
             //WARNING: this means that code elsewhere cant trust board.shortLink unless it came from the db :(
             if (board.shortLink && board.shortLink != action.idBoardSrc) {
