@@ -618,8 +618,11 @@ function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus) {
                 sendStatus(responseReport.status);
                 return;
             }
-            if (responseReport.rows.length > 0) {
-                assert(responseReport.rows.length == 1);
+            if (responseReport.rows.length > 0) {                
+                if (responseReport.rows.length != 1) {
+                    logPlusError("responseReport.rows: " + JSON.stringify(responseReport.rows));
+                }
+				assert(responseReport.rows.length == 1);
                 cardDb = cloneObject(responseReport.rows[0]); //to modify it
                 assert(cardDb.idLong || cardDb.dateSzLastTrello == null || cardDb.idList == IDLIST_UNKNOWN || cardDb.bArchived); //sanity. if fails, might need to test for dateSzLastTrello==earliest_trello_date() thou that means archived
                 if (!idShortCard)
