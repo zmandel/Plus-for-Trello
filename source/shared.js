@@ -19,7 +19,8 @@ var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_bAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon";
 var SEKEYWORD_DEFAULT = "plus!";
 var SEKEYWORD_LEGACY = "Plus S/E";
-var g_bEnableTrelloSync = false; //review zig must be initialized by caller
+var g_bEnableTrelloSync = false; //review zig this ad g_bDisableSync must be initialized by caller
+var g_bDisableSync = false; // 'bDisabledSync' sync prop. note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
 var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment
 
@@ -28,7 +29,7 @@ var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
 
 var g_optEnterSEByComment = {
     bInitialized: false,
-    IsEnabled: function () {
+    IsEnabled: function () { //note this doesnt take into account g_bDisableSync
         assert(this.bInitialized);
         assert(typeof g_bEnableTrelloSync !== "undefined");
         return (g_bEnableTrelloSync && this.bEnabled && this.rgKeywords.length > 0);
@@ -180,19 +181,21 @@ function loadSharedOptions(callback) {
 
     var keyAcceptSFT = "bAcceptSFT";
     var keybEnableTrelloSync = "bEnableTrelloSync";
+    var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
     assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
-
-    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment],
+    //review zig: app.js has duplicate code for this
+    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+                            keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
-
+                                 g_bDisableSync = objSync[keybDisabledSync] || false;
                                  chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
                                      g_userTrelloBackground = (obj[PROP_TRELLOUSER] || null);
                                      callback();
@@ -1351,7 +1354,7 @@ function parseSE(title, bKeepHashTags, bAcceptSFT) {
     }
     // Strip hashtags
     if (bKeepHashTags === undefined || bKeepHashTags == false) //review zig cleanup by initializing to bKeepHashTags = bKeepHashTags || false and testing !bKeepHashTags
-        se.titleNoSE = se.titleNoSE.replace(/#[\w-]+/g, "");
+        se.titleNoSE = se.titleNoSE.replace(/#[\S-]+/g, "");
     return se;
 }
 

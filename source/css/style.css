@@ -1,4 +1,6 @@
-﻿.ui-autocomplete.ui-menu{font-size:0.7em;}
+﻿
+
+.ui-autocomplete.ui-menu{font-size:0.7em;}
 
 .ui-autocomplete {
     max-height: 50%;
@@ -213,7 +215,6 @@ div#spent_serviceUrlConfig_container {
 .agile_tooltip_scroller {
 	overflow: auto !important;
 	display: block;
-	//width: 100%;
 }
 
 .agile_tooltip_scroller_Short {
@@ -330,19 +331,15 @@ div#agile_help_container h1 {
 
 div#agile_help_container img {
 	border-radius: 5px;
-	//border: 1px solid #BBBBBB;
 }
 
 div#agile_help_container a {
-	//color: white;
 }
 
 div#agile_help_container p {
-	//color: #CAE3CA;
 }
 
 div#agile_help_container h3 {
-	//color: #A8CAA8;
 }
 
 
@@ -351,6 +348,7 @@ div#agile_help_container h3 {
 	background-color: #5289A9;
 	padding: 4px !important;
 	border-radius: 2px;
+    cursor:pointer;
 }
 
 .agile_help_setup_link:hover {
@@ -565,20 +563,17 @@ table#idTableSpentItemsHome td {
 table#tableMarkers {
 	padding: 0px;
 	margin: 0px;
-	//border: 1px solid lightgrey;
 }
 
 table#tableMarkers th {
 		font-size: 12px;
 		padding: 7px;
-		//border: 1px solid lightgrey;
 	}
 
 table#tableMarkers td {
 		font-size: 12px;
 		padding: 7px;
 		margin: 0px;
-		//border: 1px;
 	}
 
 .agile-se-stats {
@@ -848,7 +843,6 @@ table#tableMarkers td {
 	margin-top: 0px !important;
 	margin-bottom: 0px !important;
 	min-height: 14px !important;
-	//padding: 1px !important;
 	background-color: white !important;
 	width: 60px;
 	height: 22px;
@@ -861,7 +855,6 @@ table#tableMarkers td {
 	margin-top: 0px !important;
 	margin-bottom: 0px !important;
 	min-height: 14px !important;
-	//padding: 1px !important;
 	background-color: white !important;
 	width: 30px;
 	height: 22px;
@@ -1031,19 +1024,20 @@ table#tableMarkers td {
     color:black !important;
 }
 
+.agile_normalBackground {
+	background-color: white !important;
+    color:black !important;
+}
+
 .agile_box_more_hilite {
 	background-color: #F0F0F0 !important;
     color: #444 !important;
 }
 
 .agile_all_pressed {
-	//color: white !important;
-	//font-size: 9px !important;
 }
 
 .agile_all_unpressed {
-	//color: white !important;
-	//font-size: 9px !important;
 }
 
 .agile_timer_icon_small {
@@ -1074,7 +1068,6 @@ table#tableMarkers td {
 }
 
 .agile_report_tabselector:hover {
-    //color:#D3AB33;
     color: #4088AC !important;
 }
 
@@ -1209,7 +1202,6 @@ table#tableMarkers td {
 }
 
 .agile_report_filters {
-	//margin-bottom: 30px;
 }
 
 .agile_report_filter_label {

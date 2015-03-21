@@ -1,5 +1,4 @@
 ﻿var g_bNeedStartTourBubble = false;
-var g_bNotYetEnabledSEByCardComments = true; //to prevent plus from not letting check only "trello sync" without the 2nd one //hipri new sync
 
 var SYNCMETHOD = {
     disabled:0,
@@ -155,11 +154,15 @@ var Help = {
 	},
 	displayWorker: function () {
 	    var helpWin = this;
+	    var comboSync = null;
+	    var spanButtonGS = null;
 	    var bNotSetUp = (g_configData == null);
 	    var bSEByComments = g_optEnterSEByComment.IsEnabled();
 	    if (bNotSetUp && bSEByComments)
 	        bNotSetUp = false;
 
+	    if (g_bDisableSync)
+	        bNotSetUp = true;
 	    function keepSyncPaused(bForce) {
 	        if (bForce || helpWin.m_bShowing) {
 	            sendExtensionMessage({ method: "beginPauseSync" }, function (response) { });
@@ -178,17 +181,22 @@ var Help = {
 	    var elemClose = helpWin.raw('<div style="float:right;width:18px;"><img class="agile_help_close" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
 	    elemClose = elemClose.find(".agile_help_close");
 	    elemClose.click(function () {
-	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()) {
-				
-	            if (!confirm("You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.")) {
+	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
+	            var msgAlert = "You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.";
+	            var bHiliteGSButton = false;
+	            if (comboSync.val() == SYNCMETHOD.googleSheetLegacy && g_strServiceUrl == "") {
+	                msgAlert = "You have not set a google spreadsheet sync url.\nClick Cancel to configure it, or click OK to use without sync.";
+	                bHiliteGSButton = true;
+	            }
+
+	            if (!confirm(msgAlert)) {
 	                var section = $("#agile_help_trellosync");
 	                var top = section.offset().top;
 	                container.animate({
 	                    scrollTop: top + container[0].scrollTop
 	                }, 1000, function () {
-	                    hiliteOnce(checkEnableTrelloSync.parent(),2000);
-	                    hiliteOnce(checkEnterSEByCardComments.parent(),2000);
-
+	                    if (bHiliteGSButton)
+	                        hiliteOnce(spanButtonGS, 3000);
 	                });
 	                return;
 	            }
@@ -231,16 +239,18 @@ var Help = {
 	    }
 	    if (bNotSetUp && helpWin.totalDbRowsHistory > 0) {
 	        helpWin.para('<b>Enable "sync" to see team S/E, full Chrome Plus menu and use from mobile.</b>').css("color", COLOR_ERROR);
-	        var checkDontShowAgainSyncWarn = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontSW">Dont show this warning on startup.</input>').children('input:checkbox:first');
-	        if (helpWin.bDontShowAgainSyncWarn)
-	            checkDontShowAgainSyncWarn[0].checked = true;
+	        if (!g_bDisableSync) {
+	            var checkDontShowAgainSyncWarn = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontSW">Dont show this warning on startup.</input>').children('input:checkbox:first');
+	            if (helpWin.bDontShowAgainSyncWarn)
+	                checkDontShowAgainSyncWarn[0].checked = true;
 
-	        checkDontShowAgainSyncWarn.click(function () {
-	            var bValue = checkDontShowAgainSyncWarn.is(':checked');
-	            var pair = {};
-	            pair["bDontShowAgainSyncWarn"] = bValue;
-	            chrome.storage.local.set(pair, function () { });
-	        });
+	            checkDontShowAgainSyncWarn.click(function () {
+	                var bValue = checkDontShowAgainSyncWarn.is(':checked');
+	                var pair = {};
+	                pair["bDontShowAgainSyncWarn"] = bValue;
+	                chrome.storage.local.set(pair, function () { });
+	            });
+	        }
 	    } else {
 	        if (!bSEByComments && helpWin.totalDbRowsHistoryNotSync > 0) {
 	            var strPre = "" + helpWin.totalDbRowsHistoryNotSync + ' S/E rows pending spreadsheet sync verification. ';
@@ -289,7 +299,7 @@ var Help = {
 
 	    if (!bInsertDonationAsSection) {
 	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,554. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,846. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	        if (g_bUserDonated) {
 	            checkDonated[0].checked = true;
 	            divDonations.hide();
@@ -332,6 +342,7 @@ var Help = {
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
         helpWin.para('<b>E</b>stimate units needed per user to finish a card.');
         helpWin.para('<b>S</b>pend units from your estimate.');
+        helpWin.para('Units (days, hours or minutes) can be configured in Preferences. Do so before entering any s/e.');
         helpWin.para('<b>A card\'s S/E is the sum of its S/E history rows</b>. This is the most important concept in Plus.');
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
@@ -344,30 +355,147 @@ var Help = {
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_trellosync">Trello sync</h2></b>');
-	    if (!g_bEnableTrelloSync) {
-	        helpWin.para('<b>Enable both options</b> to see S/E from all users, enter S/E from mobile or other browsers and see "lists" in reports.');
-	        helpWin.para('Once enabled, creating, renaming, moving, archiving or deleting cards, lists and boards is automatically handled.');
+	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync</h2></b>');
+	    helpWin.para('Select your team\'s sync method:');
+	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
+	    comboSync.append($(new Option("Disabled sync", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite"));
+	    comboSync.append($(new Option("Trello card comments (recommended)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
+	    comboSync.append($(new Option("Google sync spreadsheet (legacy)", SYNCMETHOD.googleSheetLegacy)).addClass("agile_normalBackground"));
+	    var syncSectionsMap = {};
+	    for (var sMethod in SYNCMETHOD) {
+	        var div = $('<div class="helpSectionAnim"></div>').hide();
+	        helpWin.m_container.append(div);
+	        syncSectionsMap[SYNCMETHOD[sMethod]] = div;
 	    }
-	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/08/plus-for-trello-beta-sync-features.html"><b>Read here for more details</b></A>.');
-	    if (helpWin.hasLegacyRows)
-	        helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html"><b>Legacy "Google sync" users read here</b></A>.');
-	    var checkEnableTrelloSync = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnableTrelloSync" \
->Enable Trello sync. Plus syncs all boards you have joined.</input>').css("marginBottom", 0).children('input:checkbox:first');
-	    if (g_bEnableTrelloSync)
-	        checkEnableTrelloSync[0].checked = true;
 
-	    var txtSEByCardComments = '&nbsp;&nbsp;<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkEnterSEByCardComments" \
->Enter and read card S/E using card comments by starting a comment with this keyword:</input><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150"></input><input type="button" value="Save"/> Separate multiple keywords with comma.';
-	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;To enter S/E directly as a card comment, imitate the comment that the Plus card bar makes.";
-	    txtSEByCardComments = txtSEByCardComments + "<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>Format help</A>.";
-	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team has S/E before december 2014, also include 'plus s/e' as your last keyword. <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
-	    txtSEByCardComments = txtSEByCardComments + "<br><br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;If your team uses 'Google Sync', disable this 2nd option and configure 'Google sync' at the bottom of this help.";
-	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments);
-	    var checkEnterSEByCardComments = paraEnterSEByCardComments.children('input:checkbox:first');
+	    var bDisplayedLegacyNote = false;
+	    if (helpWin.hasLegacyRows) {
+	        helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
+	        bDisplayedLegacyNote = true;
+	    }
+	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally but do not close it until sync finishes.");
+	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/08/plus-for-trello-beta-sync-features.html">Read here for more details</A>.');
+
+	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
+	    helpWin.para("To get all Plus features enable sync from the list above. Once enabled you will get:", divCur);
+	    helpWin.para("&bull; team s/e", divCur);
+	    helpWin.para("&bull; full chrome Plus menu", divCur);
+	    helpWin.para("&bull; lists in Plus reports", divCur);
+	    helpWin.para("&bull; changes to cards, lists and boards is handled automatically.", divCur);
+	    helpWin.para("&bull; use from other devices, mobile trello or mobile Plus.", divCur);
+	    helpWin.para('<br>If you leave sync disabled (not recommended) you can still use Plus and get those features once enabled.', divCur);
+
+	    divCur = syncSectionsMap[SYNCMETHOD.trelloComments];
+	    var txtSEByCardComments = 'Enter S/E using the card plus bar or directly as card comments.';
+
+	    if (g_strServiceUrl) {
+	        txtSEByCardComments = txtSEByCardComments + '<br>Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing s/e inside card titles from Utilities.';
+	    }
+	    txtSEByCardComments = txtSEByCardComments + '<br>Plus syncs all boards you have joined.';
+	    txtSEByCardComments = txtSEByCardComments + '<br>Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate multiple keywords with comma.';
+	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same first keyword unless you want to further categorize or separate multiple subteams.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>By using card comments you can enter s/e for other users and more features not available from the plus card s/e bar.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
+	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
+	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
+	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Plus" from Utilities.', divCur);
+	    helpWin.para("", divCur);
 
+	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
+	    if (!bDisplayedLegacyNote)
+	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
+	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
+	    helpWin.para('Disadvantages of Google sync: requires chrome sign-in, no support for multiple keywords, no board-based permissions, no mobile use.', divCur);
+	    helpWin.para('Advantages: teams see all s/e data regardless of board membership by sharing the same sync url or can have each their own. See card s/e team totals inside card titles (card titles are renamed to include total s/e).', divCur);
+	    helpWin.para('This mode also enables syncronization with Trello to sync card/list/board changes in boards you have joined.', divCur);
+	    helpWin.para('In this mode s/e is not read from card comments only from the spreadsheet even thou it does add a card s/e comment.', divCur);
+	    helpWin.para('Thus in this mode you must enter all s/e using the Plus card bar, never directly as comments or from mobile.', divCur);
+
+	    spanButtonGS=setupPlusConfigLink(divCur);
+	    helpWin.para("", divCur);
+	    if (g_strServiceUrl == "")
+	        helpWin.para('Not yet configured.', divCur);
+	    else {
+	        helpWin.para('Current sync spreadsheet url:', divCur);
+	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
+	    }
+	    helpWin.para("", divCur);
+
+	    var valCombo = null;
+	    var bAddFirstSyncNote = !g_bEnableTrelloSync;
+
+	    function onComboSyncChange() {
+	        var valComboOld = valCombo;
+	        valCombo = comboSync.val();
+	        var bHilite = false;
+
+	        for (var sMethod in syncSectionsMap) {
+	            if (sMethod == valCombo) {
+	                syncSectionsMap[sMethod].show();
+	            }
+	            else
+	                syncSectionsMap[sMethod].hide();
+	        }
+
+	        if (valCombo != valComboOld) {
+	            var bDisableSyncNew = g_bDisableSync;
+	            var bEnableTrelloSyncNew = g_bEnableTrelloSync;
+	            var bSyncByCommentsNew = g_optEnterSEByComment.bEnabled;
+
+	            if (valCombo == SYNCMETHOD.disabled) {
+	                bDisableSyncNew = true;
+	                paraFirstSync.hide();
+	                bHilite = true;
+	            }
+	            else {
+	                if (bAddFirstSyncNote)
+	                    paraFirstSync.show();
+	                else
+	                    paraFirstSync.hide();
+	                if (valCombo == SYNCMETHOD.trelloComments) {
+	                    bEnableTrelloSyncNew = true;
+	                    bSyncByCommentsNew = true;
+	                    bDisableSyncNew = false;
+	                }
+	                else if (valCombo == SYNCMETHOD.googleSheetLegacy) {
+	                    if (g_strServiceUrl) { //if url not set yet, these two will be set during in plusconfig
+	                        bEnableTrelloSyncNew = true;
+	                        bSyncByCommentsNew = false;
+	                        bDisableSyncNew = false;
+	                    }
+	                    else {
+                            //disable both so sync remains fully disabled until user adds the spreadsheet
+	                        bEnableTrelloSyncNew = false;
+	                        bSyncByCommentsNew = false;
+	                        bDisableSyncNew = true;
+	                    }
+	                }
+	            }
+
+	            if (bDisableSyncNew != g_bDisableSync || bEnableTrelloSyncNew != g_bEnableTrelloSync || bSyncByCommentsNew != g_optEnterSEByComment.bEnabled) {
+	                setEnableTrelloSyncValue(bEnableTrelloSyncNew, bSyncByCommentsNew, bDisableSyncNew);
+	            }
+
+	            if (bHilite)
+	                comboSync.addClass("agile_box_input_hilite");
+	            else
+	                comboSync.removeClass("agile_box_input_hilite");
+	        }
+	    }
+
+	    comboSync.change(onComboSyncChange);
+	    var valComboNew = valCombo;
+	    if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()))
+	        valComboNew = SYNCMETHOD.disabled;
+	    else if (g_optEnterSEByComment.IsEnabled()) {
+	        valComboNew = SYNCMETHOD.trelloComments;
+	    }
+	    else
+	        valComboNew = SYNCMETHOD.googleSheetLegacy;
+	    comboSync.val(valComboNew);
+	    onComboSyncChange();
 
 	    function putKeywordsStringInUi(rg) {
 	        var strKeywords = "";
@@ -409,110 +537,48 @@ var Help = {
 	        doSaveKeywords(true);
 	    });
 
-	    function updateCheckStateSEByCardComments() {
-	        var bCheckedTrelloSync = g_bEnableTrelloSync;
-	        var bCheckedEnterSEByCardComments = g_optEnterSEByComment.bEnabled; //dont use IsEnabled()
-	        var bDisabled = (isBackendMode() || !bCheckedTrelloSync);
-	        function disableElems(elems, bDisabled) {
-	            elems.prop('disabled', bDisabled);
-	            if (bDisabled)
-	                elems.addClass("agile_disabled_color");
-	            else
-	                elems.removeClass("agile_disabled_color");
-	        }
 
-	        disableElems($.merge(paraEnterSEByCardComments, paraEnterSEByCardComments.find("*")), bDisabled);
-	        var bAnyUnchecked = (!bCheckedEnterSEByCardComments || !bCheckedTrelloSync);
-	        disableElems(inputKeywords, bAnyUnchecked);
-	        disableElems(buttonSaveKeywords, bAnyUnchecked);
-	    }
-	    updateCheckStateSEByCardComments();
-	    if (g_optEnterSEByComment.bEnabled) //dont use IsEnabled()
-	        checkEnterSEByCardComments[0].checked = true;
+	    function setEnableTrelloSyncValue(bValue, bValueSyncByComments, bDisabled) {
 
-	    function setEnableTrelloSyncValue(bValue) {
-	        var pair = {};
-	        pair["bEnableTrelloSync"] = bValue;
-	        if (bValue)
-	            pair["bEnabledTrelloSyncBETA"] = true; //only way to turn it off is by doing a reset which will erase this sync property. review zig: later use a local property to detect if device was converted out of beta
-	        chrome.storage.sync.set(pair, function () {
-	            if (chrome.runtime.lastError == undefined) {
-	                if (g_bEnableTrelloSync != bValue) {
+	        //note this used to ask for requestWebRequestPermission, but its not needed since we are already a script inside the requested trello.com url
+	        //the permission request was done to be more complete for future use, but it interfered because having a breakpoint set before the permission request
+            //caused the request to fail because it was not done within a user action. (which it is, when the user changes the combobox).
+	        worker();
+
+	        function worker() {
+	            var pair = {};
+	            pair["bEnableTrelloSync"] = bValue;
+	            pair["bDisabledSync"] = bDisabled;
+	            if (bValue)
+	                pair["bEnabledTrelloSyncBETA"] = true; //only way to turn it off is by doing a reset which will erase this sync property. review zig: later use a local property to detect if device was converted out of beta
+
+	            pair["bEnterSEByCardComments"] = bValueSyncByComments;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError) {
+	                    alert(chrome.runtime.lastError.message);
+	                    return;
+	                }
+	                g_optEnterSEByComment.bEnabled = bValueSyncByComments;
+	                if (g_bEnableTrelloSync != bValue && !bDisabled) {
 	                    helpWin.bStartSyncOnClose = bValue;
-	                    if (bValue)
-	                        alert("Your first sync will start after you close help.\nKeep using Trello normally but do not close it until sync finishes.");
 	                }
 	                g_bEnableTrelloSync = bValue;
-	            }
-	            checkEnableTrelloSync[0].checked = g_bEnableTrelloSync;
-	            if (g_bEnableTrelloSync && !isBackendMode() && g_bNotYetEnabledSEByCardComments && g_strServiceUrl == "") {
-	                //by default also check the other option. eventually both will be one
-	                checkEnterSEByCardComments[0].checked = true;
-	                updateCheckStateEnterSEByCardComments(true);
-	            }
-	            updateCheckStateSEByCardComments();
-	        });
+	                g_bDisableSync = bDisabled;
+	                if (g_bEnableTrelloSync && !g_bDisableSync) {
+	                    if (bValueSyncByComments) {
+	                        if (!g_optEnterSEByComment.hasLegacyKeyword() && helpWin.hasLegacyRows) {
+	                            inputKeywords.val(inputKeywords.val() + ", " + SEKEYWORD_LEGACY);
+	                            doSaveKeywords(false);
+	                            hiliteOnce(inputKeywords);
+	                            alert("the legacy keyword 'plus s/e' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset plus without missing legacy card comments.");
+	                        }
+	                        inputKeywords.focus();
+	                    }
+	                }
+	            });
+	        }
 	    }
 
-	    checkEnterSEByCardComments.click(function () {
-	        updateCheckStateEnterSEByCardComments(g_strServiceUrl != "");
-	    });
-	    
-	    function updateCheckStateEnterSEByCardComments(bDontChangeTrelloSyncCheck) {
-	        var bValueSEByComment = checkEnterSEByCardComments.is(':checked');
-	        var bDisabledTrelloSync = false;
-
-	        if (bValueSEByComment) {
-	            g_bNotYetEnabledSEByCardComments = false;
-	            if (g_strServiceUrl) {
-	                alert("Note: Plus will no longer rename card titles or use the spreadsheet.");
-	            }
-
-	            if (!g_optEnterSEByComment.hasLegacyKeyword() && helpWin.hasLegacyRows) {
-	                inputKeywords.val(inputKeywords.val() + ", " + SEKEYWORD_LEGACY);
-	                doSaveKeywords(false);
-	                hiliteOnce(inputKeywords);
-	                alert("the legacy keyword 'plus s/e' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset plus without missing legacy card comments.");
-	            }
-	        }
-	        else if (!bDontChangeTrelloSyncCheck) {
-	            setEnableTrelloSyncValue(false);
-	            bDisabledTrelloSync = true; //call above is async, so remember we disabled sync
-	            alert("'Trello sync' has also been disabled. You need to enable both options if you want to use 'Trello sync' properly.\n\n\
-Otherwise if you only enable 'Trello sync', S/E entered later by comments will be skipped by 'Trello sync' until you 'Reset plus'.\n\n\
-(ignore this if you are about to enable 'Google sync' instead.)");
-	        }
-
-	        var pair = {};
-	        pair["bEnterSEByCardComments"] = bValueSEByComment;
-
-	        chrome.storage.sync.set(pair, function () {
-	            if (chrome.runtime.lastError == undefined) {
-	                g_optEnterSEByComment.bEnabled = bValueSEByComment;
-	            }
-	            checkEnterSEByCardComments[0].checked = g_optEnterSEByComment.bEnabled;
-	            updateCheckStateSEByCardComments();
-	            if (!bDisabledTrelloSync && g_bEnableTrelloSync && g_optEnterSEByComment.bEnabled) { //dont use IsEnabled()
-	                inputKeywords.focus();
-	            }
-	        });
-	    }
-
-	    checkEnableTrelloSync.click(function () {
-	        var bValue = checkEnableTrelloSync.is(':checked');
-
-	        if (bValue) {
-	            sendExtensionMessage({ method: "requestWebRequestPermission" },
-                    function (response) {
-                        // The callback argument will be true if the user granted the permissions.
-                        if (!response.granted)
-                            bValue = false; //undo
-                        setEnableTrelloSyncValue(bValue);
-                    });
-	        } else {
-	            setEnableTrelloSyncValue(bValue);
-	        }
-	    });
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -549,7 +615,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('View card s/e. Pin cards to your phone. Offline enabled.');
 	    helpWin.para('The app\'s few features work well but basic features are missing. I just finished the groundwork to make them happen.');
 	    helpWin.para('Soon it will have card timers and the s/e bar. Until then, once you are on a card in the app and wish to add s/e, it lets you go directly to the card in the trello app to enter s/e as a comment.');
-	    helpWin.para('Make sure you have enabled Trello sync "Enter and read card S/E using card comments".');
+	    helpWin.para('The app is compatible only with "Trello card comments" sync. Upgrade if you are still using legacy google sync.');
 	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -575,7 +641,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    helpWin.para('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
 	    helpWin.para("&bull; Start a timer from any card. The active timer is always visible in the Chrome Plus icon and menu.");
-		helpWin.para("&bull; Timers use the units set in Preferences.");
+		helpWin.para("&bull; Timers measure time in your units from Preferences.");
 		helpWin.para("&bull; See and stop a timer started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Stop the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
@@ -632,7 +698,7 @@ Otherwise if you only enable 'Trello sync', S/E entered later by comments will b
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
-	        pComboUnits.append(comboUnits).append($('<span> Card timers convert clock time to your units.</span>'));
+	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, s/e already entered is assumed in the new units so pick it before entering any s/e.</span>'));
 	        comboUnits.append($(new Option("minutes", UNITS.minutes)));
 	        comboUnits.append($(new Option("hours", UNITS.hours)));
 	        comboUnits.append($(new Option("days", UNITS.days)));
@@ -856,7 +922,7 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    });
 
 	    if (g_optEnterSEByComment.IsEnabled()) { //review zig enable also for stealth sheet sync mode
-	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with s/e history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switched sync methods or used scrum for trello.');
+	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with s/e history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switch sync methods.');
 	        var buttonRenameCardsWithSE = paraRenameCards.children('input:button:first');
 	        var buttonRenameCardsAll = paraRenameCards.children('input:button:last');
 	        function handleButtonRename(bOnlyCardsWithHistory) {
@@ -880,7 +946,7 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	        });
 	    }
 	    else {
-	        helpWin.para('To allow removal of S/E from card titles, enable "Enter and read card S/E using card comments" and open this help again.'); //review zig stealth
+	        helpWin.para('To allow removal of S/E from card titles enable "Trello card comments" sync and re-open this help.'); //review zig stealth
 	    }
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -901,15 +967,6 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    helpWin.para('&bull; html5 localStorage: ' + helpWin.storageTotalLocalStorage + " bytes.");
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
 	    helpWin.para('Empty storage by doing a "Reset sync" from Utilities.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
-
-	    helpWin.para('<b><h2 id="agile_help_gsync">Google sync (legacy)</h2></b>');
-	    if (g_optEnterSEByComment.IsEnabled()) {
-	        helpWin.para('Google sync is inactive because you enabled "Enter and read card S/E using card comments".');
-	    }
-	    helpWin.para('Legacy Plus users <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.');
-	    setupPlusConfigLink(container);
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -951,10 +1008,10 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    var objHelp = this;
 	    if (!objHelp.m_bShowing)
 	        return;
+	    if (bRestarting)
+	        return;
 	    objHelp.m_bShowing = false;
 	    sendExtensionMessage({ method: "endPauseSync" }, function (response) {
-	        if (bRestarting)
-	            return;
 	        objHelp.m_container.fadeOut('fast', function () {
 	            var container = objHelp.m_container;
 	            objHelp.m_container = null;
@@ -978,3 +1035,12 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    });
 	}
 };
+
+function setupPlusConfigLink(bParam) {
+    var span = $('<span></span>').addClass('header-btn-text agile_help_setup_link').text("Click to setup Google sync");
+    span.appendTo(bParam);
+    span.click(function () {
+        PlusConfig.display(bParam);
+    });
+    return span;
+}

@@ -210,6 +210,11 @@ function handleSyncDBWorker(request, sendResponseParam) {
         return;
     }
 
+    if (g_bDisableSync) {
+        sendResponseParam({ status: "sync is disabled" });
+        return;
+    }
+
     if (!isDbOpened() || g_cWriteSyncLock != 0 || g_cReadSyncLock != 0 || g_cFullSyncLock != 0 || g_syncStatus.bSyncing) {
         sendResponseParam({ status: "busy" });
         return;
@@ -817,7 +822,7 @@ function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
 function loadBackgroundOptions(callback) {
 
     loadSharedOptions(function () {
-        if (!g_bEnableTrelloSync) {
+        if (!g_bEnableTrelloSync || g_bDisableSync) {
             g_syncStatus.setStage("", 0); //reset
         }
         callback();

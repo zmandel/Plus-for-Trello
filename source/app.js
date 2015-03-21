@@ -142,6 +142,8 @@ function loadOptions(callback) {
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
     var keyCheckedTrelloSyncEnable = "bCheckedTrelloSyncEnable";
+    var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
+
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
             sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message);
@@ -150,11 +152,11 @@ function loadOptions(callback) {
         return false;
     }
 
-    //get options from sync. If not there, might be in local (older version), so upgrade it.
-    //review zig: remove local check by aug.c2014
+    //get options from sync
     chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
                              keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor, keyPropbSumFilteredCardsOnly],
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
+                             keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
@@ -163,6 +165,7 @@ function loadOptions(callback) {
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_bCheckedTrelloSyncEnable = objSync[keyCheckedTrelloSyncEnable] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
+                                 g_bDisableSync = objSync[keybDisabledSync] || false;
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
@@ -173,6 +176,7 @@ function loadOptions(callback) {
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;
                                  g_bChangeCardColor = objSync[keybChangeCardColor] || false;
                                  g_bCheckedbSumFiltered = objSync[keyPropbSumFilteredCardsOnly] || false;
+                                 //alert("g_bEnableTrelloSync : " + g_bEnableTrelloSync + "\ncomments sync : " + g_optEnterSEByComment.bEnabled + "\ndisabled sync : " + g_bDisableSync);
 								callback();
                              });
 }
@@ -273,12 +277,12 @@ function ResetPlus() {
                                     return;
                                 }
 
-                                if (response.cRowsTotal > 0 && !g_optEnterSEByComment.IsEnabled()) {
-                                    if (g_strServiceUrl && g_strServiceUrl.length > 0) {
+                                if (response.cRowsTotal > 0 && (g_bDisableSync || !g_optEnterSEByComment.IsEnabled())) { //review newsync
+                                    if (!g_optEnterSEByComment.IsEnabled() && g_strServiceUrl && g_strServiceUrl.length > 0) {
                                         if (!confirm("You have pending s/e rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
                                             return;
                                     }
-                                    else if (!confirm("You have not fully enabled Sync. Past s/e rows wont come back until you do so.'\nAre you sure you want to reset now?"))
+                                    else if (!confirm("Sync is not enabled. s/e rows wont come back until you do so.'\nAre you sure you want to reset now?"))
                                         return;
                                 }
 

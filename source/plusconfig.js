@@ -22,42 +22,32 @@
 		if (g_strServiceUrl != null)
 			input.val(g_strServiceUrl);
 		container.append($('<H2 text-align="center"><b>Setup Google sync</b></H2>'));
-		container.append(setFont($('<p><b>Google sync is a legacy option. Dont enable it unless you want to keep using the old sync method.</b></p>')));
-		container.append(setFont($('<p><b>Google sync renames card titles to include S/E in them as you enter S/E rows.</b></p>')));
+		container.append(setFont($('<p><b>Google sync renames card titles to include total S/E.</b></p>')));
 	    //review zig: handle not logged in when all users have chrome v33 onSignInChanged https://developer.chrome.com/apps/identity#event-onSignInChanged
 		container.append(setFont($('<p>If you havent signed-into Chrome, click the Chrome menu to the right \
 <img id="imgChromeMenu" src="' + chrome.extension.getURL("images/chromenu.png") + '" title="Not this one, the one on the top-right of your screen."/> and \
-<A target="_blank" href="https://support.google.com/chrome/answer/185277?hl=en">sign in to Chrome</A>.<br><b>Note this is not the same as being signed into your gmail.</b></p>')));
+<A target="_blank" href="https://support.google.com/chrome/answer/185277?hl=en">sign in</A>. <b>This is not the same as being signed into your gmail.</b></p>')));
 
 		container.find("#imgChromeMenu").click(function () {
 			alert("Not this one, the one on the top-right of your screen.");
 		});
 		container.append(setFont($('<p>You must be signed in to Chrome with the same email in all your devices to use Google sync.</p>')));
-		container.append(setFont($('<p>Configure one device only. Your other devices will automatically pick up the new configuration.</p>')));
-		container.append(setFont($('<p><b><A target="_blank" href="http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html">Read here</A></b> for more details.</p>')));
+		container.append(setFont($('<p>Configure one device only. Your other devices will automatically pick up the new configuration. <b><A target="_blank" href="http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html">Read here</A></b> for more details.</p>')));
 		container.append($('<p>&nbsp</p>'));
-
-		if (g_strServiceUrl &&  g_strServiceUrl != "") {
-		    container.append(setFont($('<p>To revoke permissions to your Google Drive go <a target="_blank" href="https://security.google.com/settings/security/permissions">here</a></p>')));
-		}
 		var btnCreate = setFont($('<button id="buttonCreateSs"></button>')).css('margin-bottom', '5px');
 		var strCreate = "Create a new sync spreadsheet";
 		var bAppendTeamSpreadsheetText = false;
 		btnCreate.text(strCreate);
-		if (!g_optEnterSEByComment.IsEnabled() && (g_strServiceUrl == null || g_strServiceUrl == "")) {
-		    var strTeamModeSetup = "For <A target='_blank' href='http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html'>team mode</A> the team administrator should create the spreadsheet and give it to team users, shared with Write permissions.";
+		if (!g_strServiceUrl) {
+		    var strTeamModeSetup = "For <A target='_blank' href='http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html'>team mode</A> the team administrator should create the spreadsheet here, share it with write permissions to team users.";
 		    container.append(setFont($('<p>' + strTeamModeSetup + '</p>')));
 		    btnCreate.show();
 		    bAppendTeamSpreadsheetText = true;
 		}
 		else {
 		    btnCreate.hide();
-		    if (g_optEnterSEByComment.IsEnabled() && (g_strServiceUrl == null || g_strServiceUrl == ""))
-		        container.append(setFont($('<p>You cannot create a new spreadsheet while "Enter and read card S/E using card comments" is enabled.</p>'))); //review zig: unreachable soon
-		    else {
-		        container.append(setFont($('<p>To create a new spreadsheet, first clear this one and press OK.</p>')));
-		        bAppendTeamSpreadsheetText = true;
-		    }
+		    container.append(setFont($('<p>To create a new spreadsheet, first clear this one and press OK.</p>')));
+		    bAppendTeamSpreadsheetText = true;
 		}
 
 		container.append(btnCreate);
@@ -65,7 +55,7 @@
 		    container.append(setFont($('<span > or put the team spreadsheet url from your team administrator.</span>')));
 		divInput.append(setFont(input));
 		container.append(divInput);
-		container.append(setFont($('<p>Example: https://docs.google.com/...?key=blahblah#gid=0</p>')));
+		container.append(setFont($('<p>Example: https://docs.google.com/spreadsheets/d/blahblah/edit#gid=0  or https://docs.google.com/...?key=blahblah#gid=0</p>')));
 		if (g_strServiceUrl != null && g_strServiceUrl != "") {
 		    var urlClean = g_strServiceUrl.split("#")[0];
 		    var strSharingNote = " <A target='_blank' href='" + urlClean + (urlClean.indexOf("?")<0 ? "?" : "&") + "usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
@@ -107,6 +97,9 @@
 				    var strSharingNote = " <A target='_blank' href='" + urlClean + "&usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
 				    container.append(setFont($('<p>' + strSharingNote + '</p>')));
 				}
+				if (g_strServiceUrl && g_strServiceUrl != "") {
+				    container.append(setFont($('<p>To revoke permissions to your Google Drive go <a target="_blank" href="https://security.google.com/settings/security/permissions">here</a></p>')));
+				}
 			});
 		});
 		btnOk.click(function () {
@@ -144,10 +137,8 @@
 			var strOldStorage = g_strServiceUrl;
 
 			if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length>0) {
-				if (!confirm("By changing the URL, all local data will be cleared and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
+				if (!confirm("By changing the URL, all s/e rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
 				    return;
-				if (g_optEnterSEByComment.IsEnabled())
-				    alert('Because you have enabled "Enter and read card S/E using card comments", the google spreasheet will not be used'); //review zig unreachable soon
 			}
 
 			sendExtensionMessage({ method: "isSyncing" },
@@ -172,7 +163,7 @@
 					        }
 
 					        if (g_strServiceUrl && g_strServiceUrl.length > 0 && response.cRowsTotal > 0) {
-					            if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
+					            if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and refresh trello so a sync starts."))
 					                return;
 					        }
 
@@ -184,14 +175,29 @@
 					            var pairUrlLocal = {};
 					            pairUrlLocal['serviceUrlLast'] = g_strServiceUrl;
 					            chrome.storage.local.set(pairUrlLocal, function () {
-					                if (g_strServiceUrl != "" && !g_bEnableTrelloSync) {
+					                var bOldEnableTrelloSync = g_bEnableTrelloSync;
+                                    
+					                if (g_optEnterSEByComment.bEnabled || (g_strServiceUrl != "" && (!g_bEnableTrelloSync || g_bDisableSync)) ||
+                                        (g_strServiceUrl == "" && (g_bEnableTrelloSync || !g_bDisableSync))) {
 					                    var pairTrelloSync = {};
-					                    pairTrelloSync["bEnableTrelloSync"] = true; //enable trello sync automatically
+					                    var bNewEnableTrelloSync = (g_strServiceUrl != "");
+					                    var bNewDisableSync = !bNewEnableTrelloSync;
+					                    if (g_bEnableTrelloSync != bNewEnableTrelloSync)
+					                        pairTrelloSync["bEnableTrelloSync"] = bNewEnableTrelloSync;
+					                    if (bNewDisableSync != g_bDisableSync)
+					                        pairTrelloSync["bDisabledSync"] = bNewDisableSync;
+					                    if (g_optEnterSEByComment.bEnabled)
+					                        pairTrelloSync["bEnterSEByCardComments"] = false; //turn it off as it has precedence over spreadsheet sync
 					                    chrome.storage.sync.set(pairTrelloSync, function () {
-					                        if (chrome.runtime.lastError != undefined)
+					                        if (chrome.runtime.lastError) {
+					                            alert(chrome.runtime.lastError.message);
 					                            return;
-					                        g_bEnableTrelloSync = true;
-					                        alert("Your first sync will start now.\nKeep using Trello normally but do not close it until sync finishes.");
+					                        }
+					                        g_bEnableTrelloSync = bNewEnableTrelloSync;
+					                        g_optEnterSEByComment.bEnabled = false;
+					                        g_bDisableSync = bNewDisableSync;
+					                        if (!bOldEnableTrelloSync && bNewEnableTrelloSync)
+					                            alert("Your first sync will start now.\nKeep using Trello normally but do not close Trello until sync finishes.");
 					                        PlusConfig.close(true);
 					                    });
 					                }
@@ -205,12 +211,16 @@
 					            //preserve storage if its going from 'no sync' -> 'sync'
 					            chrome.storage.sync.set({ 'serviceUrl': g_strServiceUrl },
                                     function () {
+                                        if (chrome.runtime.lastError) {
+                                            alert(chrome.runtime.lastError.message);
+                                            return;
+                                        }
                                         setLocalUrlAndRestart();
                                     });
 					            return;
 					        }
 
-					        clearAllStorage(function () {
+					        clearAllStorage(function () { //review zig misnamed. clears all storage except a few like the sync url.
 					            setLocalUrlAndRestart();
 					        });
 					    });
@@ -255,12 +265,13 @@ function clearAllStorage(callback) {
                         //keep the important user preferences
 					    chrome.storage.sync.set({
 					        'serviceUrl': g_strServiceUrl,
+					        'bDisabledSync' : g_bDisableSync,
 					        'bDontWarnParallelTimers' : g_bDontWarnParallelTimers,
 					        'bIgnoreZeroECards': g_bAllowNegativeRemaining,
 					        'bAcceptSFT': g_bAcceptSFT,
 					        'bUserSaysDonated': g_bUserDonated,
-					        'bEnableTrelloSync': g_bEnableTrelloSync,
-					        'bEnterSEByCardComments': g_optEnterSEByComment.bEnabled, //sont use IsEnabled()
+					        'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
+					        'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
 					        'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
 					        'bAlwaysShowSpentChromeIcon': g_bAlwaysShowSpentChromeIcon,
 					        'bHidePendingCards': g_bHidePendingCards,
@@ -272,6 +283,11 @@ function clearAllStorage(callback) {
 					        'units' : UNITS.current
 					    },
 							function () {
+							    if (chrome.runtime.lastError) {
+							        alert(chrome.runtime.lastError.message);
+							        return;
+							    }
+
 							    if (callback !== undefined)
 							        callback();
 							});

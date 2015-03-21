@@ -302,16 +302,6 @@ function handleCardTour() {
              distance: 0,
              size: 200
          },
-
-        {
-            selector: ".js-card-title",
-            focus: ".js-card-title",
-            text: "when adding or removing [R], enter an empty S/E row later (press Enter below) to convert existing S/E history from/to recurring state.",
-            angle: 180,
-            distance: 0,
-            size: 200,
-            bHideOnTrelloSync: true
-        },
     
        {
            selector: "#agile_timer",

@@ -140,6 +140,11 @@ function handleSyncBoards(request, sendResponseParam) {
                 sendResponseParam(response);
         }
 
+        if (g_bDisableSync) {
+            sendResponseParam({ status: "sync is disabled" });
+            return;
+        }
+
         if (!isDbOpened() || g_syncStatus.bSyncing || g_cReadSyncLock != 0 || g_cFullSyncLock != 0 || g_cWriteSyncLock != 0) {
             sendResponseParam({ status: "busy" });
             return;
@@ -148,7 +153,6 @@ function handleSyncBoards(request, sendResponseParam) {
         //first stage
         g_syncStatus.setStage("", 0); //reset in case somehow a previous one was pending
         g_syncStatus.setStage("Detecting boards to update", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
-
         //if there are pending rows, we must commit them before because they reference board/card names/ids that could change during sync
         //and sync only maintains the history table, not the queuehistory
         insertPendingSERows(function (responseInsertSE) {
@@ -220,7 +224,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
             }, 3000);
             broadcastMessage({ event: EVENTS.FIRST_SYNC_RUNNING, status: STATUS_OK });
             handleShowDesktopNotification({
-                notification: "Trello sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering over the Plus icon on the top-right of Chrome.",
+                notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering over the Plus icon on the top-right of Chrome.",
                 timeout: 40000
             });
         }
@@ -465,7 +469,7 @@ function matchesCardShortLinkFromTrelloWelcomeBoard(shortLink) {
 "bVlkHq2d",
 "JSccv2Cq",
 "sfAshneN",
-"xa7yvDpA",
+"xa7yvDpA"
 ];
     for (var i = 0; i < rg.length; i++) {
         if (rg[i] == shortLink)
@@ -482,7 +486,7 @@ function preProcessActionsCaches(tokenTrello, actions, alldata, nextAction) {
             if (matchesCardShortLinkFromTrelloWelcomeBoard(card.shortLink))
                 card.shortLink = undefined; //trello bug. see note below.
             else
-                alldata.cardsByLong[card.id] = card.shortLink; //populate cache. needed later for cards missing shortLink
+            alldata.cardsByLong[card.id] = card.shortLink; //populate cache. needed later for cards missing shortLink
         }
 
         function preProcessBoardSourceTarget(board) {

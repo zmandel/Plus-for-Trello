@@ -34,15 +34,6 @@ function isBackendMode(configData) {
 	return (configData && configData.spentSpecialUser != null);
 }
 
-
-function setupPlusConfigLink(bParam) {
-    var span = $('<span></span>').text("Click to setup Google sync").css('cursor', 'pointer');
-	span.appendTo(bParam);
-	span.click(function () {
-		PlusConfig.display(bParam);
-	});
-}
-
 var g_bReadGlobalConfig = false;
 
 function configureSsLinks(bParam) {
@@ -50,13 +41,13 @@ function configureSsLinks(bParam) {
 		configureSsLinksWorker(bParam, g_strServiceUrl);
 	}
 	else {
-		chrome.storage.sync.get("serviceUrl", function (obj) {
-			var strUrlNew = obj["serviceUrl"]; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
+		chrome.storage.sync.get('serviceUrl', function (obj) {
+			var strUrlNew = obj['serviceUrl']; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
 			if (strUrlNew === undefined || strUrlNew == null)
 				strUrlNew = ""; //means simple trello
 			strUrlNew = strUrlNew.trim();
 			var keyUrlLast = "serviceUrlLast";
-			chrome.storage.local.get(keyUrlLast, function (obj) {
+			chrome.storage.local.get(keyUrlLast, function (obj) { //must be local as we are comparing local configuration. each devices does the same
 				var strUrlOld = obj[keyUrlLast];
 				if (strUrlOld)
 					strUrlOld = strUrlOld.trim();
@@ -197,10 +188,11 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
             });
 	}
 
+//review zig remove g_bCheckedTrelloSyncEnable and just force-enable sync
 	if (!g_bCheckedTrelloSyncEnable && !g_bEnableTrelloSync) {
 	    g_bCheckedTrelloSyncEnable = true;
 	    chrome.storage.sync.set({ "bCheckedTrelloSyncEnable": g_bCheckedTrelloSyncEnable }, function () { });
-	    if (confirm("Press OK to enable Trello Sync and improve your spreadsheet sync. If you cancel you can enable it later manually from Plus help.\nEnable now?")) {
+	    if (true) { //force-enable trello sync when using spreadsheet sync. this will also be done when plus help is opened and there is a g_strServiceUrl
 	        var pairTrelloSync = {};
 	        pairTrelloSync["bEnableTrelloSync"] = true;
 	        chrome.storage.sync.set(pairTrelloSync, function () {
@@ -274,7 +266,7 @@ function initialIntervalsSetup() {
 			            return;
 			        if (msNow - msLastDetectedActivity > 500) {
 			            msLastDetectedActivity = 0; //reset
-			            doSyncDB(null, false, true, true);
+			            doSyncDB(null, true, true, true,true);
 			        }
 			    }
 			    else {
@@ -315,7 +307,7 @@ function setSyncErrorStatus(urlUser, status, statusLastTrelloSync) {
         var dateNow = new Date();
         var strTip = g_tipUserTopReport;
         urlUser.children("table").removeClass("agile_plus_header_error");
-        if (!g_optEnterSEByComment.IsEnabled())
+        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()))
             strTip = "";
         urlUser.attr("title", strTip);
         return;
@@ -336,7 +328,7 @@ function setSyncErrorStatus(urlUser, status, statusLastTrelloSync) {
     if (statusLastTrelloSync != STATUS_OK) {
         if (statusSet != "")
             statusSet = statusSet + "\n";
-        statusSet = statusSet+ "Trello sync error: " + statusLastTrelloSync;
+        statusSet = statusSet+ "sync error: " + statusLastTrelloSync;
     }
 
     urlUser.attr("title", statusSet);
@@ -445,7 +437,7 @@ function checkFirstTimeUse() {
 	        var valuekeySyncWarn = obj[keySyncWarn];
 	        var bForceShowHelp = false;
 	        var msDateLastSetupCheck = obj[keyDateLastSetupCheck];
-	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()) { //sync not set up
+	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled() && !g_bDisableSync) { //sync not set up
 	            if (msDateLastSetupCheck !== undefined) {
 	                if (totalDbRowsHistory > 0) {
 	                    if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24) //nag once a day
@@ -555,13 +547,13 @@ function onDbOpened() {
 }
 
 
-function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry) {
+function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
     bOnlyTrelloSync = bOnlyTrelloSync || false;
     if (bRetry === undefined)
         bRetry = true;
     var config = g_configData;
     if (Help.isVisible())
-        return;
+       return;
 
     var urlUser = null;
     var dateNow = new Date();
@@ -570,7 +562,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry) {
     var bDidTrelloSync=false;
     var bEnterSEByComments = g_optEnterSEByComment.IsEnabled();
     var tokenTrello = $.cookie("token");
-    if (bFromAuto) {
+    if (bFromAuto && !bForce) {
         if (document.webkitHidden)
             return; //sync only if active tab
     }
@@ -591,9 +583,16 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry) {
             return;
         }
 
+
+        if (g_bDisableSync) {
+            setSyncErrorStatus(urlUser, bFromAuto? STATUS_OK : "Sync is disabled. Enable it from Plus help.");
+            return;
+        }
+
+
         cRetries--;
         //when bEnterSEByComments, we want to go through google sync, which will route it to trello sync and take care of uptading history rows related stuff
-        //review zig: this option will soon be imposible to configure in help, but legacy users could have it (thou they get reminded daily to fix it)
+        //review zig: this option will soon be imposible to configure in help, but legacy users could have it (thou we force-upgrade them on open except the few that declined it back when it was optional)
         if (g_bEnableTrelloSync && !bDidTrelloSync && !bEnterSEByComments) {
             sendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello },
             function (response) {

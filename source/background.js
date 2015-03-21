@@ -105,7 +105,7 @@ function standarizeSpreadsheetValue(value) {
 }
 
 function handleRawSync(sendResponseParam) {
-    var PROP_SERVICEURL = "serviceUrl";
+    var PROP_SERVICEURL = 'serviceUrl';
 
     function sendResponse(response) {
         if (sendResponseParam)
@@ -134,8 +134,8 @@ function handleRawSync(sendResponseParam) {
                         return;
                     }
                     //g_optEnterSEByComment initialized while inside handleOpenDb
-                    if (!g_optEnterSEByComment.IsEnabled() && (urlSync == null || urlSync.length == 0)) {
-                        sendResponse({ status: "sync not configured" });
+                    if (g_bDisableSync || (!g_optEnterSEByComment.IsEnabled() && (urlSync == null || urlSync.length == 0))) {
+                        sendResponse({ status: "sync not configured or disabled" });
                         return;
                     }
 
@@ -399,7 +399,7 @@ var g_loaderDetector = {
 
             chrome.storage.sync.get([keySyncOutsideTrello], function (obj) {
                 var bSyncOutsideTrello = obj[keySyncOutsideTrello];
-                if (!bSyncOutsideTrello)
+                if (!bSyncOutsideTrello || g_bDisableSync)
                     return;
 
                 if (g_optEnterSEByComment.IsEnabled() && (localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true")

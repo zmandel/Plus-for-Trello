@@ -477,7 +477,7 @@ var Card = {
 	//
 	hashtagsFromTitle: function (title) {
 		var hashtags = [];
-		var regexp = /#([\w-]+)/g;
+		var regexp = /#([\S-]+)/g;
 		var result = regexp.exec(title);
 		while (result != null) {
 			hashtags.push(result[1]);
@@ -900,7 +900,7 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
                 var strBoard = response.commentObj.data.board.name;
                 var idHistoryRowUse = response.commentObj.id;
                 if (!bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, member, idHistoryRowUse, keyword)) {
-                    alert("S/E was entered, but there was an error later.\nThis will be corrected on the next Trello sync.");
+                    alert("S/E was entered, but there was an error later.\nThis will be corrected on the next sync of the card comment.");
                 }
             }
 
