@@ -340,18 +340,35 @@ var Help = {
 
         helpWin.para('<b>Plus card bar</b>');
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
-        helpWin.para('<b>E</b>stimate units needed per user to finish a card.');
+        helpWin.para('<b>E</b>stimate the units needed to finish a card.');
         helpWin.para('<b>S</b>pend units from your estimate.');
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences. Do so before entering any s/e.');
-        helpWin.para('<b>A card\'s S/E is the sum of its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('<b>card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
+        helpWin.para('The table above the plus card bar shows total s/e per user.');
         helpWin.para('Ideally you first enter an estimate as in 0/2 and later spend it with 2/0.');
         helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it.');
+        helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R is zero.');
-        helpWin.para('The first time you enter <b>E</b> it becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) for comparison with the current estimate <b>E sum</b>.');
-        helpWin.para('If you type <b>S</b> that would cause <b>S sum</b> to be greated than <b>E sum</b>, Plus automatically pre-fills <b>E</b> to make <b>R</b> zero.');
-	    helpWin.para('To turn that off or to never use estimates, "allow negative remaining" in Preferences.');
+        helpWin.para('Your first card s/e row entered becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) to compare it with the current estimate <b>E sum</b>.');
+        helpWin.para('If you type <b>S</b> that would cause <b>S sum</b> to be greated than <b>E sum</b>, Plus automatically pre-fills more <b>E</b> to make <b>R</b> zero.');
+        helpWin.para('To turn that off or to never use estimates, "allow negative remaining" in Preferences.');
+
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+
+	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
+	    helpWin.para('Example starting from the bottom (oldest) card comment:');
+	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" to the right of the Card report.');
+	    helpWin.para('&bull; Also use "modify" if you prefer to think about total s/e instead of adding/substracting with the card bar.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do that math for you and enter the needed s/e as a new row.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;For example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
+	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
+	    helpWin.para("&bull; Enter S/E for other users of further back in time <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>using card comments</A> (see Trello comments sync below).");
+	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -582,31 +599,20 @@ var Help = {
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
-	    helpWin.para('Example starting from the bottom (oldest) card comment:');
-	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&bull; <b>To correct a previous S/E row</b> enter a new negative S/E row. Do not delete or edit the card S/E comment.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;For example: if you entered a Spent of 3 and want to cancel it, enter a new Spent of "-3".');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;To instead reduce it from 3 to 1, enter a new Spent of "-2".');
-	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
-	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
-
-
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices</h2></b>');
 	    helpWin.para('&bull; Follow the rule of reaching S equal E on finished cards so you can compare 1ˢᵗ with final estimates.');
-	    helpWin.para('&bull; When a user finishes a card but has Remaining, she should reduce E by entering negative E.');
-	    helpWin.para('&bull; Similarly if S goes over E, enter more E. The Plus card bar automatically pre-fills E in this case.');
+	    helpWin.para('&bull; When a user finishes a card but has Remaining, she should make E equal to S by using "modify" in the card report.');
+	    helpWin.para('&bull; Similarly if S goes over E, increase E so R doesnt go negative. The Plus card bar automatically pre-fills E to');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;help you prevent negative R.');
 	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Those will not be reflected in Plus until you "Reset sync".');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Instead see "modify" above.');
 	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (hours:minutes when using "hour" units)');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = 1 hour and 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
 	    helpWin.para('&bull; Add <b>#hashtags</b> to card titles. See them in boards and search them in reports.');
 	    helpWin.para('&bull; Add <b>[exclude]</b> to list names to exclude them from board sums on the trello board header.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
 	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted users may lose their username in reports and show a user number instead.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted Trello users may lose their username in reports and show a user number instead.');
 	    
 		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');

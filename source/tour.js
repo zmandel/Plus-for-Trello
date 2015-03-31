@@ -146,7 +146,15 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "Each <b>S/E row</b><br>appears in a card comment,<br>drill-downs and reports.<br><br>",
+        text: "Each <b>S/E row</b> entered<br>appears in a card comment,<br>drill-downs and reports.<br><br>",
+        angle: 90,
+        distance: 0,
+        size: 200
+    },
+    {
+        selector: ".agile-se-bar-entry",
+        focus: ".agile_days_box_input",
+        text: "From this bar<br>you can only enter<br>your own s/e.<br>To enter s/e for other users<br><a style='color:white;' href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>add a comment directly</a>.",
         angle: 90,
         distance: 0,
         size: 200
@@ -154,7 +162,7 @@ function handleCardTour() {
       {
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
-          text: "The first<br><b>S/E row</b> entered<br>should have<br>empty <b>S</b>pent<br>and a<br>positive <b>E</b>stimate.<br>",
+          text: "The first <b>S/E row</b><br>entered per user<br>should have an <b>E</b>stimate.<br>",
           angle: 90,
           distance: 0,
           size: 200
@@ -179,7 +187,7 @@ function handleCardTour() {
      {
          selector: ".agile-se-bar-entry",
          focus: ".agile_days_box_input",
-         text: "<br><br><b>S and E are cummulative</b>.<br><br><br>Their current value is the sum in all S/E rows.<br>",
+         text: "<b>S and E<br>are cummulative</b>.<br><br><br>Their current value is the sum in all S/E rows.<br>",
          angle: 90,
          distance: 0,
          size: 200
@@ -208,13 +216,20 @@ function handleCardTour() {
             distance: 0,
             size: 200
         },
+        {
+            selector: ".agile-card-seByUserModify",
+            text: "Its easier<br>to modify total s/e from here which makes the s/e math for you.",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
      {
          selector: ".agile_days_box_input",
          focus: ".agile_days_box_input",
-         text: "First,<br>pick the row date,<br><br>'now', -1d for yesterday, etc.",
+         text: "To enter an s/e row<br>first pick the date it happened,<br><br>'now', -1d for yesterday, etc.",
          angle: 180,
          distance: 0,
-         size: 150
+         size: 200
      },
       {
           selector: ".agile_spent_box_input",
@@ -316,7 +331,7 @@ function handleCardTour() {
         {
             selector: "#agile_timer",
             focus: "#agile_timer",
-            text: "<br>Once started<br>the timer also shows in the Chrome Plus menu.<br><br>(top-right in Chrome)<br>",
+            text: "<br>Once started,<br>the timer also shows in the Chrome Plus menu <br><br><a style='color:white;' href='https://www.youtube.com/watch?v=gbAZXtaRi5o' target='_blank'>top-right in Chrome</a><br>",
             angle: (180 + 45),
             distance: 0,
             size: 200,
@@ -327,7 +342,7 @@ function handleCardTour() {
        {
            selector: "#agile_timer",
            focus: "#agile_timer",
-           text: "When stopped,<br>pre-fills <b>S</b>pent<br>in the card bar.<br>",
+           text: "Once stopped<br>it pre-fills <b>S</b>pent<br>in the card bar.<br><br>It wont show in reports<br>until you enter it.",
            angle: (180 + 45),
            distance: 0,
            size: 200

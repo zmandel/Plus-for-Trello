@@ -1,7 +1,7 @@
 ﻿{
 	"name" : "Plus for Trello (time tracking - scrum)",
 	"short_name" : "Plus for Trello",
-	"version" : "2.11.17",
+	"version" : "2.11.18",
 	"manifest_version" : 2,
 	"description" : "Timers, hashtags, boards+cards offline search, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
 	"icons": {
@@ -33,10 +33,10 @@
 	"content_scripts" : [
 	{
 		"matches" : ["https://trello.com/*"],
-		 "js" : ["libs/jquery.min.js", "libs/jquery-ui.custom.min.js", "libs/jquery.cookie.js", "libs/jquery.zoomooz.min.js", "libs/jsapi.js", "libs/formatchart.js",  "libs/jquery.grumble.js",
+		 "js" : ["libs/jquery.min.js", "libs/jquery-ui.custom.min.js", "libs/jquery.cookie.js", "libs/jquery.zoomooz.min.js", "libs/jsapi.js", "libs/formatchart.js",  "libs/jquery.grumble.js", "libs/dialog-polyfill.js",
 					"shared.js", "app.js", "card.js", "labels.js", "labels.js", 
 				"language.js", "help.js", "buttons.js", "plus.js", "plusconfig.js", "board.js", "tour.js"],
-        "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css" ],
+        "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css" ],
         "run_at" : "document_idle"
 	 }
 	],

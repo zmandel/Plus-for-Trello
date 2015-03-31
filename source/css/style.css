@@ -1,4 +1,43 @@
-﻿
+﻿.agile_dialog_editSETotal {
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  border-radius: 3px;
+  box-shadow: 0 5px 9px rgba(0, 0, 0, 0.7);
+}
+
+
+.agile_modify_total_se_input {
+    width:5.5em !important;
+    background-color:white !important;
+}
+
+.agile_mtse_r {
+    background-color:lightgray !important;
+}
+
+
+.agile_mtse_note {
+    width:25em !important;
+    background:white !important;
+}
+
+.agile_mtseMessage {
+    color:darkgray !important;
+    width:25em;
+    height:2em;
+}
+
+
+.agile_seTotalTable {
+border:none !important;
+border-collapse:collapse;
+margin:3px !important;
+width:10em !important;
+padding:0px !important;
+}
+
+.agile_seTotalTable tr td {
+border:none !important;
+}
 
 .ui-autocomplete.ui-menu{font-size:0.7em;}
 
@@ -1089,6 +1128,19 @@ table#tableMarkers td {
     border: solid transparent;
 }
 
+.agile-card-seByUserModify {
+    border: none !important;
+    background-color:#EDEFF0 !important;
+}
+
+.agile_linkSoftColor {
+    color:#8C8C8C !important;
+    font-size:12px !important;
+}
+
+.agile_linkSoftColor:hover {
+    color:#444 !important;
+}
 
 .agile_urlUser {
 	color: #f3f3f3 !important;

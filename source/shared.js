@@ -34,7 +34,7 @@ var g_optEnterSEByComment = {
         assert(typeof g_bEnableTrelloSync !== "undefined");
         return (g_bEnableTrelloSync && this.bEnabled && this.rgKeywords.length > 0);
     },
-    bEnabled: false,
+    bEnabled: false,    //review zig: some use this directly because its not always equivalent to IsEnabled. clean up with another method or param in IsEnabled
     rgKeywords: [SEKEYWORD_DEFAULT],
     getDefaultKeyword: function() {
         assert(this.bInitialized);
@@ -1467,7 +1467,7 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
 }
 
 function replaceBrackets(str) {
-    return str.replace(/\[/g, '*').replace(/\]/g, '*');
+    return str.replace(/\[/g, '*').replace(/\]/g, '*').trim();
 }
 
 function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userCur, s, e, comment, idHistoryRowUse, keyword) {

@@ -167,12 +167,41 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 			if (s == null || e == null)
 			    return;
 
-			if (!verifyValidInput(s, e))
+			if (g_seCardCur.s === null || g_seCardCur.e === null)
+			    return; //shouldnt happen as the bar is hidden until this is loaded, but just in case
+			var sTotal = parseFixedFloat(g_seCardCur.s + s);
+			var eTotal = parseFixedFloat(g_seCardCur.e + e);
+
+			if (!verifyValidInput(sTotal, eTotal))
 			    return;
 			var prefix = comboDays.val();
 			var valComment = replaceBrackets(comment.val());
-			//use setTimeout to get out of the click stack. else it will conflict with out fake clicks.
-			setTimeout(function () { setNewCommentInCard(s, e, valComment, prefix, true); }, 0);
+			function onBeforeStartCommit() {
+			    var seBarElems = $(".agile-se-bar-table *");
+			    seBarElems.prop('disabled', true);
+			    $(".agile_enter_box_input").text("...");
+			    setBusy(true);
+			}
+
+			function onFinished(bOK) {
+			    var seBarElems = $(".agile-se-bar-table *");
+			    //enable s/e bar
+			    setBusy(false);
+			    seBarElems.prop('disabled', false);
+			    $(".agile_spent_box_input").focus();
+			    $(".agile_enter_box_input").text("Enter");
+
+			    if (bOK) {
+			        $("#plusCardCommentDays").val(g_strNowOption);
+			        $("#plusCardCommentSpent").val("");
+			        $("#plusCardCommentEstimate").val("");
+			        $("#plusCardCommentComment").val("");
+			    }
+			    //reports etc will refresh in the NEW_ROWS notification handler
+			}
+
+			//review zig settimeout is a leftover back when plus faked clicks. not needed anymore but doesnt hurt
+			setTimeout(function () { setNewCommentInCard(s, e, valComment, prefix, null, onBeforeStartCommit, onFinished); }, 0);
 		});
 	});
 
@@ -190,13 +219,8 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	});
 }
 
-function verifyValidInput(s, e) {
-    if (g_seCardCur.s === null || g_seCardCur.e === null)
-        return false; //shouldnt happen as the bar is hidden until this is loaded, but just in case
-    var sTotal = parseFixedFloat(g_seCardCur.s + s);
-    var eTotal = parseFixedFloat(g_seCardCur.e + e);
+function verifyValidInput(sTotal, eTotal) {
     var rTotal = parseFixedFloat(eTotal - sTotal);
-
     var err = null;
     if (sTotal < 0)
         err = "Your spent total will go negative.";
@@ -262,13 +286,23 @@ function fillCardSEStats(tableStats,callback) {
                         containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
                     var i = 0;
                     //<span style="vertical-align: top;position: relative; top: -0.3em;font-size:0.7em">st</span>
-                    addCardSERowData(tableStats, { user: 'By User', spent: 'S <span style="font-size:0.85em">sum</span>', estOrig: '<span>E 1ˢᵗ</span>', est: 'E <span style="font-size:0.85em">sum</span>', remain: 'R <span style="font-size:0.80em">(E-S)</span>' }, true);
-                    if (response.rows.length == 0)
-                        addCardSERowData(tableStats, { user: 'sample user', spent: '0', estOrig: '0', est: '0', remain: '0' });
+                    addCardSERowData(tableStats, {
+                        user: 'By User',
+                        spent: 'S <span style="font-size:0.85em">sum</span>', estOrig: '<span>E 1ˢᵗ</span>', est: 'E <span style="font-size:0.85em">sum</span>',
+                        remain: 'R <span style="font-size:0.80em">(E-S)</span>'
+                    }, true);
+                    if (response.rows.length == 0) //tour is running
+                        addCardSERowData(tableStats, {
+                            user: 'sample user',
+                            spent: '0', estOrig: '0',
+                            est: '0',
+                            remain: '0',
+                            bSample: true
+                        }, false);
                     for (; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
-                        addCardSERowData(tableStats, rowData);
+                        addCardSERowData(tableStats, rowData, false);
                         if (rowData.user == userCur) {
                             g_seCardCur.s = g_seCardCur.s + rowData.spent;
                             g_seCardCur.e = g_seCardCur.e + rowData.est;
@@ -283,6 +317,139 @@ function fillCardSEStats(tableStats,callback) {
                     callback();
             });
     });
+}
+
+function showSETotalEdit(sVal, eVal, user) {
+    var divDialog = $(".agile_dialog_editSETotal");
+    if (divDialog.length==0) {
+        divDialog = $('<pre>dialog::backdrop\
+{ \
+position: fixed; \
+top: 0; \
+left: 0; \
+right: 0; \
+bottom: 0; \
+background-color: rgba(0, 0, 0, 0.8); \
+}</pre> \
+<dialog class="agile_dialog_editSETotal"> \
+    <h2><b>Modify total S/E for '+user+'</b></h2><br> \
+<table class="agile_seTotalTable"> \
+<tr> \
+<td align="left">S sum</td> \
+<td align="left">E sum</td> \
+<td align="left">R</td> \
+</tr> \
+<tr> \
+<td align="left"><input class="agile_modify_total_se_input agile_mtse_s"></input></td> \
+<td align="left"><input class="agile_modify_total_se_input agile_mtse_e"></input></td> \
+<td align="left"><input class="agile_modify_total_se_input agile_mtse_r"></input></td> \
+</tr> \
+</table> \
+<input class="agile_mtse_note" placeholder="note (optional)"></input> \
+<button id="agile_modify_SETotal">Modify</button> \
+<button id="agile_cancel_SETotal">Cancel</button> \
+<br><br><p class="agile_mtseMessage"></p> \
+<A style="float:right" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html" target="_blank">help</A> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_editSETotal");
+        divDialog.find("#agile_cancel_SETotal").click(function (e) {
+            divDialog[0].close();
+        });
+
+        divDialog.on('keydown', function (evt) {
+            //need to capture manually before trello captures it and closes the card.
+            //note this doesnt cover all cases like focus being in another dialog element
+            if (evt.keyCode === $.ui.keyCode.ESCAPE) {
+                evt.stopPropagation();
+                divDialog[0].close();
+            }                
+        });
+    }
+
+    function setSEVal(elem, val) {
+        if (val == 0)
+            val = "";
+        elem.val(val);
+    }
+
+    var elemS = divDialog.find(".agile_mtse_s");
+    setSEVal(elemS,sVal);
+
+    var elemE=divDialog.find(".agile_mtse_e");
+    setSEVal(elemE,eVal);
+
+    var sOrig = sVal;
+    var eOrig = eVal;
+    var sOrigNum = parseFixedFloat(sOrig);
+    var eOrigNum = parseFixedFloat(eOrig);
+    var elemMessage = divDialog.find(".agile_mtseMessage");
+    var elemNote = divDialog.find(".agile_mtse_note");
+    var strMessageInitial = "Once you modify totals Plus will enter a card comment with the needed difference.";
+    var elemR = divDialog.find(".agile_mtse_r");
+    elemMessage.text(strMessageInitial);
+    elemNote.val("");
+    elemR.val(parseFixedFloat(eOrigNum - sOrigNum));
+    elemR.prop('disabled', true);
+    function updateMessage() {
+        var data = getSEData(true);
+        var strMessageNew = null;
+        if (data.s == 0 && data.e == 0)
+            strMessageNew=strMessageInitial;
+        else
+            strMessageNew = "" + data.s + "/" + data.e + " will be added to " + user + " as a S/E row.";
+        
+        elemMessage.text(strMessageNew);
+        elemR.val(parseFixedFloat(eOrigNum + data.e - sOrigNum-data.s));
+    }
+
+    function getSEData(bSilent) {
+        var sNew = elemS.val().trim();
+        var eNew = elemE.val().trim();
+        var sNewNum = parseFixedFloat(sNew);
+        var eNewNum = parseFixedFloat(eNew);
+        var sDiff = parseFixedFloat(sNewNum - sOrigNum);
+        var eDiff = parseFixedFloat(eNewNum - eOrigNum);
+        if (!bSilent && !verifyValidInput(sNewNum, eNewNum))
+            return null;
+        return { s: sDiff, e: eDiff };
+    }
+
+    divDialog.find("#agile_modify_SETotal").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+
+        function onBeforeStartCommit() {
+            var elems = $(".agile_dialog_editSETotal *");
+            elems.prop('disabled', true);
+            setBusy(true);
+        }
+
+        function onFinished(bOK) {
+            var elems = $(".agile_dialog_editSETotal *");
+            //enable s/e bar
+            elems.prop('disabled', false);
+            elemR.prop('disabled', true);
+            setBusy(false);
+            if (bOK) {
+                divDialog[0].close();
+            }
+            //reports etc will refresh in the NEW_ROWS notification handler
+        }
+
+        //review zig settimeout is a leftover back when plus faked clicks. not needed anymore but doesnt hurt
+        var data = getSEData(false);
+        if (!data)
+            return;
+        if (data.s == 0 && data.e == 0) {
+            alert("nothing to do!");
+            return;
+        }
+        var note = replaceBrackets(elemNote.val());
+        setTimeout(function () { setNewCommentInCard(data.s, data.e, note, "", user, onBeforeStartCommit, onFinished); }, 0);
+    });
+
+    elemS.unbind().bind("keydown keyup paste", function (e) { updateMessage(); });
+    elemE.unbind().bind("keydown keyup paste", function (e) { updateMessage(); });
+    divDialog[0].showModal();
 }
 
 function addCardSERowData(tableStats, rowData, bHeader) {
@@ -300,6 +467,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 		u = $(td).html(urlReport);
 	}
 
+	var bSample = (rowData.bSample);
 	var sVal = (typeof (rowData.spent) == 'string' ? rowData.spent : parseFixedFloat(rowData.spent));
 	var eOrigVal = (typeof (rowData.estOrig) == 'string' ? rowData.estOrig : parseFixedFloat(rowData.estOrig));
 	var eVal = (typeof (rowData.est) == 'string' ? rowData.est : parseFixedFloat(rowData.est));
@@ -308,7 +476,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	var eOrig = $(td).addClass("agile-card-first-estimate-header");
 	var e = $(td).addClass("agile-card-now-estimate-header");
 	var r = $(td);
-
+	var linkMod = $(td).addClass("agile-card-seByUserModify");
 	if (bHeader) {
 	    s.html(sVal);
 	    eOrig.html(eOrigVal);
@@ -320,6 +488,18 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	    eOrig.text(eOrigVal);
 	    e.text(eVal);
 	    r.text(rVal);
+	    if (true) {
+	        var strAnchorMod = '<a class="agile_linkSoftColor" href="" target="_blank">modify</a>';
+	        linkMod.html(strAnchorMod);
+	        linkMod.children("a").click(function (e) {
+	            e.preventDefault();
+	            if (bSample) {
+	                alert("This is just a sample row and cannot be modified.");
+	                return;
+	            }
+	            showSETotalEdit(sVal, eVal, rowData.user);
+	        });
+	    }
 	}
 
 	if (typeof (sVal) == "number") {
@@ -341,10 +521,12 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 		    r.css("background", "#CAE3CA");
 		}
 	}
-	var dateLast = new Date(rowData.date * 1000);
+	var dateLast = (rowData.date? new Date(rowData.date*1000) : new Date());
 	if (!bHeader)
 	    u.attr("title", "last S/E " + dateLast.toLocaleDateString() + "\nClick to drill-down");
 	row.append(u).append(s).append(eOrig).append(e).append(r);
+	if (!bHeader)
+	    row.append(linkMod);
 	tableStats.append(row);
 }
 
@@ -751,32 +933,27 @@ function addSEFieldValues(s, comment) {
 	}, 500);
 }
 
-function setNewCommentInCard(s, e, commentBox, prefix, bFromSEControls) {
+//review rename commentBox to noteBox
+function setNewCommentInCard(s, e, commentBox,
+    prefix, //blank uses default (first) keyword
+    member, //null means current user
+    onBeforeStartCommit, //called before all validation passed and its about to commit
+    onFinished) {        //called after commit finished or failed. onFinished(bOK)
 	if (prefix == g_strNowOption || prefix == null)
 		prefix = "";
-	var bNoSpentBackend = !isBackendMode();
-	var bAlwaysEnter = (bFromSEControls == true);
 	var comment = "";
 	var keywordUse = null; //legacy cases may remain null
 
-	if (!bAlwaysEnter && s < 0.005)
-		comment = "";
-	else {
-		s = Math.round(s * 100) / 100;
-		e = Math.round(e * 100) / 100;
-		if (bNoSpentBackend) {
-		    keywordUse = g_optEnterSEByComment.getDefaultKeyword();
-		    comment = keywordUse + " ";
-			if (prefix.length > 0)
-				comment = comment + " " + prefix + " ";
-			comment = comment + s + "/" + e + " " + commentBox;
-		}
-		else
-			comment = "@" + getSpentSpecialUser() + " " + (prefix === undefined ? "" : prefix + " ") + s + "/" + e + " " + commentBox;
-	}
 
-	if (comment == "" || (!bAlwaysEnter && s == 0 && e == 0))
-		return;
+	s = Math.round(s * 100) / 100;
+	e = Math.round(e * 100) / 100;
+	keywordUse = g_optEnterSEByComment.getDefaultKeyword();
+	comment = keywordUse + " ";
+	if (member && member != getCurrentTrelloUser())
+	    comment = comment + "@" + member + " ";
+	if (prefix.length > 0)
+		comment = comment + " " + prefix + " ";
+	comment = comment + s + "/" + e + " " + commentBox;
 
 	var board = getCurrentBoard();
 	if (board == null) {
@@ -793,7 +970,7 @@ function setNewCommentInCard(s, e, commentBox, prefix, bFromSEControls) {
 	FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
 		if (idBoardFound) {
 		    idBoardUse = idBoardFound;
-		    doEnterSEIntoCard(s, e, commentBox, comment, idBoardUse, idCardCur, prefix, board, keywordUse);
+		    doEnterSEIntoCard(s, e, commentBox, comment, idBoardUse, idCardCur, prefix, board, keywordUse, member, onBeforeStartCommit, onFinished);
 		}
 		else {
 		    var strError = "Network error. Cannot get idBoard.\nClose the card,  go to the trello board page and try again.";
@@ -806,6 +983,7 @@ function setNewCommentInCard(s, e, commentBox, prefix, bFromSEControls) {
 function bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, userCur, idHistoryRowUse, keyword) {
 	var dateNow = new Date();
 	var dDays = 0;
+	
 	if (strDays != "") {
 		dDays = parseInt(strDays, 10) || 0;
 		if (dDays < 0 && dDays >= g_dDaysMinimum) {
@@ -813,6 +991,9 @@ function bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, str
 		    commentBox = "[" + dDays + "d] " + commentBox; //review zig: these tags should happen at row entry time, shared by other code that does the same message
 		}
 	}
+
+	if (userCur && userCur != getCurrentTrelloUser() && userCur != "me") //review zig me shouldnt be needed
+	    commentBox = "[by " + getCurrentTrelloUser() + "] " + commentBox;
 
 	helperInsertHistoryRow(dateNow, idCard, idBoard, strBoard, cleanTitle, userCur, s, e, commentBox, idHistoryRowUse, keyword);
 	return true;
@@ -824,13 +1005,14 @@ function helperInsertHistoryRow(dateNow, idCard, idBoard, strBoard, strCard, use
 	insertHistoryRowFromUI(obj);
 }
 
-function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, strBoard, keyword) {
-	var bNoSpentBackend = !isBackendMode();
+function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, strBoard, keyword, member, onBeforeStartCommit, onFinished) {
 	var elem = null;
 	var titleCur = null;
 	var cleanTitle = null;
 
 	elem = $(".window-title-text");
+	if (elem.length == 0)
+	    return; //trello html broke.
 	titleCur = elem.text();
 	var se = parseSE(titleCur, true, g_bAcceptSFT);
 	cleanTitle = se.titleNoSE;
@@ -838,7 +1020,7 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	var titleCardNew = null;
 	var commentEnter = comment;
 
-	if (bNoSpentBackend && !g_optEnterSEByComment.IsEnabled() && g_configData && g_strServiceUrl && g_strServiceUrl != "") {
+	if (!g_optEnterSEByComment.IsEnabled() && g_configData && g_strServiceUrl && g_strServiceUrl != "") {
 	    //legacy option to rename card titles. Keep it on if user has configured google sync and hasnt configured reading S/E from comments
 	    //note that we dont rename card titles if there is no service url. this can affect a few users, but its best because it avoids issues with new
         //team users that never enable sync and just start using Plus without any configuration.
@@ -857,29 +1039,15 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	    }
 	}
 	
-	handleEnterCardComment(titleCardNew, commentEnter, idCard, s, e, commentBox, strDays, cleanTitle, bNoSpentBackend, keyword);
+	handleEnterCardComment(titleCardNew, commentEnter, idCard, s, e, commentBox, strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished);
 }
 
-function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, strDays, cleanTitle, bNoSpentBackend, keyword) {
+function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished) {
+    onBeforeStartCommit();
 
-    var seBarElems = $(".agile-se-bar-table *");
-    var bEnabled = false;
-    seBarElems.prop('disabled', true);
-    $(".agile_enter_box_input").text("...");
-
-    function enableSEBar() {
-        if (bEnabled)
-            return;
-        bEnabled = true;
-        seBarElems.prop('disabled', false);
-        $(".agile_spent_box_input").focus();
-        $(".agile_enter_box_input").text("Enter");
-    }
-
-    function finished() {
-        enableSEBar();
-        //reports etc will refresh in the NEW_ROWS notification handler
-    }
+    function finished(bOK) {
+        onFinished(bOK);
+        }
 
     //pause sync. otherwise, it will still work ok, but we want to avoid randomness in the order things happen. When adding a comment,
     //plus will trap the comment creation and attempt to start a trello sync. This can all happen before we get to the point of manually adding the history row below.
@@ -890,37 +1058,29 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
         addCardCommentByApi(idCard, comment, function (response) {
             if (response.status != STATUS_OK) {
                 alert("Failed to enter S/E\n" + response.status);
-                finished();
+                finished(false);
                 return;
             }
 
-            if (bNoSpentBackend) {
-                var member = response.commentObj.memberCreator.username;
-                var idBoard = response.commentObj.data.board.shortLink; //this is fresher than the one the caller has
-                var strBoard = response.commentObj.data.board.name;
-                var idHistoryRowUse = response.commentObj.id;
-                if (!bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, member, idHistoryRowUse, keyword)) {
-                    alert("S/E was entered, but there was an error later.\nThis will be corrected on the next sync of the card comment.");
-                }
+            if (!member)
+                member = response.commentObj.memberCreator.username;
+            var idBoard = response.commentObj.data.board.shortLink; //this is fresher than the one the caller has
+            var strBoard = response.commentObj.data.board.name;
+            var idHistoryRowUse = response.commentObj.id;
+            if (!bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, member, idHistoryRowUse, keyword)) {
+                alert("S/E was entered, but there was an error later.\nThis will be corrected on the next sync of the card comment.");
             }
-
-            $("#plusCardCommentDays").val(g_strNowOption);
-            $("#plusCardCommentSpent").val("");
-            $("#plusCardCommentEstimate").val("");
-            $("#plusCardCommentComment").val("");
-
-            enableSEBar();
 
             if (titleCard) {
                 renameCard($.cookie("token"), idCard, titleCard, function (response) {
                     if (response.status != STATUS_OK) {
                         alert("Failed to rename card to change S/E\n" + response.status);
                     }
-                    finished();
+                    finished(true);
                 });
             }
             else
-                finished();
+                finished(true);
         });
     });
 }
