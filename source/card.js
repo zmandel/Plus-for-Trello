@@ -332,7 +332,7 @@ bottom: 0; \
 background-color: rgba(0, 0, 0, 0.8); \
 }</pre> \
 <dialog class="agile_dialog_editSETotal"> \
-    <h2><b>Modify total S/E for '+user+'</b></h2><br> \
+<h2 class="agile_mtse_title"></h2><br> \
 <table class="agile_seTotalTable"> \
 <tr> \
 <td align="left">S sum</td> \
@@ -367,6 +367,8 @@ background-color: rgba(0, 0, 0, 0.8); \
         });
     }
 
+    var elemTitle = divDialog.find(".agile_mtse_title");
+    elemTitle.html("Modify total S/E for " + user);
     function setSEVal(elem, val) {
         if (val == 0)
             val = "";
