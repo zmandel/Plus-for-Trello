@@ -1,4 +1,6 @@
 var PROP_TRELLOKEY = "trellokey";
+var TRELLO_APPKEY = "xxx";
+var g_idGlobalAnalytics = "UA-xxxxxx-y";
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
