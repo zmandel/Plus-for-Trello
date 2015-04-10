@@ -336,7 +336,7 @@ function replaceBrackets(str) {
 }
 
 //taken from chrome extension code
-function makeHistoryRowObject(dateNow, userCur, s, e, comment, idHistoryRowUse, keyword) {
+function makeHistoryRowObject(dateNow, userCur, s, e, comment, idHistoryRowUse, keyword, idUser) {
     var obj = {};
     var userForId = userCur.replace(/-/g, '~'); //replace dashes from username. should never happen since trello already strips dashes from trello username.
     if (idHistoryRowUse) {
@@ -350,11 +350,12 @@ function makeHistoryRowObject(dateNow, userCur, s, e, comment, idHistoryRowUse, 
 
     obj.keyword = keyword || null; //null will be handled later when is entered into history
     var date = Math.floor(dateNow.getTime() / 1000); //seconds since 1970
-    obj.date = date;
+    obj.date = date; //review zig: warning! date should really be sDate as it measures seconds, not milliseconds.
     obj.spent = s;
     obj.est = e;
     obj.user = userCur;
     obj.comment = comment;
+    obj.idUser = idUser;
     return obj;
 }
 
@@ -473,10 +474,11 @@ function readTrelloCommentDataFromAction(action, cardTitle, rgKeywords)
             var userCur = rgUsersProcess[iRowPush];
             if (userCur.toLowerCase() == "me")
                 userCur = from; //allow @me shortcut (since trello wont autocomplete the current user)
-            if (userCur != from)
+            var bSameUser= (userCur.toLowerCase() == from.toLowerCase());
+            if (!bSameUser)
                 commentPush = "[by " + from + "] " + commentPush;
             
-            var obj = makeHistoryRowObject(date, userCur, s, e, commentPush, idForSsUse, keyword);
+            var obj = makeHistoryRowObject(date, userCur, s, e, commentPush, idForSsUse, keyword, bSameUser? action.idMemberCreator : null);
             obj.bError = false;
             tableRet.push(obj);
         }

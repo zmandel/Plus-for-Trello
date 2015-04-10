@@ -3,10 +3,12 @@
 <head>
     <title>Report- Plus</title>
     <link href="css/style.css" rel="stylesheet" type="text/css">
+    <link href="css/tablesorter.css" rel="stylesheet" type="text/css">
     <link href="css/tooltip.css" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
+    <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="shared.js"></script>
     <script type="text/javascript" src="report.js"></script>
 </head>
@@ -32,6 +34,12 @@
                     </p>
                     <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
+                
+                <div style="display:none" title="Pick keyword" class="agile_report_filter agile_keyword_report_section">
+                    <p class="agile_report_filter_label">Keyword</p>
+                    <select id="keyword"></select>
+                </div>
+
                 <div title="Note: grouping only affects the Report tab" class="agile_report_filter agile_groupby_report_section">
                     <p class="agile_report_filter_label">Group by</p>
                     <select id="groupBy">
@@ -46,11 +54,15 @@
                         <option value="dateString-user">Date-User</option>
                         <option value="dateString-idBoardH">Date-Board</option>
                         <option value="dateString-idCardH">Date-Card</option>
+                        <option value="keyword">Keyword</option>
+                        <option value="user-keyword">User-Keyword</option>
+                        <option value="idBoardH-keyword">Board-Keyword</option>
                     </select>
                 </div>
                 <div class="agile_report_filter">
                     <p class="agile_report_filter_label">Pivot by</p>
                     <select id="pivotBy">
+                        <option value="year">Year</option>
                         <option value="month">Month</option>
                         <option value="">Week</option>
                         <option value="day">Day</option>
@@ -65,7 +77,9 @@
                         <option value="est">E</option>
                         <option value="user">User</option>
                         <option value="nameBoard">Board</option>
+                        <option value="nameList">List</option>
                         <option value="nameCard">Card</option>
+                        <option value="keyword">Keyword</option>
                     </select>
                 </div>
                 <div class="agile_report_filter" id="groupDateSimple">

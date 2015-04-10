@@ -486,8 +486,7 @@ function updateCRowsTotalState(cRowsTotal, config, user) {
     var bNewRows = (cRowsOld != g_cRowsHistoryLast);
     if (bNewRows || cRowsTotal == 0) { //cRowsTotal==0 is a hack so the "first sync" status text gets updated after a first sync with no rows
         g_bForceUpdate = true;
-        g_seCardCur.s = null; //mark as uninitialized. will be set on the refresh below
-        g_seCardCur.e = null;
+        g_seCardCur = null; //mark as uninitialized. will be set on the refresh below
         doWeeklyReport(config, user, false, true);
     }
 }
@@ -1483,7 +1482,7 @@ function getHtmlDrillDownTooltip(rows, bReverse, colExclude) {
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
-		rgRet.push({ name: date.toDateString(), bNoTruncate: true });
+		rgRet.push({ name: makeDateOnlyString(date), bNoTruncate: true });
 		if (colExclude!="User")
 			rgRet.push({ name: row.user, bNoTruncate: false });
 		if (colExclude != "Board")

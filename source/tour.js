@@ -146,7 +146,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "Each <b>S/E row</b> entered<br>appears in a card comment,<br>drill-downs and reports.<br><br>",
+        text: "Spent and Estimate<br>units default to 'hours'.<br>If you prefer minutes or days, change it from Preferences in Plus help before entering S/E.",
         angle: 90,
         distance: 0,
         size: 200
@@ -154,7 +154,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "From this bar<br>you can only enter<br>your own s/e.<br>To enter s/e for other users<br><a style='color:white;' href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>add a comment directly</a>.",
+        text: "Each <b>S/E row</b> entered<br>appears in a card comment,<br>drill-downs and reports.<br><br>",
         angle: 90,
         distance: 0,
         size: 200
@@ -195,7 +195,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "The best practice suggested is to<br><b>S</b>pend enough to make it<br>equal to the current <b>E</b>stimate.",
+        text: "The best practice is to<br>enter <b>S</b>pent until <b>S sum</b> equals <b>E sum</b>.",
         angle: 90,
         distance: 0,
         size: 200
@@ -203,7 +203,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so it<br>doesn't go negative.<br><br>The Plus bar defaults E<br>automatically in that case.",
+        text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so <b>R</b><br>doesn't go negative.<br><br>The Plus bar defaults E<br>automatically in that case.",
         angle: 90,
         distance: 0,
         size: 200
@@ -218,7 +218,22 @@ function handleCardTour() {
         },
         {
             selector: ".agile-card-seByUserModify",
-            text: "Its easier<br>to modify total s/e from here which makes the s/e math for you.",
+            text: "Its easier<br>to make those modifications from here so it does that math for you.",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
+        {
+            selector: ".agile-card-seByUserModify",
+            text: "For example,<br>if the card is done but there is still R, just edit here E sum to be equal to S sum.",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
+        {
+            selector: "#plusCardCommentUsers",
+            focus: "#plusCardCommentUsers",
+            text: "To enter an S/E row<br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one.",
             angle: 180,
             distance: 0,
             size: 200
@@ -226,7 +241,7 @@ function handleCardTour() {
      {
          selector: ".agile_days_box_input",
          focus: ".agile_days_box_input",
-         text: "To enter an s/e row<br>first pick the date it happened,<br><br>'now', -1d for yesterday, etc.",
+         text: "then pick the date it happened,<br><br>'now', -1d for yesterday, etc.",
          angle: 180,
          distance: 0,
          size: 200
@@ -234,7 +249,7 @@ function handleCardTour() {
       {
           selector: ".agile_spent_box_input",
           focus: ".agile_spent_box_input",
-          text: "<b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
+          text: "type <b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
           angle: 180,
           distance: 0,
           size: 200
@@ -242,7 +257,7 @@ function handleCardTour() {
            {
                selector: ".agile_estimation_box_input",
                focus: ".agile_estimation_box_input",
-               text: "<b>Estimate</b><br><br>Leave blank<br>to enter only <b>S</b>pent<br><br>The first row entered will be the 1ˢᵗ estimate (<b>E 1ˢᵗ</b>) in the table above.",
+               text: "type <b>Estimate</b><br><br>Leave blank<br>to enter only <b>S</b>pent<br><br>The first row entered will be the 1ˢᵗ estimate (<b>E 1ˢᵗ</b>) in the table above.",
                angle: 180,
                distance: 0,
                size: 200
@@ -251,12 +266,19 @@ function handleCardTour() {
            {
                selector: ".agile_comment_box_input",
                focus: ".agile_comment_box_input",
-               text: "Type an<br>optional note and press the Enter key or button.",
+               text: "Type an<br>optional note here and press the Enter key or button.",
                angle: 180,
                distance: 0,
                size: 150
            },
-
+               {
+                   selector: ".agile-se-bar-entry",
+                   focus: ".agile_days_box_input",
+                   text: "For advanced S/E entry see<br><a style='color:white;' href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>S/E comment format</a>.",
+                   angle: 90,
+                   distance: 0,
+                   size: 200
+               },
        {
            selector: ".agile_card_report_link",
            focus: ".agile_card_report_link",

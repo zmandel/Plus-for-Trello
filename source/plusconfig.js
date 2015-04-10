@@ -137,7 +137,7 @@
 			var strOldStorage = g_strServiceUrl;
 
 			if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length>0) {
-				if (!confirm("By changing the URL, all s/e rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
+			    if (!confirm("By changing the URL, all S/E rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
 				    return;
 			}
 

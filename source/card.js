@@ -1,6 +1,8 @@
 ﻿var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
-var g_strNoteBase = "type note and Enter.";
+var g_strDateOtherOption = "other";
+var g_valDayExtra = null; //for "other" date in S/E bar
+var g_strNoteBase = "type note.";
 
 function validateSEKey(evt) {
 	var theEvent = evt || window.event;
@@ -13,12 +15,21 @@ function validateSEKey(evt) {
 	}
 }
 
-var g_seCardCur = { s: null, e: null }; //keeps stats about the user's last open card. used for "se bar" validation. null means not initialized
+var g_seCardCur = null; //null means not yet initialized review zig cleanup into a class
+function getSeCurForUser(user) { //note returns null when not loaded yet
+    assert(user);
+    if (!g_seCardCur)
+        return null;
+    var map = g_seCardCur[user] || { s: 0, e: 0 };
+    return map;
+}
 
-function updateEOnSChange() {
+function updateEOnSChange(cRetry) {
+    cRetry = cRetry || 0;
     var comment = $("#plusCardCommentComment");
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
+    var comboUsers = $("#plusCardCommentUsers");
 
     setTimeout(function () {
         var valS = spinS.val() || "";
@@ -28,10 +39,19 @@ function updateEOnSChange() {
             bHilite = true;
         }
         else if (!g_bAllowNegativeRemaining) {
-            if (g_seCardCur.s === null || g_seCardCur.e === null)
-                return; //should never happen but just in case
-            var sNew = g_seCardCur.s + parseSEInput(spinS, false, true);
-            var floatDiff = sNew - g_seCardCur.e;
+            if (g_seCardCur == null) { //user report not loaded yet
+                if (cRetry < 3) {
+                    setTimeout(function () {
+                        if (spinS.is(":focus"))
+                            updateEOnSChange(cRetry + 1);
+                    }, 200);
+                }
+                return; 
+            }
+            var userCur=getUserFromCombo(comboUsers);
+            var mapSeCur = getSeCurForUser(userCur);
+            var sNew = mapSeCur.s + parseSEInput(spinS, false, true);
+            var floatDiff = sNew - mapSeCur.e; //compare with original e
             if (floatDiff <= 0)
                 floatDiff = 0;
             var diff = parseFixedFloat(floatDiff);
@@ -60,11 +80,17 @@ function updateNoteR() {
     var comment = $("#plusCardCommentComment");
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
-    if (comment.length == 0 || spinS.length == 0 || spinE.length == 0)
+    var userElem = $("#plusCardCommentUsers");
+    if (comment.length == 0 || spinS.length == 0 || spinE.length == 0 || userElem.length==0)
         return;
 
-    if (g_seCardCur.s == null)
-        return; //should never happen but just in case
+    var userCur = getUserFromCombo(userElem);
+    if (!userCur)
+        return;
+    var mapSe = getSeCurForUser(userCur);
+    if (mapSe == null)
+        return;
+
 
     var sRaw = spinS.val();
     var eRaw = spinE.val();
@@ -77,11 +103,19 @@ function updateNoteR() {
         return;
     }
 
-
-    var sumS = sParsed + g_seCardCur.s;
-    var sumE = eParsed + g_seCardCur.e;
+    var sumS = sParsed + mapSe.s;
+    var sumE = eParsed + mapSe.e;
     var rDiff = parseFixedFloat(sumE - sumS);
-    comment.attr("placeholder", g_strNoteBase + " R will be " + rDiff + "."+(rDiff!=0? "":" Increase E if you are not done." ));
+    var noteFinal=g_strNoteBase + " R will be " + rDiff + "."+(rDiff!=0? "":" Increase E if not done.");
+    comment.attr("placeholder", noteFinal);
+    comment.attr("title", noteFinal);
+}
+
+function getUserFromCombo(combo) {
+    var userCur = combo.val();
+    if (userCur == g_strUserMeOption)
+        userCur = getCurrentTrelloUser();
+    return userCur;
 }
 
 function isRecurringCard() {
@@ -93,11 +127,42 @@ function isRecurringCard() {
     return bRecurring;
 }
 
+function fillComboKeywords(comboKeywords,rg, kwSelected) {
+    function add(str, kwSelected) {
+        var optAdd = new Option(str, str);
+        comboKeywords.append($(optAdd));
+        if (str == kwSelected)
+            optAdd.selected = true;
+    }
+
+    comboKeywords.empty();
+    for (var i = 0; i < rg.length; i++) {
+        add(rg[i], kwSelected);
+    }
+}
+
+function fillComboUsers(comboUsers) {
+    var sql = "select username from USERS order by username";
+    getSQLReport(sql, [],
+		function (response) {
+		    var map = {};
+		    if (response.status == STATUS_OK) {
+		        var userMe = getCurrentTrelloUser();
+		        var user = g_strUserMeOption;
+		        comboUsers.append($(new Option(user, user)));
+		        for (var i = 0; i < response.rows.length; i++) {
+		            user = response.rows[i].username;
+		            if (user == userMe)
+		                continue;
+		            comboUsers.append($(new Option(user, user)));
+		        }
+		    }
+		});
+}
 
 function createCardSEInput(parentSEInput, spentParam, estimateParam, commentParam) {
 	var bHasSpentBackend = isBackendMode();
-	g_seCardCur.s = null;
-	g_seCardCur.e = null;
+	g_seCardCur = {}; //reset totals
 
 	var container = $("<div></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
@@ -109,24 +174,84 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	var row = $("<tr></tr>").addClass("agile-card-background");
 	containerBar.append(row);
 
+	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_users_box_input"));
+	comboUsers.attr("title", "Click to select the user for this new S/E row.");
+	fillComboUsers(comboUsers);
+	comboUsers.change(function (e) { updateNoteR(); });
 	var comboDays = setSmallFont($('<select id="plusCardCommentDays"></select>').addClass("agile_days_box_input"));
-	comboDays.attr("title", "How many days ago did it happen?");
-	var iDays = 1;
-	var iLast = 10;
+	comboDays.attr("title", "Click to pick how many days ago it happened.");
+	var iDays = null;
+	var iLast = 9;
 	if (bHasSpentBackend)
-		iLast = 2;
-	comboDays.append($(new Option(g_strNowOption, g_strNowOption)));
-	for (; iDays <= iLast; iDays++) {
-		var txt = "-" + iDays + "d";
-		comboDays.append($(new Option(txt, txt)));
-	}
-	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input"));
+	    iLast = 2;
+	function fillDaysList(cDaySelected) {
+	    function addItem(iDays, iDaysSelected) {
+	        var bSelected = (iDays == iDaysSelected);
+	        var str = null;
+	        if (iDays == g_strDateOtherOption)
+	            str = iDays;
+	        else if (iDays == 0)
+	            str = g_strNowOption;
+	        else
+	            str = "-" + iDays + "d";
+	        var optAdd = new Option(str, str);
+	        if (bSelected)
+	            optAdd.selected = true;
+	        comboDays.append($(optAdd));
+	    }
 
+	    comboDays.empty();
+	    addItem(0, cDaySelected);
+	    for (iDays=1; iDays <= iLast; iDays++)
+	        addItem(iDays, cDaySelected);
+
+	    if (g_valDayExtra)
+	        addItem(g_valDayExtra, cDaySelected);
+	    addItem(g_strDateOtherOption, -1); //-1 so its different from all others
+	}
+
+	fillDaysList(0);
+	comboDays.change(function () {
+	        var combo = $(this);
+	        var val = combo.val();
+	        if (!val)
+	            return;
+	        if (val == g_strDateOtherOption) {
+	            function process(dayNew) {
+	                if (dayNew) {
+	                    if (dayNew > iLast)
+	                        g_valDayExtra = dayNew;
+	                }
+	                fillDaysList(dayNew);
+	            }
+
+	            var dateNow = new Date();
+	            var options = {
+	                date: dateNow,
+	                mode: 'date',
+	                maxDate: dateNow.getTime()
+	            };
+
+	            
+	            getSEDate(function (dateIn) {
+	                if (!getIdCardFromUrl(document.URL))
+	                    return; //rare. user managed to close the card but not the date dialog.
+	                var date = 0;
+	                if (dateIn)
+	                    date = getDeltaDates(dateNow, dateIn);
+	                process(date);
+	            });
+	        }
+	});
+	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input"));
+	spinS.attr("title", "Click to type Spent.");
 	spinS[0].onkeypress = function (e) { validateSEKey(e); };
-	spinS.bind("keydown keyup paste", function (e) { updateEOnSChange(); });
+    //thanks for "input" http://stackoverflow.com/a/14029861/2213940
+	spinS.bind("input", function (e) { updateEOnSChange(); });
 	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E"></input>').addClass("agile_estimation_box_input"));
+	spinE.attr("title", "Click to type Estimate.");
 	spinE[0].onkeypress = function (e) { validateSEKey(e); };
-	spinE.bind("keydown keyup paste", function (e) { updateNoteR(); });
+	spinE.bind("input", function (e) { updateNoteR(); });
 	var slashSeparator = setSmallFont($("<span />").text("/"));
 	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input"));
 
@@ -142,13 +267,27 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	var buttonEnter = setSmallFont($('<button id="plusCardCommentEnterButton"/>').addClass("agile_enter_box_input").text("Enter"));
 	buttonEnter.attr('title', 'Click to enter this S/E.');
 	row.append($('<td />').addClass("agile_tablecellItem").append(spanIcon));
+    
+	var comboKeyword = null; //stays null when the user only uses one keyword
+	if (g_optEnterSEByComment.IsEnabled()) {
+	    var rgkeywords = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
+	    if (rgkeywords.length > 1) {
+	        comboKeyword = setSmallFont($('<select id="plusCardCommentKeyword"></select>').addClass("agile_users_box_input"));
+	        comboKeyword.attr("title", "Click to pick a different keyword for this new S/E row.");
+	        fillComboKeywords(comboKeyword, rgkeywords, null);
+	        row.append($('<td />').addClass("agile_tablecellItem").append($("<div>").addClass("agile_keywordsComboContainer").append(comboKeyword)));
+	    }
+	}
+	
+	row.append($('<td />').addClass("agile_tablecellItem").append($("<div>").addClass("agile_usersComboContainer").append(comboUsers)));
 	row.append($('<td />').addClass("agile_tablecellItem").append(comboDays));
-	row.append($('<td />').addClass("agile_tablecellItem").append(spinS)).
-		append($('<td />').addClass("agile_tablecellItem").append(slashSeparator)).
-		append($('<td />').addClass("agile_tablecellItem").append(spinE)).
-		append($('<td />').addClass("agile_tablecellItem").append(comment).width("100%")). //takes remaining hor. space
-		append($('<td />').addClass("agile_tablecellItemLast").append(buttonEnter));
+	row.append($('<td />').addClass("agile_tablecellItem").append(spinS));
+	row.append($('<td />').addClass("agile_tablecellItem").append(slashSeparator));
+	row.append($('<td />').addClass("agile_tablecellItem").append(spinE));
+	row.append($('<td />').addClass("agile_tablecellItem").append(comment).width("100%")); //takes remaining hor. space
+	row.append($('<td />').addClass("agile_tablecellItemLast").append(buttonEnter));
 
+	
 	if (spentParam !== undefined)
 	    spinS.val(spentParam);
 
@@ -162,20 +301,50 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 		testExtension(function () {
 			clearBlinkButtonInterval();
 			buttonEnter.removeClass("agile_box_input_hilite");
+			var keyword = null;
+			if (comboKeyword)
+			    keyword = comboKeyword.val();
 			var s = parseSEInput(spinS);
 			var e = parseSEInput(spinE);
-			if (s == null || e == null)
+			if (s == null) {
+			    hiliteOnce(spinS, 500);
 			    return;
+			}
 
-			if (g_seCardCur.s === null || g_seCardCur.e === null)
-			    return; //shouldnt happen as the bar is hidden until this is loaded, but just in case
-			var sTotal = parseFixedFloat(g_seCardCur.s + s);
-			var eTotal = parseFixedFloat(g_seCardCur.e + e);
+			if (e == null) {
+			    hiliteOnce(spinE, 500);
+			    return;
+			}
+
+			if (g_seCardCur == null) {
+			    alert("Not ready. Try in a few seconds.");
+			    return;
+			}
+			
+			var userCur = getUserFromCombo(comboUsers);
+
+			if (!userCur)
+			    return; //shouldnt happen but for safety
+			
+			var mapSe = getSeCurForUser(userCur);
+			assert(mapSe); //we checked g_seCardCur above so it should exist
+			var sTotal = parseFixedFloat(mapSe.s + s);
+			var eTotal = parseFixedFloat(mapSe.e + e);
 
 			if (!verifyValidInput(sTotal, eTotal))
 			    return;
 			var prefix = comboDays.val();
+			if (!prefix || prefix == g_strDateOtherOption) {
+			    hiliteOnce(comboDays, 500);
+			    return;
+			}
 			var valComment = replaceBrackets(comment.val());
+
+			if (s == 0 && e == 0 && valComment.length == 0) {
+			    hiliteOnce(spinS, 500);
+			    hiliteOnce(spinE, 500);
+			    return;
+			}
 			function onBeforeStartCommit() {
 			    var seBarElems = $(".agile-se-bar-table *");
 			    seBarElems.prop('disabled', true);
@@ -185,14 +354,15 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 
 			function onFinished(bOK) {
 			    var seBarElems = $(".agile-se-bar-table *");
-			    //enable s/e bar
+			    //enable S/E bar
 			    setBusy(false);
 			    seBarElems.prop('disabled', false);
 			    $(".agile_spent_box_input").focus();
 			    $(".agile_enter_box_input").text("Enter");
 
 			    if (bOK) {
-			        $("#plusCardCommentDays").val(g_strNowOption);
+			        comboUsers.val(g_strUserMeOption); //if we dont reset it, a future timer could end up in the wrong user
+			        comboDays.val(g_strNowOption);
 			        $("#plusCardCommentSpent").val("");
 			        $("#plusCardCommentEstimate").val("");
 			        $("#plusCardCommentComment").val("");
@@ -201,7 +371,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 			}
 
 			//review zig settimeout is a leftover back when plus faked clicks. not needed anymore but doesnt hurt
-			setTimeout(function () { setNewCommentInCard(s, e, valComment, prefix, null, onBeforeStartCommit, onFinished); }, 0);
+			setTimeout(function () { setNewCommentInCard(keyword, s, e, valComment, prefix, userCur, onBeforeStartCommit, onFinished); }, 0);
 		});
 	});
 
@@ -219,18 +389,109 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	});
 }
 
+function getSEDate(callback) {
+    function getDate(elemDate) {
+        var str = elemDate.val();
+        var rg = str.split("-");
+        if (rg.length != 3) {
+            return null;
+        }
+        var year = parseInt(rg[0], 10);
+        var month = parseInt(rg[1], 10) - 1;
+        var day = parseInt(rg[2], 10);
+        return new Date(year, month, day);
+    }
+
+    var divDialog = $(".agile_dialog_SEDate");
+    var elemDate = null;
+    var elemCommentDate = null;
+    var dateNow = new Date();
+    var dateMin = new Date();
+    dateMin.setDate(dateMin.getDate() + g_dDaysMinimum);
+
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog class="agile_dialog_SEDate agile_dialog_DefaultStyle"> \
+<h2>Pick a date</h2><br> \
+<input id="dialog_SEDate_date" type="date"/> \
+<div id="dialog_SEDate_comment"></div> \
+<button id="agile_dialog_SEDate_ok">Select</button> \
+<button id="agile_dialog_SEDate_cancel">Cancel</button> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_SEDate");
+
+        elemDate = divDialog.find("#dialog_SEDate_date");
+        elemCommentDate = divDialog.find("#dialog_SEDate_comment");
+
+        elemDate.change(function () {
+            var dateCur = getDate(elemDate);
+            var strMsg = "";
+            if (dateCur) {
+                var delta = getDeltaDates(new Date(), dateCur);
+                if (delta > 0)
+                    strMsg = "" +delta + (delta==1? " day" : " days")+" ago.";
+            }
+            elemCommentDate.text(strMsg);
+        });
+    }
+    
+    elemCommentDate = divDialog.find("#dialog_SEDate_comment");
+    var strDateNow = makeDateOnlyString(dateNow);
+    elemDate = divDialog.find("#dialog_SEDate_date");
+    elemDate.prop("min", makeDateOnlyString(dateMin));
+    elemDate.prop("max", strDateNow);
+    elemDate.prop("value", strDateNow);
+    elemCommentDate.text("");
+
+    divDialog.find("#agile_dialog_SEDate_cancel").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        callback(null);
+        divDialog[0].close();
+    });
+
+    divDialog.find("#agile_dialog_SEDate_ok").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        var dateCur = getDate(elemDate);
+        var bOK = false;
+
+        if (dateCur) {
+            var delta = getDeltaDates(new Date(), dateCur);
+            if (delta >= 0 && delta <= (-1 * g_dDaysMinimum))
+                bOK = true;
+        }
+
+        if (!bOK) {
+            alert("pick a date before today");
+            return;
+        }
+        callback(dateCur);
+        divDialog[0].close();
+    });
+
+    divDialog.off("keydown.plusForTrello").on("keydown.plusForTrello", function (evt) {
+        //need to capture manually before trello captures it and closes the card.
+        //note this doesnt cover all cases like focus being in another dialog element
+        if (evt.keyCode === $.ui.keyCode.ESCAPE) {
+            evt.stopPropagation();
+            callback(null);
+            divDialog[0].close();
+        }
+    });
+
+    divDialog[0].showModal();
+}
+
 function verifyValidInput(sTotal, eTotal) {
     var rTotal = parseFixedFloat(eTotal - sTotal);
     var err = null;
     if (sTotal < 0)
-        err = "Your spent total will go negative.";
+        err = "Spent total will go negative.";
     else if (eTotal < 0)
-        err = "Your estimate total will go negative.";
+        err = "Estimate total will go negative.";
     else if (rTotal < 0 && !g_bAllowNegativeRemaining) 
-        err = "Your spent total will be larger than total estimate.\nIf you dont need to track remaining, set it in Preferences, 'Allow negative Remaining' (Plus help.)";
+        err = "Spent total will be larger than estimate total.\nIf you dont need to track remaining, set it in Preferences, 'Allow negative Remaining' (Plus help.)";
 
     if (err != null) {
-        err = err + "\n\nAre you sure you want to enter it?";
+        err = err + "\n\nAre you sure you want to enter this S/E row?";
         if (!confirm(err))
             return false;
     }
@@ -276,9 +537,8 @@ function fillCardSEStats(tableStats,callback) {
         getSQLReport(sql, values,
             function (response) {
                 tableStats.empty();
-                //reset
-                g_seCardCur.s = 0;
-                g_seCardCur.e = 0;
+                //reset totals
+                g_seCardCur = {};
                 var elemRptLink = containerStats.find(".agile_card_report_link");
                 if (response.status == STATUS_OK && (response.rows.length > 0 || isTourRunning())) {
                     elemRptLink.show();
@@ -303,9 +563,16 @@ function fillCardSEStats(tableStats,callback) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
                         addCardSERowData(tableStats, rowData, false);
-                        if (rowData.user == userCur) {
-                            g_seCardCur.s = g_seCardCur.s + rowData.spent;
-                            g_seCardCur.e = g_seCardCur.e + rowData.est;
+                        var mapCur = g_seCardCur[rowData.user];
+                        if (!mapCur) {
+                            mapCur = {
+                                s: rowData.spent,
+                                e: rowData.est
+                            };
+                            g_seCardCur[rowData.user] = mapCur;
+                        } else {
+                            mapCur.s = mapCur.s + rowData.spent;
+                            mapCur.e = mapCur.e + rowData.est;
                         }
                     }
                 }
@@ -322,17 +589,11 @@ function fillCardSEStats(tableStats,callback) {
 function showSETotalEdit(sVal, eVal, user) {
     var divDialog = $(".agile_dialog_editSETotal");
     if (divDialog.length==0) {
-        divDialog = $('<pre>dialog::backdrop\
-{ \
-position: fixed; \
-top: 0; \
-left: 0; \
-right: 0; \
-bottom: 0; \
-background-color: rgba(0, 0, 0, 0.8); \
-}</pre> \
-<dialog class="agile_dialog_editSETotal"> \
+        divDialog = $('\
+<dialog class="agile_dialog_editSETotal agile_dialog_DefaultStyle"> \
 <h2 class="agile_mtse_title"></h2><br> \
+<select class="agile_mtse_keywords" title="Pick the keyword for this modification."></select> \
+<a class="agile_mtse_kwReportLink" href="" target="_blank">view keyword report</a> \
 <table class="agile_seTotalTable"> \
 <tr> \
 <td align="left">S sum</td> \
@@ -366,7 +627,28 @@ background-color: rgba(0, 0, 0, 0.8); \
             }                
         });
     }
-
+    var comboKeyword = divDialog.find(".agile_mtse_keywords");
+    var elemKwLink = divDialog.find(".agile_mtse_kwReportLink");
+    
+    var bHideComboKeyword=true;
+    if (g_optEnterSEByComment.IsEnabled()) {
+        var rgkeywords = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
+        if (rgkeywords.length > 1) {
+            bHideComboKeyword = false;
+            fillComboKeywords(comboKeyword, rgkeywords, comboKeyword.val());
+            comboKeyword.show();
+            elemKwLink.show();
+        }
+    }
+    if (bHideComboKeyword) {
+        comboKeyword.hide();
+        elemKwLink.hide();
+    }
+    else {
+        var idCard = getIdCardFromUrl(document.URL);
+        elemKwLink.attr("href", chrome.extension.getURL("report.html?idCard=" + encodeURIComponent(idCard)+"&groupBy=keyword&orderBy=date&user=" + user + "&deleted=0"));
+    }
+    
     var elemTitle = divDialog.find(".agile_mtse_title");
     elemTitle.html("Modify total S/E for " + user);
     function setSEVal(elem, val) {
@@ -387,7 +669,7 @@ background-color: rgba(0, 0, 0, 0.8); \
     var eOrigNum = parseFixedFloat(eOrig);
     var elemMessage = divDialog.find(".agile_mtseMessage");
     var elemNote = divDialog.find(".agile_mtse_note");
-    var strMessageInitial = "Once you modify totals Plus will enter a card comment with the needed difference.";
+    var strMessageInitial = "Once you modify totals Plus will enter a new S/E row with the needed difference.";
     var elemR = divDialog.find(".agile_mtse_r");
     elemMessage.text(strMessageInitial);
     elemNote.val("");
@@ -399,7 +681,7 @@ background-color: rgba(0, 0, 0, 0.8); \
         if (data.s == 0 && data.e == 0)
             strMessageNew=strMessageInitial;
         else
-            strMessageNew = "" + data.s + "/" + data.e + " will be added to " + user + " as a S/E row.";
+            strMessageNew = "" + data.s + "/" + data.e + " will be added to " + user + " in a new S/E row.";
         
         elemMessage.text(strMessageNew);
         elemR.val(parseFixedFloat(eOrigNum + data.e - sOrigNum-data.s));
@@ -414,7 +696,10 @@ background-color: rgba(0, 0, 0, 0.8); \
         var eDiff = parseFixedFloat(eNewNum - eOrigNum);
         if (!bSilent && !verifyValidInput(sNewNum, eNewNum))
             return null;
-        return { s: sDiff, e: eDiff };
+        var kw = null;
+        if (!bHideComboKeyword)
+            kw = comboKeyword.val();
+        return { s: sDiff, e: eDiff, keyword:kw };
     }
 
     divDialog.find("#agile_modify_SETotal").off("click.plusForTrello").on("click.plusForTrello", function (e) {
@@ -427,7 +712,7 @@ background-color: rgba(0, 0, 0, 0.8); \
 
         function onFinished(bOK) {
             var elems = $(".agile_dialog_editSETotal *");
-            //enable s/e bar
+            //enable S/E bar
             elems.prop('disabled', false);
             elemR.prop('disabled', true);
             setBusy(false);
@@ -446,11 +731,14 @@ background-color: rgba(0, 0, 0, 0.8); \
             return;
         }
         var note = replaceBrackets(elemNote.val());
-        setTimeout(function () { setNewCommentInCard(data.s, data.e, note, "", user, onBeforeStartCommit, onFinished); }, 0);
+        setTimeout(function () {
+            setNewCommentInCard(data.keyword, data.s, data.e, note, "", //empty prefix means time:now
+                user, onBeforeStartCommit, onFinished);
+        }, 0);
     });
 
-    elemS.unbind().bind("keydown keyup paste", function (e) { updateMessage(); });
-    elemE.unbind().bind("keydown keyup paste", function (e) { updateMessage(); });
+    elemS.unbind().bind("input", function (e) { updateMessage(); });
+    elemE.unbind().bind("input", function (e) { updateMessage(); });
     divDialog[0].showModal();
 }
 
@@ -604,7 +892,8 @@ function addCardCommentHelp() {
 " + kw + " @john 0/6 : adds to john 6 estimate\n\n\
 " + kw + " @john @paul -2d 3/3 codereview : adds to john and paul -2days ago 3/3 with note 'codereview'\n\n\
 You may use @me to add yourself.\n\n\
-"+ kw + " 7 : (without '/') spends 7/0 or 7/7 for recurring [R] cards.");
+" + kw + " 7 : (without '/') spends 7/0 or 7/7 for recurring [R] cards.\n\n\
+Click for more.");
 				    }
 				    if (help)
 				        elem.append(help);
@@ -898,7 +1187,7 @@ var g_sTimerLastAdd = 0; //used for improving timer precision (because of roundi
 /* addSEFieldValues
  *
  * s,e: float
- * will add given s/e to existing values in the controls
+ * will add given S/E to existing values in the controls
  **/
 function addSEFieldValues(s, comment) {
 	var elemSpent = $("#plusCardCommentSpent");
@@ -936,7 +1225,7 @@ function addSEFieldValues(s, comment) {
 }
 
 //review rename commentBox to noteBox
-function setNewCommentInCard(s, e, commentBox,
+function setNewCommentInCard(keywordUse, s, e, commentBox,
     prefix, //blank uses default (first) keyword
     member, //null means current user
     onBeforeStartCommit, //called before all validation passed and its about to commit
@@ -944,13 +1233,15 @@ function setNewCommentInCard(s, e, commentBox,
 	if (prefix == g_strNowOption || prefix == null)
 		prefix = "";
 	var comment = "";
-	var keywordUse = null; //legacy cases may remain null
-
+	if (!keywordUse)
+	    keywordUse = g_optEnterSEByComment.getDefaultKeyword();
 
 	s = Math.round(s * 100) / 100;
 	e = Math.round(e * 100) / 100;
-	keywordUse = g_optEnterSEByComment.getDefaultKeyword();
+	
 	comment = keywordUse + " ";
+	if (member == g_strUserMeOption)
+	    member = null; //defaults later to user
 	if (member && member != getCurrentTrelloUser())
 	    comment = comment + "@" + member + " ";
 	if (prefix.length > 0)
@@ -994,7 +1285,7 @@ function bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, str
 		}
 	}
 
-	if (userCur && userCur != getCurrentTrelloUser() && userCur != "me") //review zig me shouldnt be needed
+	if (userCur && userCur != getCurrentTrelloUser() && userCur != g_strUserMeOption) //review zig me shouldnt be needed
 	    commentBox = "[by " + getCurrentTrelloUser() + "] " + commentBox;
 
 	helperInsertHistoryRow(dateNow, idCard, idBoard, strBoard, cleanTitle, userCur, s, e, commentBox, idHistoryRowUse, keyword);

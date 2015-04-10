@@ -1,4 +1,5 @@
-
+var g_prefixCustomUserId = "customUser:";
+var g_deletedUserIdPrefix = "deleted"; //prefix for user id and user (when making up a username on deleted users)
 
 function commitBoardSyncData(tx, alldata) {
     var idBoard = null;
@@ -26,7 +27,7 @@ function commitBoardSyncData(tx, alldata) {
         if (board.bPendingCreation) {
             assert(!board.orig);
             //could use this for both cases, but maybe sqlite optimizes for update
-            //also consider replace as the board could have been alreadt created during sync (by user entering s/e into a card)
+            //also consider replace as the board could have been alreadt created during sync (by user entering S/E into a card)
             sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, idBoard) VALUES (?,?,?,?,?,?)";
         }
         else {
@@ -145,11 +146,13 @@ function commitSESyncData(tx, alldata) {
     tx.executeSql(sql, [], function (tx2, results) {
         var i = 0;
         var usersMap = {};
+        var usersMapByName = {};
         for (; i < results.rows.length; i++) {
-            var row = results.rows.item(i);
+            var row =  cloneObject(results.rows.item(i));
             usersMap[row.idMemberCreator] = row;
+            usersMapByName[row.username] = row.idMemberCreator;
         }
-        commitSESyncDataWorker(tx, alldata, usersMap);
+        commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName);
     },
             function (tx2, error) {
                 logPlusError(error.message);
@@ -159,7 +162,7 @@ function commitSESyncData(tx, alldata) {
     return bChanges;
 }
 
-function commitSESyncDataWorker(tx, alldata, usersMap) {
+function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
     var rows = [];
     //sort before so usersMap is correct and we insert in date order. date is comment date, without yet applying any delta (-xd)
     //review zig ideally it should merge individual board sorted items without destruction or original orders in each array,
@@ -169,29 +172,36 @@ function commitSESyncDataWorker(tx, alldata, usersMap) {
         return (a.date.localeCompare(b.date));
     });
 
-    var oldUsernameMap = {};
     var idMemberCreator = null;
 
-    for (idMemberCreator in usersMap)
-        oldUsernameMap[usersMap[idMemberCreator].username.toLowerCase()] = idMemberCreator;
-
     //once sorted, process all users to update their data
-    //hash idMemberCreator -> last memberCreator. so we can rename users and also know which were the deleted users.
-    //REVIEW zig on usersMap: integrate better renaming for past rows or impersonated rows without requiring Reset.
-    //also, the whole idea of oldUsersMap is flawed because trello renames the users in past actions, so we will never find a old username in actions.
-    //thus the later remap in impersonated comments wont work either as we wont have the old username mapping. Clean all these up to simplify it.
-    //currently this only helps for the case where a user is deleted and user hasnt done a Reset sync
+    //hash idMemberCreator -> last memberCreator data. Useful to have a quick list of users without having to query HISTORY
+    //review zig: doesnt handle well deleted users, only renamed
     alldata.commentsSE.forEach(function (action) {
-        var mc = action.memberCreator;
-        var mcOld = usersMap[action.idMemberCreator];
-        if (mc && (!mcOld || mcOld.dateSzLastTrello <= action.date)) {
+        var mc = action.memberCreator; //may be undefined
+        var mcOld = usersMap[action.idMemberCreator]; //idMemberCreator is always set
+        var bOldIsFake = false;
+        if (!mc)
+            return;
+        if (!mcOld) {
+            //might be there already by name
+            var idMemberFakeExisting=usersMapByName[mc.username];
+            if (idMemberFakeExisting) {
+                mcOld = usersMap[idMemberFakeExisting];
+                if (mcOld && idMemberFakeExisting.indexOf(g_prefixCustomUserId) == 0)
+                    bOldIsFake = true;
+            }
+        }
+        if (!mcOld || mcOld.dateSzLastTrello <= action.date || bOldIsFake) {
+            if (bOldIsFake)
+                mcOld.bDelete = true;
             usersMap[action.idMemberCreator] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: action.idMemberCreator, username: mc.username };
-            oldUsernameMap[mc.username.toLowerCase()] = action.idMemberCreator; //remember the id per renamed username
+            usersMapByName[mc.username] = action.idMemberCreator;
         }
     });
 
     alldata.commentsSE.forEach(function (action) {
-        var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, oldUsernameMap);
+        var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName);
         rowsAdd.forEach(function (rowCur) {
             rows.push(rowCur);
         });
@@ -215,6 +225,16 @@ function commitSESyncDataWorker(tx, alldata, usersMap) {
 
     for (idMemberCreator in usersMap) {
         var userCur = usersMap[idMemberCreator];
+        if (userCur.bDelete) {
+            tx.executeSql("DELETE FROM USERS WHERE idMemberCreator=?",
+            [idMemberCreator], null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+            continue;
+        }
+
         if (!userCur.bEdited)
             continue;
         tx.executeSql("INSERT OR REPLACE INTO USERS (idMemberCreator,username, dateSzLastTrello) VALUES (?,?,?)",
@@ -232,7 +252,7 @@ var g_dateMinCommentSE = new Date(2013, 6, 30); //exclude S/E before this (regul
 var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -xd will be ignored on x<-2 for non spent-backend admins, like the backend used to do
 
 //code taken from spent backend
-function readTrelloCommentDataFromAction(action, alldata, usersMap, oldUsernameMap) {
+function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName) {
     var tableRet = [];
     var id = action.id;
     var from = null;
@@ -241,13 +261,13 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, oldUsernameM
     if (action.idMemberCreator) { //should be set always. but just in case handle it
         var cached = usersMap[action.idMemberCreator];
         if (cached)
-            memberCreator = cached;
+            memberCreator = cached; //review zig: shouldnt be needed. trello renames all actions users when a user is renamed. but this protects us from possible trello failures.
     }
 
     if (memberCreator && memberCreator.username)
         from = memberCreator.username;
     else
-        from = "deleted" + action.idMemberCreator; //keep the username as a regex word
+        from = g_deletedUserIdPrefix + action.idMemberCreator; //keep the username as a regex word
 
     from = from.toLowerCase(); //shouldnt be necessary but just in case
     var idCardShort = alldata.cardsByLong[action.data.card.id];
@@ -364,16 +384,19 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, oldUsernameM
             var commentPush = comment;
             if (iRowPush > 0)
                 idForSsUse = idForSs + "." + iRowPush;
-            var userCur = rgUsersProcess[iRowPush];
-            if (userCur != from) {
-                var idUserPossibly = oldUsernameMap[userCur];
-                if (idUserPossibly)
-                    userCur = usersMap[idUserPossibly].username; //use the updated name in case user was renamed
-            }
-            if (userCur.toLowerCase() == "me")
+            var userCur = rgUsersProcess[iRowPush].toLowerCase();
+            if (userCur == g_strUserMeOption)
                 userCur = from; //allow @me shortcut (since trello wont autocomplete the current user)
-            if (userCur != from)
+            if (userCur != from) {
                 commentPush = "[by " + from + "] " + commentPush;
+                //update usersMap to fake users that may not be real users
+                //note checking for prefix g_deletedUserIdPrefix fails if user actually starts with "deleted", but its not a real scenario
+                if (!usersMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix)!=0 ) {
+                    var idMemberFake = g_prefixCustomUserId + userCur;
+                    usersMap[idMemberFake] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: idMemberFake, username: userCur };
+                    usersMapByName[userCur] = idMemberFake;
+                }
+            }
             var idCardForRow = idCardShort;
             if (bPlusCommand)
                 idCardForRow = ID_PLUSCOMMAND;

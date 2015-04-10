@@ -2,10 +2,13 @@
 var g_mapETypeParam = { "ALL": "", "EINCR": 1, "EDECR": -1, "ENEW": 2 };
 var g_iTabCur = null; //invalid initially
 var g_colorDefaultOver="#B9FFA9";
-var g_colorDefaultUnder="#FFD5BD";
+var g_colorDefaultUnder = "#FFD5BD";
+var g_bShowKeywordFilter = false;
 var KEY_FORMAT_PIVOT_USER = "formatPivotUser";
 var KEY_FORMAT_PIVOT_BOARD = "formatPivotBoard";
 var KEY_bEnableTrelloSync = "bEnableTrelloSync";
+var keybEnterSEByCardComments = "bEnterSEByCardComments"; //review zig reuse shared globals loader
+var keyrgKeywordsforSECardComment = "rgKWFCC";
 
 var g_cSyncSleep = 0;  //for controlling sync abuse
 var g_bIgnoreEnter = false; //review zig
@@ -17,6 +20,7 @@ var g_rowidLastSyncRemember = -1;
 var g_bBuildSqlMode = false;
 
 var PIVOT_BY = {
+    year: "year",
     month: "month",
     week: "",
     day: "day"
@@ -26,6 +30,10 @@ var PIVOT_BY = {
 var g_dataFormatUser = { key:KEY_FORMAT_PIVOT_USER, interval: null, cLastWrite:0, cCur: 0, format: { u: { c: g_colorDefaultUnder, v: null }, o: { c: g_colorDefaultOver, v: null } }};
 var g_dataFormatBoard = { key:KEY_FORMAT_PIVOT_BOARD, interval: null, cLastWrite: 0, cCur: 0, format: { u: { c: g_colorDefaultUnder, v: null }, o: { c: g_colorDefaultOver, v: null } } };
 var g_rgTabs = []; //tab data
+
+function getCleanHeaderName(name) {
+    return name.split('\xa0')[0]; //hack: add &nbsp to headers for tablesorter
+}
 
 function buildUrlFromParams(doc, params, bNoPopupMode) {
     var url = chrome.extension.getURL(doc);
@@ -58,12 +66,13 @@ function updateUrlState(doc, params) {
 }
 
 function loadStorageGlobals(callback) {
-    chrome.storage.sync.get([KEY_FORMAT_PIVOT_USER, KEY_FORMAT_PIVOT_BOARD, KEY_bEnableTrelloSync], function (objs) {
+    chrome.storage.sync.get([KEY_FORMAT_PIVOT_USER, KEY_FORMAT_PIVOT_BOARD, KEY_bEnableTrelloSync,keybEnterSEByCardComments, keyrgKeywordsforSECardComment], function (objs) {
 		if (objs[KEY_FORMAT_PIVOT_USER] !== undefined)
 			g_dataFormatUser.format = objs[KEY_FORMAT_PIVOT_USER];
 		if (objs[KEY_FORMAT_PIVOT_BOARD] !== undefined)
 		    g_dataFormatBoard.format = objs[KEY_FORMAT_PIVOT_BOARD];
 		g_bEnableTrelloSync = objs[KEY_bEnableTrelloSync] || false;
+		g_optEnterSEByComment.loadFromStrings(objs[keybEnterSEByCardComments], objs[keyrgKeywordsforSECardComment]);
 		callback();
 	});
 }
@@ -179,10 +188,17 @@ function selectTabUI(iTab, href) {
 function findMatchingBoards(term, autoResponse) {
     if (term == "*")
         term = "";
-    var sql = "SELECT name FROM boards where name LIKE ? ORDER BY LOWER(name) ASC";
-    getSQLReport(sql, ["%" + term + "%"], function (response) {
+    var sql = "SELECT name FROM boards";
+    var sqlPost=" ORDER BY LOWER(name) ASC";
+    var paramsSql = [];
+
+    if (term != "") {
+        sql = sql + " where name LIKE ?";
+        paramsSql.push("%" + term + "%");
+    }
+    getSQLReport(sql + sqlPost, paramsSql, function (response) {
         var rows = response.rows;
-        if (response.status != STATUS_OK || !rows || rows.length == 0) {
+        if (response.status != STATUS_OK || !rows) {
             autoResponse([]);
             return;
         }
@@ -202,19 +218,33 @@ function findMatchingLists(term, autoResponse) {
         term = "";
     var nameBoard = $("#board").val().trim();
     var sql = null;
-    var params = ["%" + term + "%"];
-
+    var sqlPost = " ORDER BY LOWER(lists.name) ASC";
+    var params = [];
+    var cWhere = 0;
     if (nameBoard.length > 0) {
-        sql = "SELECT distinct(lists.name) FROM lists join boards on lists.idBoard=boards.idBoard where lists.name LIKE ? AND boards.name LIKE ? ORDER BY LOWER(lists.name) ASC";
+        sql = "SELECT distinct(lists.name) FROM lists join boards on lists.idBoard=boards.idBoard where boards.name LIKE ?";
+        cWhere++;
         params.push("%" + nameBoard+"%");
     }
     else {
-        sql = "SELECT distinct(lists.name) FROM lists where name LIKE ? ORDER BY LOWER(lists.name) ASC";
+        sql = "SELECT distinct(lists.name) FROM lists";
     }
 
-    getSQLReport(sql, params, function (response) {
+    if (term != "") {
+        if (cWhere == 0) {
+            sql = sql + " WHERE";
+        }
+        else {
+            sql = sql + " AND";
+    }
+        cWhere++;
+        sql = sql + " lists.name LIKE ?";
+        params.push("%" + term + "%");
+    }
+
+    getSQLReport(sql + sqlPost, params, function (response) {
         var rows = response.rows;
-        if (response.status != STATUS_OK || !rows || rows.length == 0) {
+        if (response.status != STATUS_OK || !rows) {
             autoResponse([]);
             return;
         }
@@ -232,10 +262,17 @@ function findMatchingLists(term, autoResponse) {
 function findMatchingUsers(term, autoResponse) {
     if (term == "*")
         term = "";
-    var sql = "SELECT distinct(user) FROM history where user LIKE ? ORDER BY LOWER(user) ASC";
-    getSQLReport(sql, ["%" + term + "%"], function (response) {
+    var sql = "SELECT distinct(user) FROM history";
+    var sqlPost=" ORDER BY LOWER(user) ASC";
+    var params = [];
+    if (term!="") {
+        sql = sql + " where user LIKE ?";
+        params.push("%" + term + "%");
+    }
+    sql = sql + sqlPost;
+    getSQLReport(sql, params, function (response) {
         var rows = response.rows;
-        if (response.status != STATUS_OK || !rows || rows.length == 0) {
+        if (response.status != STATUS_OK || !rows) {
             autoResponse([]);
             return;
         }
@@ -303,26 +340,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	    });
 
-	    $("#board").autocomplete({
-            delay:0,
-	        source: function( request, response ) {
+	    function addFocusHandler(elem) {
+	        var specialAll = "*"; //wasted time getting .autocomplete to work on "" so this hack worksarround it
+	        elem.focus(function () {
+	            if (this.value == "" || this.value == specialAll)
+                    $(this).autocomplete("search", specialAll);
+	        });
+	    }
+
+	    addFocusHandler($("#board").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
 	            findMatchingBoards(request.term, response);
 	        }
-	    });
+	    }));
 
-	    $("#user").autocomplete({
+	    addFocusHandler($("#user").autocomplete({
 	        delay: 0,
+	        minChars: 0,
 	        source: function (request, response) {
 	            findMatchingUsers(request.term, response);
 	        }
-	    });
+	    }));
 
-	    $("#list").autocomplete({
+	    addFocusHandler($("#list").autocomplete({
 	        delay: 0,
+	        minChars: 0,
 	        source: function (request, response) {
 	            findMatchingLists(request.term, response);
 	        }
-	    });
+	    }));
 
 	    loadTabs($("#tabs"));
 
@@ -655,8 +703,26 @@ function loadReport(params) {
 		}
 	});
 
+	var comboKeyword = $("#keyword");
+	g_bShowKeywordFilter = false;
+	if (g_optEnterSEByComment.IsEnabled()) {
+	    var rgkeywords = g_optEnterSEByComment.rgKeywords;
+	    function addKW(str, val, bSelected) {
+	        var optAdd = new Option(str, val);
+	        comboKeyword.append($(optAdd));
+	        if (bSelected)
+	            optAdd.selected = true;
+	    }
+	    addKW("All", "", true);
+	    for (var i = 0; i < rgkeywords.length; i++)
+	        addKW(rgkeywords[i], rgkeywords[i]);
+
+	    if (g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1)
+	        g_bShowKeywordFilter = true;
+	}
+
 	var elems = {
-	    groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
+	    keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
 	    monthStart: "", monthEnd: "", user: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "", deleted: "0",
 	    idBoard: (g_bBuildSqlMode?"":"showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide"
 	};
@@ -675,9 +741,15 @@ function loadReport(params) {
 			hiliteOnce(elemCur);
 	}
 
+	if (g_bShowKeywordFilter)
+	    comboKeyword.parent().show();
+	else {
+	    $("#orderBy option[value*='keyword']").remove();
+	    $("#groupBy option[value*='keyword']").remove();
+	}
 	if (!g_bEnableTrelloSync) {
 	    $("#list").parent().hide();
-	    $("#groupBy option[value='idBoardH-nameList']").remove();
+	    $("#groupBy option[value*='nameList']").remove();
 	}
 
 	if (!g_bEnableTrelloSync || g_bPopupMode) {
@@ -842,7 +914,7 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 
 function buildSql(elems) {
     var groupBy = elems["groupBy"] || "";
-    var sql = "select H.rowid as rowid, H.user, H.week, H.month, H.spent, H.est, H.date, H.comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType, CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard JOIN LISTS as L on C.idList=L.idList JOIN BOARDS B on H.idBoard=B.idBoard";
+    var sql = "select H.rowid as rowid, H.keyword, H.user, H.week, H.month, H.spent, H.est, H.date, H.comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType, CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard JOIN LISTS as L on C.idList=L.idList JOIN BOARDS B on H.idBoard=B.idBoard";
 	var post1 = "";
 	var post2 = " order by H.date " + (g_bBuildSqlMode? "ASC": "DESC");
 
@@ -858,7 +930,6 @@ function buildSql(elems) {
 	}
 
 	var state = { cFilters: 0, values: [] };
-
 	sql += buildSqlParam("sinceSimple", elems, "date", ">=", state);
 	sql += buildSqlParam("weekStart", elems, "week", ">=", state);
 	sql += buildSqlParam("weekEnd", elems, "week", "<=", state, "9999-W99");
@@ -875,12 +946,13 @@ function buildSql(elems) {
 	sql += buildSqlParam("idBoard", elems, "idBoardH", "=", state);
 	sql += buildSqlParam("idCard", elems, "idCardH", "=", state);
 	sql += buildSqlParam("afterRow", elems, "rowid", ">", state, null, false);
+	sql += buildSqlParam("keyword", elems, "keyword", "LIKE", state);
 	sql += post1;
 	sql += post2;
 	return { sql: sql, values: state.values };
 }
 
-function configReport(elemsParam, bRefreshPage) {
+function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 	var elems = cloneObject(elemsParam);
 	if (elems["eType"] == "all") //do this before updateUrlState so it doesnt include this default in the url REVIEW zig change so its elem value IS "" (see sinceDate)
 		elems["eType"] = ""; //this prevents growing the URL with the default value for eType
@@ -896,6 +968,9 @@ function configReport(elemsParam, bRefreshPage) {
 	    }
 	    updateUrlState("report.html", elems);
 	}
+
+	if (bOnlyUrl)
+	    return;
 	if (!g_bBuildSqlMode)
 	    setBusy(true);
 	if (bRefreshPage) {
@@ -954,6 +1029,40 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 	var html = getHtmlDrillDownTooltip(rowsGrouped, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth);
 	var parentScroller = $(".agile_report_container");
 	var container = makeReportContainer(html, 1300, true, parentScroller, true);
+	var tableElem = $(".tablesorter");
+	if (tableElem.length > 0 && rowsGrouped.length>0) {
+	    var sortList = null;
+	    if (orderBy) {
+	        var elemMatch = $('#orderBy option').filter(function () { return $(this).val() == orderBy; });
+	        if (elemMatch.length > 0) {
+	            var textSort = getCleanHeaderName(elemMatch[0].innerText);
+	            var ascdesc=0;
+	            if (orderBy == "date" || typeof (rowsGrouped[0][orderBy]) != "string")
+	                ascdesc = 1;
+	            sortList = [[textSort,ascdesc]];
+	        }
+	    }
+
+	    tableElem.tablesorter({
+	        sortList: sortList //note the modified tablesorter only sets headers here, wont sort (again) the list
+	    });
+	    
+	    tableElem.bind("sortEnd", function () {
+	        var elem = this;
+	        if (elem && elem.config && elem.config.sortList && elem.config.headerList) {
+	            var index = elem.config.sortList[0][0]; //supports first sort only
+	            var txtHeader = getCleanHeaderName(elem.config.headerList[index].innerText);
+	            var valMatch=$('#orderBy option').filter(function () { return $(this).html() == txtHeader; }).val();
+	            if (valMatch) {
+	                $('#orderBy').val(valMatch);
+	                var params = getUrlParams();
+	                params["orderBy"] = valMatch;
+	                configReport(params, false, true);
+	            }
+	        }
+	    });
+	}
+	    
 	g_rgTabScrollData[0] = { scroller: parentScroller.find(".agile_tooltip_scroller"), elemTop: parentScroller, dyTop: 50 }; //review zig: fix this mess
 	var btn = $("#buttonFilter");
 	resetQueryButton(btn);
@@ -1016,7 +1125,7 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
     var bPivotByMonth = (pivotBy == PIVOT_BY.month);
     var bPivotByWeek = (pivotBy == PIVOT_BY.week);
     var bPivotByDate = (pivotBy == PIVOT_BY.day);
-
+    var bPivotByYear = (pivotBy == PIVOT_BY.year);
     var tables = calculateTables(rows, pivotBy);
 	//{ header: header, tips: tips, byUser: rgUserRows, byBoard: rgBoardRows };
 	var parent = elemByUser.parent();
@@ -1044,7 +1153,7 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 		if (title != "")
 		    tdElem.prop("title", title);
 
-		if (bPivotByDate)
+		if (bPivotByDate || bPivotByYear)
 		    return; //REVIEW todo
 
 	    //note: would be better to use anchors but I couldnt get them to be clickable in the whole cell so I went back
@@ -1104,7 +1213,7 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 	elemTableBoard.append(trBoard);
 
 	
-
+	var bLastRow = false;
 	//BY USER
 	var iRow = 0;
 	for (; iRow < tables.byUser.length; iRow++) {
@@ -1113,7 +1222,7 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 		var tdUserCol = $(strTd).text(valUser).addClass("agile_pivotFirstCol");
 		trUser.append(tdUserCol);
 
-		var bLastRow = (iRow == tables.byUser.length - 1);
+		bLastRow = (iRow == tables.byUser.length - 1);
 
 		if (!bLastRow) {
 		    replaces = [{ name: "user", value: valUser }];
@@ -1155,8 +1264,17 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 		var tdBoardCol = $(strTd).text(nameBoard).addClass("agile_pivotFirstCol");
 		trBoard.append(tdBoardCol);
 		var valIdBoard = tables.byBoard[iRow][0].idBoard;
-		replaces = [{ name: "idBoard", value: valIdBoard }];
-		addClickZoom(tdBoardCol, urlParams, replaces, false);
+		
+		bLastRow = (iRow == tables.byBoard.length - 1);
+
+		if (!bLastRow) {
+		    replaces = [{ name: "idBoard", value: valIdBoard }];
+		    addClickZoom(tdBoardCol, urlParams, replaces, false);
+		}
+		else {
+		    tdBoardCol.css("font-weight", "bold");
+		    tdBoardCol.css("text-align", "right");
+		}
 
 		for (iCol = 1; iCol < tables.header.length; iCol++) {
 			strHeader = tables.header[iCol];
@@ -1165,8 +1283,17 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 			if (val == 0)
 			    tdElem.addClass("agile_pivotCell_Zero");
 			trBoard.append(tdElem);
-			replaces = [{ name: pivotStart, value: strHeader }, { name: pivotEnd, value: strHeader }, { name: "idBoard", value: valIdBoard }];
-			var titleCur=strHeader + "    " + nameBoard;
+			replaces = [{ name: pivotStart, value: strHeader }, { name: pivotEnd, value: strHeader }];
+			var titleCur = strHeader + "    " + nameBoard;
+
+			if (bLastRow) {
+			    //last row
+			    tdElem.data("agile_total_row", "true");
+			    tdElem.css("font-weight", "bold");
+			}
+			else {
+			    replaces.push({ name: "idBoard", value: valIdBoard });
+			}
 			addClickZoom(tdElem, urlParams, replaces, true, titleCur);
 			if (bPivotByWeek)
 			    tdElem.data("agile_week", strHeader); //used later to detect current week column
@@ -1204,6 +1331,7 @@ function calculateTables(rows, pivotBy) {
     var bPivotByMonth = (pivotBy == PIVOT_BY.month);
     var bPivotByWeek = (pivotBy == PIVOT_BY.week);
     var bPivotByDate = (pivotBy == PIVOT_BY.day);
+    var bPivotByYear = (pivotBy == PIVOT_BY.year);
 
     for (; i < rows.length; i++) {
         var row = rows[i];
@@ -1213,11 +1341,13 @@ function calculateTables(rows, pivotBy) {
         var dateStart = new Date(row.date * 1000);
 
         if (bPivotByMonth) {
-            pivotCur=row.month;
+            pivotCur = row.month;
         }
         else if (bPivotByDate) {
             pivotCur = dateStart.toLocaleDateString();
         }
+        else if (bPivotByYear)
+            pivotCur = ""+dateStart.getFullYear();
 
         if (pivotCur != pivotLast) {
             iColumn++;
@@ -1238,6 +1368,9 @@ function calculateTables(rows, pivotBy) {
                 var dateMonthEnd = new Date(dateStart.getFullYear(), dateStart.getMonth() + 1, 0);
                 dateMonthStart.setDate(1);
                 tips[iColumn] = getCurrentWeekNum(dateMonthStart) + " - " + getCurrentWeekNum(dateMonthEnd);
+            }
+            else if (bPivotByYear) {
+                tips[iColumn] = "" + dateStart.getFullYear();
             }
         }
         var userRow = users[row.user];
@@ -1280,6 +1413,7 @@ function calculateTables(rows, pivotBy) {
 		rgBoardRows.push(boards[i]);
 	rgBoardRows.sort(doSortBoard);
 	rgUserRows.push(totalsPerPivot);
+	rgBoardRows.push(totalsPerPivot);
 	return { header: header, tips:tips, byUser: rgUserRows, byBoard: rgBoardRows };
 }
 
@@ -1294,13 +1428,13 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 		var map = {};
 		var cMax = rowsOrig.length;
 		var pGroups = propertyGroup.split("-");
-		var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrgig (no biggie)
+		var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
 		for (; i < cMax; i++) {
 		    var row = rowsOrig[i];
 
 		    if (row[propDateString] === undefined && row.date !== undefined) {
 		        var dateRow = new Date(row.date * 1000); //db is in seconds
-		        row[propDateString] = dateRow.toDateString();
+		        row[propDateString] = makeDateOnlyString(dateRow);
 		    }
 
 			var key = "";
@@ -1356,12 +1490,17 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 
 function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth) {
 	var bOrderR = (orderBy == "remain");
-	var header = [{ name: "Date" }, { name: "Week" }];
+	var header = [];
+	var bShowKeyword = g_bShowKeywordFilter;
+	if (bShowKeyword)
+	    header.push({ name: "Keyword" });
+	header.push({ name: "Date" });
+	header.push({ name: "Week" });
 	var bGroupByCardOrNone = (groupBy == "" || groupBy.toLowerCase().indexOf("card") >= 0);
 	var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
 	var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
 	if (bShowMonth)
-		header.push({ name: "Month" });
+	    header.push({ name: "Month" });
 	var bShowUser=(groupBy=="" || groupBy.toLowerCase().indexOf("user")>=0);
 	if (bShowUser)
 		header.push({ name: "User" });
@@ -1401,15 +1540,17 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	if (bShowDeleted)
 	    header.push({ name: "Deleted" });
 
+	var dateNowCache = new Date();
 	function callbackRowData(row) {
 	    if (row.rowid && row.rowid > g_rowidLastSyncRemember) //review zig: hacky way so we dont loop the array twice. would be nice if this was outside of view
 	        g_rowidLastSyncRemember = row.rowid;
 	    var rgRet = [];
 	    var dateString = row["dateString"];
 	    if (dateString === undefined) {
-	        var date = new Date(row.date * 1000); //db is in 
-	        dateString = date.toDateString();
+	        dateString = makeDateOnlyString(new Date(row.date * 1000)); //db is in seconds
 	    }
+	    if (bShowKeyword)
+	        rgRet.push({ name: row.keyword, bNoTruncate: true });
 	    rgRet.push({ name: dateString, bNoTruncate: true });
 		rgRet.push({ name: row.week, bNoTruncate: true });
 		if (bShowMonth)
@@ -1470,6 +1611,18 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 			rgRet.title = title;
 		} else {
 		    rgRet.title = "(" + sPush + " / " + estPush + ") " + row.comment;
+		}
+		if (row.date) {
+		    var delta = getDeltaDates(dateNowCache, new Date(row.date * 1000)); //db is in seconds
+		    var postFix = " days ago";
+		    if (delta == 1)
+		        postFix = " day ago";
+		    else if (delta == 0) {
+		        delta = "";
+		        postFix = "today";
+		    }
+
+		    rgRet.title = rgRet.title + "\n" + delta + postFix;
 		}
 		return rgRet;
 	}

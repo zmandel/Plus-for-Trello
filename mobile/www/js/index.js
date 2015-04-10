@@ -1,6 +1,4 @@
 var PROP_TRELLOKEY = "trellokey";
-var TRELLO_APPKEY = "xxx"; //create your own trello api key.
-var g_idGlobalAnalytics= "UA-xxxxxx-y"; //create your own in google analytics
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
@@ -10,6 +8,9 @@ var g_cPageNavigations = 0;
 var g_bReadyForIntent = false;
 var g_bLocalNotifications = false;
 var g_mapLastActivityInfo = null;
+var g_user = null;
+var g_valDayExtra = null;
+
 g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
 function assert(val) {
     if (!val) {
@@ -147,7 +148,7 @@ var g_analytics = {
             return;
         msDelay = msDelay || 1000;
         this.init();
-        var payload = "v=1&tid="+g_idGlobalAnalytics +"&cid=" + encodeURIComponent(g_analytics.idAnalytics);
+        var payload = "v=1&tid=" + g_idGlobalAnalytics + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         };
@@ -216,6 +217,59 @@ var g_recentBoards = {
     boards : []
 };
 
+
+var g_recentUsers = {
+    PROP: "recentUsers",
+    MAXIMUM: 50,
+    markRecent: function (name, id, msDate, bSaveProp) {    //returns if users was modified.
+        //note id can be null. search is done based both on id and name
+        var users = this.users;
+        name = name.toLowerCase();
+        var userNew = { name: name, id: id, msDate: msDate };
+        var msDateMin = msDate;
+        var iReplace = -1;
+        var bModified = false;
+        var bExact = false;
+        for (var i = 0; i < users.length; i++) {
+            var user = users[i];
+            if ((user.id && user.id == id) || (user.name==name)) {
+                iReplace = i;
+                bExact = true;
+                break;
+            }
+            if (user.msDate < msDateMin) {
+                iReplace = i;
+                msDateMin = user.msDate;
+            }
+        }
+        if (iReplace < 0 || (!bExact && users.length < this.MAXIMUM)) {
+            users.push(userNew);
+            bModified = true;
+        }
+        else {
+            if (users[iReplace].msDate < userNew.msDate) {
+                users[iReplace] = userNew;
+                bModified = true;
+            }
+        }
+        if (bSaveProp && bModified)
+            this.saveProp();
+        return bModified;
+    },
+    saveProp: function () {
+        localStorage[this.PROP] = JSON.stringify(this.users);
+    },
+    init: function () {
+        var store = localStorage[this.PROP];
+        if (store)
+            this.users = JSON.parse(store);
+    },
+    reset: function () {
+        delete localStorage[this.PROP];
+        this.users = [];
+    },
+    users: []
+};
 
 var g_pinnedCards = {
     PROP: "pinnedCards",
@@ -458,6 +512,7 @@ var app = {
 
         g_analytics.init();
         g_recentBoards.init();
+        g_recentUsers.init();
         g_pinnedCards.init();
         var header = $("[data-role='header']");
         header.toolbar();
@@ -789,6 +844,7 @@ function setPageTitle(idPage) {
 function populateUser(user) {
     var userElems = $(".userTrello");
     userElems.empty();
+    g_user = user;
     if (!user)
         return;
     var image = $("<img>").attr("src", "https://trello-avatars.s3.amazonaws.com/" + user.avatarHash + "/30.png");
@@ -873,6 +929,7 @@ function clearAllStorage(bKeepLoginInfo) {
     var idAnalytics = localStorage[g_analytics.PROP_IDANALYTICS];
     var bDisableAnalytics = g_analytics.bDisableAnalytics;
     g_recentBoards.reset();
+    g_recentUsers.reset();
     g_pinnedCards.reset();
     localStorage.clear();
 
@@ -1114,9 +1171,136 @@ function loadCardPage(page, params, bBack, urlPage) {
     var delayKB = 350;
     function enableSEFormElems(bEnable) {
         if (bEnable) {
+            var valUserOther = "other...";
             page.find(".seFormElem").removeAttr('disabled');
-            page.find("#plusCardCommentUser").selectmenu("enable");
-            page.find("#plusCardCommentDays").selectmenu("enable");
+            var listUsers = page.find("#plusCardCommentUser").selectmenu("enable");
+            function appendUser(name, bSelected) {
+                var item = $("<option value='" + name + "'" + (bSelected?" selected='selected'":"") + ">" + name + "</option>");
+                listUsers.append(item);
+            }
+
+            function fillUserList(userSelected) {
+                listUsers.empty();
+                g_recentUsers.users.sort(function (a, b) {
+                    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                });
+                appendUser("me");
+                g_recentUsers.users.forEach(function (user) {
+                    var nameUse = user.name.toLowerCase();
+                    if (g_user && g_user.username.toLowerCase() == nameUse)
+                        return;
+                    appendUser(nameUse, userSelected && userSelected == nameUse);
+                });
+
+                appendUser(valUserOther);
+                listUsers.selectmenu("refresh");
+            }
+            fillUserList();
+            listUsers.off("change.plusForTrello");
+            listUsers.on("change.plusForTrello", function () {
+                var combo = $(this);
+                var val = combo.val();
+                if (!val)
+                    return;
+                if (val == valUserOther) {
+                    function process(userNew) {
+                        if (userNew)
+                            userNew = userNew.trim().toLowerCase();
+                        if (userNew)
+                            g_recentUsers.markRecent(userNew, null, new Date().getTime(), true);
+                        fillUserList(userNew);
+                    }
+
+                    if (navigator && navigator.notification) {
+                        navigator.notification.prompt(
+                            "type username",  // message
+                            function onPrompt(results) {
+                                var text = null;
+                                if (results.buttonIndex == 1)
+                                    text = results.input1;
+                                process(results.input1);
+                            },                  // callback to invoke
+                            'User name',            // title
+                            ['Ok', 'Cancel'],             // buttonLabels
+                            "");                // defaultText
+                    }
+                    else {
+                        process(prompt("type username", ""));
+                    }
+                }
+            });
+            var listDays = page.find("#plusCardCommentDays").selectmenu("enable");
+            var valDayOther = "other...";
+            var valMaxDaysCombo = 7;
+            function appendDay(cDay, cDaySelected) {
+                var nameOption = null;
+                var bSelected = (cDay == cDaySelected);
+                if (cDay == valDayOther) {
+                    nameOption = cDay;
+                }
+                else if (cDay == 0)
+                    nameOption = "now";
+                else
+                    nameOption = "-" + cDay + "d";
+                var item = $("<option value='" + cDay + "'" + (bSelected ? " selected='selected'" : "") + ">" + nameOption + "</option>");
+                listDays.append(item);
+            }
+
+            function fillDaysList(cDaySelected) {
+                listDays.empty();
+                for (var iDay = 0; iDay <= valMaxDaysCombo; iDay++)
+                    appendDay(iDay, cDaySelected);
+                if (g_valDayExtra)
+                    appendDay(g_valDayExtra, cDaySelected);
+                appendDay(valDayOther, cDaySelected);
+                listDays.selectmenu("refresh");
+            }
+            fillDaysList();
+            listDays.off("change.plusForTrello");
+            listDays.on("change.plusForTrello", function () {
+                var combo = $(this);
+                var val = combo.val();
+                if (!val)
+                    return;
+                if (val == valDayOther) {
+                    function process(dayNew) {
+                        if (dayNew) {
+                            dayNew = parseInt(dayNew) || 0;
+                            if (dayNew > valMaxDaysCombo)
+                                g_valDayExtra = dayNew;
+                        }
+                        fillDaysList(dayNew);
+                    }
+
+                    var dateNow = new Date();
+                    var options = {
+                        date: dateNow,
+                        mode: 'date',
+                        maxDate: dateNow.getTime()
+                    };
+
+                    if (typeof (datePicker) != "undefined") {
+                        datePicker.show(options, function (date) {
+                            
+                            if (date > dateNow) {
+                                alert("Date must be in the past");
+                                date = null;
+                            }
+                            else {
+                                var date1 = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+                                var date2 = Date.UTC(dateNow.getFullYear(), dateNow.getMonth(), dateNow.getDate());
+                                var ms = Math.abs(date1 - date2);
+                                date= Math.floor(ms / 1000 / 60 / 60 / 24);
+                            }
+                            process(date);
+                        });
+                    }                 
+                    else {
+                       process(prompt("xxx", ""));
+                    }
+                }
+            });
+
             page.find("#plusCardCommentEnterButton").removeClass("ui-disabled");
             page.find("#plusCardCommentCancelButton").removeClass("ui-disabled");
         } else {
@@ -1137,7 +1321,8 @@ function loadCardPage(page, params, bBack, urlPage) {
             $("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
             setTimeout(function () {
                 var elemSEFocus = $("#plusCardCommentSpent"); //revie zig test ios kb
-                cordova.plugins.Focus.focus(elemSEFocus);
+                if (isCordova())
+                    cordova.plugins.Focus.focus(elemSEFocus);
             }, delayKB);
     });
     
@@ -1203,11 +1388,12 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
                 var action=response.obj.actions[iAction];
                 var rowsAdd = readTrelloCommentDataFromAction(action, response.obj.name, rgKeywords);
                 rowsAdd.forEach(function (rowCur) {
-                    rgComments.push(rowCur);
+                    if (!rowCur.bError)
+                        rgComments.push(rowCur);
                 });
             }
 
-            rgRows = calculateCardSEReport(rgComments, response.obj.name);
+            rgRows = calculateCardSEReport(rgComments, response.obj.name, responseCached != null);
             objReturn.rgRows = rgRows;
             objReturn.name = response.obj.name;
             objReturn.nameList = response.obj.list.name;
@@ -1256,19 +1442,24 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
     });
 }
 
-function calculateCardSEReport(rgComments, nameCard) {
+function calculateCardSEReport(rgComments, nameCard, bFromCache) {
     //rgComments in date ascending (without -dX)
     var bRecurring = (nameCard.toLowerCase().indexOf(TAG_RECURRING_CARD)>=0);
     var rgRows = [];
     var userSums = {};
     var iOrder = 0;
+    var bModifiedUsers = false;
     rgComments.forEach(function (row) {
         userRow=userSums[row.user];
         if (userRow) {
+            if (!userRow.idUser && row.idUser)
+                userRow.idUser = row.idUser;
             userRow.spent = userRow.spent + row.spent;
             userRow.est = userRow.est + row.est;
             if (bRecurring)
                 userRow.estFirst = userRow.est;
+            if (row.date>userRow.sDateMost)
+                userRow.sDateMost = row.date;
         }
         else {
             //first estimate row
@@ -1278,14 +1469,26 @@ function calculateCardSEReport(rgComments, nameCard) {
             userRow.est =  row.est;
             userRow.estFirst = row.est;
             userRow.user = row.user;
+            userRow.idUser = row.idUser;
+            userRow.sDateMost = row.date;
         }
         userRow.iOrder = iOrder;
         iOrder++;
     });
 
     for (var user in userSums) {
-        rgRows.push(userSums[user]);
+        var objSums = userSums[user];
+        rgRows.push(objSums);
+        if (g_recentUsers.markRecent(user, objSums.idUser, objSums.sDateMost * 1000, false)) {
+            //review zig: add check for bFromCache so it doesnt do double work. not here yet because it would cause already-cached card data to
+            //not go through here, because older versions didnt have this code to update the users list storage.
+            //by june 2015 the check could be added and most users wont notice the issue
+            bModifiedUsers = true;
+        }
     }
+
+    if (bModifiedUsers)
+        g_recentUsers.saveProp();
 
     rgRows.sort(function (a, b) {
         return b.iOrder - a.iOrder;

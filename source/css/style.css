@@ -1,4 +1,4 @@
-﻿.agile_dialog_editSETotal {
+﻿.agile_dialog_DefaultStyle {
   border: 1px solid rgba(0, 0, 0, 0.5);
   border-radius: 3px;
   box-shadow: 0 5px 9px rgba(0, 0, 0, 0.7);
@@ -37,6 +37,15 @@ padding:0px !important;
 
 .agile_seTotalTable tr td {
 border:none !important;
+}
+
+#dialog_SEDate_comment {
+    height:1em !important;
+}
+
+#dialog_SEDate_date {
+    font-size:18px !important;
+    font-weight:bold !important;
 }
 
 .ui-autocomplete.ui-menu{font-size:0.7em;}
@@ -877,16 +886,31 @@ table#tableMarkers td {
 	vertical-align: middle;
 }
 
+.agile_mtse_keywords {
+    width:auto !important;
+    min-width: 5em !important;
+}
+
+.agile_usersComboContainer {
+    width: 3em !important;
+}
+
+.agile_keywordsComboContainer {
+    width: 2.5em !important;
+}
+
 .agile_users_box_input {
 	text-align: center !important;
 	margin-top: 0px !important;
 	margin-bottom: 0px !important;
 	min-height: 14px !important;
 	background-color: white !important;
-	width: 60px;
 	height: 22px;
+    width: 100% !important;
 	display: inline !important;
-	-webkit-appearance: none;
+	-webkit-appearance: none !important;
+	border-color: #BFBFBF !important;
+	border-radius: 3px !important;
 }
 
 .agile_days_box_input {
@@ -895,10 +919,10 @@ table#tableMarkers td {
 	margin-bottom: 0px !important;
 	min-height: 14px !important;
 	background-color: white !important;
-	width: 30px;
+	width: 35px;
 	height: 22px;
 	display: inline !important;
-	-webkit-appearance: none;
+	-webkit-appearance: none !important;
 	border-color: #BFBFBF !important;
 	border-radius: 3px !important;
 }

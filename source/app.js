@@ -111,6 +111,18 @@ function testExtension(callback) {
 
 $(function () {
     setTimeout(function () { //in timeout so we can safely reference globals
+        
+		//for <dialog>
+		var preDialog = '<pre style="display:none;">dialog::backdrop\
+        { \
+        position: fixed; \
+        top: 0; \
+        left: 0; \
+        right: 0; \
+        bottom: 0; \
+        background-color: rgba(0, 0, 0, 0.8); \
+        }</pre>';
+        $("body").append($(preDialog)); //
         loadOptions(function () {
             entryPoint();
         });
@@ -279,10 +291,10 @@ function ResetPlus() {
 
                                 if (response.cRowsTotal > 0 && (g_bDisableSync || !g_optEnterSEByComment.IsEnabled())) { //review newsync
                                     if (!g_optEnterSEByComment.IsEnabled() && g_strServiceUrl && g_strServiceUrl.length > 0) {
-                                        if (!confirm("You have pending s/e rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
+                                        if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet. Are you sure you want to lose those rows?"))
                                             return;
                                     }
-                                    else if (!confirm("Sync is not enabled. s/e rows wont come back until you do so.'\nAre you sure you want to reset now?"))
+                                    else if (!confirm("Sync is not enabled. S/E rows wont come back until you do so.'\nAre you sure you want to reset now?"))
                                         return;
                                 }
 

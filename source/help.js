@@ -254,7 +254,7 @@ var Help = {
 	    } else {
 	        if (!bSEByComments && helpWin.totalDbRowsHistoryNotSync > 0) {
 	            var strPre = "" + helpWin.totalDbRowsHistoryNotSync + ' S/E rows pending spreadsheet sync verification. ';
-	            if (helpWin.totalDbRowsHistoryNotSync > 9) { //simple sync test. could happen also if user entered a lot of s/e rows within 5 minutes.
+	            if (helpWin.totalDbRowsHistoryNotSync > 9) { //simple sync test. could happen also if user entered a lot of S/E rows within 5 minutes.
 	                helpWin.para('If still not synced in 10 minutes, make sure spreadsheet sharing is setup correctly with Write access to you.').css("color", COLOR_ERROR);
 	            } else {
 	                helpWin.para(strPre + 'Plus will do so in the next 10 minutes.');
@@ -299,7 +299,7 @@ var Help = {
 
 	    if (!bInsertDonationAsSection) {
 	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! '+ strUsingPlusDays + 'Donations: $1,846. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://plusfortrello.blogspot.com/2015/04/donations.html" target="_blank">Donations: $1,891</A>. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	        if (g_bUserDonated) {
 	            checkDonated[0].checked = true;
 	            divDonations.hide();
@@ -342,16 +342,16 @@ var Help = {
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
         helpWin.para('<b>E</b>stimate the units needed to finish a card.');
         helpWin.para('<b>S</b>pend units from your estimate.');
-        helpWin.para('Units (days, hours or minutes) can be configured in Preferences. Do so before entering any s/e.');
+        helpWin.para('Units (days, hours or minutes) can be configured in Preferences. Do so before entering any S/E.');
         helpWin.para('<b>card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
-        helpWin.para('The table above the plus card bar shows total s/e per user.');
+        helpWin.para('The table above the plus card bar shows total S/E per user.');
         helpWin.para('Ideally you first enter an estimate as in 0/2 and later spend it with 2/0.');
         helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it.');
         helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R is zero.');
-        helpWin.para('Your first card s/e row entered becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) to compare it with the current estimate <b>E sum</b>.');
+        helpWin.para('Your first card S/E row entered becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) to compare it with the current estimate <b>E sum</b>.');
         helpWin.para('If you type <b>S</b> that would cause <b>S sum</b> to be greated than <b>E sum</b>, Plus automatically pre-fills more <b>E</b> to make <b>R</b> zero.');
         helpWin.para('To turn that off or to never use estimates, "allow negative remaining" in Preferences.');
 
@@ -363,11 +363,10 @@ var Help = {
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" to the right of the Card report.');
-	    helpWin.para('&bull; Also use "modify" if you prefer to think about total s/e instead of adding/substracting with the card bar.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do that math for you and enter the needed s/e as a new row.');
+	    helpWin.para('&bull; Also use "modify" if you prefer to think about total S/E instead of adding/substracting with the card bar.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do that math for you and enter the needed S/E as a new row.');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;For example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
 	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
-	    helpWin.para("&bull; Enter S/E for other users of further back in time <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>using card comments</A> (see Trello comments sync below).");
 	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -395,7 +394,7 @@ var Help = {
 
 	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
 	    helpWin.para("To get all Plus features enable sync from the list above. Once enabled you will get:", divCur);
-	    helpWin.para("&bull; team s/e", divCur);
+	    helpWin.para("&bull; team S/E", divCur);
 	    helpWin.para("&bull; full chrome Plus menu", divCur);
 	    helpWin.para("&bull; lists in Plus reports", divCur);
 	    helpWin.para("&bull; changes to cards, lists and boards is handled automatically.", divCur);
@@ -404,14 +403,13 @@ var Help = {
 
 	    divCur = syncSectionsMap[SYNCMETHOD.trelloComments];
 	    var txtSEByCardComments = 'Enter S/E using the card plus bar or directly as card comments.';
-
+	    txtSEByCardComments = txtSEByCardComments + "<br>Enter S/E from mobile or other browsers as a card comment. Users can view all S/E of their joined boards.";
 	    if (g_strServiceUrl) {
-	        txtSEByCardComments = txtSEByCardComments + '<br>Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing s/e inside card titles from Utilities.';
+	        txtSEByCardComments = txtSEByCardComments + '<br>Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.';
 	    }
 	    txtSEByCardComments = txtSEByCardComments + '<br>Plus syncs all boards you have joined.';
 	    txtSEByCardComments = txtSEByCardComments + '<br>Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate multiple keywords with comma.';
-	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same first keyword unless you want to further categorize or separate multiple subteams.";
-	    txtSEByCardComments = txtSEByCardComments + "<br>By using card comments you can enter s/e for other users and more features not available from the plus card s/e bar.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
 	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
@@ -425,10 +423,10 @@ var Help = {
 	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
 	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
 	    helpWin.para('Disadvantages of Google sync: requires chrome sign-in, no support for multiple keywords, no board-based permissions, no mobile use.', divCur);
-	    helpWin.para('Advantages: teams see all s/e data regardless of board membership by sharing the same sync url or can have each their own. See card s/e team totals inside card titles (card titles are renamed to include total s/e).', divCur);
+	    helpWin.para('Advantages: teams see all S/E data regardless of board membership by sharing the same sync url or can have each their own. See card S/E team totals inside card titles (card titles are renamed to include total S/E).', divCur);
 	    helpWin.para('This mode also enables syncronization with Trello to sync card/list/board changes in boards you have joined.', divCur);
-	    helpWin.para('In this mode s/e is not read from card comments only from the spreadsheet even thou it does add a card s/e comment.', divCur);
-	    helpWin.para('Thus in this mode you must enter all s/e using the Plus card bar, never directly as comments or from mobile.', divCur);
+	    helpWin.para('In this mode S/E is not read from card comments only from the spreadsheet even thou it does add a card S/E comment.', divCur);
+	    helpWin.para('Thus in this mode you must enter all S/E using the Plus card bar, never directly as comments or from mobile.', divCur);
 
 	    spanButtonGS=setupPlusConfigLink(divCur);
 	    helpWin.para("", divCur);
@@ -618,9 +616,9 @@ var Help = {
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile Plus for Trello</b>');
-	    helpWin.para('View card s/e. Pin cards to your phone. Offline enabled.');
+	    helpWin.para('View card S/E. Pin cards to your phone. Offline enabled.');
 	    helpWin.para('The app\'s few features work well but basic features are missing. I just finished the groundwork to make them happen.');
-	    helpWin.para('Soon it will have card timers and the s/e bar. Until then, once you are on a card in the app and wish to add s/e, it lets you go directly to the card in the trello app to enter s/e as a comment.');
+	    helpWin.para('Soon it will have card timers and the S/E bar. Until then, once you are on a card in the app and wish to add S/E, it lets you go directly to the card in the trello app to enter S/E as a comment.');
 	    helpWin.para('The app is compatible only with "Trello card comments" sync. Upgrade if you are still using legacy google sync.');
 	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
 	    helpWin.para('&nbsp');
@@ -704,7 +702,7 @@ var Help = {
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
-	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, s/e already entered is assumed in the new units so pick it before entering any s/e.</span>'));
+	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, S/E already entered is assumed in the new units so pick it before entering any S/E.</span>'));
 	        comboUnits.append($(new Option("minutes", UNITS.minutes)));
 	        comboUnits.append($(new Option("hours", UNITS.hours)));
 	        comboUnits.append($(new Option("days", UNITS.days)));
@@ -921,14 +919,14 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
-	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted card s/e comments.');
+	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted card S/E comments.');
 	    var buttonReset = paraReset.children('input:button:first');
 	    buttonReset.click(function () {
 	        ResetPlus();
 	    });
 
 	    if (g_optEnterSEByComment.IsEnabled()) { //review zig enable also for stealth sheet sync mode
-	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with s/e history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switch sync methods.');
+	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with S/E history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switch sync methods.');
 	        var buttonRenameCardsWithSE = paraRenameCards.children('input:button:first');
 	        var buttonRenameCardsAll = paraRenameCards.children('input:button:last');
 	        function handleButtonRename(bOnlyCardsWithHistory) {

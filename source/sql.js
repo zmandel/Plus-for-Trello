@@ -1702,15 +1702,13 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 							)');
 
             //USERS table is not yet used on history and cardbalance. there are issues to solve
-            //review zig: when a user is deleted from trello, trello will remove it from previous history and a 
-            //trello first sync after a user is deleted will never know the users real name. because we allow to impersonate users in s/e comments
-            //plus wont know how to match the deleted users with those impersoanted comment users.
-            //thus, we simply use this table as a cache of the last "known good" state for a user.
-            //from now on, deleted users during plus usage (not before first sync) will be matched with the deleted user.
-            //Since this table is not deleted during "reset", further resets will continue to match deleted users.
-            //and will also allow implementing a future automatic user rename on past history/cardbalance without requiring to reset plus
-            //this is low prioirity as its rare to rename or delete users.
-            //another idea to mitigate easily deleted users is to provide a utility to rename users
+            //review zig: when a user is deleted/renamed from trello, trello will remove it from previous history and a 
+            //trello first sync after a user is deleted will never know the users real name.
+            //Because we allow to impersonate users in S/E comments, plus wont know how to match the deleted/renamed users with those impersoanted comment users.
+            //thus, we simply use this table as a cache of the last "known good" state for a user and to help detect user renames, but it isnt perfect.
+            //Since this table is not deleted during "reset", further resets will continue to match deleted users by id.
+            //table isnt used for anything critical as it may not be exactly equal to users in history.
+            //S/E bar uses it for users list as its cleaner and faster than unique history users
             t.executeSql('CREATE TABLE IF NOT EXISTS USERS ( \
 							idMemberCreator TEXT PRIMARY KEY, \
 							username TEXT NOT NULL, \

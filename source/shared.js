@@ -18,11 +18,12 @@ var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIE
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_bAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon";
 var SEKEYWORD_DEFAULT = "plus!";
-var SEKEYWORD_LEGACY = "Plus S/E";
+var g_strUserMeOption = "me";
+var SEKEYWORD_LEGACY = "plus s/e";
 var g_bEnableTrelloSync = false; //review zig this ad g_bDisableSync must be initialized by caller
 var g_bDisableSync = false; // 'bDisabledSync' sync prop. note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
 var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
-var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment
+var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
 
 var g_dateMinCommentSELegacy = new Date(2014, 11, 12);
 var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
@@ -36,18 +37,31 @@ var g_optEnterSEByComment = {
     },
     bEnabled: false,    //review zig: some use this directly because its not always equivalent to IsEnabled. clean up with another method or param in IsEnabled
     rgKeywords: [SEKEYWORD_DEFAULT],
+    getAllKeywordsExceptLegacy: function () {
+        var ret=[];
+        var iMax=this.rgKeywords.length;
+        for (var i = 0; i < iMax; i++) {
+            var kw=this.rgKeywords[i];
+            if (kw.toLowerCase() == SEKEYWORD_LEGACY)
+                continue;
+            ret.push(kw);
+        }
+        if (ret.length == 0)
+            ret.push(SEKEYWORD_DEFAULT);
+        return ret;
+    },
     getDefaultKeyword: function() {
         assert(this.bInitialized);
         var ret = this.rgKeywords[0];
         if (!ret)
             ret = SEKEYWORD_DEFAULT;
-        return ret.toLocaleLowerCase();
+        return ret.toLowerCase();
     },
     hasLegacyKeyword: function () {
         assert(this.bInitialized);
         var bFound = false;
         this.rgKeywords.every(function (keyword) {
-            if (keyword.toLowerCase() == SEKEYWORD_LEGACY.toLowerCase()) {
+            if (keyword.toLowerCase() == SEKEYWORD_LEGACY) {
                 bFound = true;
                 return false; //stop
             }
@@ -651,8 +665,8 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	else
 		html.push('<div class="agile_tooltip_scroller agile_tooltip_scroller_Short" tabindex="0">');
 
-	html.push('<table class="agile_tooltipTable">');
-	html.push('<tr class="agile-drilldown-header">');
+	html.push('<table class="agile_tooltipTable tablesorter">');
+	html.push('<thead><tr class="agile-drilldown-header">');
 	var iHeader = 0;
 	var bExtended = false;
 	for (; iHeader < header.length; iHeader++) {
@@ -664,9 +678,9 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		var nameCol = header[iHeader].name;
 		if (nameCol.toLowerCase() == "note")
 		    iColComment = iHeader;
-		html.push(th(nameCol, bExtendCur));
+		html.push(th(nameCol + "&nbsp;&nbsp;", bExtendCur)); //nbsp hack so tablesorter arrows dont overlap name
 	}
-	html.push('</tr>');
+	html.push('</tr></thead><tbody>');
 	var sTotal = 0;
 	var eTotal = 0;
 	var row = null;
@@ -687,7 +701,7 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 			eTotal += row.est;
 		}
 	}
-	html.push('</table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
+	html.push('</tbody></table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
 	html.push('</DIV>');
 	if (!bOnlyTable)
 		html.push('</DIV>');
@@ -864,16 +878,14 @@ function handleSectionSlide(section, content, widthOpen,elemShowHide) {
 	
 }
 /**
- * ScrollView - jQuery plugin 0.1
- *
+ * Modified ScrollView - jQuery plugin 0.1
+ * 
  * from https://code.google.com/p/jquery-scrollview/
  * This plugin supplies contents view by grab and drag scroll.
  *
  * Copyright (c) 2009 Toshimitsu Takahashi
  *
  * Released under the MIT license.
- * 
- * Modified by Zig Mandel
  *
  * == Usage =======================
  *   // apply to block element.
@@ -1088,6 +1100,19 @@ function getWithZeroPrefix(number) {
 //YYYY-MM-DD 
 function makeDateOnlyString(date) {
 	return date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1) + "-" + getWithZeroPrefix(date.getDate());
+}
+
+function getDeltaDates(dateA, dateB) {
+    var delta = 0;
+    if (dateA) {
+        var date1 = Date.UTC(dateA.getFullYear(), dateA.getMonth(), dateA.getDate());
+        var date2 = Date.UTC(dateB.getFullYear(), dateB.getMonth(), dateB.getDate());
+        var ms = Math.abs(date1 - date2); //abs corrects floor negatives
+        delta = Math.floor(ms / 1000 / 60 / 60 / 24);
+        if (date1 < date2)
+            delta = delta * -1;
+    }
+    return delta;
 }
 
 function setBusy(bBusy, elem) {

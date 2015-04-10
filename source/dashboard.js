@@ -321,7 +321,7 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
-		rgRet.push({ name: date.toDateString(), bNoTruncate: true });
+		rgRet.push({ name: makeDateOnlyString(date), bNoTruncate: true });
 
 		var urlCard = null;
 		if (row.idCardH.indexOf("https://") == 0)
