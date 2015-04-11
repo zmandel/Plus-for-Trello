@@ -48,6 +48,20 @@ var UNITS = {
         var mult = MAP_UNITS[this.current];
         assert(mult);
         return units * mult;
+    },
+
+    GetUnit: function () {
+        assert(this.current);
+        return this.current;
+    },
+    GetSubUnit: function () {
+        if (this.current == this.minutes)
+            return "s";
+        if (this.current == this.hours)
+            return this.minutes;
+        if (this.current == this.days)
+            return this.hours;
+        assert(false);
     }
 };
 
