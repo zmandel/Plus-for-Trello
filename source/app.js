@@ -122,7 +122,26 @@ $(function () {
         bottom: 0; \
         background-color: rgba(0, 0, 0, 0.8); \
         }</pre>';
-        $("body").append($(preDialog)); //
+		$("body").append($(preDialog));
+
+		//http://tablesorter.com/docs/example-parsers.html
+		//http://stackoverflow.com/a/2129479/2213940
+		if (true) {
+		    $.tablesorter.addParser({
+		        // set a unique id 
+		        id: 'links',
+		        is: function (s) {
+		            // return false so this parser is not auto detected 
+		            return false;
+		        },
+		        format: function (s) {
+		            // format your data for normalization 
+		            return s.replace(new RegExp(/<.*?>/), "");
+		        },
+		        // set type, either numeric or text
+		        type: 'text'
+		    });
+		}
         loadOptions(function () {
             entryPoint();
         });

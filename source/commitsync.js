@@ -391,7 +391,7 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
                 commentPush = "[by " + from + "] " + commentPush;
                 //update usersMap to fake users that may not be real users
                 //note checking for prefix g_deletedUserIdPrefix fails if user actually starts with "deleted", but its not a real scenario
-                if (!usersMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix)!=0 ) {
+                if (!usersMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
                     var idMemberFake = g_prefixCustomUserId + userCur;
                     usersMap[idMemberFake] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: idMemberFake, username: userCur };
                     usersMapByName[userCur] = idMemberFake;

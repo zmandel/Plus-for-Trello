@@ -1,7 +1,12 @@
 ﻿var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
+
 var g_strDateOtherOption = "other";
 var g_valDayExtra = null; //for "other" date in S/E bar
+
+var g_strUserOtherOption = "other";
+var g_valUserExtra = null; //for "other" added user in S/E bar
+
 var g_strNoteBase = "type note.";
 
 function validateSEKey(evt) {
@@ -141,22 +146,35 @@ function fillComboKeywords(comboKeywords,rg, kwSelected) {
     }
 }
 
-function fillComboUsers(comboUsers) {
+function fillComboUsers(comboUsers, userSelected) {
     var sql = "select username from USERS order by username";
+    var userMe = getCurrentTrelloUser();
+    var user = g_strUserMeOption;
+    comboUsers.empty();
+    comboUsers.append($(new Option(user, user))); //make it available right away as caller might select it
     getSQLReport(sql, [],
 		function (response) {
 		    var map = {};
+		    function add(user) {
+		        var opt = new Option(user, user);
+		        if (user == userSelected)
+		            opt.selected = true;
+		        comboUsers.append($(opt));
+
+		    }
 		    if (response.status == STATUS_OK) {
-		        var userMe = getCurrentTrelloUser();
-		        var user = g_strUserMeOption;
-		        comboUsers.append($(new Option(user, user)));
 		        for (var i = 0; i < response.rows.length; i++) {
 		            user = response.rows[i].username;
+		            if (user == g_valUserExtra)
+		                g_valUserExtra = null;
 		            if (user == userMe)
 		                continue;
-		            comboUsers.append($(new Option(user, user)));
+		            add(user);
 		        }
 		    }
+		    if (g_valUserExtra)
+		        add(g_valUserExtra);
+		    add(g_strUserOtherOption);
 		});
 }
 
@@ -166,7 +184,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 
 	var container = $("<div></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
-	var tableStats = $("<table class='agile-se-bar-table agile-se-stats'></table>");
+	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry'></table>");
 	containerStats.append(tableStats);
 	container.append(containerStats);
@@ -177,7 +195,47 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_users_box_input"));
 	comboUsers.attr("title", "Click to select the user for this new S/E row.");
 	fillComboUsers(comboUsers);
-	comboUsers.change(function (e) { updateNoteR(); });
+	comboUsers.change(function () {
+	    updateNoteR();
+	    var combo = $(this);
+	    var val = combo.val();
+	    if (!val)
+	        return;
+	    var userNew="";
+	    function promptNewUser() {
+	        userNew = prompt("Enter the Trello username.\nThat member will see s/e only if is a board member.", userNew);
+	        if (userNew)
+	            userNew = userNew.trim().toLowerCase();
+	        if (userNew && userNew.indexOf("@") == 0)
+	            userNew = userNew.substring(1);
+	        if (userNew == g_strUserOtherOption)
+	            userNew = "";
+	        
+	        if (userNew)
+	            g_valUserExtra = userNew;
+	        fillComboUsers(combo, userNew);
+	        if (userNew && userNew.indexOf("global")!=0) { //global user is proposed in faq. dont confuse those users.
+	            var idCardCur = getIdCardFromUrl(document.URL);
+	            if (!idCardCur)
+	                return; //shouldnt happen and no biggie if does
+	            var board = getCurrentBoard();
+	            if (!board)
+	                return; //shouldnt happen and no biggie if does
+	            FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
+	                verifyBoardMember(userNew, idBoardFound, function () {
+	                    //user not found as board member
+	                    if (!confirm("'"+userNew+"' is not a member of '"+board+"'.\nAre you sure you want to use this user?\nPress OK to use it. Press Cancel to type it again.")) {
+	                        promptNewUser();
+	                    }
+	                });
+	            });
+	        }
+	    }
+
+	    if (val == g_strUserOtherOption)
+	        promptNewUser();
+	});
+
 	var comboDays = setSmallFont($('<select id="plusCardCommentDays"></select>').addClass("agile_days_box_input"));
 	comboDays.attr("title", "Click to pick how many days ago it happened.");
 	var iDays = null;
@@ -389,6 +447,25 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	});
 }
 
+function verifyBoardMember(userLowercase, idShortBoard, callbackNotFound) {
+    assert(callbackNotFound);
+    sendExtensionMessage({ method: "getTrelloBoardData", tokenTrello: null, idBoard: idShortBoard, fields: "memberships&memberships_member=true&memberships_member_fields=username" },
+            function (response) {
+                if (response.status != STATUS_OK || !response.board)
+                    return;
+                var members = response.board.memberships;
+                if (!members)
+                    return;
+                for (var i = 0; i < members.length; i++) {
+                    var member = members[i].member;
+                    if (member && member.username && member.username.toLowerCase() == userLowercase)
+                        break; //found
+                }
+                if (i == members.length)
+                    callbackNotFound();
+            });
+}
+
 function getSEDate(callback) {
     function getDate(elemDate) {
         var str = elemDate.val();
@@ -546,13 +623,19 @@ function fillCardSEStats(tableStats,callback) {
                         containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
                     var i = 0;
                     //<span style="vertical-align: top;position: relative; top: -0.3em;font-size:0.7em">st</span>
-                    addCardSERowData(tableStats, {
+                    var headTable = $("<thead>");
+                    tableStats.append(headTable);
+                    addCardSERowData(headTable, {
                         user: 'By User',
-                        spent: 'S <span style="font-size:0.85em">sum</span>', estOrig: '<span>E 1ˢᵗ</span>', est: 'E <span style="font-size:0.85em">sum</span>',
+                        spent: 'S <span style="font-size:0.85em">sum</span>',
+                        estOrig: '<span>E 1ˢᵗ</span>',
+                        est: 'E <span style="font-size:0.85em">sum</span>',
                         remain: 'R <span style="font-size:0.80em">(E-S)</span>'
                     }, true);
+                    var bodyTable = $("<tbody>");
+                    tableStats.append(bodyTable);
                     if (response.rows.length == 0) //tour is running
-                        addCardSERowData(tableStats, {
+                        addCardSERowData(bodyTable, {
                             user: 'sample user',
                             spent: '0', estOrig: '0',
                             est: '0',
@@ -562,7 +645,7 @@ function fillCardSEStats(tableStats,callback) {
                     for (; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
-                        addCardSERowData(tableStats, rowData, false);
+                        addCardSERowData(bodyTable, rowData, false);
                         var mapCur = g_seCardCur[rowData.user];
                         if (!mapCur) {
                             mapCur = {
@@ -580,6 +663,13 @@ function fillCardSEStats(tableStats,callback) {
                     elemRptLink.hide();
                 }
                 updateNoteR();
+                tableStats.tablesorter({
+                    headers: {
+                        0: {
+                            sorter: 'links' //our custom sorter
+                        }
+                    }
+                });
                 if (callback)
                     callback();
             });
@@ -750,11 +840,12 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	    row.addClass("agile-card-statrow-data");
 	var td = (bHeader ? '<th />' : '<td />');
 	var u = null;
-	if (bHeader)
-		u = $(td).text(rowData.user);
+	if (bHeader) {
+	    u = $(td).html(rowData.user + g_hackPaddingTableSorter);
+	}
 	else {
 	    var urlReport = '<a class="agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(rowData.idCard) + '&user=' + rowData.user + '" target="_blank">' + rowData.user + '</a>';
-		u = $(td).html(urlReport);
+	    u = $(td).html(urlReport);
 	}
 
 	var bSample = (rowData.bSample);
@@ -768,10 +859,10 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	var r = $(td);
 	var linkMod = $(td).addClass("agile-card-seByUserModify");
 	if (bHeader) {
-	    s.html(sVal);
-	    eOrig.html(eOrigVal);
-	    e.html(eVal);
-	    r.html(rVal);
+	    s.html(sVal+ g_hackPaddingTableSorter);
+	    eOrig.html(eOrigVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
+	    e.html(eVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
+	    r.html(rVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
 	}
 	else {
 	    s.text(sVal);

@@ -23,16 +23,10 @@
 			input.val(g_strServiceUrl);
 		container.append($('<H2 text-align="center"><b>Setup Google sync</b></H2>'));
 		container.append(setFont($('<p><b>Google sync renames card titles to include total S/E.</b></p>')));
-	    //review zig: handle not logged in when all users have chrome v33 onSignInChanged https://developer.chrome.com/apps/identity#event-onSignInChanged
-		container.append(setFont($('<p>If you havent signed-into Chrome, click the Chrome menu to the right \
-<img id="imgChromeMenu" src="' + chrome.extension.getURL("images/chromenu.png") + '" title="Not this one, the one on the top-right of your screen."/> and \
-<A target="_blank" href="https://support.google.com/chrome/answer/185277?hl=en">sign in</A>. <b>This is not the same as being signed into your gmail.</b></p>')));
-
-		container.find("#imgChromeMenu").click(function () {
-			alert("Not this one, the one on the top-right of your screen.");
-		});
-		container.append(setFont($('<p>You must be signed in to Chrome with the same email in all your devices to use Google sync.</p>')));
-		container.append(setFont($('<p>Configure one device only. Your other devices will automatically pick up the new configuration. <b><A target="_blank" href="http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html">Read here</A></b> for more details.</p>')));
+		container.append(setFont($('<p>If you have not <A target="_blank" href="https://support.google.com/chrome/answer/185277?hl=en">signed-into Chrome</A>, \
+Chrome will prompt you to do so if you create or type a spreadsheet url. <b>This is not the same as being signed into your gmail.</b><br>\
+You need to be signed-into Chrome to use this sync mode.</p>')));
+		container.append(setFont($('<p>Configure one device only. Your other devices you have signed-into Chrome will automatically pick up the new configuration. <b><A target="_blank" href="http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html">Read here</A></b> for more details.</p>')));
 		container.append($('<p>&nbsp</p>'));
 		var btnCreate = setFont($('<button id="buttonCreateSs"></button>')).css('margin-bottom', '5px');
 		var strCreate = "Create a new sync spreadsheet";

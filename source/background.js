@@ -809,6 +809,9 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	else if (request.method == "getTrelloCardData") {
 	    handleGetTrelloCardData(request, sendResponse);
 	}
+	else if (request.method == "getTrelloBoardData") {
+	    handleGetTrelloBoardData(request, sendResponse);
+	}
 	else if (request.method == "getTotalDBRows") {
 		handleGetTotalRows(false, sendResponse);
 	}

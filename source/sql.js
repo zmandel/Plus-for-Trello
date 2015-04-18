@@ -837,7 +837,8 @@ function insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet) {
 
 function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTrelloComments) {
     assert(g_db);
-	var i = 0;
+    var i = 0;
+    var usersMapByName = {}; //populated at the beginning with all existing users by name
 	var cProcessedTotal = 0;
 	var cInsertedTotal = 0;
 	var cRows = rows.length;
@@ -924,7 +925,10 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                     var rowInner = row;
                     //console.log("idBoard history:"+rowInner.idBoard);
                     var rowidInner = resultSet.insertId;
-
+                    if (!usersMapByName[row.user] && row.user.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
+                        usersMapByName[row.user] = g_prefixCustomUserId+row.user; //add it so we dont keep adding it for next rows
+                        createNewUser(row.user, tx2);
+                    }
                     //must do this only when history is created, not updated, thus its in here and not outside the history insert.
                     if (rowInner.idCard != ID_PLUSCOMMAND) {
                         if (rowidLastInserted == null || rowidInner > rowidLastInserted) {
@@ -1019,7 +1023,37 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 		}
 	}
 
-	g_db.transaction(processBulkInsert, errorTransaction, okTransaction);
+	function start() {
+	    var sql = "SELECT idMemberCreator,username, dateSzLastTrello FROM USERS";
+	    handleGetReport({ sql: sql, values: [] },
+            function (response) {
+                if (response.status != STATUS_OK) {
+                    sendResponse(response);
+                    return;
+                }
+                for (var i=0; i < response.rows.length; i++) {
+                    var row =  response.rows[i];
+                    usersMapByName[row.username] = row.idMemberCreator;
+                }
+                g_db.transaction(processBulkInsert, errorTransaction, okTransaction);
+            },
+            true);
+	    
+	}
+
+	start();
+}
+
+function createNewUser(nameUser, tx) {
+    //insert a new fake user. Note that user.dateSzLastTrello is set to empty so that its "less" than any future date captured from a card comment
+    tx.executeSql("INSERT OR IGNORE INTO USERS (idMemberCreator,username, dateSzLastTrello) VALUES (?,?,?)", [g_prefixCustomUserId + nameUser, nameUser, ""],
+                            function (tx2, resultSet) {
+                            },
+                            function (tx2, error) {
+                                logPlusError(error.message);
+                                return true; //stop
+                            }
+                        );
 }
 
 function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callbackOnError) {
@@ -1222,7 +1256,7 @@ function handleDeleteDB(request, sendResponseParam) {
 		t.executeSql('DROP TABLE IF EXISTS CARDS');
 		t.executeSql('DROP TABLE IF EXISTS BOARDS');
 		t.executeSql('DROP TABLE IF EXISTS GLOBALS');
-
+		t.executeSql("DELETE FROM USERS where idMemberCreator LIKE '"+g_prefixCustomUserId+"%'"); //remove users that were never verified in card comments
 	}, function (err) {
 		if (console.error)
 			console.error("Error!: %s", err.message);

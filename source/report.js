@@ -32,7 +32,7 @@ var g_dataFormatBoard = { key:KEY_FORMAT_PIVOT_BOARD, interval: null, cLastWrite
 var g_rgTabs = []; //tab data
 
 function getCleanHeaderName(name) {
-    return name.split('\xa0')[0]; //hack: add &nbsp to headers for tablesorter
+    return name.split('\xa0')[0]; //hack: added &nbsp (g_hackPaddingTableSorter) to headers for tablesorter so remove them
 }
 
 function buildUrlFromParams(doc, params, bNoPopupMode) {
@@ -85,7 +85,7 @@ function loadTabs(parent) {
 	for (; i < tabs.length; i++) {
 		var elem = tabs.eq(i);
 		g_rgTabs.push(elem.attr("href"));
-		elem.click(function () {
+		elem.off().click(function () {
 			selectTab(-1, $(this).attr("href"));
 			return false;
 		});
@@ -331,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	    if (!g_bBuildSqlMode)
 	        setupNotifications();
 
-	    $("#agile_reload_page_link").click(function (e) {
+	    $("#agile_reload_page_link").off().click(function (e) {
 	        e.preventDefault();
 	        var params = getUrlParams();
 	        if (g_bAddParamSetLastRowViewedToQuery)
@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 	    function addFocusHandler(elem) {
 	        var specialAll = "*"; //wasted time getting .autocomplete to work on "" so this hack worksarround it
-	        elem.focus(function () {
+	        elem.off("focus.plusForTrello").on("focus.plusForTrello", function () {
 	            if (this.value == "" || this.value == specialAll)
                     $(this).autocomplete("search", specialAll);
 	        });
@@ -382,7 +382,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	        dockOut.attr("src", chrome.extension.getURL("images/dockout.png"));
 	        dockOut.show();
 	        dockOut.css("cursor", "pointer");
-	        dockOut.click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
+	        dockOut.off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
 	            var urlDockout = buildUrlFromParams("report.html", getUrlParams(), true);
 	            chrome.tabs.create({ url: urlDockout });
 	            return false;
@@ -393,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	        back.attr("src", chrome.extension.getURL("images/back.png"));
 	        back.show();
 	        back.css("cursor", "pointer");
-	        back.click(function () {
+	        back.off().click(function () {
 	            window.history.back();
 	            return false;
 	        });
@@ -421,7 +421,7 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 	if (copyWindow.length > 0) {
 		copyWindow.attr("src", chrome.extension.getURL("images/copy.png"));
 		copyWindow.attr("title", "Click to copy table to your clipboard, then paste elsewhere (email, spreadsheet, etc.)");
-		copyWindow.click(function () {
+		copyWindow.off().click(function () {
 			var table = tableContainer;
 			selectElementContents(table[0]);
 		});
@@ -541,13 +541,13 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 	}
 
 	applyFormat();
-	comboFormat.change(function () {
+	comboFormat.off().change(function () {
 		applyFormat();
 	});
-	underElem.on('input',applyFormat);
-	overElem.on('input', applyFormat);
-	colorUnderElem.on('input', applyFormat);
-	colorOverElem.on('input', applyFormat);
+	underElem.off().on('input',applyFormat);
+	overElem.off().on('input', applyFormat);
+	colorUnderElem.off().on('input', applyFormat);
+	colorOverElem.off().on('input', applyFormat);
 }
 
 function rgbFromHex(hex) {
@@ -690,11 +690,11 @@ function loadReport(params) {
 		}
 	}
 
-	comboSinceSimple.change(function () {
+	comboSinceSimple.off().change(function () {
 		updateDateState();
 	});
 
-	comboOrderBy.change(function () {
+	comboOrderBy.off().change(function () {
 		if (comboOrderBy.val() == "remain") {
 			comboSinceSimple.val("");
 			hiliteOnce(comboSinceSimple);
@@ -728,7 +728,7 @@ function loadReport(params) {
 	};
 	for (var iobj in elems) {
 		var elemCur = $("#" + iobj);
-		elemCur.keypress(function (event) {
+		elemCur.off("keypress.plusForTrello").on("keypress.plusForTrello",function (event) {
 			if (g_bIgnoreEnter)
 				return;
 			var keycode = (event.keyCode ? event.keyCode : event.which);
@@ -823,7 +823,7 @@ function loadReport(params) {
 		    configReport(elems, !g_bBuildSqlMode);
 		}
 	}
-	btn.click(function () {
+	btn.off().click(function () {
 		onQuery();
 	});
 
@@ -1086,7 +1086,7 @@ function configureLastViewedRowButton() {
         var buttonMarkRead = $("#buttonMarkallRead");
         buttonMarkRead.show();
         $("#afterRow").attr('disabled', 'disabled');
-        buttonMarkRead.click(function () {
+        buttonMarkRead.off().click(function () {
             buttonMarkRead.attr('disabled', 'disabled');
             setLastViewedRow();
         });
@@ -1177,7 +1177,7 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 		var urlCtrl = buildUrlFromParams("report.html", params, true);
 		tdElem.css("cursor", "-webkit-zoom-in");
 		tdElem.addClass("agile_hoverZoom");
-		tdElem.click(function (e) {
+		tdElem.off().click(function (e) {
 			if (e.ctrlKey)
 				window.open(urlCtrl, '_blank');
 			else

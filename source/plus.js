@@ -516,7 +516,7 @@ function onDbOpened() {
 	                    showTourBubble();
 	            }, 1000);
 	        }
-	       else if (msg.event == EVENTS.NEW_ROWS) {
+	        else if (msg.event == EVENTS.NEW_ROWS) {
 	            //this avoids refreshing the UI if no rows were added since last time
 	            sendExtensionMessage({ method: "getTotalDBRows" },
                     function (response) {
@@ -1201,9 +1201,9 @@ function cancelZoomin(callback, bQuick) {
         zoomed.removeClass("agile_zoomedElement");
         function preCallback() {
             document.body.style.setProperty("-webkit-transform-origin", "none");
+            document.body.style.setProperty("transform-origin", "none");
             document.body.style.setProperty("-webkit-transform", "none");
-            //$("body").css("-webkit-transform", "none");
-            //-webkit-transform-origin: 683px 340.5px; -webkit-transform: translate(852.877738px, 17.218259px) rotate(0rad) skewX(0rad) scale(2.295781, 2.295781);
+            document.body.style.setProperty("transform", "none");
             if (callback) {
                 setTimeout(callback, 10);
             }

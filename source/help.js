@@ -436,6 +436,7 @@ var Help = {
 	        helpWin.para('Current sync spreadsheet url:', divCur);
 	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
 	    }
+	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Plus" from Utilities.', divCur);
 	    helpWin.para("", divCur);
 
 	    var valCombo = null;
@@ -899,7 +900,7 @@ Set the card background based on its first label color.</input>').children('inpu
 
 	    if (true) {
 	        var checkAcceptScrumForTrello = helpWin.raw('<span style="vertical-align:middle;margin-bottom:0px;"><input style="vertical-align:middle;margin-bottom:0px;" type="checkbox"  value="checkedAcceptSFT">\
-Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All users should have the same setting.</input></span>').children('input:checkbox:first');
+Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All users should have the same setting.</input></span>').children('input:checkbox:first');
 	        if (g_bAcceptSFT)
 	            checkAcceptScrumForTrello[0].checked = true;
 
@@ -950,7 +951,7 @@ Accept the Scrum for Trello format: <i>(Estimate) card title [Spent]</i>. All us
 	        });
 	    }
 	    else {
-	        helpWin.para('To allow removal of S/E from card titles enable "Trello card comments" sync and re-open this help.'); //review zig stealth
+	        helpWin.para('Removal of S/E from card titles is only allowed in "Trello card comments" sync mode.'); //review zig stealth
 	    }
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');

@@ -109,6 +109,17 @@ function handleGetTrelloCardData(request, sendResponseParam) {
     }
 }
 
+function handleGetTrelloBoardData(request, sendResponseParam) {
+    var response = { status: "error" };
+    getBoardData(request.tokenTrello, request.idBoard, request.fields, callback);
+
+    function callback(data) {
+        response.status = data.status;
+        response.board = data.board;
+        sendResponseParam(response);
+    }
+}
+
 function makeLastStatusSync(statusRead, statusWrite, date) {
     if (!date)
         date=(new Date()).getTime();

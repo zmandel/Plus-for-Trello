@@ -1,7 +1,7 @@
 ﻿{
     "name": "Plus for Trello (time tracking - scrum)",
     "short_name": "Plus for Trello",
-    "version": "2.12.0",
+    "version": "2.12.1",
     "manifest_version": 2,
     "description": "Timers, hashtags, boards+cards offline search, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
     "icons": {

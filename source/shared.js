@@ -24,7 +24,7 @@ var g_bEnableTrelloSync = false; //review zig this ad g_bDisableSync must be ini
 var g_bDisableSync = false; // 'bDisabledSync' sync prop. note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
 var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
-
+var g_hackPaddingTableSorter = "&nbsp;&nbsp;"; //because we remove many tablesorter css styles, appending spaces to header text was the easiest way to avoid overlap with sort arrow
 var g_dateMinCommentSELegacy = new Date(2014, 11, 12);
 var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
 
@@ -678,7 +678,7 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		var nameCol = header[iHeader].name;
 		if (nameCol.toLowerCase() == "note")
 		    iColComment = iHeader;
-		html.push(th(nameCol + "&nbsp;&nbsp;", bExtendCur)); //nbsp hack so tablesorter arrows dont overlap name
+		html.push(th(nameCol + g_hackPaddingTableSorter, bExtendCur)); //nbsp hack so tablesorter arrows dont overlap name
 	}
 	html.push('</tr></thead><tbody>');
 	var sTotal = 0;
