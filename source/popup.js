@@ -114,7 +114,7 @@ function configureTimerElem(callback) {
                     return;
                 
                 function update() {
-                    button.val(getTimerElemText(stored.msStart, new Date().getTime()));
+                    button.val(getTimerElemText(stored.msStart, Date.now()));
                 }
                 setInterval(function () {
                     update();
@@ -322,7 +322,7 @@ function fillCardResults(divResults, val, bSearchComments, chSplit, cSearchCur) 
 	var cDays = 365; //at most look back one year review zig: make it an option
 	if (bSearchComments)
 		cDays = Math.round(cDays / 3); //4 months of data
-	var sDateLimit = Math.round(((new Date()).getTime() / 1000) - 60 * 60 * 24 * cDays);
+	var sDateLimit = Math.round((Date.now() / 1000) - 60 * 60 * 24 * cDays);
 	var paramsSql = [sDateLimit];
 
 	var sql = "SELECT c.idCard, c.name AS nameCard, b.name as nameBoard, c.idBoard, MAX(cb.date) as maxDate FROM cards AS c LEFT OUTER JOIN cardbalance AS cb ON c.idCard=cb.idCard JOIN boards AS b ON b.idBoard=c.idBoard WHERE  (cb.date is NULL or cb.date >?) AND LOWER(c.name) GLOB ? GROUP BY c.idCard ORDER BY  " + (g_bEnableTrelloSync ? "c.dateSzLastTrello" : "maxDate") + " DESC LIMIT 10";

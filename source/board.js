@@ -616,7 +616,7 @@ function updateBoardUIElem(boardElem) {
 		var value = obj[key];
 		var bHide = true;
 		if (value !== undefined) {
-			if (((new Date().getTime()) - value.t) / 1000 / 60 < g_minutesExpireBoardTotalCache) {
+		    if (((Date.now()) - value.t) / 1000 / 60 < g_minutesExpireBoardTotalCache) {
 				addBadgesToBoardElem(boardElem, value);
 				bHide = false;
 			}

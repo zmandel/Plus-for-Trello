@@ -36,6 +36,33 @@ function isBackendMode(configData) {
 
 var g_bReadGlobalConfig = false;
 
+function showAproveGoogleSyncPermissions(callback) {
+//the main purpose of showing the dialog is to generate a user action (OK click)
+//to ask for new permissions (allowed only during a user action)
+//also, it lets us warn the user about what is about to be asked and why.
+    var divDialog = $(".agile_dialog_showAproveGSP");
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog class="agile_dialog_showAproveGSP agile_dialog_DefaultStyle"> \
+<h2>Plus for Trello - Google Sync permissions</h2><br> \
+<p>Your configuration was synced to this device which requires</p>\
+<p>you to approve permissions after pressing OK.</p>\
+<br>\
+<button style="float:right;" id="agile_dialog_GSP_OK">OK</button> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_showAproveGSP");
+    }
+
+    divDialog.find("#agile_dialog_GSP_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        divDialog[0].close();
+        callback(); 
+    });
+
+    divDialog[0].showModal();
+}
+
+
 function configureSsLinks(bParam) {
 	if (g_strServiceUrl != null) {
 		configureSsLinksWorker(bParam, g_strServiceUrl);
@@ -52,23 +79,76 @@ function configureSsLinks(bParam) {
 				if (strUrlOld)
 					strUrlOld = strUrlOld.trim();
 				else
-					strUrlOld = "";
-				var pairUrlOld = {};
-				pairUrlOld[keyUrlLast] = strUrlNew;
-				chrome.storage.local.set(pairUrlOld, function () {
-					g_strServiceUrl = strUrlNew;
-					if (strUrlOld != strUrlNew) {
-						//config changed from another device.
-						var messageRestart = "Plus detected a new sync configuration. Refreshing...";
-						if (strUrlOld != "") {
-							clearAllStorage(function () {
-								restartPlus(messageRestart);
-							});
-							return;
-						}
-					}
-					configureSsLinksWorker(bParam, strUrlNew);
-				});
+				    strUrlOld = "";
+
+				function continueConfig() {
+				    g_strServiceUrl = strUrlNew;
+				    configureSsLinksWorker(bParam, strUrlNew);
+				}
+
+				function saveLocalUrl(callback) {
+				    var pairUrlOld = {};
+				    pairUrlOld[keyUrlLast] = strUrlNew;
+				    chrome.storage.local.set(pairUrlOld, function () {
+				        if (chrome.runtime.lastError != undefined) {
+				            alert("Plus for Trello:"+chrome.runtime.lastError.message);
+				            return;
+				        }
+				        callback();
+				    });
+				}
+
+				if (strUrlOld != strUrlNew && !g_bDisableSync && !g_optEnterSEByComment.IsEnabled()) {
+				    //config changed from another device.
+				    
+				    if (strUrlOld != "") {
+				        alert("Google sync spreadsheet changed. Plus will reset sync.");
+				        g_strServiceUrl = strUrlNew; //needed for clearAllStorage. in other cases its handled by continueConfig
+				        clearAllStorage(function () {
+				            saveLocalUrl(function () {
+				                restartPlus("Refreshing with updated sync setting.");
+				            });
+				        });
+				    }
+				    else {
+				        //possibly first time it has a sync url. must ask for extension webRequest permissions
+                        //review zig multiple calls to continueConfig can be simplified with promises (need to add polyfill for older chromes)
+				        showAproveGoogleSyncPermissions(function () {
+				            sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+				                if (response.status != STATUS_OK)
+				                    return;
+
+				                if (!response.granted) {
+				                    //here so user doesnt get stuck in a loop if no longer wants to use google sync
+				                    if (confirm("Remove the Google sync url? Only press OK if you want to turn off Google sync.")) {
+				                        chrome.storage.sync.set({ "serviceUrl": "" }, function () {
+				                            if (chrome.runtime.lastError != undefined) {
+				                                alert(chrome.runtime.lastError.message);
+				                                return;
+				                            }
+				                            strUrlNew = "";
+				                            saveLocalUrl(function () {
+				                                continueConfig();
+				                            });
+				                        });
+				                    }
+				                    else {
+				                        alert("You may continue using Plus but sync features may not work correctly.");
+				                        continueConfig();
+				                    }
+				                }
+				                else {
+				                    saveLocalUrl(function () {
+				                        continueConfig();
+				                    });
+				                }
+				            });
+				        });
+				    }
+				}
+				else {
+				    continueConfig();
+				}
 			});
 		});
 	}
@@ -98,16 +178,35 @@ function getCurrentTrelloUser() {
 	if (avatarElem === undefined)
 		return null;
 	var userElem = avatarElem.title;
-	userElem = userElem.split("(")[1];
-	userElem = userElem.split(")")[0];
+
+    //search for the last () pair because the user long name could also have parenthesis
+    //this happens a lot in users with non-western names, where trello adds the western name in parenthesis,
+    //as in "%$#& &%948# (peter chang) (peterchang)"
+	var iParenOpen = userElem.lastIndexOf("(");
+	if (iParenOpen < 0)
+	    return null;
+	userElem = userElem.substring(iParenOpen+1);
+	var iParenClose = userElem.lastIndexOf(")");
+	if (iParenClose < 0 || iParenClose != userElem.length-1)
+	    return null;
+	userElem = userElem.substring(0,iParenClose);
 	if (userElem.length == 0)
 	    return null; //not needed, but might help when trello suddenly changes DOM
 	g_userTrelloCurrent = userElem;
-	//save the user
-	var pairUser = {};
-	pairUser[PROP_TRELLOUSER] = userElem;
-	chrome.storage.local.set(pairUser, function () { });
-
+    //save the user
+	chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
+	    var userTrelloLast = (obj[PROP_TRELLOUSER] || null);
+	    if (userTrelloLast != userElem) {
+	        if (userTrelloLast)
+	            sendDesktopNotification("Warning: Trello user changed. Reset Sync from Plus help" , 30000);
+	        var pairUser = {};
+	        pairUser[PROP_TRELLOUSER] = userElem;
+	        chrome.storage.local.set(pairUser, function () {
+	            if (chrome.runtime.lastError != undefined)
+	                alert("Plus for Trello:" + chrome.runtime.lastError);
+	        });
+	    }
+	});
 	return userElem;
 }
 
@@ -150,6 +249,7 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 	}
 
 	checkCreateRecentFilter(b);
+	urlUserElem.attr("title", g_tipUserTopReport); //reset
 	if (url == "") {
 		g_configData = null;
 		g_bReadGlobalConfig = true;
@@ -160,31 +260,19 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 	function part2() {
 	    sendExtensionMessage({ method: "getConfigData", userTrello: userElem, urlService: url, bSkipCache: bSkipConfigCache },
             function (respConfig) {
-
-                if (!bSkipConfigCache && respConfig.config.userTrello !== undefined && respConfig.config.userTrello != userElem) {
-                    //happens if users share the same chrome user (or no user). We detect if data is from another user. if so clear all storage
-                    //note: respConfig.config.userTrello is undefined when configData is in an intermediate state. will get refreshed below when it detects new version.
-                    sendDesktopNotification("Plus detected a renamed user. Please go to/refresh trello.com, then verify your Plus preferences.", 10000);
-                    clearAllStorage(function () {
-                        //Need to refresh the cached g_configData
-                        configureSsLinksWorker(b, url, true); //reload all
-                    });
-                    return;
-                }
-
-                if (respConfig.config.status != STATUS_OK) {
+                //note: here we used to check for trello user changed. worked for google sync but not for trello sync. that has now moved
+                //to a warning at the time we detect that we change PROP_TRELLOUSER (independent of configData now)
+                //respConfig.config is null in the non-spreadsheet-sync case
+                if (respConfig.config && respConfig.config.status != STATUS_OK) {
                     setTimeout(function () {
                         //set error text later, to avoid cases when user navigates back/away while on this xhr call.
                         setSyncErrorStatus(urlUserElem, respConfig.config.status);
                     }, 500);
                     return;
                 }
-
-                g_configData = respConfig.config; //cache
+                g_configData = respConfig.config; //cached. can be null
                 g_bReadGlobalConfig = true;
                 onReadGlobalConfig(g_configData, userElem);
-                configureSsLinksAdmin(respConfig, b);
-                urlUserElem.attr("title", g_tipUserTopReport);
             });
 	}
 
@@ -197,7 +285,7 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 	        pairTrelloSync["bEnableTrelloSync"] = true;
 	        chrome.storage.sync.set(pairTrelloSync, function () {
 	            if (chrome.runtime.lastError != undefined)
-	                alert(chrome.runtime.lastError);
+	                alert("Plus for Trello:" + chrome.runtime.lastError);
                 else
 	                g_bEnableTrelloSync = true; //note: this is a safe place to init this global. be careful if init code changes.
 	            part2();
@@ -260,7 +348,7 @@ function initialIntervalsSetup() {
 			    if (response.status != STATUS_OK)
 			        return;
 
-			    var msNow = new Date().getTime();
+			    var msNow = Date.now();
 			    if (response.count == 0) {
 			        if (msLastDetectedActivity == 0)
 			            return;
@@ -420,7 +508,7 @@ function checkFirstTimeUse() {
 	var keyDateLastSetupCheck = "dateLastSetupCheck";
 	var keySyncWarn = "bDontShowAgainSyncWarn";
 
-	var msDateNow = new Date().getTime();
+	var msDateNow = Date.now();
 	var bShowHelp = false;
 	var totalDbRowsHistory = 0;
 	sendExtensionMessage({ method: "getTotalDBRows" }, function (response) {
@@ -584,7 +672,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
 
 
         if (g_bDisableSync) {
-            setSyncErrorStatus(urlUser, bFromAuto? STATUS_OK : "Sync is disabled. Enable it from Plus help.");
+            setSyncErrorStatus(urlUser, bFromAuto? STATUS_OK : "Sync is off. Enable it from Plus help.");
             return;
         }
 
@@ -820,33 +908,19 @@ function getSQLReport(sql, values, callback) {
 	});
 }
 
-function configureSsLinksAdmin(resp, b) {
-	if (resp.config === undefined)
-		return;
-
-	if (resp.config.urlAdmin !== undefined) {
-		var urlAdminElem = $("#urlAdminElem");
-		if (urlAdminElem.length == 0) {
-			$('<a id="urlAdminElem" href="' + resp.config.urlAdmin + '" target="_blank">' + 'Admin</a>').
-				css('margin-left', '5px').addClass('agile_plus_header_link').appendTo(b);
-		} else {
-			urlAdminElem.attr("href", resp.config.urlAdmin);
-		}
-	}
-}
 
 function getRecentWeeksList(elemUser) {
 	var combo = $('<select id="spentRecentWeeks" />').addClass("agile_weeks_combo");//.css('margin-left','5px');
 	combo.css('cursor', 'pointer');
 	combo.attr("title","click to change the week being viewed.");
 	var date = new Date();
+	var dateEnd = new Date();
 	var daysDelta = DowMapper.posWeekFromDow(date.getDay());
 	var i = 0;
 	for (; i < 15; i++) {
 	    date.setDate(date.getDate() - daysDelta);
 		var text = getCurrentWeekNum(date);
 		var title = date.toLocaleDateString();
-		var dateEnd = new Date();
 		dateEnd.setDate(date.getDate() + 6);
 		title = title + " - " + dateEnd.toLocaleDateString();
 		combo.append($(new Option(text, text)).addClass('agile_weeks_combo_element').attr("title",title));
@@ -948,8 +1022,6 @@ function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
 	}
 
 	b.fadeIn(300);
-	if (resp.config)
-		configureSsLinksAdmin(resp, b);
 	insertPlusFeed(g_bCreatedPlusHeader);
 	g_bCreatedPlusHeader = false;
 }
@@ -1074,7 +1146,7 @@ function processUserSENotifications(sToday,sWeek) {
 			pair[key] = { strToday: strToday, sToday: sToday };
 			chrome.storage.local.set(pair, function (obj) { });
 			if (sToday!=0)
-			    sendDesktopNotification("Spent today: " + sToday, 4000);
+			    sendDesktopNotification("Spent today: " + sToday, 3000);
 		});
 
 	} catch (e) {
@@ -1259,7 +1331,7 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat) {
 	}
 	divTitleContainer.append(titleModule.text(name));
 	divModule.append(divTitleContainer);
-	var divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item");
+	var divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item notranslate");
 	if (g_bNewTrello)
 		divItem.addClass("agile_spent_item_newTrello");
 	divModule.append(divItem);
@@ -1492,7 +1564,7 @@ function getHtmlDrillDownTooltip(rows, bReverse, colExclude) {
 			urlCard = row.idCard; //old-style card URLs. Could be on old historical data from a previous Spent version
 		else
 			urlCard = "https://trello.com/c/" + row.idCard;
-		rgRet.push({ name: "<A target='_blank' href='" + urlCard + "'>" + strTruncate(row.nameCard) + "</A>", bNoTruncate: true });
+		rgRet.push({ name: "<A href='" + urlCard + "'>" + strTruncate(row.nameCard) + "</A>", bNoTruncate: true }); //no target makes it so trello loads it quickly and the drilldown stays up
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
 		rgRet.push({ type: "S", name: sPush, bNoTruncate: true });

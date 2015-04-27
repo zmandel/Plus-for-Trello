@@ -104,8 +104,8 @@ function commitCardSyncData(tx, alldata) {
         var name = parseSE(card.name, true, g_bAcceptSFT).titleNoSE;
 
         if (card.orig) {
-            if (card.orig.idCard == card.idCard && card.orig.name == name &&
-                card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted && card.orig.idLong == card.idLong) {
+            if (card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&            
+   				card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted && card.orig.idLong == card.idLong) {
                 thisChanged = false;
                 if (card.orig.dateSzLastTrello == card.dateSzLastTrello)
                     continue;

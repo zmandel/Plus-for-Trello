@@ -11,41 +11,34 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 function loadReport() {
-	$("#buttonClear").click(function () {
-		if (!confirm('Are you sure you want to delete the log? You cant undo it.'))
-			return;
-		sendExtensionMessage({ method: "clearAllLogMessages" },
-			function (response) {
-				if (response.status != STATUS_OK) {
-					alert(response.status);
-					return;
-				}
-				configReport();
-			});
-	});
-
-	$("#buttonSendToDev").click(function () {
-
-	    var username = prompt("Log will be sent securely to Plus support.\n\nEnter your email so we can get back to you:", "anonymous");
-	    if (!username)
-	        return;
-	    sendExtensionMessage({ method: "writeLogToPlusSupport", username: username },
+    $("#buttonClear").click(function () {
+        if (!confirm('Are you sure you want to delete the log? You cant undo it.'))
+            return;
+        sendExtensionMessage({ method: "clearAllLogMessages" },
 			function (response) {
 			    if (response.status != STATUS_OK) {
 			        alert(response.status);
 			        return;
 			    }
-			    alert("Thanks for your input!");
-			    $("#buttonSendToDev").prop('disabled', true);
+			    configReport();
 			});
-	});
+    });
 
-	configReport();
+    $("#buttonSendToDev").click(function () {
+        sendExtensionMessage({ method: "writeLogToPlusSupport" },
+            function (response) {
+                if (response.status != STATUS_OK) {
+                    alert(response.status);
+                    return;
+                }
+                $("#buttonSendToDev").prop('disabled', true);
+            });
+    });
+    configReport();
 }
 
-
 function showError(err) {
-	alert(err);
+    alert("Plus for Trello:" + err);
 }
 
 function buildSql(elems) {

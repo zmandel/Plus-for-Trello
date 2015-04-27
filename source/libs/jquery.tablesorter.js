@@ -137,7 +137,7 @@
             /* debuging utils */
 
             function benchmark(s, d) {
-                log(s + "," + (new Date().getTime() - d.getTime()) + "ms");
+                log(s + "," + (Date.now() - d.getTime()) + "ms");
             }
 
             this.benchmark = benchmark;
@@ -820,7 +820,7 @@
                                 }
                             }
                             if (iFound < 0)
-                                list = null;
+                                list = [];
                             else
                                 list = [[iFound, list[0][1]]];
                         }

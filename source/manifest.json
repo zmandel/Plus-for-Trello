@@ -1,7 +1,7 @@
 ﻿{
     "name": "Plus for Trello (time tracking - scrum)",
     "short_name": "Plus for Trello",
-    "version": "2.12.1",
+    "version": "2.12.7",
     "manifest_version": 2,
     "description": "Timers, hashtags, boards+cards offline search, burndowns, spent vs estimate by card/list/board/user/team, reports, history and more!",
     "icons": {
@@ -37,7 +37,7 @@
                 "libs/jquery.min.js",
                 "libs/jquery-ui.custom.min.js",
                 "libs/jquery.cookie.js",
-                "libs/jquery.zoomooz.min.js",
+                "libs/jquery.zoomooz.js",
                 "libs/jsapi.js",
                 "libs/formatchart.js",
                 "libs/jquery.grumble.js",
@@ -57,7 +57,7 @@
                 "tour.js"
             ],
             "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css" ],
-            "run_at": "document_idle"
+            "run_at": "document_start"
         }
     ],
 	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
@@ -68,6 +68,6 @@
         "manifest.json",
         "css/images/*.gif"
     ],
-    "optional_permissions": [ "webRequest","https://trello.com/1/*","https://trello.com/2/*"],
-	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/","https://spreadsheets.google.com/", "https://www.googleapis.com/"]
+    "optional_permissions": [ "webRequest", "https://spreadsheets.google.com/"],
+	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/", "webRequest", "https://trello.com/1/*", "https://www.googleapis.com/"]
 }

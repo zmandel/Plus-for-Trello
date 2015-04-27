@@ -287,6 +287,39 @@ function findMatchingUsers(term, autoResponse) {
     });
 }
 
+
+function findMatchingWeeks(term, autoResponse) {
+    if (term == "*")
+        term = "";
+    var date = new Date();
+    var rg = [];
+    var daysDelta = 7;
+    for (var i = 0; i < 53; i++) {
+        rg.push(getCurrentWeekNum(date));
+        date.setDate(date.getDate() - daysDelta);
+    }
+    autoResponse(term==""?rg : rg.filter(function (item) {
+        return (item.indexOf(term)>=0);
+    }));
+}
+
+function findMatchingMonths(term, autoResponse) {
+    if (term == "*")
+        term = "";
+    var date = new Date();
+    var rg = [];
+    var daysDelta = 7;
+    date.setDate(1);
+    for (var i = 0; i < 24; i++) {
+        rg.push(date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1));
+        date.setMonth(date.getMonth() - 1);
+    }
+    
+    autoResponse(term==""?rg :rg.filter(function (item) {
+        return (item.indexOf(term) >= 0);
+    }));
+}
+
 var g_portBackground = null;
 
 function setupNotifications() {
@@ -344,7 +377,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	        var specialAll = "*"; //wasted time getting .autocomplete to work on "" so this hack worksarround it
 	        elem.off("focus.plusForTrello").on("focus.plusForTrello", function () {
 	            if (this.value == "" || this.value == specialAll)
-                    $(this).autocomplete("search", specialAll);
+	                $(this).autocomplete("search", specialAll);
 	        });
 	    }
 
@@ -371,6 +404,40 @@ document.addEventListener('DOMContentLoaded', function () {
 	            findMatchingLists(request.term, response);
 	        }
 	    }));
+
+
+	    addFocusHandler($("#weekStart").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingWeeks(request.term, response);
+	        }
+	    }));
+
+	    addFocusHandler($("#weekEnd").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingWeeks(request.term, response);
+	        }
+	    }));
+
+	    addFocusHandler($("#monthStart").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingMonths(request.term, response);
+	        }
+	    }));
+
+	    addFocusHandler($("#monthEnd").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingMonths(request.term, response);
+	        }
+	    }));
+
 
 	    loadTabs($("#tabs"));
 
@@ -432,17 +499,20 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 	overElem.val(dataFormat.format.o.v);
 	colorOverElem.val(dataFormat.format.o.c);
 	comboFormat.val(dataFormat.format.f || "smooth");
-	function applyFormat() {
+
+	function applyFormat(bFirstTime) {
+	    if (bFirstTime)
+	        applyFormatWorker(bFirstTime); //review zig: should be ok in setTimeout but here to reduce risk of making this change.
+        else
+	        setTimeout(function () { applyFormatWorker(bFirstTime); },10);
+	}
+
+	function applyFormatWorker(bFirstTime) {
 		var weekCur = getCurrentWeekNum(new Date());
 		var strUnder = underElem.val();
 		var strOver = overElem.val();
 		var valUnder = (strUnder.length ==0? null : parseFloat(strUnder));
 		var valOver = (strOver.length ==0? null : parseFloat(strOver));
-		var cells = g_cacheCells[dataFormat.key];
-		if (cells === undefined) {
-		    cells = tableContainer.find(".agile_pivot_value");
-		    g_cacheCells[dataFormat.key] = cells;
-		}
 		var colorUnder = colorUnderElem.val();
 		var colorOver = colorOverElem.val();
 		var formatType = comboFormat.val();
@@ -464,6 +534,17 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 			underElem.removeAttr('disabled');
 			overElem.removeAttr('disabled');
 		}
+
+		if (bFirstTime && (bNoFormat || (valUnder === null && valOver === null)))
+		    return; //performance
+
+		var cells = g_cacheCells[dataFormat.key];
+		if (cells === undefined) {
+		    cells = tableContainer.find(".agile_pivot_value");
+		    if (!bFirstTime)
+		        g_cacheCells[dataFormat.key] = cells; //cache when called from format change so its fast as the user changes values
+		}
+
 		cells.each(function () {
 			var bUsedUnder = false;
 			var rgb = null;
@@ -540,7 +621,7 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 		});
 	}
 
-	applyFormat();
+	applyFormat(true);
 	comboFormat.off().change(function () {
 		applyFormat();
 	});
@@ -835,7 +916,7 @@ function loadReport(params) {
 
 
 function showError(err) {
-	alert(err);
+    alert("Plus for Trello:" + err);
 }
 
 function completeString(str, pattern) {
@@ -1066,7 +1147,7 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 	g_rgTabScrollData[0] = { scroller: parentScroller.find(".agile_tooltip_scroller"), elemTop: parentScroller, dyTop: 50 }; //review zig: fix this mess
 	var btn = $("#buttonFilter");
 	resetQueryButton(btn);
-	fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams);
+	fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, bNoTruncate);
 	selectTab(g_iTabCur); //select again to adjust height
 	if (g_bNeedSetLastRowViewed) {
 	    g_bNeedSetLastRowViewed = false;
@@ -1120,7 +1201,7 @@ function setLastViewedRow() {
     });
 }
 
-function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
+function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) {
     var pivotBy = urlParams["pivotBy"];
     var bPivotByMonth = (pivotBy == PIVOT_BY.month);
     var bPivotByWeek = (pivotBy == PIVOT_BY.week);
@@ -1143,9 +1224,42 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 	var pivotStart = "weekStart";
 	var pivotEnd = "weekEnd";
 
-	if (bPivotByMonth) {
+	if (bPivotByMonth || bPivotByYear) {
 	    pivotStart = "monthStart";
 	    pivotEnd = "monthEnd";
+	}
+
+	function handleClickZoom(table) {
+	    table[0].addEventListener('click',
+	  function (ev) {
+	      var t = ev.target;
+
+	      var elemThis = $(t).closest('th,td');
+	      var data = elemThis.data("agile_reportzoom");
+	      if (!data)
+	          return;
+
+	      var params = getUrlParams();
+	      for (var i = 0; i < data.replaces.length; i++) {
+	          var rep = data.replaces[i];
+	          params[rep.name] = rep.value;
+	      }
+
+	      if (data.bPivotByWeek)
+	          params["pivotBy"] = PIVOT_BY.day;
+	      else if (data.bPivotByYear || data.bPivotByMonth)
+	          params["pivotBy"] = PIVOT_BY.month;
+	      else
+	          params["tab"] = 0;
+
+	      if (data.bRemoveSimpleDateFilter)
+	          params["sinceSimple"] = FILTER_DATE_ADVANCED;
+
+	      if (ev.ctrlKey)
+	          window.open(buildUrlFromParams("report.html", params, true), '_blank');
+	      else
+	          window.location.href = buildUrlFromParams("report.html", params);
+	  }, false);
 	}
 
 	function addClickZoom(tdElem, urlParams, replaces, bRemoveSimpleDateFilter, title) {
@@ -1153,38 +1267,26 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 		if (title != "")
 		    tdElem.prop("title", title);
 
-		if (bPivotByDate || bPivotByYear)
+		if (bPivotByDate)
 		    return; //REVIEW todo
 
 	    //note: would be better to use anchors but I couldnt get them to be clickable in the whole cell so I went back
-	    //to using a click handler on the cell
-		var i = 0;
-		var params = cloneObject(urlParams); //each click callback needs its own
-		for (; i < replaces.length; i++) {
-			var rep = replaces[i];
-			params[rep.name] = rep.value;
-		}
-
-		if (!bPivotByWeek)
-		    params["tab"] = 0;
-		else
-		    params["pivotBy"] = PIVOT_BY.day;
-
-		if (bRemoveSimpleDateFilter)
-		    params["sinceSimple"] = FILTER_DATE_ADVANCED;
-
-		var url = buildUrlFromParams("report.html", params);
-		var urlCtrl = buildUrlFromParams("report.html", params, true);
+	    //to using a click handler on the cell	
 		tdElem.css("cursor", "-webkit-zoom-in");
 		tdElem.addClass("agile_hoverZoom");
-		tdElem.off().click(function (e) {
-			if (e.ctrlKey)
-				window.open(urlCtrl, '_blank');
-			else
-				window.location.href = url;
-		});
+        //offload creating zoom url to the moment the cell is clicked. that way we get the correct iTab and possible url modifications from elsewhere
+		var data = {
+		    replaces: replaces,
+		    bPivotByWeek: bPivotByWeek,
+		    bPivotByMonth: bPivotByMonth,
+		    bPivotByYear: bPivotByYear,
+		    bRemoveSimpleDateFilter: bRemoveSimpleDateFilter
+		};
+		tdElem.data("agile_reportzoom", data);
 	}
 
+	handleClickZoom(elemTableUser);
+	handleClickZoom(elemTableBoard);
 	var iCol = 0;
 	var val = null;
 	var tdElem = null;
@@ -1260,7 +1362,9 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams) {
 	//BY BOARD
 	for (iRow=0; iRow < tables.byBoard.length; iRow++) {
 		trBoard = $("<tr>");
-		var nameBoard = tables.byBoard[iRow][0].name;
+		var nameBoard = tables.byBoard[iRow][0].name || ""; //total rows dont have names
+		if (!bNoTruncate)
+		    nameBoard = strTruncate(nameBoard);
 		var tdBoardCol = $(strTd).text(nameBoard).addClass("agile_pivotFirstCol");
 		trBoard.append(tdBoardCol);
 		var valIdBoard = tables.byBoard[iRow][0].idBoard;
@@ -1560,7 +1664,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 
 		if (bShowBoard) {
 			var urlBoard = "https://trello.com/b/" + row.idBoardH;
-			rgRet.push({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + strTruncate(row.nameBoard) + "</A>", bNoTruncate: true });
+			rgRet.push({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + (bNoTruncate?row.nameBoard:strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
 		}
 
 		if (bShowList) {
@@ -1576,7 +1680,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 			else
 				urlCard = "https://trello.com/c/" + row.idCardH;
 
-			rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + strTruncate(row.nameCard) + "</A>", bNoTruncate: true });
+			rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + (bNoTruncate?row.nameCard:strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
 		}
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);

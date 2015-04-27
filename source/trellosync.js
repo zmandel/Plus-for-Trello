@@ -55,7 +55,7 @@ var g_syncStatus = {
         this.cProcessed = 0;
         this.cSteps = cSteps;
 
-        var msNow = new Date().getTime();
+        var msNow = Date.now();
         if (this.bSyncing && !bSyncingOld) {
             this.msStart = msNow;
             this.msLast = msNow;
@@ -122,7 +122,7 @@ function handleGetTrelloBoardData(request, sendResponseParam) {
 
 function makeLastStatusSync(statusRead, statusWrite, date) {
     if (!date)
-        date=(new Date()).getTime();
+        date = Date.now();
     return { statusRead: statusRead, statusWrite: statusWrite, date: date };
 }
 
@@ -137,7 +137,7 @@ function handleSyncBoards(request, sendResponseParam) {
             if (g_optEnterSEByComment.IsEnabled()) {
                 var pairDateLast = {};
                 var pairLastStatus = {};
-                var dateNow = (new Date()).getTime();
+                var dateNow = Date.now();
                 if (response.status == STATUS_OK)
                     pairDateLast["plus_datesync_last"] = dateNow;
                 chrome.storage.local.set(pairDateLast, function () {
@@ -152,7 +152,7 @@ function handleSyncBoards(request, sendResponseParam) {
         }
 
         if (g_bDisableSync) {
-            sendResponseParam({ status: "sync is disabled" });
+            sendResponseParam({ status: "sync is off" });
             return;
         }
 
@@ -376,6 +376,8 @@ function completeMissingListCardData(tokenTrello, alldata, sendResponse) {
             }
             else {
                 card.idList = IDLIST_UNKNOWN;
+                //not setting card.idBoard = IDBOARD_UNKNOWN; //review zig: this would be good for consistency, but may not be a good idea when a card was deleted or loses permission we dont want to lose the board it beloged to
+                //thus, because of this currently its not always true that a card's list belongs to the same board as the card in the db
                 if (cardData.bDeleted) {
                     card.bDeleted = true;
                     card.bArchived = true;
@@ -994,8 +996,10 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
                     //this loop must be done every time there is a moved list since we need to know the cards inside at that point in time
                     for (var shortLinkCard in alldata.cards) {
                         var cardCur = alldata.cards[shortLinkCard];
-                        if (cardCur.idList == idList && (cardCur.dateSzLastTrello == null || actionCur.date >= cardCur.dateSzLastTrello))
+                        if (cardCur.idList == idList && (cardCur.dateSzLastTrello == null || actionCur.date >= cardCur.dateSzLastTrello)) {
+                            cardCur.dateSzLastTrello = actionCur.date;
                             cardCur.idBoard = listCur.idBoard;
+                        }
                     }
 
                     stepDone(STATUS_OK);
@@ -1117,11 +1121,17 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
                     if (cardAction.name) //not present on deleteCard
                         cardCur.name = cardAction.name;
                     cardCur.dateSzLastTrello = actionCur.date;
+                    if (true) {
+						//for consistency, thou note that its not always true that an unknown list means unknown board
+						if (idBoard == IDBOARD_UNKNOWN)
+                        	idList = IDLIST_UNKNOWN;
+					}
                     if (idList != null && idList != cardCur.idList)
                         cardCur.idList = idList; //review zig handle list membership change here. handle IDLIST_UNKNOWN too
 
                     cardCur.idBoard = idBoard;
-                        
+                    
+
                     if (cardAction.closed !== undefined)
                         cardCur.bArchived = cardAction.closed;
                 }
@@ -1157,6 +1167,16 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
             if (!actionCur.data.card.shortLink)
                 queue.push(addShortLinkToCard);
             queue.push(processCardAction);
+
+
+            var idCardLongDebug = null;
+
+            if (idCardLongDebug && idCardLongDebug == actionCur.data.card.id) {
+                //debug helper
+                var x = 1;
+                x++;
+            }
+
         }
         if (typeAction == "commentCard" && bProcessCommentSE)
             queue.push(processCommentSEAction);
@@ -1191,7 +1211,7 @@ function getBoardData(tokenTrello, idBoard, fields, callback, waitRetry) {
                     }
                 } else {
                     //boards cant be deleted, but leave it here for future possibility. REVIEW zig: board delete case isnt handled in sync
-                    var bDeleted = (xhr.status == 404 || xhr.status == 400); //400 shouldnt really happen. old plus data from spreadsheets has this in cw360 because it was added manually to ss
+                    var bDeleted = (xhr.status == 404);
                     if (xhr.status == 401 || bDeleted) { //no permission to the board, or board deleted already
                         objRet.hasPermission = false;
                         objRet.status = STATUS_OK;
@@ -1216,8 +1236,11 @@ function getBoardData(tokenTrello, idBoard, fields, callback, waitRetry) {
                     }
                 }
 
-                if (!bReturned)
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error. idBoard: " + idBoard);
                     callback(objRet);
+                }
             }
         }
     };
@@ -1274,8 +1297,11 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
                     }
                 }
 
-                if (!bReturned)
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error. idList: " + idList);
                     callback(objRet);
+                }
             }
         }
     };
@@ -1311,7 +1337,7 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    var bDeleted = (xhr.status == 404 || xhr.status == 400); //400 shouldnt really happen. old plus data from spreadsheets has this in cw360 because it was added manually to ss
+                    var bDeleted = (xhr.status == 404);
                     if (xhr.status == 401 || bDeleted) { //no permission to the board, or card deleted already
                         objRet.hasPermission = false;
                         objRet.status = STATUS_OK;
@@ -1336,8 +1362,11 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                     }
                 }
 
-                if (!bReturned)
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error. idCardLong: " + idCardLong);
                     callback(objRet);
+                }
             }
         }
     };
@@ -1345,7 +1374,7 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
     xhr.open("GET", url);
     xhr.send();
 }
-var BOARD_ACTIONS_LIST = "deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,,updateBoard,moveListFromBoard,moveListToBoard,updateCard:idList,updateCard:closed,updateCard:name,updateList:closed,updateList:name";
+var BOARD_ACTIONS_LIST = "deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard:idList,updateCard:closed,updateCard:name,updateList:closed,updateList:name";
 
 function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, strDateAfter, actionsSkip, callback, waitRetry) {
     //https://trello.com/docs/api/board/index.html#get-1-boards-board-id-actions
@@ -1430,8 +1459,11 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                     }
                 }
 
-                if (!bReturned)
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error. idBoard: " + idBoard);
                     callback(objRet);
+                }
             }
         }
     };
@@ -1511,7 +1543,19 @@ function getAllTrelloBoardActions(tokenTrello, boardsReport, boardsTrello, sendR
 
 
         function onFinishedAll(status) {
-            results.sort(function (a, b) { return a.date.localeCompare(b.date); });
+            results.sort(function (a, b) {
+                var cmp = a.date.localeCompare(b.date);
+                if (cmp == 0) {
+                    //some paired trello actions like moveCardFromBoard/moveCardToBoard receive the exact same date, thus a simple sort by date
+                    //could end up flipping those pairs. This caused a bug before 2.11.5 where, depending on the order that the actions were queried, the pairs
+                    //could end up inverted
+                    if (a.type.indexOf("From") >= 0 && b.type.indexOf("To") >= 0)
+                        return -1;
+                    else if (b.type.indexOf("From") >= 0 && a.type.indexOf("To") >= 0)
+                        return 1;
+                }
+                return cmp;
+            });
             if (results.length) {
                 saveAsFile(results, "resultsSorted-"+results.length+".json");
                 saveAsFile(statusProcess, "statusProcess.json");
@@ -1591,20 +1635,13 @@ function getAllTrelloBoardActions(tokenTrello, boardsReport, boardsTrello, sendR
 
 
 function getBoardsLastInfo(tokenTrello, callback) {
-    chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
-        var userTrello = (obj[PROP_TRELLOUSER] || null);
-        if (userTrello == null) {
-            callback({ status: "error: no trello user. Go to trello.com with an active user." });
-            return;
-        }
-        getBoardsLastInfoWorker(tokenTrello, callback, userTrello);
-    });
+    getBoardsLastInfoWorker(tokenTrello, callback);
 }
 
 
-function getBoardsLastInfoWorker(tokenTrello, callback, userTrello, waitRetry) {
+function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
     //https://trello.com/docs/api/member/index.html
-    var url = "https://trello.com/1/members/" + userTrello + "/boards?fields=name,closed,shortLink&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date";
+    var url = "https://trello.com/1/members/me/boards?fields=name,closed,shortLink&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date";
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {
@@ -1633,7 +1670,7 @@ function getBoardsLastInfoWorker(tokenTrello, callback, userTrello, waitRetry) {
                             bReturned = true;
                             setTimeout(function () {
                                 console.log("Plus: retrying api call");
-                                getBoardsLastInfoWorker(tokenTrello, callback, userTrello, waitNew);
+                                getBoardsLastInfoWorker(tokenTrello, callback, waitNew);
                             }, waitNew);
                         }
                         else {
@@ -1648,8 +1685,11 @@ function getBoardsLastInfoWorker(tokenTrello, callback, userTrello, waitRetry) {
                     }
                 }
 
-                if (!bReturned)
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error: getBoardsLastInfoWorker");
                     callback(objRet);
+                }
             }
         }
     };

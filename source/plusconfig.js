@@ -65,160 +65,183 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		});
 
 		btnCreate.click(function () {
-			setBusy(true);
-			btnCreate.prop('disabled', true);
-			btnCreate.text("Creating spreadsheet. Approve Google permissions..");
-			sendDesktopNotification("Please wait while Plus creates your sync spreadsheet.", 6000);
-			sendExtensionMessage({ method: "createNewSs" },
-			function (response) {
-				setBusy(false);
-				if (response.status != STATUS_OK) {
-					setTimeout(function () { //review zig: convert all requests to sendmessage. here timeout needed because alert causes exception
-						alert("error: " + response.status);
-						btnCreate.text(strCreate);
-						btnCreate.prop('disabled', false);
-						return;
-					}, 100);
-					return;
-				}
-				btnCreate.text("Spreadsheet created OK");
-				btnCreate.prop('disabled', true);
-				var urlCreated = "https://docs.google.com/spreadsheets/d/" + response.id + "/edit#gid=0";
-				input.val(urlCreated);
-				btnOk.css("background", "yellow");
-				if (true) {
-				    var urlClean = urlCreated.split("#")[0];
-				    var strSharingNote = " <A target='_blank' href='" + urlClean + "&usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
-				    container.append(setFont($('<p>' + strSharingNote + '</p>')));
-				}
-				if (g_strServiceUrl && g_strServiceUrl != "") {
-				    container.append(setFont($('<p>To revoke permissions to your Google Drive go <a target="_blank" href="https://security.google.com/settings/security/permissions">here</a></p>')));
-				}
-			});
+
+		    function worker() {
+		        setBusy(true);
+		        btnCreate.prop('disabled', true);
+		        btnCreate.text("Creating spreadsheet. Approve Google permissions..");
+		        sendDesktopNotification("Please wait while Plus creates your sync spreadsheet.", 10000);
+		        sendExtensionMessage({ method: "createNewSs" },
+                function (response) {
+                    setBusy(false);
+                    if (response.status != STATUS_OK) {
+                        setTimeout(function () { //review zig: convert all requests to sendmessage. here timeout needed because alert causes exception
+                            alert("error: " + response.status);
+                            btnCreate.text(strCreate);
+                            btnCreate.prop('disabled', false);
+                            return;
+                        }, 100);
+                        return;
+                    }
+                    btnCreate.text("Spreadsheet created OK");
+                    btnCreate.prop('disabled', true);
+                    var urlCreated = "https://docs.google.com/spreadsheets/d/" + response.id + "/edit#gid=0";
+                    input.val(urlCreated);
+                    btnOk.css("background", "yellow");
+                    if (true) {
+                        var urlClean = urlCreated.split("#")[0];
+                        var strSharingNote = " <A target='_blank' href='" + urlClean + "&usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
+                        container.append(setFont($('<p>' + strSharingNote + '</p>')));
+                    }
+                    if (g_strServiceUrl && g_strServiceUrl != "") {
+                        container.append(setFont($('<p>To revoke permissions to your Google Drive go <a target="_blank" href="https://security.google.com/settings/security/permissions">here</a></p>')));
+                    }
+                });
+		    }
+
+		    sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+		        if (response.status == STATUS_OK && response.granted)
+		            worker();
+		    });
+		    
 		});
+
 		btnOk.click(function () {
 		    if (thisLocal.bClosed) //not sure if it can happen. for safety in case it gets on a partial failure state.
 		        return;
 
-			var url = input.val().trim();
-			var bError = false;
-			var bReset = thisLocal.bReset;
-			thisLocal.bReset = false;
-			if (!bReset && (g_strServiceUrl == url || (g_strServiceUrl == null && url == ""))) {
-				PlusConfig.close(false);
-				return;
+		    var url = input.val().trim();
+		    var bError = false;
+		    var bReset = thisLocal.bReset;
+		    thisLocal.bReset = false;
 
-			}
-			var bSimplePlus = (url.indexOf("https://docs.google.com/") == 0);
-			if (url != "" && !bSimplePlus &&
-				url.indexOf("https://script.google.com/") != 0) {
-				alert("Invalid url format. Enter the correct url, or cancel.");
-				return;
-			}
+		    if (!bReset && (g_strServiceUrl == url || (g_strServiceUrl == null && url == ""))) {
+		        PlusConfig.close(false);
+		        return;
 
-			if (url.indexOf("/d/")>=0) {
-			    var parts = url.split("#gid=");
-			    if (parts.length < 2 || parts[1] != "0") {
-			        alert("Only new google sheets with #gid=0 can be accepted.");
-			        return;
-			    }
-			}
-			if (bSimplePlus && ((url.indexOf("key=") < 0 && url.indexOf("/d/") < 0) || url.indexOf("#gid=") < 0)) {
-				alert("Invalid Google spreadsheet url format. Make sure it has #gid=");
-				return;
-			}
+		    }
 
-			var strOldStorage = g_strServiceUrl;
+		    if (url == "")
+		        worker();
+		    else {
+		        sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+		            if (response.status == STATUS_OK && response.granted)
+		                worker();
+		        });
+		    }
 
-			if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length>0) {
-			    if (!confirm("By changing the URL, all S/E rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
-				    return;
-			}
+		    function worker() {
+		        var bSimplePlus = (url.indexOf("https://docs.google.com/") == 0);
+		        if (url != "" && !bSimplePlus &&
+                    url.indexOf("https://script.google.com/") != 0) {
+		            alert("Invalid url format. Enter the correct url, or cancel.");
+		            return;
+		        }
 
-			sendExtensionMessage({ method: "isSyncing" },
-				function (response) {
-				    if (response.status != STATUS_OK) {
-				        alert(response.status);
-				        return;
-				    }
+		        if (url.indexOf("/d/") >= 0) {
+		            var parts = url.split("#gid=");
+		            if (parts.length < 2 || parts[1] != "0") {
+		                alert("Only new google sheets with #gid=0 can be accepted.");
+		                return;
+		            }
+		        }
+		        if (bSimplePlus && ((url.indexOf("key=") < 0 && url.indexOf("/d/") < 0) || url.indexOf("#gid=") < 0)) {
+		            alert("Invalid Google spreadsheet url format. Make sure it has #gid=");
+		            return;
+		        }
 
-				    if (response.bSyncing) {
-				        //note: this isnt perfect but will cover most concurrency cases
-				        alert("Plus is currently syncing. Try again later.");
-				        return;
-				    }
+		        var strOldStorage = g_strServiceUrl;
+
+		        if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length > 0) {
+		            if (!confirm("By changing the URL, all S/E rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
+		                return;
+		        }
+
+		        sendExtensionMessage({ method: "isSyncing" },
+                    function (response) {
+                        if (response.status != STATUS_OK) {
+                            alert(response.status);
+                            return;
+                        }
+
+                        if (response.bSyncing) {
+                            //note: this isnt perfect but will cover most concurrency cases
+                            alert("Plus is currently syncing. Try again later.");
+                            return;
+                        }
 
 
-				    sendExtensionMessage({ method: "getTotalDBRowsNotSync" },
-					    function (response) {
-					        if (response.status != STATUS_OK) {
-					            alert(response.status);
-					            return;
-					        }
+                        sendExtensionMessage({ method: "getTotalDBRowsNotSync" },
+                            function (response) {
+                                if (response.status != STATUS_OK) {
+                                    alert(response.status);
+                                    return;
+                                }
 
-					        if (g_strServiceUrl && g_strServiceUrl.length > 0 && response.cRowsTotal > 0) {
-					            if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and refresh trello so a sync starts."))
-					                return;
-					        }
+                                if (g_strServiceUrl && g_strServiceUrl.length > 0 && response.cRowsTotal > 0) {
+                                    if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and refresh trello so a sync starts."))
+                                        return;
+                                }
 
-					        //handle sync URL change
-					        g_strServiceUrl = url;
+                                //handle sync URL change
+                                g_strServiceUrl = url;
 
-					        function setLocalUrlAndRestart() {
-					            //need to store it also in local, otherwise the restart will detect that sync changed but we already handled that.
-					            var pairUrlLocal = {};
-					            pairUrlLocal['serviceUrlLast'] = g_strServiceUrl;
-					            chrome.storage.local.set(pairUrlLocal, function () {
-					                var bOldEnableTrelloSync = g_bEnableTrelloSync;
-                                    
-					                if (g_optEnterSEByComment.bEnabled || (g_strServiceUrl != "" && (!g_bEnableTrelloSync || g_bDisableSync)) ||
-                                        (g_strServiceUrl == "" && (g_bEnableTrelloSync || !g_bDisableSync))) {
-					                    var pairTrelloSync = {};
-					                    var bNewEnableTrelloSync = (g_strServiceUrl != "");
-					                    var bNewDisableSync = !bNewEnableTrelloSync;
-					                    if (g_bEnableTrelloSync != bNewEnableTrelloSync)
-					                        pairTrelloSync["bEnableTrelloSync"] = bNewEnableTrelloSync;
-					                    if (bNewDisableSync != g_bDisableSync)
-					                        pairTrelloSync["bDisabledSync"] = bNewDisableSync;
-					                    if (g_optEnterSEByComment.bEnabled)
-					                        pairTrelloSync["bEnterSEByCardComments"] = false; //turn it off as it has precedence over spreadsheet sync
-					                    chrome.storage.sync.set(pairTrelloSync, function () {
-					                        if (chrome.runtime.lastError) {
-					                            alert(chrome.runtime.lastError.message);
-					                            return;
-					                        }
-					                        g_bEnableTrelloSync = bNewEnableTrelloSync;
-					                        g_optEnterSEByComment.bEnabled = false;
-					                        g_bDisableSync = bNewDisableSync;
-					                        if (!bOldEnableTrelloSync && bNewEnableTrelloSync)
-					                            alert("Your first sync will start now.\nKeep using Trello normally but do not close Trello until sync finishes.");
-					                        PlusConfig.close(true);
-					                    });
-					                }
-					                else {
-					                    PlusConfig.close(true);
-					                }
-					            });
-					        }
+                                function setLocalUrlAndRestart() {
+                                    //need to store it also in local, otherwise the restart will detect that sync changed but we already handled that.
+                                    var pairUrlLocal = {};
+                                    pairUrlLocal['serviceUrlLast'] = g_strServiceUrl;
+                                    chrome.storage.local.set(pairUrlLocal, function () {
+                                        var bOldEnableTrelloSync = g_bEnableTrelloSync;
 
-					        if (!bReset && bSimplePlus && (strOldStorage == null || strOldStorage.trim() == "")) {
-					            //preserve storage if its going from 'no sync' -> 'sync'
-					            chrome.storage.sync.set({ 'serviceUrl': g_strServiceUrl },
-                                    function () {
-                                        if (chrome.runtime.lastError) {
-                                            alert(chrome.runtime.lastError.message);
-                                            return;
+                                        if (g_optEnterSEByComment.bEnabled || (g_strServiceUrl != "" && (!g_bEnableTrelloSync || g_bDisableSync)) ||
+                                            (g_strServiceUrl == "" && (g_bEnableTrelloSync || !g_bDisableSync))) {
+                                            var pairTrelloSync = {};
+                                            var bNewEnableTrelloSync = (g_strServiceUrl != "");
+                                            var bNewDisableSync = !bNewEnableTrelloSync;
+                                            if (g_bEnableTrelloSync != bNewEnableTrelloSync)
+                                                pairTrelloSync["bEnableTrelloSync"] = bNewEnableTrelloSync;
+                                            if (bNewDisableSync != g_bDisableSync)
+                                                pairTrelloSync["bDisabledSync"] = bNewDisableSync;
+                                            if (g_optEnterSEByComment.bEnabled)
+                                                pairTrelloSync["bEnterSEByCardComments"] = false; //turn it off as it has precedence over spreadsheet sync
+                                            chrome.storage.sync.set(pairTrelloSync, function () {
+                                                if (chrome.runtime.lastError) {
+                                                    alert(chrome.runtime.lastError.message);
+                                                    return;
+                                                }
+                                                g_bEnableTrelloSync = bNewEnableTrelloSync;
+                                                g_optEnterSEByComment.bEnabled = false;
+                                                g_bDisableSync = bNewDisableSync;
+                                                if (!bOldEnableTrelloSync && bNewEnableTrelloSync)
+                                                    alert("Your first sync will start now.\nKeep using Trello normally but do not close Trello until sync finishes.");
+                                                PlusConfig.close(true);
+                                            });
                                         }
-                                        setLocalUrlAndRestart();
+                                        else {
+                                            PlusConfig.close(true);
+                                        }
                                     });
-					            return;
-					        }
+                                }
 
-					        clearAllStorage(function () { //review zig misnamed. clears all storage except a few like the sync url.
-					            setLocalUrlAndRestart();
-					        });
-					    });
-				});
+                                if (!bReset && bSimplePlus && (strOldStorage == null || strOldStorage.trim() == "")) {
+                                    //preserve storage if its going from 'no sync' -> 'sync'
+                                    chrome.storage.sync.set({ 'serviceUrl': g_strServiceUrl },
+                                        function () {
+                                            if (chrome.runtime.lastError) {
+                                                alert(chrome.runtime.lastError.message);
+                                                return;
+                                            }
+                                            setLocalUrlAndRestart();
+                                        });
+                                    return;
+                                }
+
+                                clearAllStorage(function () { //review zig misnamed. clears all storage except a few like the sync url.
+                                    setLocalUrlAndRestart();
+                                });
+                            });
+                    });
+		    }
 		});
 		container.hide();
 		body.append(container);
@@ -243,7 +266,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 
 function restartPlus(message) {
 	setBusy(true);
-	sendDesktopNotification(message, 4000);
+	sendDesktopNotification(message, 7000);
     //note: we dont use location.reload because help toc could have added # to the url thus reload will fail
 	if (Help.isVisible())
 	    Help.close(true);

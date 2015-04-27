@@ -413,7 +413,7 @@ function logException(e, str) {
 
 function sendDesktopNotification(strNotif, timeout) {
     if (timeout === undefined)
-        timeout = 4000;
+        timeout = 7000;
 
     sendExtensionMessage({ method: "showDesktopNotification", notification: strNotif, timeout: timeout }, function (response) { });
 }
@@ -646,9 +646,9 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		var html = "<tr class='"+strClassRow+"'" + strPost + ">";
 		var iCol = 0;
 		for (; iCol < tds.length; iCol++) {
-		    html += td(tds[iCol].name, tds[iCol].bNoTruncate, tds[iCol].type);
+		    html = html + td(tds[iCol].name, tds[iCol].bNoTruncate, tds[iCol].type);
 		}
-		html += "</tr>";
+		html = html + "</tr>";
 		return html;
 	}
 
@@ -656,17 +656,17 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	var htmlTop = '';
 
 	if (!bOnlyTable) {
-		htmlTop += '<div class="agile_tooltipContainer agile_arrow_opened">';
+	    htmlTop = htmlTop + '<div class="agile_tooltipContainer agile_arrow_opened">';
 	}
 	
-	var html = [""]; //html[0] i placeholder for htmlTop
+	var html = "";
 	if (bOnlyTable)
-		html.push('<div class="agile_tooltip_scroller" tabindex="0">');
+		html='<div class="agile_tooltip_scroller" tabindex="0">';
 	else
-		html.push('<div class="agile_tooltip_scroller agile_tooltip_scroller_Short" tabindex="0">');
+		html='<div class="agile_tooltip_scroller agile_tooltip_scroller_Short" tabindex="0">';
 
-	html.push('<table class="agile_tooltipTable tablesorter">');
-	html.push('<thead><tr class="agile-drilldown-header">');
+	html=html+('<table class="agile_tooltipTable tablesorter">');
+	html=html+('<thead><tr class="agile-drilldown-header">');
 	var iHeader = 0;
 	var bExtended = false;
 	for (; iHeader < header.length; iHeader++) {
@@ -678,9 +678,9 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		var nameCol = header[iHeader].name;
 		if (nameCol.toLowerCase() == "note")
 		    iColComment = iHeader;
-		html.push(th(nameCol + g_hackPaddingTableSorter, bExtendCur)); //nbsp hack so tablesorter arrows dont overlap name
+		html=html+(th(nameCol + g_hackPaddingTableSorter, bExtendCur)); //nbsp hack so tablesorter arrows dont overlap name
 	}
-	html.push('</tr></thead><tbody>');
+	html=html+('</tr></thead><tbody>');
 	var sTotal = 0;
 	var eTotal = 0;
 	var row = null;
@@ -689,27 +689,26 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	if (bReverse) {
 	    for (i = rows.length - 1; i >= 0; i--) {
 			row = rows[i];
-			html.push(htmlRow(row));
+			html=html+(htmlRow(row));
 			sTotal += row.spent;
 			eTotal += row.est;
 		}
 	} else {
 	    for (i = 0; i < rows.length; i++) {
 			row = rows[i];
-			html.push(htmlRow(row));
+			html=html+(htmlRow(row));
 			sTotal += row.spent;
 			eTotal += row.est;
 		}
 	}
-	html.push('</tbody></table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
-	html.push('</DIV>');
+	html=html+('</tbody></table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
+	html=html+('</DIV>');
 	if (!bOnlyTable)
-		html.push('</DIV>');
+		html=html+('</DIV>');
 	if (bShowTotals)
 	    title += ("&nbsp;S:" + parseFixedFloat(sTotal) + "&nbsp;&nbsp;&nbsp;&nbspE:" + parseFixedFloat(eTotal) + "&nbsp;&nbsp;&nbsp;&nbspR:" + parseFixedFloat(eTotal - sTotal));
 	htmlTop += getDrilldownTopButtons(bOnlyTable, title);
-	html[0] = htmlTop;
-	return html.join('');
+	return htmlTop+html;
 }
 
 function setScrollerHeight(heightWindow, scroller, elemTop, dyTop, bAdjustBody) {
@@ -733,7 +732,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	bOnlyTable = bOnlyTable || false;
 
 	if (container.length == 0)
-		container = $("<div class='agile_topLevelTooltipContainer'></div>");
+		container = $("<div class='agile_topLevelTooltipContainer notranslate'></div>");
 	container.empty();
 	container[0].innerHTML = html;
 	var tooltip = null;

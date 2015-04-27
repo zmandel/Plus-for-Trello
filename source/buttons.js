@@ -2,7 +2,7 @@
 var HelpButton = {
     strClass: 'agile_help_button',
 	create: function () {
-	    var b = $('<span id="help_buttons_container"></span>').addClass('header-btn header-notifications ' + this.strClass);
+	    var b = $('<span id="help_buttons_container"></span>').addClass('notranslate header-btn header-notifications ' + this.strClass);
 		b.hide();
 
 		var spanIcon = $('<span></span>').css('cursor', 'help');
@@ -71,7 +71,7 @@ function insertPlusFeed(bForce) {
 			var data = obj[key];
 			if (data !== undefined)
 				stateFeed = data;
-			var msNow = (new Date()).getTime();
+			var msNow = Date.now();
 			var msWait = 1000 * 60 * 60 * 3; //3 hours (there is a quota of 50,000 queries/day for all users) code.google.com/apis/console/b/0/?noredirect#project:147493868263:stats
 			//msWait = 1000; //1 sec, for test
 			if (msNow - stateFeed.msLastQuery > msWait) {
@@ -128,7 +128,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 	var bShowNewIcon= false;
 	var bShowRecentIcon = false;
 	var pathImgRecent = "images/newgray.png";
-	var msNow = (new Date()).getTime();
+	var msNow = Date.now();
 	var dmsOldestShow = 1000 * 60 * 60 * 24 * 8; //8 days
 	var titleTipBase = "New Plus features!";
 
@@ -139,7 +139,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 			bShowRecentIcon = true;
 	}
 	else {
-		var now = (new Date()).getTime();
+	    var now = Date.now();
 		if (stateFeed.msUserClicked > 0 && now - stateFeed.msUserClicked < 1000 * 60 * 60) //show read icon for 1 hour since last clicked
 			bShowRecentIcon = true;
 	}
@@ -160,7 +160,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 					if (data !== undefined)
 						stateFeed.msLastPostRetrieved = Math.max(data.msLastPostRetrieved, stateOrig.msLastPostRetrieved);
 					stateFeed.msLastPostReadByUser = stateFeed.msLastPostRetrieved;
-					stateFeed.msUserClicked = (new Date()).getTime();
+					stateFeed.msUserClicked = Date.now();
 					if (stateOrig.msLastPostRetrieved != stateFeed.msLastPostRetrieved ||
 						stateOrig.msLastPostReadByUser != stateFeed.msLastPostReadByUser ||
 						(stateFeed.msUserClicked - stateOrig.msUserClicked > 1000 * 60 * 5)) { //protect sync quota for 5min if only msUserClicked changed

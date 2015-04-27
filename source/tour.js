@@ -503,13 +503,13 @@ function handleTourStart(bFromClick) {
         else if (bAtTrelloHome())
             handleHomeTour();
         else if (bFromClick) {
-            sendDesktopNotification("Go to trello.com to start the tour.", 5000);
+            sendDesktopNotification("Go to trello.com to start the tour.", 8000);
             return;
         }
         //msNow: the bubble code has a timing bug when quickly showing next bubble it can get out of sync with its
         //internal bubble array and leave bubbles floating arround.
         //its easy to repro using arrow keys by just keeping the keystroke down, thus ignore repeating keys
-        var msNow = new Date().getTime();
+        var msNow = Date.now();
         var cc = 0;
         $(document).bind("keydown.tourPlusArrows", function (event) {
             function isRepeating() {

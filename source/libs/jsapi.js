@@ -3,13 +3,13 @@ window['google'] = {};
 }
 if (!window['google']['loader']) {
 window['google']['loader'] = {};
-google.loader.ServiceBase = 'https://www.google.com/uds';
-google.loader.GoogleApisBase = 'https://ajax.googleapis.com/ajax';
+google.loader.ServiceBase = 'https://www.none.com/uds';
+google.loader.GoogleApisBase = 'https://ajax.none.com/ajax';
 google.loader.ApiKey = 'notsupplied';
 google.loader.KeyVerified = true;
 google.loader.LoadFailure = false;
 google.loader.Secure = true;
-google.loader.GoogleLocale = 'www.google.com';
+google.loader.GoogleLocale = 'www.none.com';
 google.loader.ClientLocation = null;
 google.loader.AdditionalParams = '';
 (function() {var d=encodeURIComponent,g=window,h=document;function l(a,b){return a.load=b}var m="push",n="replace",q="charAt",r="indexOf",t="ServiceBase",u="name",v="getTime",w="length",x="prototype",y="setTimeout",z="loader",A="substring",B="join",C="toLowerCase";function D(a){return a in E?E[a]:E[a]=-1!=navigator.userAgent[C]()[r](a)}var E={};function F(a,b){var c=function(){};c.prototype=b[x];a.U=b[x];a.prototype=new c}

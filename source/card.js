@@ -182,7 +182,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	var bHasSpentBackend = isBackendMode();
 	g_seCardCur = {}; //reset totals
 
-	var container = $("<div></div>").addClass(g_inputSEClass).hide();
+	var container = $("<div class='notranslate'></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry'></table>");
@@ -1173,7 +1173,7 @@ function configureTimerInterval(timerElem, timerStatus, msStart) {
             //review zig: missing case to implement is when card window open without timer, and timer is started from somewhere else. should define a broadcast to detect this
 		    if (isTimerRunningOnScreen(timerStatus)) {
 		        msStart = stored.msStart; //REVIEE zig: parameter msStart no longer needed. always comes from storage
-		        var msEnd = new Date().getTime();
+		        var msEnd = Date.now();
 		        updateTimerElemText(timerElem, msStart, msEnd);
 		        updateTimerTooltip(timerElem, true, msEnd - msStart > 20 * 1000, false);
 		    }
@@ -1198,7 +1198,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                 (stored.msStart == null && stored.msEnd == null)) {
                 //START
                 if (idCardActiveTimer && !g_bDontWarnParallelTimers) {
-                    if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n[See Plus help Preferences to disable this warning]"))
+                    if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n(See Plus help Preferences to disable this warning)"))
                         return;
                 }
                 var elemSpent = $("#plusCardCommentSpent");
@@ -1600,7 +1600,7 @@ function detectMovedCards() {
 				return;
 			} else {
 				function handleIdNotFound(idCardCur) {
-					alert("IMPORTANT: Plus for Trello could not find the new board (has not been used yet in Plus). To correct, please enter an S/E of 0/0 on the card after pressing OK.");
+					alert("Plus for Trello could not find the new board (has not been used yet in Plus). To correct, please enter an S/E of 0/0 on the card after pressing OK.");
 					window.location.href = "https://trello.com/c/" + idCardCur;
 				}
 

@@ -91,11 +91,9 @@ function testExtension(callback) {
 			showExtensionError();
 			return;
 		}
-		//REVIEW zig: enable for all not just spent backend. null marker indicates to remove all logs
-		var bDoWriteToBackendLog = isBackendMode(); //only internal plus dev is enabled.
 		var rgLog=g_plusLogMessages;
 
-		sendExtensionMessage({ method: "testBackgroundPage", logMessages: rgLog, bDoWriteToBackendLog: bDoWriteToBackendLog, tuser: getCurrentTrelloUser() },
+		sendExtensionMessage({ method: "testBackgroundPage", logMessages: rgLog},
 		function (response) {
 			if (response.status == STATUS_OK) { //status of log write
                 g_plusLogMessages = [];
@@ -110,7 +108,7 @@ function testExtension(callback) {
 }
 
 $(function () {
-    setTimeout(function () { //in timeout so we can safely reference globals
+    setTimeout(function () { //in timeout so we can safely reference globals and give a little time for trello load itself since we  "run_at": "document_start"
         
 		//for <dialog>
 		var preDialog = '<pre style="display:none;">dialog::backdrop\
@@ -145,7 +143,7 @@ $(function () {
         loadOptions(function () {
             entryPoint();
         });
-    },1);
+    },500); //"run_at": "document_start" is before trello does ajax so breathe a little
 });
 
 function entryPoint() {
@@ -177,7 +175,7 @@ function loadOptions(callback) {
 
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
-            sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message);
+            sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message,20000);
             return true;
         }
         return false;

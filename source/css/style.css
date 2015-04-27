@@ -311,10 +311,10 @@ padding-left:4px;
 	top: 50%;
 	margin-top: -110px;
 	outline: none;
-	box-shadow: 7px 7px 5px #888888;
+	box-shadow: 4px 4px 3px #575757;
 	border: solid 2px;
 	border-color: #6095B3 !important;
-	border-radius: 5px;
+	border-radius: 3px;
 	padding: 5px !important;
 	padding-top: 4px !important;
     padding-bottom: 2px !important;
@@ -1325,7 +1325,7 @@ table#tableMarkers td {
 	}
 
 .agile_report_filter_input_short {
-	width: 78px;
+	width: 6.5em;
 }
 
 .agile_report_filter_input_long {

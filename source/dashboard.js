@@ -132,7 +132,7 @@ function makeRowMarkerParams(rowOrig, totalByUser) {
     row.dateStartStr = rowOrig.dateStartStr;
     if (bOpen) {
         row.dateEndStr = "";
-        cSecEnd = Math.floor((new Date()).getTime() / 1000);
+        cSecEnd = Math.floor(Date.now() / 1000);
     }
     else {
         row.dateEndStr = rowOrig.dateEndStr;

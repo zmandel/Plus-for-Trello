@@ -12,8 +12,10 @@ var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
 
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
-	var data = null;
-
+    var data = null;
+    //review zig: assumes g_optEnterSEByComment is loaded. should be. assert in IsEnabled ensures it wont continue if not.
+    if (g_optEnterSEByComment.IsEnabled())
+        urlService = ""; //to be more consistent with trello sync when no google user was configured
 	if (bSkipCache === undefined || bSkipCache === false)
 		data = localStorage["configData"];
 	if (data !== undefined && data != null)
@@ -30,7 +32,7 @@ function getConfigData(urlService, userTrello, callback, bSkipCache) {
 
 
 function doCallUrlConfig(urlConfig, userTrello, callback) {
-    if (!urlConfig) { //needed for offline sync for trellosync
+    if (!urlConfig) {
         callback(null);
         return;
     }
@@ -45,7 +47,7 @@ function doCallUrlConfig(urlConfig, userTrello, callback) {
 
 	handleShowDesktopNotification({
 	    notification: "Incorrect google sync url",
-	    timeout: 40000
+	    timeout: 10000
 	});
 
 	callback(null);
@@ -135,7 +137,7 @@ function handleRawSync(sendResponseParam) {
                     }
                     //g_optEnterSEByComment initialized while inside handleOpenDb
                     if (g_bDisableSync || (!g_optEnterSEByComment.IsEnabled() && (urlSync == null || urlSync.length == 0))) {
-                        sendResponse({ status: "sync not configured or disabled" });
+                        sendResponse({ status: "sync not configured or off" });
                         return;
                     }
 
@@ -184,16 +186,18 @@ function calculateSyncDelay(callback) {
 }
 
 function handlePlusMenuSync(sendResponse) {
-    handleRawSync(sendResponse);
+    loadBackgroundOptions(function () {
+        handleRawSync(sendResponse);
+    });
 }
 
 function handleWebRequestPermission(sendResponse) {
     chrome.permissions.request({
         permissions: ['webRequest'],
-        origins: ['https://trello.com/1/*']
+        origins: ['https://spreadsheets.google.com/']
     }, function (granted) {
         // The callback argument will be true if the user granted the permissions.
-        sendResponse({ granted: granted || false });
+        sendResponse({ status: STATUS_OK, granted: granted || false });
     });
 }
 
@@ -226,7 +230,7 @@ function processTimerCounter() {
                         return;
                     }
                     var msStart = stored.msStart;
-                    var msEnd = new Date().getTime();
+                    var msEnd = Date.now();
                     var minutesDelta= (msEnd - msStart) / 1000 / 60;
                     var msRemain = (minutesDelta - Math.floor(minutesDelta)) * 60 * 1000;
                     var time=getTimerElemText(msStart, msEnd,true);
@@ -337,7 +341,7 @@ var g_loaderDetector = {
         setInterval(function () {
             if (g_msRequestedSyncPause==0)
                 return;
-            var msNow=new Date().getTime();
+            var msNow = Date.now();
             if (msNow - g_msRequestedSyncPause > 6000) {
                 handleUnpause();
             }
@@ -481,7 +485,7 @@ function updatePlusIcon(bTooltipOnly) {
     var keyLastSyncViewed = "rowidLastHistorySyncedViewed";
     var key_plus_datesync_last = "plus_datesync_last";
     var keyplusSyncLastStatus = "plusSyncLastStatus";
-    var msNow = (new Date()).getTime();
+    var msNow = Date.now();
 
 	//prevent changing tooltip too often
     //note: checks typeof as this could be called from within a global constructor.
@@ -726,8 +730,9 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	}
 
 	if (request.method == "getConfigData") {
-		var bSkipCache = (request.bSkipCache);
-		getConfigData(request.urlService, request.userTrello, function (retConfig) {
+	    var bSkipCache = (request.bSkipCache);
+	    
+	    getConfigData(request.urlService, request.userTrello, function (retConfig) {
 			if (retConfig === undefined) //null means something different
 				sendResponse({ config: { status: "not configured" } });
 			else
@@ -777,7 +782,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 		sendResponse({});
 	}
 	else if (request.method == "testBackgroundPage") {
-	    insertLogMessages(request.logMessages, request.bDoWriteToBackendLog, request.tuser, sendResponse);
+	    insertLogMessages(request.logMessages, sendResponse);
 	}
 	else if (request.method == "showDesktopNotification") {
 		handleShowDesktopNotification(request);
@@ -918,7 +923,6 @@ function handleCreateSs(sendResponse) {
     var postData = null;
     if (true) {
         postData = {title:"Plus for Trello sync spreadsheet",description:"Do NOT modify this spreadsheet"};
-        //review zig: change to 1zD8BfQDOvGt6e7ZgZ7a6tRIGwp0SzHzQ0DvfoIw4xdQ once I can handle a non-zero gid.
         url = "https://www.googleapis.com/drive/v2/files/1-C2J31LslVj-AlB9PJP-68ADhK5gpx0o5PKGZE_kxvM/copy";
         handleApiCall(url, {convert:false, ocr:false}, true, function (response) {
             var id = null;
@@ -1080,7 +1084,7 @@ function onAuthorized(url, params, sendResponse, oauth, bRetry, postBody, conten
 					xhr.statusText.indexOf("Token invalid") == 0 ||
 					xhr.statusText.indexOf("Unauthorized") == 0)) { //"Unauthorized" can happen if user removes token from https://accounts.google.com/IssuedAuthSubTokens
 				//refresh oauth tokens
-			    if (g_bRetryAuth && confirm("Unable to authenticate with Google.\n\nNOTE: If you want to disable Google Sync go to Plus Help, Google Sync, and remove the sync URL.\n\nRetry authentication?")) {
+			    if (g_bRetryAuth && confirm("Unable to authenticate with Google.\n\nNOTE: If you want to disable Google Sync go to Plus Help, Sync and select 'sync off'.\n\nRetry authentication?")) {
 			        chrome.identity.removeCachedAuthToken({ token: oauth }, function () {
 			            handleApiCall(url, paramsOriginal, false, sendResponse, postBody, contentType, bAddIfMatchStar);
 			        });

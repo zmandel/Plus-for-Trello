@@ -109,7 +109,7 @@ function handlePause(sendResponse) {
         g_cFullSyncLock += 1;
         updatePlusIcon(true);
     }
-    g_msRequestedSyncPause = new Date().getTime();
+    g_msRequestedSyncPause = Date.now();
     sendResponse({ status: STATUS_OK });
 }
 
@@ -211,7 +211,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
     }
 
     if (g_bDisableSync) {
-        sendResponseParam({ status: "sync is disabled" });
+        sendResponseParam({ status: "sync is off" });
         return;
     }
 
@@ -256,7 +256,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
         if (response.status == STATUS_OK && !bEnterSEByComments) {
             bNeedUpdateIcon = false;
             var pairDateLast = {};
-            pairDateLast["plus_datesync_last"] = (new Date()).getTime();
+            pairDateLast["plus_datesync_last"] = Date.now();
             chrome.storage.local.set(pairDateLast, function () {
                 updatePlusIcon();
             });
@@ -472,7 +472,7 @@ function appendRowToSpreadsheet(row, idSsUser, idUserSheetTrello, sendResponse) 
 
 function appendLogToPublicSpreadsheet(message, sendResponse) {
 	var atom = makeMessageAtom(message);
-	var url = "https://spreadsheets.google.com/feeds/list/" + "0AneAYB2jAvLQdHpraGVneGQ3Z2ZjRUtTdVk0ZU5vd2c" + "/" + gid_to_wid(0) + "/private/full";
+	var url = "https://spreadsheets.google.com/feeds/list/" + "xxxxxxx" + "/" + gid_to_wid(0) + "/private/full";
 	onAuthorized(url, {}, function (response) {
 	    sendResponse(); //note this serializes all appends, so we dont overwhelm google quotas
 	}, null, true, atom);
@@ -1187,7 +1187,7 @@ function handleWriteLogToPlusSupport(request, sendResponse) {
                 });
             }
             if (rgPostPublicLog.length > 0)
-                startWritePublicLog(rgPostPublicLog, request.username);
+                startWritePublicLog(rgPostPublicLog);
             else
                 response.status = "Nothing to send!";
             sendResponse(response);
@@ -1256,7 +1256,7 @@ function handleDeleteDB(request, sendResponseParam) {
 		t.executeSql('DROP TABLE IF EXISTS CARDS');
 		t.executeSql('DROP TABLE IF EXISTS BOARDS');
 		t.executeSql('DROP TABLE IF EXISTS GLOBALS');
-		t.executeSql("DELETE FROM USERS where idMemberCreator LIKE '"+g_prefixCustomUserId+"%'"); //remove users that were never verified in card comments
+		t.executeSql('DROP TABLE IF EXISTS USERS'); //review zig: used to keep the non-custom in 2.12.1 but I removed as it could cause problems if somehow users table is not created
 	}, function (err) {
 		if (console.error)
 			console.error("Error!: %s", err.message);
@@ -1269,11 +1269,11 @@ function handleDeleteDB(request, sendResponseParam) {
 }
 
 
-function insertLogMessages(log, bWriteToPublicLog, tuser, callback) {
+function insertLogMessages(log, callback) {
 	var ret = { status: "" };
 	var db = g_db;
 	if (db == null) {
-		ret.status = "Error, no db open yet";
+		ret.status = "Error: no db open yet";
 		callback(ret);
 		return;
 	}
@@ -1291,7 +1291,6 @@ function insertLogMessages(log, bWriteToPublicLog, tuser, callback) {
 		return;
 	}
 
-	var rgPostPublicLog = [];
 	db.transaction(function (tx) {
 		var i = 0;
 		var logs = [logLocal, log]; //commit our own log too.
@@ -1303,8 +1302,6 @@ function insertLogMessages(log, bWriteToPublicLog, tuser, callback) {
 				var strExecute = "INSERT INTO LOGMESSAGES (date, message) \
 				VALUES (?, ?)";
 				tx.executeSql(strExecute, [Math.round(entry.date / 1000), entry.message]);
-				if (bWriteToPublicLog)
-					rgPostPublicLog.push(entry.message);
 			}
 		}
 	},
@@ -1319,23 +1316,14 @@ function insertLogMessages(log, bWriteToPublicLog, tuser, callback) {
 		g_plusLogMessages = [];
 		ret.status = STATUS_OK;
 		callback(ret);
-		if (rgPostPublicLog.length > 0)
-			startWritePublicLog(rgPostPublicLog, tuser);
 		return;
 	});
 }
 
-function startWritePublicLog(messages, tuser) {
-
-	function processCurrent(iitem) {
-		appendLogToPublicSpreadsheet(tuser+": "+messages[iitem], function () {
-			var iitemNew = iitem + 1;
-			if (iitemNew == messages.length)
-				return;
-			setTimeout(function () { processCurrent(iitemNew); }, 2000);
-		});
-	}
-	processCurrent(0);
+function startWritePublicLog(messages) {
+    var merged = messages.join("\n\n");
+    var urlForm = "https://docs.google.com/forms/d/1IpMQnmIKXVXeDeKhZRxWFK1-YAg8aGnqFlZbX9lUUP8/viewform?entry.1934000221=" + encodeURIComponent(merged);
+    window.open(urlForm,"_blank");
 }
 
 function convertDowStart(dowStart,sendResponse, response) {
@@ -1772,6 +1760,9 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%cTotalStages%'");
         });
 
+        M.migration(21, function (t) {
+            t.executeSql("update CARDS set idList = '" + IDLIST_UNKNOWN + "' where idBoard='" + IDBOARD_UNKNOWN + "'");
+        });
 
         M.doIt();
     }

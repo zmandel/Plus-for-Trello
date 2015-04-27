@@ -220,7 +220,7 @@ var Help = {
 	    }, 8000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A href="#agile_help_languages">Language</A>&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/109669748550259696558/posts" rel="publisher" target="_blank"> \
@@ -266,7 +266,7 @@ var Help = {
 	    var strUsingPlusDays = "";
 	    var cDaysUsingPlus = 0;
 	    if (g_msStartPlusUsage != null) {
-	        var dms = (new Date().getTime() - g_msStartPlusUsage);
+	        var dms = (Date.now() - g_msStartPlusUsage);
 	        cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
 	        if (cDaysUsingPlus > 2)
 	            strUsingPlusDays = '' + cDaysUsingPlus + ' days with Plus. ';
@@ -299,7 +299,7 @@ var Help = {
 
 	    if (!bInsertDonationAsSection) {
 	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://plusfortrello.blogspot.com/2015/04/donations.html" target="_blank">Donations: $1,891</A>. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://plusfortrello.blogspot.com/2015/04/donations.html" target="_blank">Donations: $2,036</A>. Over 1 year of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	        if (g_bUserDonated) {
 	            checkDonated[0].checked = true;
 	            divDonations.hide();
@@ -374,7 +374,7 @@ var Help = {
 	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync</h2></b>');
 	    helpWin.para('Select your team\'s sync method:');
 	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
-	    comboSync.append($(new Option("Disabled sync", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite"));
+	    comboSync.append($(new Option("Sync off", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite"));
 	    comboSync.append($(new Option("Trello card comments (recommended)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
 	    comboSync.append($(new Option("Google sync spreadsheet (legacy)", SYNCMETHOD.googleSheetLegacy)).addClass("agile_normalBackground"));
 	    var syncSectionsMap = {};
@@ -399,7 +399,7 @@ var Help = {
 	    helpWin.para("&bull; lists in Plus reports", divCur);
 	    helpWin.para("&bull; changes to cards, lists and boards is handled automatically.", divCur);
 	    helpWin.para("&bull; use from other devices, mobile trello or mobile Plus.", divCur);
-	    helpWin.para('<br>If you leave sync disabled (not recommended) you can still use Plus and get those features once enabled.', divCur);
+	    helpWin.para('<br>If you leave sync off (not recommended) you can still use Plus and get those features once enabled.', divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.trelloComments];
 	    var txtSEByCardComments = 'Enter S/E using the card plus bar or directly as card comments.';
@@ -415,7 +415,7 @@ var Help = {
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
-	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Plus" from Utilities.', divCur);
+	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from Utilities.', divCur);
 	    helpWin.para("", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
@@ -436,7 +436,7 @@ var Help = {
 	        helpWin.para('Current sync spreadsheet url:', divCur);
 	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
 	    }
-	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Plus" from Utilities.', divCur);
+	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from Utilities.', divCur);
 	    helpWin.para("", divCur);
 
 	    var valCombo = null;
@@ -545,7 +545,7 @@ var Help = {
 	            var bChanged = (JSON.stringify(g_optEnterSEByComment.rgKeywords).toLowerCase() != JSON.stringify(rgNew).toLowerCase());
 	            g_optEnterSEByComment.rgKeywords = rgNew;
 	            if (bShowSavedMessage)
-	                alert(bChanged ? "Saved. If your new keywords were used in the past, reset Plus from preferences." : "Saved.");
+	                alert(bChanged ? "Saved. If your new keywords were used in the past, Reset Sync from preferences." : "Saved.");
 	        });
 	    }
 
@@ -555,10 +555,6 @@ var Help = {
 
 
 	    function setEnableTrelloSyncValue(bValue, bValueSyncByComments, bDisabled) {
-
-	        //note this used to ask for requestWebRequestPermission, but its not needed since we are already a script inside the requested trello.com url
-	        //the permission request was done to be more complete for future use, but it interfered because having a breakpoint set before the permission request
-            //caused the request to fail because it was not done within a user action. (which it is, when the user changes the combobox).
 	        worker();
 
 	        function worker() {
@@ -586,7 +582,7 @@ var Help = {
 	                            inputKeywords.val(inputKeywords.val() + ", " + SEKEYWORD_LEGACY);
 	                            doSaveKeywords(false);
 	                            hiliteOnce(inputKeywords);
-	                            alert("the legacy keyword 'plus s/e' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset plus without missing legacy card comments.");
+	                            alert("the legacy keyword 'plus s/e' was added because you have legacy history rows (before dec. 2014).\nThis allows you to later Reset Sync without missing legacy card comments.");
 	                        }
 	                        inputKeywords.focus();
 	                    }
@@ -618,7 +614,7 @@ var Help = {
 
 	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile Plus for Trello</b>');
 	    helpWin.para('View card S/E. Pin cards to your phone. Offline enabled.');
-	    helpWin.para('The app\'s few features work well but basic features are missing. I just finished the groundwork to make them happen.');
+	    helpWin.para('The app works very well but some basic features are still missing. Soon it will have them.');
 	    helpWin.para('Soon it will have card timers and the S/E bar. Until then, once you are on a card in the app and wish to add S/E, it lets you go directly to the card in the trello app to enter S/E as a comment.');
 	    helpWin.para('The app is compatible only with "Trello card comments" sync. Upgrade if you are still using legacy google sync.');
 	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
@@ -977,6 +973,11 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 
 	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
 	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2015/03/plus-for-trello-faq.html" >see existing user questions or add a new one.</a>');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+
+	    helpWin.para('<b><h2 id="agile_help_languages">Other languages</h2></b>');
+	    helpWin.para('Plus is compatible with the <A target="_blank" href="https://chrome.google.com/webstore/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb" >Google Translate Chrome extension</a> and all blog posts are "Google Translate" enabled.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
