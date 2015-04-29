@@ -483,6 +483,14 @@ td.agile_cell_drilldown {
     color: white;
 }
 
+.agile_reportSECellZero {
+    color: #E8EBEE;
+}
+
+.agile_lighterText {
+    color: #BBBBBB;
+}
+
 .agile_hoverZoom:hover {
     background:#F6F7F8 !important;
     color: black !important;

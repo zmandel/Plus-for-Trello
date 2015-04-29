@@ -1761,7 +1761,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(21, function (t) {
-            t.executeSql("update CARDS set idList = '" + IDLIST_UNKNOWN + "' where idBoard='" + IDBOARD_UNKNOWN + "'");
+            t.executeSql("update CARDS set idList = '" + IDLIST_UNKNOWN + "' where bDeleted=0 AND idBoard='" + IDBOARD_UNKNOWN + "'");
         });
 
         M.doIt();

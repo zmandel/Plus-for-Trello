@@ -1,6 +1,9 @@
 ﻿var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_mapETypeParam = { "ALL": "", "EINCR": 1, "EDECR": -1, "ENEW": 2 };
 var g_iTabCur = null; //invalid initially
+var ITAB_REPORT = 0;
+var ITAB_BYUSER = 1;
+var ITAB_BYBOARD = 2;
 var g_colorDefaultOver="#B9FFA9";
 var g_colorDefaultUnder = "#FFD5BD";
 var g_bShowKeywordFilter = false;
@@ -12,7 +15,6 @@ var keyrgKeywordsforSECardComment = "rgKWFCC";
 
 var g_cSyncSleep = 0;  //for controlling sync abuse
 var g_bIgnoreEnter = false; //review zig
-var g_rgTabScrollData = [];
 var FILTER_DATE_ADVANCED = "advanced";
 var g_bNeedSetLastRowViewed = false;
 var g_bAddParamSetLastRowViewedToQuery = false;
@@ -476,7 +478,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 var g_cacheCells = {}; //cache cells to speed up formatting when user changes the ranges
 
-function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRow) {
+function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 	var underElem = elemFormat.children(".agile_format_under");
 	var overElem = elemFormat.children(".agile_format_over");
 	var colorUnderElem = elemFormat.children(".agile_colorpicker_colorUnder");
@@ -504,8 +506,8 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 	    if (bFirstTime)
 	        applyFormatWorker(bFirstTime); //review zig: should be ok in setTimeout but here to reduce risk of making this change.
         else
-	        setTimeout(function () { applyFormatWorker(bFirstTime); },10);
-	}
+	        setTimeout(function () { applyFormatWorker(bFirstTime); }, 10);
+	    }
 
 	function applyFormatWorker(bFirstTime) {
 		var weekCur = getCurrentWeekNum(new Date());
@@ -538,97 +540,116 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, bIgnoreLastRo
 		if (bFirstTime && (bNoFormat || (valUnder === null && valOver === null)))
 		    return; //performance
 
-		var cells = g_cacheCells[dataFormat.key];
-		if (cells === undefined) {
-		    cells = tableContainer.find(".agile_pivot_value");
-		    if (!bFirstTime)
-		        g_cacheCells[dataFormat.key] = cells; //cache when called from format change so its fast as the user changes values
+		if (g_iTabCur != null && g_iTabCur != iTab)
+		    setTimeout(function () { workerCells(); }, 300);
+		else
+		    workerCells();
+
+		function workerCells() {
+		    var cells = g_cacheCells[dataFormat.key];
+		    if (cells === undefined) {
+		        cells = tableContainer.find(".agile_pivot_value");
+		        if (!bFirstTime)
+		            g_cacheCells[dataFormat.key] = cells; //cache when called from format change so its fast as the user changes values
+		    }
+
+		    cells.each(function () {
+		        var bUsedUnder = false;
+		        var rgb = null;
+		        var el = $(this);
+		        var val = parseFloat(el.text());
+		        var color = colorNormal;
+
+		        if (el.data("agile_total_row") == "true") {
+		            //until the week is done doesnt make sense to color under
+		            color = "#FFFFFF";
+		            rgb = null; //so it resets below
+		        }
+		        else if (valUnder == null && valOver == null)
+		            color = colorNormal;
+		        else if (valUnder != null && val < valUnder) {
+		            color = colorUnder;
+		            bUsedUnder = true;
+		        }
+		        else if (valOver != null && val > valOver)
+		            color = colorOver;
+		        else if (!bStrictFormat && (valUnder != null || valOver != null)) {
+		            //in between
+		            var distance = 0;
+		            if (valUnder != null && valOver != null)
+		                distance = valOver - valUnder;
+		            else if (valUnder != null)
+		                distance = valUnder;
+		            else
+		                distance = valOver;
+		            distance = distance / 4;
+
+		            var rgbLeft = null;
+		            var rbgRight = null;
+		            var rgbWhite = rgbFromHex("#FFFFFF");
+		            var percentSpread = 0.7; //% of the color range to use.
+		            //used to leave 1/2 of the difference on each side so its easier to distinguish the actual boundary
+		            var diff = 0;
+		            if (valUnder != null && (val - valUnder <= distance)) {
+		                rgbLeft = rgbUnder;
+		                rgbRight = rgbWhite;
+		                diff = val - valUnder;
+		                bUsedUnder = true;
+		            } else if (valOver != null && (valOver - val <= distance)) {
+		                rgbLeft = rgbOver;
+		                rgbRight = rgbWhite;
+		                diff = valOver - val;
+		            }
+
+		            if (rgbLeft == null) {
+		                rgb = rgbWhite;
+		            } else {
+		                rgb = [];
+		                var iColor = 0;
+		                var rate = (1 - percentSpread) / 2 + (diff / distance) * percentSpread;
+		                for (; iColor < 3; iColor++)
+		                    rgb.push(Math.round(rgbLeft[iColor] + (rgbRight[iColor] - rgbLeft[iColor]) * rate));
+		            }
+		            color = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
+		        }
+
+		        if (bUsedUnder && el.data("agile_week") == weekCur) {
+		            //until the week is done doesnt make sense to color under
+		            color = "#FFFFFF";
+		            rgb = null; //so it resets below
+		        }
+
+		        el.css("background", color);
+		        if (rgb == null)
+		            rgb = rgbFromHex(color);
+		        var colorText = "black";
+		        if (rgb) {
+		            if (el.hasClass("agile_pivotCell_Zero"))
+		                colorText = color; //prevent filling report with zeros which clutter it. value is there but with color equal to background
+		            else {
+		                var sum = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722; //standard luminance. This will never be perfect a user's gamma/calibration is never the same.
+		                if (sum < 128)
+		                    colorText = "white";
+		            }
+		        }
+		        el.css("color", colorText);
+		    });
 		}
-
-		cells.each(function () {
-			var bUsedUnder = false;
-			var rgb = null;
-			var el = $(this);
-			var val = parseFloat(el.text());
-			var color = colorNormal;
-			if (valUnder == null && valOver == null)
-				color = colorNormal;
-			else if (valUnder != null && val < valUnder) {
-				color = colorUnder;
-				bUsedUnder = true;
-			}
-			else if (valOver != null && val > valOver)
-				color = colorOver;
-			else if (!bStrictFormat && (valUnder != null || valOver != null)) {
-				//in between
-				var distance = 0;
-				if (valUnder != null && valOver != null)
-					distance = valOver - valUnder;
-				else if (valUnder != null)
-					distance = valUnder;
-				else
-					distance = valOver;
-				distance = distance / 4;
-
-				var rgbLeft = null;
-				var rbgRight = null;
-				var rgbWhite = rgbFromHex("#FFFFFF");
-				var percentSpread = 0.7; //% of the color range to use.
-			    //used to leave 1/2 of the difference on each side so its easier to distinguish the actual boundary
-				var diff = 0;
-				if (valUnder != null && (val - valUnder <= distance)) {
-					rgbLeft = rgbUnder;
-					rgbRight = rgbWhite;
-					diff = val - valUnder;
-					bUsedUnder = true;
-				} else if (valOver != null && (valOver - val <= distance)) {
-					rgbLeft = rgbOver;
-					rgbRight = rgbWhite;
-					diff = valOver - val;
-				}
-
-				if (rgbLeft == null) {
-					rgb = rgbWhite;
-				} else {
-					rgb = [];
-					var iColor = 0;
-					var rate = (1 - percentSpread) / 2 + (diff / distance) * percentSpread;
-					for (; iColor < 3; iColor++)
-						rgb.push(Math.round(rgbLeft[iColor] + (rgbRight[iColor] - rgbLeft[iColor]) * rate));
-				}
-				color = "rgb(" + rgb[0] + "," + rgb[1] + "," + rgb[2] + ")";
-			}
-
-			if (el.data("agile_total_row") == "true" || (bUsedUnder && (el.data("agile_week") == weekCur))) {
-				//until the week is done doesnt make sense to color under
-				color = "#FFFFFF";
-				rgb = null; //so it resets below
-			}
-			el.css("background", color);
-			if (rgb==null)
-				rgb = rgbFromHex(color);
-			var colorText = "black";
-			if (rgb) {
-			    if (el.hasClass("agile_pivotCell_Zero"))
-			        colorText = color;
-			    else {
-			        var sum = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722; //standard luminance. This will never be perfect a user's gamma/calibration is never the same.
-			        if (sum < 128)
-			            colorText = "white";
-			    }
-			}
-			el.css("color", colorText);
-		});
 	}
 
 	applyFormat(true);
 	comboFormat.off().change(function () {
-		applyFormat();
+	    applyFormat(false);
 	});
-	underElem.off().on('input',applyFormat);
-	overElem.off().on('input', applyFormat);
-	colorUnderElem.off().on('input', applyFormat);
-	colorOverElem.off().on('input', applyFormat);
+
+	function onEditsChange() {
+	    applyFormat(false);
+	}
+
+	underElem.off().on('input', onEditsChange);
+	overElem.off().on('input', onEditsChange);
+	colorUnderElem.off().on('input', onEditsChange);
+	colorOverElem.off().on('input', onEditsChange);
 }
 
 function rgbFromHex(hex) {
@@ -995,20 +1016,11 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 
 function buildSql(elems) {
     var groupBy = elems["groupBy"] || "";
-    var sql = "select H.rowid as rowid, H.keyword, H.user, H.week, H.month, H.spent, H.est, H.date, H.comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType, CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard JOIN LISTS as L on C.idList=L.idList JOIN BOARDS B on H.idBoard=B.idBoard";
+    var sql = "select H.rowid as rowid, H.keyword, H.user, H.week, H.month, H.spent, H.est, \
+                CASE WHEN (H.eType="+ETYPE_NEW+") then H.est else 0 end as estFirst, \
+                H.date, H.comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType, CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard JOIN LISTS as L on C.idList=L.idList JOIN BOARDS B on H.idBoard=B.idBoard";
 	var post1 = "";
 	var post2 = " order by H.date " + (g_bBuildSqlMode? "ASC": "DESC");
-
-	if (!g_bBuildSqlMode && (groupBy == "idBoardH" || groupBy == "idBoardH-user" || groupBy == "user")) {
-	    //if using these groupings, we can optimize and have SQL do a few sums for us. Can reduce the returned rows by a factor or 5 or so.
-	    //first, some search fields must be empty.
-	    var rgCheck = ["list", "card", "idCard", "archived"];
-	    var iCheck = 0;
-	    for (; iCheck < rgCheck.length; iCheck++) {
-	        if (elems[rgCheck[iCheck]].length > 0)
-	            break;
-	        }
-	}
 
 	var state = { cFilters: 0, values: [] };
 	sql += buildSqlParam("sinceSimple", elems, "date", ">=", state);
@@ -1144,7 +1156,7 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 	    });
 	}
 	    
-	g_rgTabScrollData[0] = { scroller: parentScroller.find(".agile_tooltip_scroller"), elemTop: parentScroller, dyTop: 50 }; //review zig: fix this mess
+	
 	var btn = $("#buttonFilter");
 	resetQueryButton(btn);
 	fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, bNoTruncate);
@@ -1211,8 +1223,6 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) 
 	//{ header: header, tips: tips, byUser: rgUserRows, byBoard: rgBoardRows };
 	var parent = elemByUser.parent();
 	var dyTop = 70;
-	g_rgTabScrollData[1] = { scroller: elemByUser, elemTop: parent, dyTop: dyTop };
-	g_rgTabScrollData[2] = { scroller: elemByBoard, elemTop: parent, dyTop: dyTop };
 	var strTh = "<th class='agile_header_pivot agile_pivotCell'>";
 	var strTd = '<td class="agile_nowrap agile_pivotCell">';
 	var strTable = "<table class='agile_table_pivot' cellpadding=2 cellspacing=0>";
@@ -1415,8 +1425,8 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) 
 function configAllPivotFormats() {
     if (g_bBuildSqlMode)
         return;
-	configPivotFormat($("#tabs-1 .agile_format_container"), g_dataFormatUser, $(".agile_report_container_byUser"),true);
-	configPivotFormat($("#tabs-2 .agile_format_container"), g_dataFormatBoard, $(".agile_report_container_byBoard"),false);
+    configPivotFormat($("#tabs-1 .agile_format_container"), g_dataFormatUser, $(".agile_report_container_byUser"), ITAB_BYUSER);
+    configPivotFormat($("#tabs-2 .agile_format_container"), g_dataFormatBoard, $(".agile_report_container_byBoard"), ITAB_BYBOARD);
 }
 
 /* calculateTables
@@ -1553,6 +1563,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
                 // sum(spent), sum(est)[, max(rowid)]
 				group.spent += row.spent;
 				group.est += row.est;
+				group.estFirst += row.estFirst;
 				if (row.rowid !== undefined && group.rowid !== undefined && row.rowid>group.rowid) {
 				    group.rowid = row.rowid;
 				}
@@ -1623,6 +1634,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 
 
 	header.push({ name: "S" });
+	header.push({ name: "E 1ˢᵗ" });
 	header.push({ name: "E" });
 
 	bShowRemain = (bOrderR || groupBy != "");
@@ -1685,12 +1697,13 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
 		rgRet.push({ type: "S", name: sPush, bNoTruncate: true });
+		rgRet.push({ type: "EFirst", name: parseFixedFloat(row.estFirst), bNoTruncate: true }); //not type "E". that is used when showing sum of row selections
 		rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
 		if (bShowRemain) {
 			var remainCalc = parseFixedFloat(row.est - row.spent);
 			if (bOrderR && remainCalc == 0)
 				return [];
-			rgRet.push({ name: remainCalc, bNoTruncate: true });
+			rgRet.push({ type: "R", name: remainCalc, bNoTruncate: true }); //type "R" just so it generates the transparent zero
 		}
 		if (bShowComment)
 			rgRet.push({ name: row.comment, bNoTruncate: bNoTruncate });

@@ -629,8 +629,14 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 
 	    function td(val, bNoTruncate, type) {
 	        var classesTd = "agile_cell_drilldown";
-	        if (type)
+	        if (type) {
 	            classesTd += " agile_cell_drilldown" + type;  //used for agile_cell_drilldownS and agile_cell_drilldownE classes
+	            if (val === 0) {
+	                //review zig: assumes type is always an s/e type
+	                classesTd += " agile_reportSECellZero";
+	            }
+	        }
+	        
 			return "<td class='"+classesTd+ "'>" + (bNoTruncate ? val : strTruncate(val)) + "</td>";
 		}
 
@@ -683,6 +689,8 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	html=html+('</tr></thead><tbody>');
 	var sTotal = 0;
 	var eTotal = 0;
+	var eFirstTotal = 0;
+	var bUseEFirst = false;
 	var row = null;
 	var i;
 
@@ -692,6 +700,10 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 			html=html+(htmlRow(row));
 			sTotal += row.spent;
 			eTotal += row.est;
+			if (row.estFirst) {
+			    eFirstTotal += row.estFirst;
+			    bUseEFirst = true;
+			}
 		}
 	} else {
 	    for (i = 0; i < rows.length; i++) {
@@ -699,14 +711,23 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 			html=html+(htmlRow(row));
 			sTotal += row.spent;
 			eTotal += row.est;
+			if (row.estFirst) {
+			    eFirstTotal += row.estFirst;
+			    bUseEFirst = true;
+            }
 		}
 	}
 	html=html+('</tbody></table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
 	html=html+('</DIV>');
 	if (!bOnlyTable)
 		html=html+('</DIV>');
-	if (bShowTotals)
-	    title += ("&nbsp;S:" + parseFixedFloat(sTotal) + "&nbsp;&nbsp;&nbsp;&nbspE:" + parseFixedFloat(eTotal) + "&nbsp;&nbsp;&nbsp;&nbspR:" + parseFixedFloat(eTotal - sTotal));
+	if (bShowTotals) {
+	    var sep = "<span class='agile_lighterText'>:</span>";
+	    title += ("&nbsp;S" + sep + parseFixedFloat(sTotal) +
+            (bUseEFirst ? "&nbsp;&nbsp;&nbsp;&nbspE 1ˢᵗ"+sep + parseFixedFloat(eFirstTotal) : "") +
+            "&nbsp;&nbsp;&nbsp;&nbspE"+sep + parseFixedFloat(eTotal) +
+            "&nbsp;&nbsp;&nbsp;&nbspR" + sep +parseFixedFloat(eTotal - sTotal));
+	}
 	htmlTop += getDrilldownTopButtons(bOnlyTable, title);
 	return htmlTop+html;
 }
