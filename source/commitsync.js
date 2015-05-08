@@ -282,6 +282,10 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         return tableRet;
     }
     var bPlusCommand = false;
+    if (!alldata.boards[idBoardShort]) {
+        logPlusError("error: idBoardShort:" + idBoardShort + " action:" + JSON.stringify(action) + " cardObj:" + JSON.stringify(cardObj));
+        assert(false);
+    }
     var strBoard = alldata.boards[idBoardShort].name;
     var strCard = cardObj.name;
     var textNotifyOrig = action.data.text.trim();

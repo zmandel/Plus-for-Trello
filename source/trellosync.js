@@ -287,11 +287,11 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
         function (responseReport) {
             if (responseReport.status != STATUS_OK || responseReport.rows.length == 0) {
                 if (responseReport.status == STATUS_OK)
-                    g_syncStatus.setStage("Removing S/E from card names", 1, true); //pretent step happened anyway (as status could be OK so caller expects all steps to finish)
+                    g_syncStatus.setStage("Removing S/E from card titles", 1, true); //pretent step happened anyway (as status could be OK so caller expects all steps to finish)
                 sendResponse(responseReport);
                 return;
             }
-            g_syncStatus.setStage("Removing S/E from card names", responseReport.rows.length);
+            g_syncStatus.setStage("Removing S/E from card titles", responseReport.rows.length);
             var rgRenamedCards = [];
             processThreadedItemsSync(tokenTrello, responseReport.rows, null, onProcessItem, onFinishedAll);
 

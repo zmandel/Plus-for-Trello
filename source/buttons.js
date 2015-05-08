@@ -31,8 +31,7 @@ var HelpButton = {
 };
 
 function createMiniHelp() {
-    var strClass= 'agile_help_button';
-    var b = $('<span id="help_buttons_container_mini"></span>').addClass('agile_miniHelp_container strClass');
+    var b = $('<span id="help_buttons_container_mini"></span>').addClass('agile_miniHelp_container agile_help_button');
     var spanIcon = $('<span></span>').css('cursor', 'help');
     var spanTour = $('<span class="agile_tour_link_mini">Tour</span>');
     hookTour(spanTour);

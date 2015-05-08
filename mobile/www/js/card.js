@@ -1,3 +1,28 @@
+var g_valDayExtra = null;
+
+var g_seCard = {
+    clear: function() {
+        this.mapUsers = {};
+    },
+    setSeCurForUser: function (user, s, e) {
+        assert(user);
+        var map = this.mapUsers[user];
+        if (map) {
+            map.s = s;
+            map.e = e;
+        }
+        else
+            this.mapUsers[user] = { s: s, e: e };
+    },
+    getSeCurForUser: function (user) { //note returns null when not loaded yet
+        assert(user);
+        var map = this.mapUsers[user] || { s: 0, e: 0 };
+        return map;
+    },
+
+    //private:
+    mapUsers: {}
+};
 
 function loadCardPage(page, params, bBack, urlPage) {
     var card = page.find("#cardTitle");

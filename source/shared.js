@@ -4,7 +4,42 @@ var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE r
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
-var g_bAlwaysShowSpentChromeIcon = false; //review zig these 3  need initialization. reuse loadBackgroundOptions
+var g_regexpHashtags = /#([\S-]+)/g;
+
+var OPT_SHOWSPENTINICON_NORMAL = 0;
+var OPT_SHOWSPENTINICON_ALWAYS = 1;
+var OPT_SHOWSPENTINICON_NEVER = 2;
+var g_optAlwaysShowSpentChromeIcon = OPT_SHOWSPENTINICON_NORMAL; //review zig these 3  need initialization. reuse loadBackgroundOptions
+
+function getHashtagsFromTitle(title) {
+    var hashtags = [];
+    var result = g_regexpHashtags.exec(title);
+    while (result != null) {
+        hashtags.push(result[1]);
+        result = g_regexpHashtags.exec(title);
+    }
+
+    return hashtags;
+}
+
+function setOptAlwaysShowSpentChromeIcon(opt) {
+    //note old versions used to store boolean
+    if (typeof (opt) === "undefined")
+        opt=OPT_SHOWSPENTINICON_NORMAL;
+    else if (opt === true)
+        opt = OPT_SHOWSPENTINICON_ALWAYS;
+    else if (opt === false)
+        opt = OPT_SHOWSPENTINICON_NORMAL;
+    g_optAlwaysShowSpentChromeIcon = opt;
+}
+
+var STATUS_OK = "OK"; //for messaging status with background page. all responses should have response.status=STATUS_OK when ok
+var COLOR_ERROR = "#D64141";
+var MS_TRELLOAPI_WAIT = (1000 / 30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
+var CMAX_THREADS = 4;
+var g_callbackOnAssert = null;
+var g_bDebuggingInfo = false;
+
 var g_bAcceptSFT = false;
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
@@ -16,7 +51,7 @@ var TAG_RECURRING_CARD = "[R]";
 var COLUMNNAME_ETYPE = "E.type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
-var SYNCPROP_bAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon";
+var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
 var SEKEYWORD_DEFAULT = "plus!";
 var g_strUserMeOption = "me";
 var SEKEYWORD_LEGACY = "plus s/e";
@@ -78,13 +113,6 @@ var g_optEnterSEByComment = {
     }
 };
 
-
-var STATUS_OK = "OK"; //for messaging status with background page. all responses should have response.status=STATUS_OK when ok
-var COLOR_ERROR = "#D64141";
-var MS_TRELLOAPI_WAIT=(1000/30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
-var CMAX_THREADS = 4;
-var g_callbackOnAssert = null;
-var g_bDebuggingInfo = false;
 
 Array.prototype.appendArray = function (other_array) {
     other_array.forEach(function (v) { this.push(v); }, this);
@@ -199,13 +227,13 @@ function loadSharedOptions(callback) {
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
-    assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
+    assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([keyUnits, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
-                                 g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
+                                 setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);

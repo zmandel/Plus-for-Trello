@@ -8,13 +8,13 @@ var g_strUserOtherOption = "other";
 var g_valUserExtra = null; //for "other" added user in S/E bar
 
 var g_strNoteBase = "type note.";
+var g_regexValidateSEKey = /[0-9]|\.|\:|\-/;
 
 function validateSEKey(evt) {
 	var theEvent = evt || window.event;
 	var key = theEvent.keyCode || theEvent.which;
 	key = String.fromCharCode(key);
-	var regex = /[0-9]|\.|\:|\-/;
-	if (!regex.test(key)) {
+	if (!g_regexValidateSEKey.test(key)) {
 		theEvent.returnValue = false;
 		if (theEvent.preventDefault) theEvent.preventDefault();
 	}
@@ -992,7 +992,9 @@ Click for more.");
 				var elemWindowTop = elemParent;
 				while (!elemWindowTop.hasClass("window-wrapper"))
 				    elemWindowTop = elemWindowTop.parent();
-				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp());
+				var div = $("<div></div>");
+				div.append(createRecurringCheck()).append(createHashtagsList());
+				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
 				createCardSEInput(elemParent);
 				insertCardTimer();
@@ -1001,7 +1003,6 @@ Click for more.");
 		}
 	}
 
-	var helpClass = "agile_plushelp_renamecardwarning";
 	var saveBtn = $(".js-save-edit");
 
 	if (saveBtn.length == 0)
@@ -1019,12 +1020,217 @@ Click for more.");
 		elemFind = elemFind.eq(0).parent();
 		if (!elemFind.eq(0).hasClass("card-detail-title"))
 			continue;
-
-		if (editControls.eq(0).children("." + helpClass).length == 0) {
-		    var helpWarnChange = setSmallFont($("<div>Plus: Append <b>[R]</b> to the title  to make it a <b>Recurring Card</b>.").addClass(helpClass), 0.85);
-			editControls.append(helpWarnChange);
-		}
 	}
+}
+
+function checkCardRecurringCheckbox() {
+    var idCardCur = getIdCardFromUrl(document.URL);
+    if (!idCardCur)
+        return;
+    var elemTitle = $(".window-title-text");
+    if (elemTitle.length == 0)
+        return;
+    
+    var checkbox = $("#agile_checkRecurringCard");
+    if (elemTitle.length == 0)
+        return;
+
+    var titleCur = elemTitle.text();
+    var bIsRecurring = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
+    checkbox[0].checked = bIsRecurring;
+    updateRecurringCardImage(bIsRecurring);
+}
+
+function createRecurringCheck() {
+    var check = $('<input class="agile_linkSoftColor" id="agile_checkRecurringCard" style="vertical-align:middle;margin-bottom:0px;display:inline;" type="checkbox"  />');
+    var icon = $("<img>").attr("src", chrome.extension.getURL("images/recurring.png")).addClass("agile-card-icon-recurring");
+    var span = $('<span id="container_agile_checkRecurringCard" class="agile_linkSoftColor">').append(icon).append(check);
+    span.prop("title", "Plus [R]ecurring cards (like weekly meetings) don\'t affect changed estimate reports.");
+    var elemTitle = $(".window-title-text");
+    var titleCur = elemTitle.text().trim();
+    var bChecked = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
+    check[0].checked = bChecked;
+    span.append($('<label style="display:inline;margin-right:2em;font-weight:normal" for="agile_checkRecurringCard" class="agile_unselectable agile_linkSoftColor">Recurring</label>'));
+    updateRecurringCardImage(bChecked, icon);
+    check.click(function () {
+        bChecked = check.is(':checked');
+        elemTitle = $(".window-title-text");
+
+        function undoCheck() {
+            bChecked = !bChecked;
+            check[0].checked = bChecked;
+            updateRecurringCardImage(bChecked, icon);
+        }
+
+        var idCardCur = getIdCardFromUrl(document.URL);
+        if (!idCardCur || elemTitle.length == 0) {
+            undoCheck();
+            return;
+        }
+
+        titleCur = elemTitle.text().trim();
+        var bIsRecurring = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
+        if ((bIsRecurring && bChecked) || (!bIsRecurring && !bChecked))
+            return;
+        if (bChecked)
+            titleCur = titleCur + " " + TAG_RECURRING_CARD;
+        else {
+            titleCur = titleCur.replace(/\[R\]/g, "").trim();
+        }
+
+        check.attr('disabled', 'disabled');
+        renameCard($.cookie("token"), idCardCur, titleCur, function (response) {
+            check.removeAttr('disabled');
+            if (response.status != STATUS_OK) {
+                undoCheck();
+                alert("Failed to rename card.\n" + response.status);
+            }
+            else {
+                //redo it. minor case when user manually renamed title or other db data while plus was renaming due to user clicking checkbox
+                //since this rename is the one most up-to-date, use its checked status.
+                check[0].checked = bChecked;
+                updateRecurringCardImage(bChecked, icon);
+            }
+        });
+
+    });
+    return span;
+}
+
+
+function updateRecurringCardImage(bRecurring, icon) {
+    if (!icon)
+        icon = $(".agile-card-icon-recurring");
+    if (bRecurring)
+        icon.show();
+    else
+        icon.hide();
+}
+
+function createHashtagsList() {
+    var comboK = $("<select class='agile_hashtags_list agile_linkSoftColor'></select>");
+    comboK.prop("title", "Add Plus #tags which are searchable from Reports.");
+    var txtOther = "other...";
+    var elemOther = null;
+
+    function addFirst() {
+        //disabled selected
+        comboK.append($(new Option("add #tags", "", false, true)).attr('disabled', 'disabled').prop("title", "Click to add #tags"));
+    }
+
+    function addOther() {
+        elemOther = $(new Option(txtOther, txtOther));
+        comboK.append(elemOther);
+    }
+
+    function removeOther() {
+        if (!elemOther)
+            return;
+
+        elemOther.remove();
+        elemOther = null;
+    }
+
+    function addKeyword(k) {
+        comboK.append($(new Option(k, k)).addClass("notranslate"));
+    }
+
+    addFirst();
+    var bLoaded = false;
+    var listCached = [];
+   
+    comboK.on("mousedown", function (e) {
+        if (bLoaded)
+            return;
+        //ignore click. load the list then fake a click again. not perfect
+        //since list can be dropped with the keyboard and wont be loaded.
+        //those users prob prefer to rename card titles directly so there.
+        e.preventDefault();
+        bLoaded = true;
+        sendExtensionMessage({ method: "getAllHashtags" }, function (response) {
+            if (response.status != STATUS_OK) {
+                alert(response.status);
+                return;
+            }
+            comboK.empty();
+            addFirst();
+            listCached = cloneObject(response.list);
+            listCached.forEach(function (k) {
+                addKeyword("#" + k);
+            });
+            addOther();
+            var event;
+            event = document.createEvent('MouseEvents');
+            event.initMouseEvent('mousedown', true, true, window);
+            comboK[0].dispatchEvent(event);
+        });
+    });
+
+    //review fix selectFirst mess with promises
+    function selectFirst() {
+        comboK.val("");
+    }
+
+    comboK.on("change", function () {
+        var val = comboK.val();
+        if (val == "")
+            return;
+        if (val == txtOther) {
+            var newHash = prompt("Type the new hashtag:");
+            if (!newHash) {
+                selectFirst();
+                return;
+            }
+            newHash = newHash.trim();
+            if (newHash.indexOf("#") < 0)
+                newHash = "#" + newHash;
+            if (newHash.indexOf(" ") >= 0) {
+                alert("Type a single hashtag without spaces.");
+                selectFirst();
+                return;
+            }
+            if (!listCached.every(function (k) {
+                if (("#" + k).toLowerCase() == newHash.toLowerCase())
+                    return false;
+                return true;
+            })) {
+                alert("Hashtag is already in the list.");
+                selectFirst();
+                return;
+            }
+
+            removeOther();
+            addKeyword(newHash);
+            listCached.push(newHash);
+            addOther();
+            comboK.val(newHash);
+            val = newHash;
+        }
+        var idCardCur = getIdCardFromUrl(document.URL);
+        elem = $(".window-title-text");
+        if (!idCardCur || elem.length == 0) {
+            selectFirst();
+            return;
+        }
+
+        var titleCur = elem.text().trim();
+        var rgHash = getHashtagsFromTitle(titleCur);
+        for (var iHash = 0; iHash < rgHash.length;iHash++) {
+            if ("#" + rgHash[iHash].toLowerCase() == val.toLowerCase()) {
+                //silently ignore
+                selectFirst();
+                return;
+            }
+        }
+        titleCur = titleCur + " " + val;
+        renameCard($.cookie("token"), idCardCur, titleCur, function (response) {
+            if (response.status != STATUS_OK) {
+                alert("Failed to rename card.\n" + response.status);
+            }
+            selectFirst();
+        });
+    });
+    return comboK;
 }
 
 var Card = {
@@ -1040,15 +1246,7 @@ var Card = {
 	// E.g. "2--This is a string" will output the number 2.
 	//
 	hashtagsFromTitle: function (title) {
-		var hashtags = [];
-		var regexp = /#([\S-]+)/g;
-		var result = regexp.exec(title);
-		while (result != null) {
-			hashtags.push(result[1]);
-			result = regexp.exec(title);
-		}
-
-		return hashtags;
+	    return getHashtagsFromTitle(title);
 	},
 	
 	estimationLabelText: function (estimationNumber) {
@@ -1068,7 +1266,7 @@ var Card = {
 
 
 function loadCardTimer(idCard) {
-    var timerElem = $("<a></a>").addClass("button-link ").attr("id", "agile_timer").attr('disabled', 'disabled');
+    var timerElem = $("<a></a>").addClass("button-link").attr("id", "agile_timer").attr('disabled', 'disabled');
 	var spanIcon = $("<span>");
 	var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
 	icon.addClass("agile-spent-icon-cardtimer");

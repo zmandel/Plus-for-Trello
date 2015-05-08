@@ -29,8 +29,8 @@
             <div class="agile_report_filters">
                 <div class="agile_report_filter">
                     <p style="margin-right: 0px;">
-                        <input style="vertical-align: middle; margin: 0px; padding:0px;" type="checkbox" value="checked" id="checkNoCrop"/>
-                        <label for="checkNoCrop">No Crop</label>
+                        <input style="vertical-align: middle; margin: 0px; padding:0px;" type="checkbox" value="checked" id="checkNoCrop" />
+                        <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
                     </p>
                     <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
@@ -148,9 +148,9 @@ Example: !#low finds cards without a '#low' hashtag">
                 <div class="agile_report_filter" title="Filter by changed estimate.
 
 ALL: No E-type filter.
-+E: filters on rows that increased the card estimate for the user reporting that row.
--E: filters on rows that decreased it
-NEW: filters on rows with a new estimate (1ˢᵗ estimate on the card per user.)">
+E 1st: rows with a first estimate
++E: rows that increased the card estimate per user
+-E: rows that decreased it">
                     <p class="agile_report_filter_label">E.type</p>
                     <select id="eType">
                         <option value="all">ALL</option>

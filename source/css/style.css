@@ -1,4 +1,13 @@
-﻿.agile_dialog_DefaultStyle {
+﻿.agile_unselectable {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+.agile_dialog_DefaultStyle {
   border: 1px solid rgba(0, 0, 0, 0.5);
   border-radius: 3px;
   box-shadow: 0 5px 9px rgba(0, 0, 0, 0.7);
@@ -112,9 +121,9 @@ div.agile_total_box {
 }
 
 .agile_miniHelp_container {
-    margin-top:-9px !important;
+    margin-top:-7px !important;
     float:right !important;
-    margin-right:-1em;
+    margin-right:-1.7em;
 }
 
 label.agile_ignore_filters_option {
@@ -122,7 +131,7 @@ label.agile_ignore_filters_option {
 	font-weight: normal;
 }
 
-	label.agile_ignore_filters_option input {
+label.agile_ignore_filters_option input {
 		vertical-align: middle;
 		margin: 0 5px 0 0;
 	}
@@ -155,19 +164,19 @@ div.agile_badge_remaining {
 	line-height: 1em;
 	color: black;
 	background: #FBF3D7;
-	border: 1px solid gray;
+	border: 1px solid #E5D49C;
 	font-weight: bold;
-	padding: 2px 4px 2px 4px !important;
-	border-radius: 10px !important;
+	padding: 4px 4px 2px 4px !important;
+	border-radius: 7px !important;
 }
 
 .agile_badge_hashtag_secondary {
 	line-height: 1em;
 	color: black;
 	background: #FBF3D7;
-	border: 1px solid gray;
-	padding: 2px 4px 2px 4px !important;
-	border-radius: 10px !important;
+	border: 1px solid #E5D49C;
+	padding: 4px 4px 2px 4px !important;
+	border-radius: 7px !important;
 }
 
 a.agile_close_button {
@@ -651,6 +660,13 @@ table#tableMarkers td {
 	margin-bottom: -1px;
 }
 
+.agile-card-icon-recurring {
+    margin-left: -2.6em !important;
+    margin-top:0.7em !important;
+    float:left !important;
+    cursor:default !important;
+}
+
 .agile-spent-icon-shifted {
 	width: 22px;
 	height: 22px;
@@ -700,9 +716,8 @@ table#tableMarkers td {
 .agile_tour_link_mini {
     text-decoration: none !important;
 	padding: 2px !important;
-    margin-right:8px !important;
+    margin-right:7px !important;
 	border-radius: 3px !important;
-	vertical-align: top !important;
 	font-size: 10px !important;
     font-weight:bold !important;
     color:#393939 !important;
@@ -1168,6 +1183,7 @@ table#tableMarkers td {
 .agile_linkSoftColor {
     color:#8C8C8C !important;
     font-size:12px !important;
+    cursor: pointer;
 }
 
 .agile_linkSoftColor:hover {
@@ -1290,6 +1306,12 @@ table#tableMarkers td {
 
 .agile_report_filter_label {
     margin-top: 6px !important;
+     -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
 }
 
 .agile_report_container {
@@ -1430,19 +1452,19 @@ table#tableMarkers td {
 }
 
 .agile_new_report_items:link {
-    color: #D64141 !important;
+    color: #10B731 !important;
 }
 
 .agile_new_report_items:visited {
-    color: #D64141 !important;
+    color: #10B731 !important;
 }
 
 .agile_new_report_items:hover {
-    color: #D64141 !important;
+    color: #10B731 !important;
 }
 
 .agile_new_report_items:active {
-    color: #D64141 !important;
+    color: #10B731 !important;
 }
 
 .agile_popup_topLinks:link {
@@ -1463,4 +1485,10 @@ table#tableMarkers td {
 
 .agile_disabled_color {
     color: gray !important;
+}
+
+.agile_hashtags_list {
+    width:auto;
+    border:none;
+    background-color:#EDEFF0;
 }

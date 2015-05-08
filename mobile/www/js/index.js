@@ -1,8 +1,6 @@
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 //var g_idGlobalAnalytics = "UA-xxxxxxxx-y";
 
-
-
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
@@ -14,7 +12,6 @@ var g_bReadyForIntent = false;
 var g_bLocalNotifications = false;
 var g_mapLastActivityInfo = null;
 var g_user = null;
-var g_valDayExtra = null;
 
 g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
 function assert(val) {
@@ -547,25 +544,33 @@ var app = {
 
         var pageYOffsetLast = 0;
         var bRemovedLast = true;
+
+        function onScrollAction() {
+            if (window.pageYOffset < pageYOffsetLast) {
+                if (!bRemovedLast)
+                    header.removeClass("plusShiftTop");
+                bRemovedLast = true;
+            }
+            else {
+                if (bRemovedLast && window.pageYOffset > 20) {
+                    header.addClass("plusShiftTop");
+                    bRemovedLast = false;
+                }
+            }
+
+            pageYOffsetLast = window.pageYOffset;
+        }
+
         function onAfterPageChange(page) {
             if (!g_bReadyForIntent) {
                 setTimeout(function () { g_bReadyForIntent = true; }, 10000);
             }
             $(window).off("scroll.plusForTrello");
             $(window).on("scroll.plusForTrello", function () {
-                if (window.pageYOffset < pageYOffsetLast) {
-                    if (!bRemovedLast)
-                        header.removeClass("plusShiftTop");
-                    bRemovedLast = true;
-                }
-                else {
-                    if (bRemovedLast && window.pageYOffset > 20) {
-                        header.addClass("plusShiftTop");
-                        bRemovedLast = false;
-                    }
-                }
-
-                pageYOffsetLast = window.pageYOffset;
+                if (typeof (requestAnimationFrame) == "undefined")
+                    onScrollAction();
+                else
+                    requestAnimationFrame(onScrollAction);
             });
             g_analytics.hit({ t: "pageview", dp: page.attr("id") }, 1000);
         }

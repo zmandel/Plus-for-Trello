@@ -253,13 +253,18 @@ function handleSyncDBWorker(request, sendResponseParam) {
             updatePlusIcon();
         }
 
-        if (response.status == STATUS_OK && !bEnterSEByComments) {
-            bNeedUpdateIcon = false;
-            var pairDateLast = {};
-            pairDateLast["plus_datesync_last"] = Date.now();
-            chrome.storage.local.set(pairDateLast, function () {
+        if (response.status == STATUS_OK) {
+            if (!bEnterSEByComments) { //bEnterSEByComments does this later. review both should share
+                bNeedUpdateIcon = false;
+                var pairDateLast = {};
+                pairDateLast["plus_datesync_last"] = Date.now();
+                chrome.storage.local.set(pairDateLast, function () {
+                    updatePlusIcon();
+                });
+            }
+
+            if (bNeedUpdateIcon && g_bLastPlusMenuIconError)
                 updatePlusIcon();
-            });
         }
 
         var pairLastStatus = {};

@@ -10,6 +10,7 @@ var PLUS_BACKGROUND_CALLER = true; //allows us to tell shared.js we are calling
 var g_bInstalledNetworkDetection = false;
 var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
+var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
 
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
     var data = null;
@@ -153,17 +154,32 @@ function handleRawSync(sendResponseParam) {
 var g_strBadgeText = "";
 var PLUS_COLOR_SPENTBADGE = "#B10013";
 
+function getFormattedSpentBadgeText() {
+    var l = g_strBadgeText.length;
+    if (l>0 && l<4)
+        return g_strBadgeText + UNITS.current;
+    return g_strBadgeText;
+}
+
 function setIconBadgeText(text, bAsTimer) {
     text = "" + text; //in case its not string yet
     if (!bAsTimer) {
         g_strBadgeText = text;
     }
 
-    if (g_strTimerLast.length > 0)
-        text = g_strTimerLast;
-
-    chrome.browserAction.setBadgeText({ text: text });
-    chrome.browserAction.setBadgeBackgroundColor({color:(g_strTimerLast.length > 0?"#2A88BE":PLUS_COLOR_SPENTBADGE)});
+    if (g_strTimerLast.length > 0) {
+        chrome.browserAction.setBadgeBackgroundColor({ color: "#2A88BE" });
+        chrome.browserAction.setBadgeText({ text: g_strTimerLast });
+ 
+    }
+    else {
+        assert(!bAsTimer);
+        chrome.browserAction.setBadgeBackgroundColor({ color: PLUS_COLOR_SPENTBADGE });
+        var textSet = "";
+        if (g_optAlwaysShowSpentChromeIcon != OPT_SHOWSPENTINICON_NEVER)
+            textSet = getFormattedSpentBadgeText(text);
+        chrome.browserAction.setBadgeText({ text: textSet });
+    }
 }
 
 
@@ -183,6 +199,44 @@ function calculateSyncDelay(callback) {
             callback();
         }, delay);
     });
+}
+
+function handleGetAllHashtags(sendResponse) {
+    var request = { sql: "SELECT name FROM cards WHERE name LIKE '%#%' AND bDeleted=0", values: [] };
+    handleGetReport(request,
+        function (responseReport) {
+            if (responseReport.status != STATUS_OK) {
+                sendResponse(responseReport);
+                return;
+            }
+            var mapHashtags = {};
+            responseReport.rows.forEach(function (row) {
+                var h = getHashtagsFromTitle(row.name);
+                h.forEach(function (hItem) {
+                    mapHashtags[hItem] = true;
+                });
+            });
+
+            var result = [];
+            for (var hItem in mapHashtags) {
+                result.push(hItem);
+            }
+            result.sort(function doSort(a, b) {
+                return (a.toLowerCase().localeCompare(b.toLowerCase()));
+            });
+
+            var hLast = null;
+            var resultUnique = [];
+            for (var iResult = 0; iResult < result.length; iResult++) {
+                var hCur = result[iResult];
+                if (hLast && hCur.toLowerCase() == hLast.toLowerCase())
+                    continue;
+                resultUnique.push(hCur);
+                hLast = hCur;
+            }
+            responseReport.list = resultUnique;
+            sendResponse(responseReport);
+        });
 }
 
 function handlePlusMenuSync(sendResponse) {
@@ -207,12 +261,12 @@ function processTimerCounter() {
 
     var bChangedIdCard = false;
     function getTimerText(response) {
-        assert(typeof SYNCPROP_bAlwaysShowSpentChromeIcon !== "undefined");
+        assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon !== "undefined");
         var keyUnits = "units";
-        chrome.storage.sync.get([keyUnits, SYNCPROP_ACTIVETIMER, SYNCPROP_bAlwaysShowSpentChromeIcon], function (obj) {
+        chrome.storage.sync.get([keyUnits, SYNCPROP_ACTIVETIMER, SYNCPROP_optAlwaysShowSpentChromeIcon], function (obj) {
             var idCardTimer = null;
             UNITS.current = obj[keyUnits] || UNITS.current; //reload
-            g_bAlwaysShowSpentChromeIcon = obj[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
+            setOptAlwaysShowSpentChromeIcon(obj[SYNCPROP_optAlwaysShowSpentChromeIcon]);
             if (obj[SYNCPROP_ACTIVETIMER] !== undefined)
                 idCardTimer = obj[SYNCPROP_ACTIVETIMER];
 
@@ -598,12 +652,12 @@ function updatePlusIcon(bTooltipOnly) {
                 ctx.translate(-dxCanvas, -dyCanvas);
                 ctx.rotate(-2 * Math.PI * ease(g_rotation));
             }
-            var color = "#B0FF5B";
+
             var colorTrelloSync = "#FFFFFF";
             var colorErrorSync = "#FF5050";
             var colorOffline = "#BBBBBB";
             var colorBackground = "#FFFFFF";
-            var colorCircleStroke = (g_syncStatus.bSyncing ? '#000000' : '#415C20');
+            var colorCircleStroke = '#000000';
 
             bErrorSync = !setTooltipSyncStatus();
 
@@ -612,18 +666,23 @@ function updatePlusIcon(bTooltipOnly) {
             else if (g_bOffline)
                 colorBackground = colorOffline;
 
+            g_bLastPlusMenuIconError = false; //reset
             //draw spent counter on top of chrome badge
-            if (g_bAlwaysShowSpentChromeIcon && g_strTimerLast.length > 0 && g_strBadgeText.length > 0) {
+            if (g_optAlwaysShowSpentChromeIcon == OPT_SHOWSPENTINICON_ALWAYS && g_strTimerLast.length > 0 && g_strBadgeText.length > 0) {
 				//review zig: doesnt show offline/error visual status
                 ctx.fillStyle = PLUS_COLOR_SPENTBADGE;
                 ctx.strokeStyle = PLUS_COLOR_SPENTBADGE;
-                var width=ctx.measureText(g_strBadgeText).width;
-                roundRect(ctx, 0, 0, width+4, 11, 1, true, true);
+                var textBadgeSpent = getFormattedSpentBadgeText();
+                var width = ctx.measureText(textBadgeSpent).width;
+                var xStart = Math.max(17 - width, 3);
+                ctx.fillRect(xStart, 5, 19-xStart, 8);
+                //roundRect(ctx, xStart, 0, width, 8, 0, true, true);
                 ctx.fillStyle = "#FFFFFF";
                 ctx.font = "bold 8px Arial Narrow, Arial, sans-serif";
-                ctx.fillText(g_strBadgeText, 2, 9);
+                ctx.fillText(textBadgeSpent, xStart + 3, 12);
             }
             else if (bErrorSync || g_bOffline) { //draw red X
+                g_bLastPlusMenuIconError = true;
                 var dx = 4.5;
                 ctx.beginPath();
                 ctx.strokeStyle = colorBackground;
@@ -647,7 +706,7 @@ function updatePlusIcon(bTooltipOnly) {
             //green dot to the right
             if (g_cReadSyncLock > 0 || g_syncStatus.bSyncing) {
                 ctx.beginPath();
-                ctx.fillStyle = (g_syncStatus.bSyncing? colorTrelloSync : color);
+                ctx.fillStyle = (colorTrelloSync);
                 ctx.arc(15, 2, 2, 0, 2 * Math.PI, false);
                 ctx.fill();
                 ctx.lineWidth = 1;
@@ -656,11 +715,11 @@ function updatePlusIcon(bTooltipOnly) {
                 ctx.closePath();
             }
 
-            //green dot to the left
+            //orange dot to the right
             if (g_cWriteSyncLock > 0) {
                 ctx.beginPath();
-                ctx.fillStyle = color;
-                ctx.arc(3, 2, 2, 0, 2 * Math.PI, false);
+                ctx.fillStyle = "#FC6F2E";
+                ctx.arc(15, 2, 2, 0, 2 * Math.PI, false);
                 ctx.fill();
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = colorCircleStroke;
@@ -758,12 +817,27 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	else if (request.method == "getPlusFeed") {
 		handleGetPlusFeed(request.msLastPostRetrieved, sendResponse);
 	}
+	else if (request.method == "getAllHashtags") {
+	    handleGetAllHashtags(sendResponse);
+	}
 	else if (request.method == "updatePlusIcon") {
 	    if (request.bOnlyTimer) {
 	        processTimerCounter();
 	    }
-	    else
-	        updatePlusIcon();
+	    else {
+	        if (request.bSetSpentBadge) {
+	            chrome.storage.sync.get([SYNCPROP_optAlwaysShowSpentChromeIcon], function (obj) {
+	                setOptAlwaysShowSpentChromeIcon(obj[SYNCPROP_optAlwaysShowSpentChromeIcon]);
+	                if (g_strTimerLast.length == 0)
+	                    setIconBadgeText(g_strBadgeText, false);
+	                updatePlusIcon();
+	            });
+	        }
+	        else {
+	            updatePlusIcon();
+	        }
+	    }
+
 	    if (request.bAnimate)
 	        animateFlip();
 	    sendResponse({status : STATUS_OK});

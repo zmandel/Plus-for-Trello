@@ -41,7 +41,7 @@ function insertCardTimer() {
 	    if (sidebars.length == 0)
 	        return false;
 
-	    var actions = sidebars.find($("h3:contains(Actions)"));
+	    var actions = sidebars.find($(".other-actions h3")).first();
 	    if (actions.length == 0)
 	        return false;
 	    var divInsert = actions.next();
@@ -183,7 +183,7 @@ function loadOptions(callback) {
 
     //get options from sync
     chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
-                             keybEnterSEByCardComments, SYNCPROP_bAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
+                             keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
@@ -198,7 +198,7 @@ function loadOptions(callback) {
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
-                                 g_bAlwaysShowSpentChromeIcon = objSync[SYNCPROP_bAlwaysShowSpentChromeIcon] || false;
+                                 setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
@@ -316,7 +316,7 @@ function ResetPlus() {
                                 }
 
                                 clearAllStorage(function () {
-                                    restartPlus("All local data removed. Refreshing to start sync...");
+                                    restartPlus("All local data cleared. Refreshing to start sync...");
                                 });
                             });
                     });

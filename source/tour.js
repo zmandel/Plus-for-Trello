@@ -129,16 +129,43 @@ function handleCardTour() {
     var flow = [
     {
         selector: ".agile-spent-icon-header_cardwindow",
-        text: "Help<br>is here too<br>",
+        text: "Help<br>is here too.<br><br>Use keyboard arrows<br>to navigate the tour.",
         angle: 180,
         distance: 0,
-        size: 100
+        size: 150
+    },
+
+       {
+           selector: "#container_agile_checkRecurringCard",
+           focus: "#agile_checkRecurringCard",
+           text: "check 'Recurring'<br>so cards (like weekly meetings) will not have a '1ˢᵗ estimate' and wont inflate changed estimate reports.",
+           angle: 180,
+           distance: 0,
+           size: 200
+       },
+
+    {
+        selector: ".agile_hashtags_list",
+        focus: ".agile_hashtags_list",
+        text: "Add #tags<br>to cards and later search them from reports.",
+        angle: 180,
+        distance: 0,
+        size: 150
+    },
+
+    {
+        selector: ".js-card-title",
+        focus: ".js-card-title",
+        text: "You can also change the card title directly to manage #tags/recurring.",
+        angle: 180,
+        distance: 0,
+        size: 150
     },
 
     {
         selector: ".agile-se-bar-entry",
         focus:".agile_days_box_input",
-        text: "This is the <b>card bar</b><br> where you enter<br> Spent and Estimate.<br><br>Each one entered is called an <b>S/E row</b>.",
+        text: "<b>card S/E bar</b><br> here you enter<br> <b>S</b>pent and <b>E</b>stimate rows.<br><br>Each <b>S/E row</b> entered shows as a card comment and in reports.",
         angle: 90,
         distance: 0,
         size: 200
@@ -146,15 +173,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "Spent and Estimate<br>units default to 'hours'.<br>If you prefer minutes or days, change it from Preferences in Plus help before entering S/E.",
-        angle: 90,
-        distance: 0,
-        size: 200
-    },
-    {
-        selector: ".agile-se-bar-entry",
-        focus: ".agile_days_box_input",
-        text: "Each <b>S/E row</b> entered<br>appears in a card comment,<br>drill-downs and reports.<br><br>",
+        text: "<b>S</b>pent and <b>E</b>stimate<br>units default to 'hours'.<br>If you prefer minutes or days, change it from Preferences in Plus help before entering S/E.",
         angle: 90,
         distance: 0,
         size: 200
@@ -162,7 +181,7 @@ function handleCardTour() {
       {
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
-          text: "The first <b>S/E row</b><br>entered per user<br>should have an <b>E</b>stimate.<br>",
+          text: "To track changed estimates, the first <b>S/E row</b><br>entered per user<br>needs an initial <b>E</b>stimate.",
           angle: 90,
           distance: 0,
           size: 200
@@ -170,24 +189,41 @@ function handleCardTour() {
       {
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
-          text: "That first S/E row<br>entered per user is<br>their <b>1ˢᵗ Estimate</b><br>and cannot be modified.<br><br>Useful to later detect<br>and compare changed estimates.<br>",
+          text: "That first S/E row<br>entered per user is<br>their <b>1ˢᵗ Estimate</b><br>and cannot be modified.<br><br>Useful to detect<br>and compare changed estimates using reports.<br>",
           angle: 90,
           distance: 0,
           size: 200
       },
-     
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "<b>Spend</b> units<br>by entering more 'S/E rows' with positive <b>S</b>pend and<br>empty <b>E</b>stimate.<br><br>",
+        text: "If you never want to track changed estimates tell Plus in Preferences to 'Allow negative <b>R</b>emaining'",
         angle: 90,
         distance: 0,
         size: 200
     },
+    {
+        selector: ".agile-se-bar-entry",
+        focus: ".agile_days_box_input",
+        text: "<b>Spend</b> units by<br>entering more 'S/E rows' with positive <b>S</b>pend and<br>empty <b>E</b>stimate.<br><br>",
+        angle: 90,
+        distance: 0,
+        size: 200
+    },
+
+        {
+            selector: ".agile-se-bar-entry",
+            focus: ".agile_days_box_input",
+            text: "You may<br>type both S and E<br>in the same row.<br><br>An empty cell means zero.",
+            angle: 90,
+            distance: 0,
+            size: 200
+        },
+
      {
          selector: ".agile-se-bar-entry",
          focus: ".agile_days_box_input",
-         text: "<b>S and E<br>are cummulative</b>.<br><br><br>Their current value is the sum in all S/E rows.<br>",
+         text: "<b>S and E<br>are cummulative</b>.<br><br>Their current sum per user is shown in the table above.<br><br>See the example in Plus help.",
          angle: 90,
          distance: 0,
          size: 200
@@ -195,7 +231,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "The best practice is to<br>enter <b>S</b>pent until <b>S sum</b> equals <b>E sum</b>.",
+        text: "The best practice is to<br>enter <b>S</b>pent until <b>R</b> is zero<br>(<b>S sum</b> equals <b>E sum</b>).",
         angle: 90,
         distance: 0,
         size: 200
@@ -203,7 +239,7 @@ function handleCardTour() {
     {
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
-        text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so <b>R</b><br>doesn't go negative.<br><br>The Plus bar defaults E<br>automatically in that case.",
+        text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so <b>R</b><br>doesn't go negative.<br><br>The Plus bar defaults <b>E</b><br>automatically in that case.",
         angle: 90,
         distance: 0,
         size: 200
@@ -225,15 +261,24 @@ function handleCardTour() {
         },
         {
             selector: ".agile-card-seByUserModify",
-            text: "For example,<br>if the card is done but there is still R, just edit here E sum to be equal to S sum.",
+            text: "For example,<br>if the card is done but there is still <b>R</b>, just edit here <b>E sum</b> to be equal to <b>S sum</b>.",
             angle: 180,
             distance: 0,
             size: 200
         },
+
+        {
+            selector: ".agile-card-seByUserModify",
+            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not delete the generated card comment</b><br><br><a style='color:white;' href='http://plusfortrello.blogspot.com/2015/03/plus-for-trello-faq.html' target='_blank'>oups too late</a>",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
+
         {
             selector: "#plusCardCommentUsers",
             focus: "#plusCardCommentUsers",
-            text: "To enter an S/E row<br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one.",
+            text: "To enter an <b>S/E row</b><br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one from another list.",
             angle: 180,
             distance: 0,
             size: 200
@@ -241,7 +286,7 @@ function handleCardTour() {
      {
          selector: ".agile_days_box_input",
          focus: ".agile_days_box_input",
-         text: "then pick the date it happened,<br><br>'now', -1d for yesterday, etc.",
+         text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago' etc.",
          angle: 180,
          distance: 0,
          size: 200
@@ -262,7 +307,7 @@ function handleCardTour() {
                distance: 0,
                size: 200
            },
-           
+
            {
                selector: ".agile_comment_box_input",
                focus: ".agile_comment_box_input",
@@ -282,7 +327,7 @@ function handleCardTour() {
        {
            selector: ".agile_card_report_link",
            focus: ".agile_card_report_link",
-           text: "Once there are<br>S/E rows entered, this shows a breakdown<br>per user.<br>Click it to drill-down.",
+           text: "Once there are<br>S/E rows entered, this report shows a breakdown<br>per user.<br><br>Click this to drill-down on the card.",
            angle: 180,
            distance: 0,
            size: 200
@@ -300,7 +345,7 @@ function handleCardTour() {
        {
            selector: ".agile-card-first-estimate-header",
            focus: ".agile-card-first-estimate-header",
-           text: "This column shows the<br><b>1ˢᵗ E</b>stimate by each user.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
+           text: "<b>1ˢᵗ E</b>stimate per user.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
            angle: 180,
            distance: 0,
            size: 200
@@ -308,42 +353,25 @@ function handleCardTour() {
         {
             selector: ".agile-card-first-estimate-header",
             focus: ".agile-card-first-estimate-header",
-            text: "1ˢᵗ estimates<br>appear in reports with<br>'E.type' = NEW",
+            text: "1ˢᵗ estimates<br>appear also in reports<br>to compare at the board/user/date level.",
             angle: 180,
             distance: 0,
-            size: 150
+            size: 200
         },
         {
             selector: ".agile-card-now-estimate-header",
             focus: ".agile-card-now-estimate-header",
-            text: "This column shows the<br><b>total estimate</b><br>for each user.",
+            text: "<br><b>Total estimate</b><br>per user to compare with E 1ˢᵗ",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 150
         },
        
-        {
-            selector: ".js-card-title",
-            focus: ".js-card-title",
-            text: "Append ' <b>[R]</b>'<br>to a card name<br>to make it 'Recurring'.<br>Those cards (like weekly meetings) do not have<br>a '1ˢᵗ estimate'.",
-            angle: 180,
-            distance: 0,
-            size: 200
-        },
-
-         {
-             selector: ".js-card-title",
-             focus: ".js-card-title",
-             text: "use <b>Recurring Cards</b><br>to stop tracking increased/decreased estimates on a given card.",
-             angle: 180,
-             distance: 0,
-             size: 200
-         },
     
        {
            selector: "#agile_timer",
            focus: "#agile_timer",
-           text: "<b>Card Timer</b><br><br>Start or stop a timer.<br><br>",
+           text: "<b>Card Timer</b><br><br>Start, Pause or Stop a timer.<br><br>",
            angle: (180 + 45),
            distance: 0,
            size: 150
@@ -353,7 +381,7 @@ function handleCardTour() {
         {
             selector: "#agile_timer",
             focus: "#agile_timer",
-            text: "<br>Once started,<br>the timer also shows in the Chrome Plus menu <br><br><a style='color:white;' href='https://www.youtube.com/watch?v=gbAZXtaRi5o' target='_blank'>top-right in Chrome</a><br>",
+            text: "<br>Once started,<br>the timer also shows in the Chrome Plus menu <br><br><a style='color:white;' href='https://www.youtube.com/watch?v=gbAZXtaRi5o' target='_blank'>can\'t see the Plus menu?</a><br>",
             angle: (180 + 45),
             distance: 0,
             size: 200,
@@ -364,7 +392,7 @@ function handleCardTour() {
        {
            selector: "#agile_timer",
            focus: "#agile_timer",
-           text: "Once stopped<br>it pre-fills <b>S</b>pent<br>in the card bar.<br><br>It wont show in reports<br>until you enter it.",
+           text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you enter the s/e row, which stops it.",
            angle: (180 + 45),
            distance: 0,
            size: 200
@@ -374,7 +402,7 @@ function handleCardTour() {
        {
            selector: ".agile_spent_box_input",
            focus: ".agile_spent_box_input",
-           text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/stopping the timer.",
+           text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/pausing the timer.",
            angle: 180-45,
            distance: 0,
            size: 200
@@ -392,7 +420,7 @@ function handleCardTour() {
          {
              selector: ".agile_spent_box_input",
              focus: ".agile_spent_box_input",
-             text: "Also,<br>if you type Spent here once the timer is running, stopping the timer will add to it.",
+             text: "Also,<br>if you type Spent here once the timer is running, pausing the timer will add to it.",
              angle: 180 - 45,
              distance: 0,
              size: 200
@@ -409,7 +437,7 @@ function handleCardTour() {
     {
         selector: ".agile-spent-icon-header_cardwindow",
         focus: ".agile-spent-icon-header_cardwindow",
-        text: "Read the<br>full help anytime.<br><br>Please donate <span style='font-size:230%'>☺</span>",
+        text: "Read the<br>full help anytime.<br><br>Please <A href='http://plusfortrello.blogspot.com/2015/04/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
         angle: 180,
         distance: 0,
         size: 150,

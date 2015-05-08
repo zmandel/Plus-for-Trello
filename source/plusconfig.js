@@ -290,7 +290,7 @@ function clearAllStorage(callback) {
 					        'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
 					        'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
 					        'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
-					        'bAlwaysShowSpentChromeIcon': g_bAlwaysShowSpentChromeIcon,
+					        'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
 					        'bHidePendingCards': g_bHidePendingCards,
 					        'dowStart': DowMapper.getDowStart(),
 					        'msStartPlusUsage': g_msStartPlusUsage,

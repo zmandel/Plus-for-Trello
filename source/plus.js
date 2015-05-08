@@ -617,7 +617,8 @@ function onDbOpened() {
                             updateCRowsTotalState(response.cRowsTotal, g_configData, user);
                         }
                     });
-	       } else if (msg.event == EVENTS.DB_CHANGED) {
+	        } else if (msg.event == EVENTS.DB_CHANGED) {
+	            checkCardRecurringCheckbox();
 	           //EVENTS.DB_CHANGED not handled for home/daily reports as we care about new rows only (otherwise it gets complicated to prevent double refreshing on new rows and other changes
 	           //review zig" ideally refresh on this only if NEW_ROWS was not just received. then chart labels will rename when renamed in trello and so on (no new rows cases)
 	           //important so we update card report then changing [R] status
