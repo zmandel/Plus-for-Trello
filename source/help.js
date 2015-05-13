@@ -6,36 +6,10 @@ var SYNCMETHOD = {
     googleSheetLegacy: 2
 };
 
+
 var Help = {
     m_bShowing: false, //necessary to catch the possibility of null m_container on a consecutive display call
 	m_container: null,
-	m_manifestVersion: "",
-
-	init: function () {
-		if (Help.m_manifestVersion != "")
-		    return;
-		Help.m_manifestVersion = "unknown";
-		var url = chrome.extension.getURL("manifest.json");
-		
-		var xhr = new XMLHttpRequest();
-		xhr.onreadystatechange = function (e) {
-		    if (xhr.readyState == 4 && xhr.status == 200) {
-		        try {
-		            var manifest = JSON.parse(xhr.responseText);
-		            Help.m_manifestVersion = manifest.version;
-		        }
-		        catch (e)
-		        {
-		            console.log("error: cant parse manifest.");
-		            if (url.indexOf("/gddgnpbmkhkpnnhkfheojeiceofcnoem/") >= 0) //developer url
-		                alert("error");
-		        }
-			}
-		};
-
-		xhr.open("GET", url);
-		xhr.send();
-	},
 
 	raw: function (h) {
 		var elem = $(h);
@@ -220,7 +194,7 @@ var Help = {
 	    }, 8000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + Help.m_manifestVersion + '&nbsp;&nbsp<A href="#agile_help_languages">Language</A>&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A href="#agile_help_languages">Language</A>&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/109669748550259696558/posts" rel="publisher" target="_blank"> \
@@ -421,7 +395,6 @@ var Help = {
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
-	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from Utilities.', divCur);
 	    helpWin.para("", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
@@ -442,7 +415,6 @@ var Help = {
 	        helpWin.para('Current sync spreadsheet url:', divCur);
 	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
 	    }
-	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from Utilities.', divCur);
 	    helpWin.para("", divCur);
 
 	    var valCombo = null;
@@ -597,6 +569,7 @@ var Help = {
 	        }
 	    }
 
+	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -651,9 +624,8 @@ var Help = {
 		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Pause the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
-	    helpWin.para('&bull; If you already had values typed in the S/E boxes, pausing the timer will add to them.');
-	    helpWin.para('&bull; When pausing a timer and you dont enter the s/e row right away, leave the card open to keep the pre-filled \'S\'.');
-	    helpWin.para('&bull; Cards with active timers have a hourglass in Board view and show in the Chrome Plus menu.');
+	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
+	    helpWin.para('&bull; Cards with active (running) timers have a hourglass in Board view and show in the Chrome Plus menu.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

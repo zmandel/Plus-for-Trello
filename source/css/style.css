@@ -1050,9 +1050,23 @@ table#tableMarkers td {
     cursor: pointer;
 }
 
-::-webkit-input-placeholder {
+.agile_placeholder_small::-webkit-input-placeholder {
     color:    #C7C7C7 !important;
-    font-style:italic !important;
+    font-size: 0.8em !important;
+}
+
+.agile_report_filter_input_short::-webkit-input-placeholder {
+    color:    #C7C7C7 !important;
+    font-size: 0.8em !important;
+}
+
+.agile_report_filter_input_long::-webkit-input-placeholder {
+    color:    #C7C7C7 !important;
+    font-size: 0.8em !important;
+}
+
+.agile_report_filter::-webkit-input-placeholder {
+    color:    #C7C7C7 !important;
     font-size: 0.8em !important;
 }
 
@@ -1065,6 +1079,11 @@ table#tableMarkers td {
 	background-color: #FFFAFA !important;
 	width: 40px;
 	display: inline !important;
+}
+
+.agile_focusColorBorder:focus {
+    box-shadow: 0 0 2px #298FCA !important;
+    border-color: #298FCA !important;
 }
 
 .agile_estimation_box_input {

@@ -392,7 +392,7 @@ function handleCardTour() {
        {
            selector: "#agile_timer",
            focus: "#agile_timer",
-           text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you enter the s/e row, which stops it.",
+           text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you 'Enter' the s/e row.",
            angle: (180 + 45),
            distance: 0,
            size: 200
@@ -434,6 +434,14 @@ function handleCardTour() {
              distance: 0,
              size: 200
          },
+        {
+            selector: "#plusCardCommentEnterButton",
+            focus: "#plusCardCommentEnterButton",
+            text: "If you dont enter it,<br>Plus will remember your Draft row and remind you next time you open the card from the same computer.",
+            angle: 180 - 45,
+            distance: 0,
+            size: 200
+        },
     {
         selector: ".agile-spent-icon-header_cardwindow",
         focus: ".agile-spent-icon-header_cardwindow",

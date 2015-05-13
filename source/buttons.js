@@ -109,7 +109,7 @@ function insertPlusFeed(bForce) {
 		});
 	}
 
-	setTimeout(function () { doGetFeed(); }, 1000); //use timeout so icon doesnt jump left after inserted (let plus header breather)
+	setTimeout(function () { doGetFeed(); }, 1000); //use timeout so icon doesnt jump left after inserted (let plus header breathe)
 	
 	if (g_intervalCheckPlusFeed != null)
 		return;

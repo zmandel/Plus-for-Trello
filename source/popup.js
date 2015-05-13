@@ -53,16 +53,15 @@ function updateNewLink() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
-	if (g_bLoaded)
-		return;
-	g_bLoaded = true;
-
-	loadSharedOptions(function () {
-	    setTimeout(function () {
-	        updateNewLink();
-	    }, 200);
-	    loadPopup();
-	});
+    if (g_bLoaded)
+        return;
+    g_bLoaded = true;
+    loadSharedOptions(function () {
+        setTimeout(function () {
+            updateNewLink();
+        }, 200);
+        loadPopup();
+    });
 });
 
 function showError(strError) {
@@ -118,7 +117,7 @@ function configureTimerElem(callback) {
                 }
                 setInterval(function () {
                     update();
-                }, 1000);
+                }, 1000); //every second so user sees the timer ticking
                 
                 update();
                 

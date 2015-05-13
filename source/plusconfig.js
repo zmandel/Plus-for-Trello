@@ -191,6 +191,10 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
                                     var pairUrlLocal = {};
                                     pairUrlLocal['serviceUrlLast'] = g_strServiceUrl;
                                     chrome.storage.local.set(pairUrlLocal, function () {
+                                        if (chrome.runtime.lastError) {
+                                            alert(chrome.runtime.lastError.message);
+                                            return;
+                                        }
                                         var bOldEnableTrelloSync = g_bEnableTrelloSync;
 
                                         if (g_optEnterSEByComment.bEnabled || (g_strServiceUrl != "" && (!g_bEnableTrelloSync || g_bDisableSync)) ||

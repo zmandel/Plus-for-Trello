@@ -10,6 +10,132 @@ var g_valUserExtra = null; //for "other" added user in S/E bar
 var g_strNoteBase = "type note.";
 var g_regexValidateSEKey = /[0-9]|\.|\:|\-/;
 
+/* g_currentCardSEData 
+ * 
+ * keeps track of the card s/e row data to save in storage.local as a draft. cleared when user enters the row.
+ *
+**/
+var g_currentCardSEData = { 
+    loadFromStorage : function (idCard,callback) {
+        assert(idCard);
+        var key=this.keyStoragePrefix+idCard;
+        this.idCard = idCard;
+        this.clearValues();
+
+        var thisLocal = this;
+        chrome.storage.local.get(key, function (obj) {
+            var value = obj[key];
+            if (chrome.runtime.lastError || !value) {
+                if (chrome.runtime.lastError)
+                    console.log(chrome.runtime.lastError.message);
+                callback();
+                return;
+            }
+            value = JSON.parse(value);
+            assert(idCard==value.idCard);
+            if (thisLocal.idCard != idCard) {
+                //should never happen but handle possible rare timing
+                callback();
+                return;
+
+            }
+            thisLocal.msTime = value.msTime;
+            thisLocal.keyword = value.keyword;
+            thisLocal.user = value.user;
+            thisLocal.delta = value.delta;
+            thisLocal.s = value.s;
+            thisLocal.e = value.e;
+            thisLocal.note = value.note;
+            callback();
+        });
+    },
+    saveToStorage: function (bForce) {
+        assert(this.idCard);
+        var stringified = JSON.stringify({
+            idCard: this.idCard,
+            keyword: this.keyword,
+            user: this.user,
+            delta: this.delta,
+            s: this.s,
+            e: this.e,
+            note: this.note,
+            msTime: this.msTime
+        });
+        if (!bForce) {
+            if (this.strLastSaved == stringified)
+                return;
+        }
+        var pair = {};
+        var key = this.keyStoragePrefix + this.idCard;
+        pair[key] = stringified;
+        var thisLocal = this;
+        chrome.storage.local.set(pair, function () {
+            if (chrome.runtime.lastError) {
+                console.log(chrome.runtime.lastError.message);
+                return;
+            }
+            thisLocal.strLastSaved = stringified;
+        });
+    },
+
+    setValues: function (idCard, keyword, user, delta, s, e, note) {
+        if (this.idCard == idCard &&
+            this.keyword == keyword &&
+            this.user == user &&
+            this.delta == delta &&
+            this.s == s &&
+            this.e == e &&
+            this.note == note) {
+            return;
+        }
+
+        this.idCard = idCard;
+        this.keyword = keyword;
+        this.user = user;
+        this.delta = delta;
+        this.s = s;
+        this.e = e;
+        this.note = note;
+        this.msTime = Date.now();
+        this.saveToStorage();
+    },
+
+    removeValue: function (idCardCur) {
+        if (!idCardCur)
+            idCardCur = this.idCard;
+
+        if (!idCardCur)
+            return;
+        var key = this.keyStoragePrefix + idCardCur;
+        chrome.storage.local.remove(key);
+        if (this.idCard == idCardCur)
+            this.clearValues();
+    },
+
+    //ALL BELOW IS PRIVATE
+
+    clearValues: function () {
+        this.msTime = 0;
+        this.keyword = "";
+        this.user = "";
+        this.delta = "";
+        this.s = "";
+        this.e = "";
+        this.note = "";
+    },
+
+    msTime: 0,
+    keyStoragePrefix:"cardSEDraft:",
+    strLastSaved : "",
+    idCard : "",
+    keyword: "",
+    user: "",
+    delta: "",
+    s: "",
+    e: "",
+    note: ""
+};
+
 function validateSEKey(evt) {
 	var theEvent = evt || window.event;
 	var key = theEvent.keyCode || theEvent.which;
@@ -55,6 +181,8 @@ function updateEOnSChange(cRetry) {
             }
             var userCur=getUserFromCombo(comboUsers);
             var mapSeCur = getSeCurForUser(userCur);
+            if (!mapSeCur)
+                return; //shouldt happen
             var sNew = mapSeCur.s + parseSEInput(spinS, false, true);
             var floatDiff = sNew - mapSeCur.e; //compare with original e
             if (floatDiff <= 0)
@@ -91,11 +219,14 @@ function updateNoteR() {
 
     var userCur = getUserFromCombo(userElem);
     if (!userCur)
-        return;
+        return; //user not loaded yet
     var mapSe = getSeCurForUser(userCur);
     if (mapSe == null)
-        return;
+        return; // table not loaded yet. this will be called when table loads
 
+    function done() {
+        updateCurrentSEData();
+    }
 
     var sRaw = spinS.val();
     var eRaw = spinE.val();
@@ -105,6 +236,7 @@ function updateNoteR() {
 
     if ((sRaw.length == 0 && eRaw.length == 0) || sParsed == null || eParsed == null) {
         comment.attr("placeholder", g_strNoteBase);
+        done();
         return;
     }
 
@@ -114,7 +246,51 @@ function updateNoteR() {
     var noteFinal=g_strNoteBase + " R will be " + rDiff + "."+(rDiff!=0? "":" Increase E if not done.");
     comment.attr("placeholder", noteFinal);
     comment.attr("title", noteFinal);
+    done();
 }
+
+
+var g_timeoutUpdateCurrentSEData = null;
+
+function updateCurrentSEData(bForceNow) {
+    if (g_timeoutUpdateCurrentSEData) {
+        clearTimeout(g_timeoutUpdateCurrentSEData);
+    }
+
+    function worker() {
+        idCardCur = getIdCardFromUrl(document.URL);
+        if (!idCardCur)
+            return;
+        var comment = $("#plusCardCommentComment");
+        var spinS = $("#plusCardCommentSpent");
+        var spinE = $("#plusCardCommentEstimate");
+        var comboUsers = $("#plusCardCommentUsers");
+        var comboDays = $("#plusCardCommentDays");
+        var comboKeywords = $("#plusCardCommentKeyword");
+
+        var valComment = comment.val();
+        var valS = spinS.val();
+        var valE = spinE.val();
+        var valUser = comboUsers.val();
+        var valDays = comboDays.val();
+        var valKeyword = (comboKeywords.length==0?"": comboKeywords.val()); //can be empty if combo doesnt exist
+
+        if (valUser == g_strUserOtherOption || valDays == g_strDateOtherOption)
+            return;
+        g_currentCardSEData.setValues(idCardCur, valKeyword, valUser, valDays, valS, valE, valComment);
+    }
+
+    if (bForceNow) {
+        worker();
+    }
+    else {
+
+        g_timeoutUpdateCurrentSEData = setTimeout(function () {
+            worker();
+        }, 300);
+    }
+}
+
 
 function getUserFromCombo(combo) {
     var userCur = combo.val();
@@ -178,7 +354,8 @@ function fillComboUsers(comboUsers, userSelected) {
 		});
 }
 
-function createCardSEInput(parentSEInput, spentParam, estimateParam, commentParam) {
+function createCardSEInput(parentSEInput, idCardCur) {
+    assert(idCardCur);
 	var bHasSpentBackend = isBackendMode();
 	g_seCardCur = {}; //reset totals
 
@@ -215,7 +392,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	            g_valUserExtra = userNew;
 	        fillComboUsers(combo, userNew);
 	        if (userNew && userNew.indexOf("global")!=0) { //global user is proposed in faq. dont confuse those users.
-	            var idCardCur = getIdCardFromUrl(document.URL);
+	            idCardCur = getIdCardFromUrl(document.URL);
 	            if (!idCardCur)
 	                return; //shouldnt happen and no biggie if does
 	            var board = getCurrentBoard();
@@ -274,6 +451,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	        var val = combo.val();
 	        if (!val)
 	            return;
+	        updateCurrentSEData();
 	        if (val == g_strDateOtherOption) {
 	            function process(dayNew) {
 	                if (dayNew) {
@@ -301,17 +479,17 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	            });
 	        }
 	});
-	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input"));
+	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input agile_placeholder_small agile_focusColorBorder"));
 	spinS.attr("title", "Click to type Spent.");
 	spinS[0].onkeypress = function (e) { validateSEKey(e); };
     //thanks for "input" http://stackoverflow.com/a/14029861/2213940
 	spinS.bind("input", function (e) { updateEOnSChange(); });
-	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E"></input>').addClass("agile_estimation_box_input"));
+	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E"></input>').addClass("agile_estimation_box_input agile_placeholder_small agile_focusColorBorder"));
 	spinE.attr("title", "Click to type Estimate.");
 	spinE[0].onkeypress = function (e) { validateSEKey(e); };
 	spinE.bind("input", function (e) { updateNoteR(); });
 	var slashSeparator = setSmallFont($("<span />").text("/"));
-	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input"));
+	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input agile_placeholder_small"));
 
 	spinS.focus(function () { $(this).select(); });
 	spinE.focus(function () { $(this).select(); }); //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
@@ -344,16 +522,6 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	row.append($('<td />').addClass("agile_tablecellItem").append(spinE));
 	row.append($('<td />').addClass("agile_tablecellItem").append(comment).width("100%")); //takes remaining hor. space
 	row.append($('<td />').addClass("agile_tablecellItemLast").append(buttonEnter));
-
-	
-	if (spentParam !== undefined)
-	    spinS.val(spentParam);
-
-	if (estimateParam !== undefined)
-	    spinE.val(estimateParam);
-
-	if (commentParam !== undefined)
-	    comment.val(commentParam);
 
 	buttonEnter.click(function () {
 		testExtension(function () {
@@ -408,6 +576,7 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 			    seBarElems.prop('disabled', true);
 			    $(".agile_enter_box_input").text("...");
 			    setBusy(true);
+			    updateCurrentSEData(true);
 			}
 
 			function onFinished(bOK) {
@@ -419,11 +588,14 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 			    $(".agile_enter_box_input").text("Enter");
 
 			    if (bOK) {
-			        comboUsers.val(g_strUserMeOption); //if we dont reset it, a future timer could end up in the wrong user
-			        comboDays.val(g_strNowOption);
-			        $("#plusCardCommentSpent").val("");
-			        $("#plusCardCommentEstimate").val("");
-			        $("#plusCardCommentComment").val("");
+			        if (idCardCur == getIdCardFromUrl(document.URL)) {
+			            comboUsers.val(g_strUserMeOption); //if we dont reset it, a future timer could end up in the wrong user
+			            comboDays.val(g_strNowOption);
+			            $("#plusCardCommentSpent").val("");
+			            $("#plusCardCommentEstimate").val("");
+			            $("#plusCardCommentComment").val("");
+			        }
+			        g_currentCardSEData.removeValue(idCardCur);
 			    }
 			    //reports etc will refresh in the NEW_ROWS notification handler
 			}
@@ -441,9 +613,46 @@ function createCardSEInput(parentSEInput, spentParam, estimateParam, commentPara
 	    }
 	});
 	
+	comment.bind("input", function (e) { updateCurrentSEData(); });
 	parentSEInput.before(container);
 	fillCardSEStats(tableStats, function () {
 	    container.show();
+	    g_currentCardSEData.loadFromStorage(idCardCur, function () {
+	        if (g_currentCardSEData.idCard != idCardCur)
+	            return; //timing. should never happen but just in case
+
+	        if (!g_currentCardSEData.s && !g_currentCardSEData.e && !g_currentCardSEData.note)
+			    return;
+			var bFocus = false;
+			function set(elem, val, bAddIfNotThere) {
+	            if (val && val != elem.val()) {
+	                elem.val(val);
+	                if (bAddIfNotThere && elem.val() != val) {
+	                    elem.append($(new Option(val, val)));
+	                    elem.val(val);
+	                }
+	                if (!bFocus) {
+	                    bFocus = true;
+	                    comment.focus(); //so it scrolls there if needed
+	                }
+	            }
+	        }
+
+
+	        set(comboUsers,g_currentCardSEData.user,true);
+	        set(comboDays,g_currentCardSEData.delta, true);
+	        set(spinS,g_currentCardSEData.s);
+	        set(spinE,g_currentCardSEData.e);
+	        set(comment,g_currentCardSEData.note);
+	        if (comboKeyword)
+	            set(comboKeyword,g_currentCardSEData.keyword, true);
+	        updateNoteR();
+	        if (bFocus) {
+	            $("#plusCardCommentEnterButton").addClass("agile_box_input_hilite");
+	            var strWhen = getTimeDifferenceAsString(g_currentCardSEData.msTime, true);
+	            sendDesktopNotification("This card has a draft s/e row from " + strWhen+".\nEnter it or clear s/e/note.", 8000);
+	        }
+	    });
 	});
 }
 
@@ -696,7 +905,7 @@ function showSETotalEdit(sVal, eVal, user) {
 <td align="left"><input class="agile_modify_total_se_input agile_mtse_r"></input></td> \
 </tr> \
 </table> \
-<input class="agile_mtse_note" placeholder="note (optional)"></input> \
+<input class="agile_mtse_note agile_placeholder_small" placeholder="type an optional note"></input> \
 <button id="agile_modify_SETotal">Modify</button> \
 <button id="agile_cancel_SETotal">Cancel</button> \
 <br><br><p class="agile_mtseMessage"></p> \
@@ -996,7 +1205,7 @@ Click for more.");
 				div.append(createRecurringCheck()).append(createHashtagsList());
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
-				createCardSEInput(elemParent);
+				createCardSEInput(elemParent, idCardCur);
 				insertCardTimer();
 				break;
 			}
@@ -1829,6 +2038,10 @@ function FindIdBoardFromBoardName(boardNameNew, idCard, callback) {
     //idCard may be null;
 
     function getFromTrelloApi(callbackFind) {
+        if (!idCard) {
+            callbackFind(null);
+            return;
+        }
         sendExtensionMessage({ method: "getTrelloCardData", tokenTrello: null, idCard: idCard, fields: "id", bBoardShortLink:true },
             function (response) {
                 if (response.status != STATUS_OK || !response.card || !response.card.board || !response.card.board.shortLink)

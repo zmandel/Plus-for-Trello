@@ -1312,7 +1312,9 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
 
 function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback, waitRetry) {
     //https://trello.com/docs/api/card/index.html
-   
+    assert(idCardLong);
+    assert(fields);
+    assert(callback);
     var url = "https://trello.com/1/cards/" + idCardLong + "?fields=" + fields;
     if (bBoardShortLink)
         url = url + "&board=true&board_fields=shortLink";
@@ -1723,7 +1725,7 @@ function matchCommentParts(text,date, bRecurringCard) {
         return null;
 
     rgResults[i_est] = rgResults[i_est] || ""; //standarize
-    rgResults[i_note] = (rgResults[i_note] || "").substring(0, 200); //reasonable crop
+    rgResults[i_note] = (rgResults[i_note] || ""); //note there is no limit. The user could in theory add millions of characters here.
     rgResults[i_note].split("\n")[0]; //note is up to newline if any
 
     if (!rgResults[i_sep]) { //separator

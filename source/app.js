@@ -7,7 +7,7 @@ var estimationTotal = null;
 var remainingTotal=null;
 var g_boardName = null;
 var g_bUpdatingGlobalSums= null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
-
+var g_manifestVersion = "";
 
 function getSpentSpecialUser() {
 	//review zig: wrap g_configData futher as it can be null
@@ -107,11 +107,37 @@ function testExtension(callback) {
 	}
 }
 
+function loadExtensionVersion(callback) {
+    if (g_manifestVersion != "")
+        return;
+    g_manifestVersion = "unknown"; //prevent loading again and handle error case
+    var url = chrome.extension.getURL("manifest.json");
+
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function (e) {
+        if (xhr.readyState == 4 && xhr.status == 200) {
+            try {
+                g_manifestVersion = JSON.parse(xhr.responseText).version;
+            }
+            catch (e) {
+                console.log("error: cant parse manifest.");
+                if (url.indexOf("/gddgnpbmkhkpnnhkfheojeiceofcnoem/") >= 0) //developer url
+                    alert("error");
+            }
+            callback();
+        }
+    };
+
+    xhr.open("GET", url);
+    xhr.send();
+}
+
 $(function () {
-    setTimeout(function () { //in timeout so we can safely reference globals and give a little time for trello load itself since we  "run_at": "document_start"
-        
-		//for <dialog>
-		var preDialog = '<pre style="display:none;">dialog::backdrop\
+    loadExtensionVersion(function () {
+        setTimeout(function () { //in timeout so we can safely reference globals and give a little time for trello load itself since we  "run_at": "document_start"
+
+            //for <dialog>
+            var preDialog = '<pre style="display:none;">dialog::backdrop\
         { \
         position: fixed; \
         top: 0; \
@@ -120,36 +146,36 @@ $(function () {
         bottom: 0; \
         background-color: rgba(0, 0, 0, 0.8); \
         }</pre>';
-		$("body").append($(preDialog));
+            $("body").append($(preDialog));
 
-		//http://tablesorter.com/docs/example-parsers.html
-		//http://stackoverflow.com/a/2129479/2213940
-		if (true) {
-		    $.tablesorter.addParser({
-		        // set a unique id 
-		        id: 'links',
-		        is: function (s) {
-		            // return false so this parser is not auto detected 
-		            return false;
-		        },
-		        format: function (s) {
-		            // format your data for normalization 
-		            return s.replace(new RegExp(/<.*?>/), "");
-		        },
-		        // set type, either numeric or text
-		        type: 'text'
-		    });
-		}
-        loadOptions(function () {
-            entryPoint();
-        });
-    },500); //"run_at": "document_start" is before trello does ajax so breathe a little
+            //http://tablesorter.com/docs/example-parsers.html
+            //http://stackoverflow.com/a/2129479/2213940
+            if (true) {
+                $.tablesorter.addParser({
+                    // set a unique id 
+                    id: 'links',
+                    is: function (s) {
+                        // return false so this parser is not auto detected 
+                        return false;
+                    },
+                    format: function (s) {
+                        // format your data for normalization 
+                        return s.replace(new RegExp(/<.*?>/), "");
+                    },
+                    // set type, either numeric or text
+                    type: 'text'
+                });
+            }
+            loadOptions(function () {
+                entryPoint();
+            });
+        }, 600); //"run_at": "document_start" is before trello does ajax so breathe and dont compete with trello load
+    });
 });
 
 function entryPoint() {
 	//note: this also does setInterval on the callback which we use to do sanity checks and housekeeping
 	setCallbackPostLogMessage(testExtensionAndcommitPendingPlusMessages); //this allows all logs (logPlusError, logException) to be written to the database
-	Help.init();
 	HelpButton.display(); //inside is where the fun begins
 	checkEnableMoses();
 }

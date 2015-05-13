@@ -419,7 +419,8 @@ function sendExtensionMessage(obj, responseParam, bRethrow) {
 	try {
 	    chrome.runtime.sendMessage(obj, function (response) {
 			try {
-				setTimeout(function () { if (responseParam) responseParam(response); }, 0); //this allows the response to be out of the extension messaging stack. exceptions wont break the channel.
+			    if (responseParam)
+			        responseParam(response);
 			} catch (e) {
 				logException(e);
 			}
@@ -1067,7 +1068,6 @@ function hiliteOnce(elem,msTime, strClass) {
 	msTime = msTime || 1500;
 	elem.addClass(classBlink);
 	setTimeout(function () {
-	    elem.animate();
 		elem.removeClass(classBlink);
 	}, msTime);
 }
@@ -1573,20 +1573,25 @@ function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userC
     return obj;
 }
 
-//return example: "1 hour 4 minutes ago"
-//handles up to hours (not days)
-function getTimeDifferenceAsString(msDateParam, bShort) {
+//return example: "1 hour ago" "7 days ago"
+//always return a whole unit without subunits
+function getTimeDifferenceAsString(msDateParam) {
     assert(msDateParam);
-    var dateNow = new Date();
-    var minutes = Math.floor((dateNow.getTime() - msDateParam) / 1000 / 60);
+    var minutes = Math.floor((Date.now() - msDateParam) / 1000 / 60);
     var hours = Math.floor(minutes / 60);
+    var days = Math.floor(hours / 24);
     var strRet = "";
+
+    if (days > 0) {
+        strRet = "" + days + (days == 1 ? " day " : " days ");
+        minutes = 0;
+        hours = 0;
+    }
+
+
     if (hours > 0) {
         strRet = "" + hours + (hours == 1 ? " hour " : " hours ");
-        if (bShort)
             minutes = 0;
-        else
-            minutes = minutes - 60 * hours;
     }
 
     if (strRet == "" && minutes == 0) {
