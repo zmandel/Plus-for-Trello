@@ -120,7 +120,9 @@ function handleHomeTour() {
 }
 
 function hookTour(elem) {
-    elem.click(function () { handleTourStart(true); });
+    elem.click(function () {
+        handleTourStart(true);
+    });
     if (g_tour.bAutoShowTour)
         setTimeout(function () { handleTourStart(false); }, 2500);
 }
@@ -527,6 +529,9 @@ function handleTourStart(bFromClick) {
     if (hasLiveBubbles()) {
         removeAllGrumbleBubbles();
     }
+
+    if (Help.isVisible())
+        sendDesktopNotification("Close Plus help to run the tour.", 5000);
 
     g_tour.bAutoShowTour = true;
     setTimeout(function () {

@@ -488,14 +488,13 @@ function appendLogToPublicSpreadsheet(message, sendResponse) {
  * returns READ-ONLY rows. use cloneObject if you want to modify it, else changes fail without error.
  **/
 function handleGetReport(request, sendResponse, bAllowWhileOpening, cRetries) {
-    var cRetriesStart = 5;
+    var cRetriesStart = 8;
     if (cRetries === undefined)
         cRetries = cRetriesStart; //first time
 
     if (!isDbOpened() && (!bAllowWhileOpening || !g_db)) {
         if (cRetries <= 0) {
             var error = "unusual: db not ready";
-            logPlusError(error);
             sendResponse({ status: error });
         }
         else {
@@ -1627,7 +1626,6 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(7, function (t) {
-            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%disconnected port%'");
             t.executeSql("ALTER TABLE HISTORY ADD COLUMN eType INT");
             updateAllETypes(t);
         });
@@ -1702,7 +1700,6 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(15, function (t) {
-            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%updateTitle (%'");
         });
 
         M.migration(16, function (t) {
@@ -1762,11 +1759,16 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(20, function (t) {
-            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%cTotalStages%'");
         });
 
         M.migration(21, function (t) {
             t.executeSql("update CARDS set idList = '" + IDLIST_UNKNOWN + "' where bDeleted=0 AND idBoard='" + IDBOARD_UNKNOWN + "'");
+        });
+
+        M.migration(22, function (t) {
+            //review zig: remove by july 2015. otherwise future errors with those texts will get lost on reset
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%error: no idCardCur%'");
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%unusual: db not ready%'");
         });
 
         M.doIt();

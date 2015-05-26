@@ -1,10 +1,10 @@
 ﻿var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
 
-var g_strDateOtherOption = "other";
+var g_strDateOtherOption = "other date...";
 var g_valDayExtra = null; //for "other" date in S/E bar
 
-var g_strUserOtherOption = "other";
+var g_strUserOtherOption = "other user...";
 var g_valUserExtra = null; //for "other" added user in S/E bar
 
 var g_strNoteBase = "type note.";
@@ -391,9 +391,8 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	        if (userNew)
 	            g_valUserExtra = userNew;
 	        fillComboUsers(combo, userNew);
-	        if (userNew && userNew.indexOf("global")!=0) { //global user is proposed in faq. dont confuse those users.
-	            idCardCur = getIdCardFromUrl(document.URL);
-	            if (!idCardCur)
+	        if (userNew && userNew.toLowerCase().indexOf("global")!=0) { //global user is proposed in faq. dont confuse those users.
+	            if (idCardCur != getIdCardFromUrl(document.URL))
 	                return; //shouldnt happen and no biggie if does
 	            var board = getCurrentBoard();
 	            if (!board)
@@ -600,8 +599,7 @@ function createCardSEInput(parentSEInput, idCardCur) {
 			    //reports etc will refresh in the NEW_ROWS notification handler
 			}
 
-			//review zig settimeout is a leftover back when plus faked clicks. not needed anymore but doesnt hurt
-			setTimeout(function () { setNewCommentInCard(keyword, s, e, valComment, prefix, userCur, onBeforeStartCommit, onFinished); }, 0);
+			setNewCommentInCard(idCardCur, keyword, s, e, valComment, prefix, userCur, onBeforeStartCommit, onFinished);
 		});
 	});
 
@@ -660,8 +658,10 @@ function verifyBoardMember(userLowercase, idShortBoard, callbackNotFound) {
     assert(callbackNotFound);
     sendExtensionMessage({ method: "getTrelloBoardData", tokenTrello: null, idBoard: idShortBoard, fields: "memberships&memberships_member=true&memberships_member_fields=username" },
             function (response) {
-                if (response.status != STATUS_OK || !response.board)
+                if (response.status != STATUS_OK || !response.board) {
+                    sendDesktopNotification("Error while verifying board membership. "+response.status, 8000);
                     return;
+                }
                 var members = response.board.memberships;
                 if (!members)
                     return;
@@ -839,7 +839,8 @@ function fillCardSEStats(tableStats,callback) {
                         spent: 'S <span style="font-size:0.85em">sum</span>',
                         estOrig: '<span>E 1ˢᵗ</span>',
                         est: 'E <span style="font-size:0.85em">sum</span>',
-                        remain: 'R <span style="font-size:0.80em">(E-S)</span>'
+                        remain: 'R <span style="font-size:0.80em">(E-S)</span>',
+                        idCard: idCard
                     }, true);
                     var bodyTable = $("<tbody>");
                     tableStats.append(bodyTable);
@@ -849,7 +850,8 @@ function fillCardSEStats(tableStats,callback) {
                             spent: '0', estOrig: '0',
                             est: '0',
                             remain: '0',
-                            bSample: true
+                            bSample: true,
+                            idCard: idCard
                         }, false);
                     for (; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
@@ -885,7 +887,7 @@ function fillCardSEStats(tableStats,callback) {
     });
 }
 
-function showSETotalEdit(sVal, eVal, user) {
+function showSETotalEdit(idCardCur, sVal, eVal, user) {
     var divDialog = $(".agile_dialog_editSETotal");
     if (divDialog.length==0) {
         divDialog = $('\
@@ -903,6 +905,7 @@ function showSETotalEdit(sVal, eVal, user) {
 <td align="left"><input class="agile_modify_total_se_input agile_mtse_s"></input></td> \
 <td align="left"><input class="agile_modify_total_se_input agile_mtse_e"></input></td> \
 <td align="left"><input class="agile_modify_total_se_input agile_mtse_r"></input></td> \
+<td title="change your units from Plus Preferences" align="left"><span class="agile_mtse_units"></span></td> \
 </tr> \
 </table> \
 <input class="agile_mtse_note agile_placeholder_small" placeholder="type an optional note"></input> \
@@ -916,6 +919,10 @@ function showSETotalEdit(sVal, eVal, user) {
         divDialog.find("#agile_cancel_SETotal").click(function (e) {
             divDialog[0].close();
         });
+
+        divDialog.find(".agile_mtse_s")[0].onkeypress = function (e) { validateSEKey(e); };
+        divDialog.find(".agile_mtse_e")[0].onkeypress = function (e) { validateSEKey(e); };
+        divDialog.find(".agile_mtse_r")[0].onkeypress = function (e) { validateSEKey(e); };
 
         divDialog.on('keydown', function (evt) {
             //need to capture manually before trello captures it and closes the card.
@@ -973,8 +980,20 @@ function showSETotalEdit(sVal, eVal, user) {
     elemMessage.text(strMessageInitial);
     elemNote.val("");
     elemR.val(parseFixedFloat(eOrigNum - sOrigNum));
-    elemR.prop('disabled', true);
-    function updateMessage() {
+
+    function updateEFromR() {
+        var sNew = elemS.val().trim();
+        var rNew = elemR.val().trim();
+        var sNewNum = parseFixedFloat(sNew);
+        var rNewNum = parseFixedFloat(rNew);
+        var valNew = parseFixedFloat(rNewNum + sNewNum);
+        if (valNew != elemE.val()) {
+            elemE.val(valNew);
+            hiliteOnce(elemE);
+        }
+    }
+
+    function updateMessage(bUpdateR) {
         var data = getSEData(true);
         var strMessageNew = null;
         if (data.s == 0 && data.e == 0)
@@ -983,7 +1002,13 @@ function showSETotalEdit(sVal, eVal, user) {
             strMessageNew = "" + data.s + "/" + data.e + " will be added to " + user + " in a new S/E row.";
         
         elemMessage.text(strMessageNew);
-        elemR.val(parseFixedFloat(eOrigNum + data.e - sOrigNum-data.s));
+        if (bUpdateR) {
+            var valNew = parseFixedFloat(eOrigNum + data.e - sOrigNum - data.s);
+            if (valNew != elemR.val()) {
+                elemR.val(valNew);
+                hiliteOnce(elemR);
+            }
+        }
     }
 
     function getSEData(bSilent) {
@@ -1013,7 +1038,6 @@ function showSETotalEdit(sVal, eVal, user) {
             var elems = $(".agile_dialog_editSETotal *");
             //enable S/E bar
             elems.prop('disabled', false);
-            elemR.prop('disabled', true);
             setBusy(false);
             if (bOK) {
                 divDialog[0].close();
@@ -1021,7 +1045,6 @@ function showSETotalEdit(sVal, eVal, user) {
             //reports etc will refresh in the NEW_ROWS notification handler
         }
 
-        //review zig settimeout is a leftover back when plus faked clicks. not needed anymore but doesnt hurt
         var data = getSEData(false);
         if (!data)
             return;
@@ -1030,18 +1053,23 @@ function showSETotalEdit(sVal, eVal, user) {
             return;
         }
         var note = replaceBrackets(elemNote.val());
-        setTimeout(function () {
-            setNewCommentInCard(data.keyword, data.s, data.e, note, "", //empty prefix means time:now
-                user, onBeforeStartCommit, onFinished);
-        }, 0);
+        setNewCommentInCard(idCardCur, data.keyword, data.s, data.e, note, "", //empty prefix means time:now
+            user, onBeforeStartCommit, onFinished);
     });
 
-    elemS.unbind().bind("input", function (e) { updateMessage(); });
-    elemE.unbind().bind("input", function (e) { updateMessage(); });
+    elemS.unbind().bind("input", function (e) { updateMessage(true); });
+    elemE.unbind().bind("input", function (e) { updateMessage(true); });
+    elemR.unbind().bind("input", function (e) { updateEFromR(); updateMessage(false); });
+    $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current));
     divDialog[0].showModal();
+    elemR.focus();
+    elemR[0].select();
 }
 
 function addCardSERowData(tableStats, rowData, bHeader) {
+    var idCardCur = rowData.idCard;
+    var bSample = (rowData.bSample);
+    assert(idCardCur);
 	var row = $("<tr></tr>").addClass("agile-card-background").addClass("agile-card-statrow");
 	if (bHeader)
 	    row.addClass("agile-card-background-header");
@@ -1053,11 +1081,10 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	    u = $(td).html(rowData.user + g_hackPaddingTableSorter);
 	}
 	else {
-	    var urlReport = '<a class="agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(rowData.idCard) + '&user=' + rowData.user + '" target="_blank">' + rowData.user + '</a>';
+	    var urlReport = '<a class="agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCardCur) + '&user=' + rowData.user + '" target="_blank">' + rowData.user + '</a>';
 	    u = $(td).html(urlReport);
 	}
 
-	var bSample = (rowData.bSample);
 	var sVal = (typeof (rowData.spent) == 'string' ? rowData.spent : parseFixedFloat(rowData.spent));
 	var eOrigVal = (typeof (rowData.estOrig) == 'string' ? rowData.estOrig : parseFixedFloat(rowData.estOrig));
 	var eVal = (typeof (rowData.est) == 'string' ? rowData.est : parseFixedFloat(rowData.est));
@@ -1087,7 +1114,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	                alert("This is just a sample row and cannot be modified.");
 	                return;
 	            }
-	            showSETotalEdit(sVal, eVal, rowData.user);
+	            showSETotalEdit(idCardCur, sVal, eVal, rowData.user);
 	        });
 	    }
 	}
@@ -1108,7 +1135,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 		    r.css("background", COLOR_ERROR);
 		}
 		else if (rVal > 0) {
-		    r.css("background", "#CAE3CA");
+		    r.addClass("agile_remaining_background");
 		}
 	}
 	var dateLast = (rowData.date? new Date(rowData.date*1000) : new Date());
@@ -1716,14 +1743,14 @@ function addSEFieldValues(s, comment) {
 			elemEnter.removeClass(classBlink);
 		else {
 			elemEnter.addClass(classBlink);
-			if (g_cBlinkButton > 2) //do it here so it remains yellow
+			if (g_cBlinkButton > 1) //do it here so it remains yellow
 				clearBlinkButtonInterval();
 		}
 	}, 500);
 }
 
 //review rename commentBox to noteBox
-function setNewCommentInCard(keywordUse, s, e, commentBox,
+function setNewCommentInCard(idCardCur, keywordUse, s, e, commentBox,
     prefix, //blank uses default (first) keyword
     member, //null means current user
     onBeforeStartCommit, //called before all validation passed and its about to commit
@@ -1752,11 +1779,8 @@ function setNewCommentInCard(keywordUse, s, e, commentBox,
 		return; //should never happen, we had it when the S/E box was created
 	}
 
-	var idCardCur = getIdCardFromUrl(document.URL);
-	if (!idCardCur) {
-		logPlusError("error: no idCardCur");
+	if (!idCardCur || idCardCur != getIdCardFromUrl(document.URL))
 		return; //should never happen
-	}
 
 	FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
 		if (idBoardFound) {
@@ -1764,7 +1788,7 @@ function setNewCommentInCard(keywordUse, s, e, commentBox,
 		    doEnterSEIntoCard(s, e, commentBox, comment, idBoardUse, idCardCur, prefix, board, keywordUse, member, onBeforeStartCommit, onFinished);
 		}
 		else {
-		    var strError = "Network error. Cannot get idBoard.\nClose the card,  go to the trello board page and try again.";
+		    var strError = "Network error. Cannot get idBoard.\nPlease reload the page and try again.";
 		    logPlusError(strError);
 		    alert(strError);
 		}
@@ -1943,7 +1967,7 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
  * when so, moves existing card history to the new board
  **/
 function detectMovedCards() {
-
+    //review zig: this is only used when user never configured sync. not worth it keeping it
     setInterval(function () {
         if (!g_bReadGlobalConfig || g_bEnableTrelloSync)
             return;
@@ -1968,7 +1992,7 @@ function detectMovedCards() {
 			var topParent = btnTest.parent().parent().parent();
 			if (!topParent.hasClass("pop-over"))
 				continue;
-			var headerTitle = topParent.find(".header-title").eq(0);
+			var headerTitle = topParent.find(".pop-over-header-title").eq(0);
 			if (headerTitle.length != 1 || headerTitle.text() != "Move Card")
 				continue;
 			buttonMove = btnTest;
@@ -1988,7 +2012,7 @@ function detectMovedCards() {
 			return;
 		buttonMove.addClass(hooked);
 		var spanIcon = $('<span></span>').css("margin-left", "4px");
-		var icon = $("<img>").attr("src", chrome.extension.getURL("images/icon16.png")).css("margin-bottom", "-3px");
+		var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png")).css("margin-bottom", "-3px");
 		//icon.addClass("agile-spent-icon-header");
 		icon.attr("title", "Plus will move S/E data to the new board.");
 		spanIcon.append(icon);

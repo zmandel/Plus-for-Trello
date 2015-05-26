@@ -137,7 +137,7 @@ function loadPopup() {
 	$("#topTitle").css("cursor", "default");
 	$("#agile_boardSearch").focus();
 	var urlReport = chrome.extension.getURL("report.html");
-	$("#reportLink").attr("href", urlReport + "?weekStartRecent=true");
+	$("#reportLink").attr("href", urlReport + "?groupBy=idCardH&weekStartRecent=true");
 	$("#reportLinkByUser").css("cursor", "-webkit-zoom-in").attr("href", urlReport + "?weekStartRecent=true&tab=1&popup=1");
 	var imgSync = $("#imgSync");
 
@@ -191,7 +191,7 @@ function listAllBoards() {
     var status = $("#progress");
 	var cardResults = $("#agile_popup_cards_container");
 	var urlBaseDashboard = chrome.extension.getURL("dashboard.html") + "?";
-	var urlBaseReport = chrome.extension.getURL("report.html")+"?weekStartRecent=true&idBoard=";
+	var urlBaseReport = chrome.extension.getURL("report.html") + "?groupBy=idCardH&idBoard=";
 	getSQLReport(sql, [IDBOARD_UNKNOWN], function (response) {
 	    if (response.status != STATUS_OK) {
 	        status.text(response.status);

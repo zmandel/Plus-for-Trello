@@ -8,21 +8,57 @@
 }
 
 .agile_dialog_DefaultStyle {
-  border: 1px solid rgba(0, 0, 0, 0.5);
-  border-radius: 3px;
+  border: none;
+  border-radius: 4px;
   box-shadow: 0 5px 9px rgba(0, 0, 0, 0.7);
 }
 
+.agile_remaining_background {
+    background: #CAE3CA !important;
+}
+
+.agile_dialog_ExtensionUpgraded {
+    position: fixed  !important;
+    top: 0px  !important;
+    left: 0px  !important;
+    z-index:99999 !important;
+    border-top-right-radius: 0px !important;
+    border-top-left-radius: 0px !important;
+    background-color: #FFFFD8 !important;
+    color: #4D4D4D !important;
+    margin-top: -11em;
+    -webkit-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;  
+}
+
+.agile_dialog_ExtensionUpgraded_animate {
+    margin-top: 0em !important;
+}
+
+.agile_dialog_ExtensionUpgraded_button {
+    display: inline-table !important;
+    padding-right:10px !important;
+}
+
+#agile_dialog_ExtensionUpgraded_Refresh {
+    margin-right:8px !important;
+}
+
+.agile_reload_ext_button_img {
+    float:left;
+    padding-top:2px;
+    margin-right:.3em;
+}
 
 .agile_modify_total_se_input {
     width:5.5em !important;
     background-color:white !important;
 }
 
-.agile_mtse_r {
-    background-color:lightgray !important;
+.agile_mtse_units {
+    display: inline-block !important;
+    margin-top:0.5em !important;
 }
-
 
 .agile_mtse_note {
     width:25em !important;
@@ -256,7 +292,7 @@ div#spent_serviceUrlConfig_container {
 	position: fixed;
 	top: 0px;
 	width: 65em;
-	z-index: 1001;
+	z-index: 1002;
 	border: 1px;
 	border-style: solid;
 	border-color: black;
@@ -657,7 +693,7 @@ table#tableMarkers td {
 	height: 14px;
 	margin-right: 6px;
 	margin-left: 2px;
-	margin-bottom: -1px;
+	margin-bottom: -2px;
 }
 
 .agile-card-icon-recurring {
@@ -668,11 +704,11 @@ table#tableMarkers td {
 }
 
 .agile-spent-icon-shifted {
-	width: 22px;
-	height: 22px;
+	width: 19px;
+	height: 19px;
 	margin-right: 12px;
 	margin-left: -25px;
-	margin-bottom: -5px;
+	margin-bottom: -4px;
 }
 
 .agile-spent-icon-header {
@@ -879,7 +915,7 @@ table#tableMarkers td {
 	height: 14px !important;
 	margin-right: 19px;
 	margin-left: 18px;
-	margin-bottom: -4px;
+	margin-bottom: -3px;
 }
 
 .agile_plus_addCardSE {
@@ -960,6 +996,10 @@ table#tableMarkers td {
 
 .agile_users_combo_element_disabled {
 	color: #5188A8 !important;
+}
+
+.agile_background_disabled {
+    background: lightGray !important;
 }
 
 .agile_card_error {
@@ -1125,7 +1165,7 @@ table#tableMarkers td {
 }
 
 .agile_box_input_hilite {
-	background-color: yellow !important;
+	background: yellow !important;
     color:black !important;
 }
 
@@ -1510,4 +1550,31 @@ table#tableMarkers td {
     width:auto;
     border:none;
     background-color:#EDEFF0;
+}
+
+#reportBottomMessage {
+    margin-top:1em;
+    border:2px solid #FCFCC4;
+	border-radius: 5px;
+    padding: .3em;
+    width:auto;
+    display:inline-block;
+
+    background-color: #FFFFD8 !important;
+    color: #5A5A5A !important;
+}
+
+#buttonMarkallRead {
+    border:0px;
+	border-radius: 5px;
+    background:#15e823;
+    border-radius: 28px;
+    background-image: linear-gradient(to bottom, #15e823, #178f1d);
+    padding: 6px 11px 6px 11px;
+    color: #ffffff;
+    outline: none;
+}
+
+#buttonMarkallRead:hover {
+        color: black;
 }

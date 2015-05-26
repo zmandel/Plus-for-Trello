@@ -79,18 +79,53 @@ function getIdBoardFromUrl(url) {
 var g_bErrorExtension = false;
 
 function showExtensionError(e) {
-	var strError = "Plus for Trello has been updated to a new version!\nplease refresh this page after pressing OK.";
-	if (e && e.message && !bIgnoreError(e.message))
-		strError += ("\n\nDetailed error:\n" + e.message);
-	alert(strError);
+    if (g_bErrorExtension)
+        return;
+    g_bErrorExtension = true;
+    var message = "";
+    if (e && e.message && !bIgnoreError(e.message))
+        message = e.message;
+
+    var divDialog = $(".agile_dialog_ExtensionUpgraded");
+
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog class="agile_dialog_DefaultStyle agile_dialog_ExtensionUpgraded"> \
+<h2>Chrome updated Plus for Trello</h2><br> \
+<p>Reload this page to use Plus. <A href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Whats new?</A></p> \
+<p id="agile_dialog_ExtensionUpgraded_message"></p> \
+<a href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
+<a title="Ignore to keep working on this page.\nSome Plus features may not work until you Reload." href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Ignore">Ignore</a> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_ExtensionUpgraded");
+
+        var imgReload = $("<img>").attr("src", chrome.extension.getURL("images/reloadchrome.png")).addClass('agile_reload_ext_button_img');
+        var reload = divDialog.find("#agile_dialog_ExtensionUpgraded_Refresh");
+        reload.append($("<span>").append(imgReload));
+        reload.off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault();
+            setTimeout(function () { //timeout so the button reacts to the click uxwise
+                location.reload(); //note not passing false per http://stackoverflow.com/questions/16873263/load-from-cache-with-window-location-reload-and-hash-fragment-in-chrome-doesnt
+            }, 10);
+        });
+
+        divDialog.find("#agile_dialog_ExtensionUpgraded_Ignore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            divDialog.removeClass("agile_dialog_ExtensionUpgraded_animate");
+            setTimeout(function () { divDialog[0].close();}, 400); //wait for animation to complete
+        });
+    }
+    $("#agile_dialog_ExtensionUpgraded_message").text(message);
+    divDialog[0].show();
+    setTimeout(function () {divDialog.addClass("agile_dialog_ExtensionUpgraded_animate");},200); //some dialog conflict prevents animation from working without timeout
 }
 
 function testExtension(callback) {
-	try {
-		if (g_bErrorExtension) {
-			showExtensionError();
-			return;
-		}
+    if (g_bErrorExtension)
+        return;
+    
+    try {
 		var rgLog=g_plusLogMessages;
 
 		sendExtensionMessage({ method: "testBackgroundPage", logMessages: rgLog},
@@ -102,7 +137,6 @@ function testExtension(callback) {
 				callback();
 		}, true); //true to rethrow exceptions
 	} catch (e) {
-		g_bErrorExtension = true;
 		showExtensionError(e);
 	}
 }

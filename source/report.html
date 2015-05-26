@@ -28,7 +28,8 @@
             </div>
             <div class="agile_report_filters">
                 <div class="agile_report_filter">
-                    <p style="margin-right: 0px;">
+                    <p title="Check to prevent cropping text in the resulting report.
+Press 'Query' to reflect changes." style="margin-right: 0px;">
                         <input style="vertical-align: middle; margin: 0px; padding:0px;" type="checkbox" value="checked" id="checkNoCrop" />
                         <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
                     </p>
@@ -40,14 +41,19 @@
                     <select id="keyword"></select>
                 </div>
 
-                <div title="Note: grouping only affects the Report tab" class="agile_report_filter agile_groupby_report_section">
+                <div title="
+Group resulting rows to the level of detail you need.
+Each resulting row will show the sum of its grouped S/E rows.
+
+Grouping only affects the Report tab.
+When grouping by 'S/E rows', rows without S/E do not appear in the report." class="agile_report_filter agile_groupby_report_section">
                     <p class="agile_report_filter_label">Group by</p>
                     <select id="groupBy">
-                        <option value="">None</option>
-                        <option value="idBoardH">Board</option>
-                        <option value="idBoardH-nameList">Board-List</option>
-                        <option value="idBoardH-user">Board-User</option>
-                        <option value="idCardH">Card</option>
+                        <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
+                        <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by their board.\nColumns like 'date' use the newest row in each board.">Board</option>
+                        <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by each unique board&list combination in use.">Board-List</option>
+                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by their board&user combination.\n'user' and 'date' groups are only for 'S/E rows'.">Board-User</option>
+                        <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user">Card-User</option>
                         <option value="user">User</option>
                         <option value="dateString">Date</option>
@@ -59,7 +65,10 @@
                         <option value="idBoardH-keyword">Board-Keyword</option>
                     </select>
                 </div>
-                <div class="agile_report_filter">
+                <div title="
+Pick a pivot to change the columns in the 'Spent by ...' tabs.
+
+If you do not need to pivot, using 'Year' will make the report a little faster." class="agile_report_filter">
                     <p class="agile_report_filter_label">Pivot by</p>
                     <select id="pivotBy">
                         <option value="year">Year</option>
@@ -68,7 +77,14 @@
                         <option value="day">Day</option>
                     </select>
                 </div>
-                <div class="agile_report_filter agile_orderby_report_section">
+                <div title="
+Order resulting rows.
+
+You can also click report headers to change order.
+SHIFT-click to sort by multiple columns.
+
+When the card has S/E rows, the date in that report row is based on S/E rows.
+Otherwise it uses the date of the card's last create, move or rename." class="agile_report_filter agile_orderby_report_section">
                     <p class="agile_report_filter_label">Order by</p>
                     <select id="orderBy">
                         <option value="date">Date</option>
@@ -82,17 +98,20 @@
                         <option value="keyword">Keyword</option>
                     </select>
                 </div>
-                <div class="agile_report_filter" id="groupDateSimple">
+                <div title="Filter by date.
+
+When the card has S/E rows, the date in that report row is based on S/E rows.
+Otherwise it uses the date of the card's last create, move or rename." class="agile_report_filter" id="groupDateSimple">
                     <p class="agile_report_filter_label">Since</p>
                     <select id="sinceSimple">
-                        <option value="d-1">today</option>
+                        <option value="d-1">Today</option>
                         <option value="d-2">2 days</option>
                         <option value="d-3">3 days</option>
                         <option value="d-4">4 days</option>
                         <option value="d-5">5 days</option>
                         <option value="d-6">6 days</option>
                         <option value="d-7">7 days</option>
-                        <option value="w-1">this week</option>
+                        <option value="w-1">This week</option>
                         <option value="w-2">2 weeks</option>
                         <option value="w-3">3 weeks</option>
                         <option value="w-4">4 weeks</option>
@@ -100,72 +119,78 @@
                         <option value="w-10">10 weeks</option>
                         <option value="w-15">15 weeks</option>
                         <option value="w-53">53 weeks</option>
-                        <option value="">all</option>
+                        <option value="">All dates</option>
                         <option value="advanced">Advanced</option>
                     </select>
                 </div>
                 <div class="agile_report_filter_group" id="groupDateAdvanced">
-                    <form title="Examples:
+                    <form title="
+Examples:
 2014
-2014-W12" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
-                        <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder=" begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
+2014-W12
+
+Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="Examples:
+                    <form title="
+Examples:
 2014
-2014-W15" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+2014-W15
+
+Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="Examples:
+                    <form title="
+Examples:
 2014
-2014-02" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+2014-02
+Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Month start</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="Examples:
+                    <form title="
+Examples:
 2014
-2014-07" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+2014-07
+Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Month end</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
                     </form>
                 </div>
-                <div class="agile_report_filter" title="To find NOT containing, start with !">
-                    <p class=" agile_report_filter_label">User</p>
+                <div class="agile_report_filter" title="
+Filter by users that entered S/E on each card.
+Filtering by user will only show results that have S/E.
+
+To find NOT containing, start with !">
+                    <p class="agile_report_filter_label">User</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="user" name="user" /><input type="submit" class="agile_hidden" />
                 </div>
                 <div class="agile_report_filter" title="To find NOT containing, start with !">
-                    <p class=" agile_report_filter_label">Board</p>
+                    <p class="agile_report_filter_label">Board</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="board" name="board" /><input type="submit" class="agile_hidden" />
                 </div>
                 <div class="agile_report_filter" title="To find NOT containing, start with !
+
 Example: !doing finds history on cards with lists not containing 'doing'">
                     <p class="agile_report_filter_label">List</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="list" name="list" /><input type="submit" class="agile_hidden" />
                 </div>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !
+
 Example: !#low finds cards without a '#low' hashtag">
                     <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
                 </form>
-                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !">
+                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter"
+                      title="
+To find NOT containing, start with !
+
+Filtering by S/E note will only show results that have S/E.">
                     <p class="agile_report_filter_label">Note</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="80" placeholder="contains..." type="text" id="comment" name="comment" /><input type="submit" class="agile_hidden" />
                 </form>
-                <div class="agile_report_filter" title="Filter by changed estimate.
-
-ALL: No E-type filter.
-E 1st: rows with a first estimate
-+E: rows that increased the card estimate per user
--E: rows that decreased it">
-                    <p class="agile_report_filter_label">E.type</p>
-                    <select id="eType">
-                        <option value="all">ALL</option>
-                        <option value="enew">E 1ˢᵗ</option>
-                        <option value="eincr">+E</option>
-                        <option value="edecr">-E</option>
-                    </select>
-                </div>
 
                 <div style="display:none"  class="agile_report_filter" title="Filter by archived card, list or board.">
                     <p class="agile_report_filter_label">Archived</p>
                     <select id="archived">
-                        <option value="">All</option>
+                        <option value="-1">All</option>
                         <option value="1">Archived</option>
-                        <option value="0">Not Archived</option>
+                        <option value="0" selected="selected">Not Archived</option>
                     </select>
                 </div>
 
@@ -184,6 +209,20 @@ E 1st: rows with a first estimate
 Leave blank to display all.">
                     <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />
                 </form>
+                <div class="agile_report_filter" title="Filter by estimate type.
+
+All: No E. type filter.
+E 1st: rows with a first estimate
++E: rows that increased the card estimate per user
+-E: rows that decreased it">
+                    <p class="agile_report_filter_label">E. type</p>
+                    <select id="eType">
+                        <option value="all">All</option>
+                        <option value="enew">E 1ˢᵗ</option>
+                        <option value="eincr">+E</option>
+                        <option value="edecr">-E</option>
+                    </select>
+                </div>
             </div>
             <div id="tabs" style="background: #E8EBEE;padding:0px;">
                 <div class="agile_tabselector_list" style="background: white;">
@@ -241,5 +280,6 @@ Leave blank to display all.">
             </div>
         </div>
     </div>
+    <div id="reportBottomMessage" style="display:none"></div>
 </body>
 </html>	

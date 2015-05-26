@@ -280,7 +280,8 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 	if (!g_bCheckedTrelloSyncEnable && !g_bEnableTrelloSync) {
 	    g_bCheckedTrelloSyncEnable = true;
 	    chrome.storage.sync.set({ "bCheckedTrelloSyncEnable": g_bCheckedTrelloSyncEnable }, function () { });
-	    if (true) { //force-enable trello sync when using spreadsheet sync. this will also be done when plus help is opened and there is a g_strServiceUrl
+	    if (!g_bDisableSync) {
+			//used to be that spreadsheet sync could be used without trellosync. no more.
 	        var pairTrelloSync = {};
 	        pairTrelloSync["bEnableTrelloSync"] = true;
 	        chrome.storage.sync.set(pairTrelloSync, function () {
@@ -333,7 +334,7 @@ function initialIntervalsSetup() {
 
 			setTimeout(function () { doAllUpdates(); }, 100); //breathe
 		}
-	}, 200); //check often, its important to prevent a big layout jump (so you can click on boards right away on home without them jumping (used to be more important before new trello 2014-01)
+	}, 400); //check often, its important to prevent a big layout jump (so you can click on boards right away on home without them jumping (used to be more important before new trello 2014-01)
 
 	var msLastDetectedActivity = 0; //zero means nothing detected yet.
 	setInterval(function () {
@@ -1068,7 +1069,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
 	        if (idBoardCur == null)
 	            return false;
-	        var url = chrome.extension.getURL("report.html?weekStartRecent=true") + "&idBoard=" + encodeURIComponent(idBoardCur);
+	        var url = chrome.extension.getURL("report.html") + "?groupBy=idCardH&idBoard=" + encodeURIComponent(idBoardCur);
 	        window.open(url, '_blank');
 	        return false;
 	    });
@@ -1106,9 +1107,9 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 
 	if (bShowHeaderStuff) {
 	    burndownLink.show();
-	    reportLink.show();
+		reportLink.show();
 	} else {
-	    reportLink.hide();
+		reportLink.show();
 	    burndownLink.hide();
 	}
 

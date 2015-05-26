@@ -307,7 +307,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             //if we dont do this, the bottom of the list (with the 'add card' link) goes too low.
             //we use estimation height because is the one already visible.
             divSE.prepend(spentBox);
-            h2.after(divSE);
+            listCur.append(divSE); //not h2.after(divSE) because that would cause the "subscribed to list" icon to drop below
         } else {
             spentBox = h2SiblinsSpentBox.eq(0);
         }
@@ -580,7 +580,7 @@ function processCardTimerIcon(stored, cloneTitleTag) {
     var imgTimer = cloneTitleTag.find('.agile_timer_icon_small');
     if (stored !== undefined && stored.msEnd == null) {  //show
         if (imgTimer.length == 0) {
-            imgTimer = $("<img>").attr("src", chrome.extension.getURL("images/icon16.png")).addClass('agile_timer_icon_small');
+            imgTimer = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png")).addClass('agile_timer_icon_small');
             imgTimer.attr("title", "Active timer");
             var span = $("<span>");
             span.append(imgTimer);

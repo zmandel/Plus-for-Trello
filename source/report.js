@@ -12,6 +12,9 @@ var KEY_FORMAT_PIVOT_BOARD = "formatPivotBoard";
 var KEY_bEnableTrelloSync = "bEnableTrelloSync";
 var keybEnterSEByCardComments = "bEnterSEByCardComments"; //review zig reuse shared globals loader
 var keyrgKeywordsforSECardComment = "rgKWFCC";
+var g_postFixHeaderLast = " last"; //special postfix for column headers
+var g_paramDontQuery = "dontQuery"; //1 when set
+var g_paramFromMarkAllViewed = "fromMAV"; //1 when set
 
 var g_cSyncSleep = 0;  //for controlling sync abuse
 var g_bIgnoreEnter = false; //review zig
@@ -34,7 +37,13 @@ var g_dataFormatBoard = { key:KEY_FORMAT_PIVOT_BOARD, interval: null, cLastWrite
 var g_rgTabs = []; //tab data
 
 function getCleanHeaderName(name) {
-    return name.split('\xa0')[0]; //hack: added &nbsp (g_hackPaddingTableSorter) to headers for tablesorter so remove them
+    if (!name)
+        return "";
+    var ret = name.split('\xa0')[0]; //hack: added &nbsp (g_hackPaddingTableSorter) to headers for tablesorter so remove them
+    var iLast = ret.indexOf(g_postFixHeaderLast);
+    if (iLast>0)
+        ret = ret.substr(0, iLast);
+    return ret;
 }
 
 function buildUrlFromParams(doc, params, bNoPopupMode) {
@@ -126,17 +135,6 @@ function selectTab(iTab, href, bForce) {
 	        params["tab"] = iTab;
 	        updateUrlState("report.html", params);
 	    }
-	}
-
-	var sectionGroupBy = $(".agile_groupby_report_section");
-	var sectionOrderBy = $(".agile_orderby_report_section");
-
-	if (iTab == 0) {
-		sectionGroupBy.attr("title", "");
-		sectionOrderBy.attr("title", "");
-	} else {
-		sectionGroupBy.attr("title", "Note: grouping only affects the Report tab");
-		sectionOrderBy.attr("title", "Note: ordering only affects the Report tab");
 	}
 }
 
@@ -313,7 +311,7 @@ function findMatchingMonths(term, autoResponse) {
     var daysDelta = 7;
     date.setDate(1);
     for (var i = 0; i < 24; i++) {
-        rg.push(date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1));
+        rg.push(getCurrentMonthFormatted(date));
         date.setMonth(date.getMonth() - 1);
     }
     
@@ -757,7 +755,8 @@ function getParamAndPutInFilter(elem, params, name, valDefault) {
 function loadReport(params) {
 	selectTab(params["tab"] || null);
 	$("#divMain").show();
-	
+	var bDontQuery = (params[g_paramDontQuery] == "1");
+	var bFromMarkAllViewed = (params[g_paramFromMarkAllViewed] == "1");
 	var sinceSimple = "";
 	if (params.weekStartRecent == "true") {
 		sinceSimple = "w-4";
@@ -825,7 +824,7 @@ function loadReport(params) {
 
 	var elems = {
 	    keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
-	    monthStart: "", monthEnd: "", user: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "", deleted: "0",
+	    monthStart: "", monthEnd: "", user: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "0", deleted: "0",
 	    idBoard: (g_bBuildSqlMode?"":"showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide"
 	};
 	for (var iobj in elems) {
@@ -849,18 +848,23 @@ function loadReport(params) {
 	    $("#orderBy option[value*='keyword']").remove();
 	    $("#groupBy option[value*='keyword']").remove();
 	}
+
 	if (!g_bEnableTrelloSync) {
-	    $("#list").parent().hide();
+	    $("#list").prop('disabled', true).prop("title", "Disabled until you enable Sync from Plus help.");
 	    $("#groupBy option[value*='nameList']").remove();
 	}
 
-	if (!g_bEnableTrelloSync || g_bPopupMode) {
+	if (g_bPopupMode) {
 	    $("#archived").parent().hide();
 	    $("#deleted").parent().hide();
 	}
 	else {
 	    $("#archived").parent().show();
 	    $("#deleted").parent().show();
+	    if (!g_bEnableTrelloSync) {
+	        $("#archived").prop('disabled', true).addClass("agile_background_disabled").prop("title", strAppendNoSync);
+	        $("#deleted").prop('disabled', true).addClass("agile_background_disabled").prop("title",  strAppendNoSync);
+	    }
 	}
 
 	updateDateState();
@@ -929,10 +933,16 @@ function loadReport(params) {
 		onQuery();
 	});
 
-	if (!g_bBuildSqlMode && Object.keys(params).length > 0) //prevent executing query automatically when no parameters
-		setTimeout(function () { onQuery(true); }, 10);
-	else
-		resetQueryButton(btn);
+	if (!g_bBuildSqlMode && Object.keys(params).length > 0 && !bDontQuery) //dont execute query automatically
+	    setTimeout(function () { onQuery(true); }, 10);
+	else {
+	    delete params[g_paramDontQuery];
+	    delete params[g_paramFromMarkAllViewed];
+        updateUrlState("report.html", params);
+        resetQueryButton(btn);
+        if (bFromMarkAllViewed)
+            $("#reportBottomMessage").show().html("s/e rows marked viewed. Close this window or query a new report.");
+	}
 }
 
 
@@ -979,8 +989,11 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 		val = Math.round(now.getTime() / 1000); //db date are in seconds
 	}
 
-	if (param == "archived")
+	if (param == "archived") {
 	    val = parseInt(val, 10) || 0;
+	    if (val < 0) //"All" is -1
+	        return "";
+	}
 
 	if (param == "deleted") {
 	    val = parseInt(val, 10) || 0;
@@ -1015,34 +1028,72 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 }
 
 function buildSql(elems) {
-    var groupBy = elems["groupBy"] || "";
-    var sql = "select H.rowid as rowid, H.keyword, H.user, H.week, H.month, H.spent, H.est, \
-                CASE WHEN (H.eType="+ETYPE_NEW+") then H.est else 0 end as estFirst, \
-                H.date, H.comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType, CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard JOIN LISTS as L on C.idList=L.idList JOIN BOARDS B on H.idBoard=B.idBoard";
-	var post1 = "";
-	var post2 = " order by H.date " + (g_bBuildSqlMode? "ASC": "DESC");
+
+	function buildAllParams(state) {
+        var sql="";
+	    sql += buildSqlParam("sinceSimple", elems, "date", ">=", state);
+	    sql += buildSqlParam("weekStart", elems, "week", ">=", state);
+	    sql += buildSqlParam("weekEnd", elems, "week", "<=", state, "9999-W99");
+	    sql += buildSqlParam("monthStart", elems, "month", ">=", state);
+	    sql += buildSqlParam("monthEnd", elems, "month", "<=", state, "9999-99");
+	    sql += buildSqlParam("user", elems, "user", "LIKE", state);
+	    sql += buildSqlParam("board", elems, "nameBoard", "LIKE", state);
+	    sql += buildSqlParam("list", elems, "nameList", "LIKE", state);
+	    sql += buildSqlParam("card", elems, "nameCard", "LIKE", state);
+	    sql += buildSqlParam("comment", elems, "comment", "LIKE", state);
+	    sql += buildSqlParam("eType", elems, "eType", "=", state);
+	    sql += buildSqlParam("archived", elems, "bArchivedCB", "=", state);
+	    sql += buildSqlParam("deleted", elems, "bDeleted", "=", state);
+	    sql += buildSqlParam("idBoard", elems, "idBoardH", "=", state);
+	    sql += buildSqlParam("idCard", elems, "idCardH", "=", state);
+	    sql += buildSqlParam("afterRow", elems, "rowid", ">", state, null, false);
+	    sql += buildSqlParam("keyword", elems, "keyword", "LIKE", state);
+	    return sql;
+	}
+
+    //note: the query itself doesnt group because we later do need the entire history to fill the pivot tabs.
+	var groupBy = elems["groupBy"] || "";
+	var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
+                CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
+                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
+                FROM HISTORY as H \
+                JOIN CARDS as C on H.idCard=C.idCard \
+                JOIN LISTS as L on C.idList=L.idList \
+                JOIN BOARDS B on H.idBoard=B.idBoard";
 
 	var state = { cFilters: 0, values: [] };
-	sql += buildSqlParam("sinceSimple", elems, "date", ">=", state);
-	sql += buildSqlParam("weekStart", elems, "week", ">=", state);
-	sql += buildSqlParam("weekEnd", elems, "week", "<=", state, "9999-W99");
-	sql += buildSqlParam("monthStart", elems, "month", ">=", state);
-	sql += buildSqlParam("monthEnd", elems, "month", "<=", state, "9999-99");
-	sql += buildSqlParam("user", elems, "user", "LIKE", state);
-	sql += buildSqlParam("board", elems, "nameBoard", "LIKE", state);
-	sql += buildSqlParam("list", elems, "nameList", "LIKE", state);
-	sql += buildSqlParam("card", elems, "nameCard", "LIKE", state);
-	sql += buildSqlParam("comment", elems, "comment", "LIKE", state);
-	sql += buildSqlParam("eType", elems, "eType", "=", state);
-	sql += buildSqlParam("archived", elems, "bArchivedCB", "=", state);
-	sql += buildSqlParam("deleted", elems, "bDeleted", "=", state);
-	sql += buildSqlParam("idBoard", elems, "idBoardH", "=", state);
-	sql += buildSqlParam("idCard", elems, "idCardH", "=", state);
-	sql += buildSqlParam("afterRow", elems, "rowid", ">", state, null, false);
-	sql += buildSqlParam("keyword", elems, "keyword", "LIKE", state);
-	sql += post1;
-	sql += post2;
-	return { sql: sql, values: state.values };
+	var sqlParams = buildAllParams(state);
+	sql += sqlParams;
+
+
+    //note: currently week/month isnt stored in cards table thus we cant filter by these.
+    //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
+	var groupByLower = groupBy.toLowerCase();
+	if (groupBy != "" && groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0 &&
+        !elems["weekStart"] && !elems["weekEnd"] &&
+        !elems["monthStart"] && !elems["monthEnd"]) {
+	    assert(!g_bBuildSqlMode);
+
+	    //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
+	    sql += " UNION ALL \
+                select -1 as rowid, '' as keyword, '' as user, '' as week, '' as month, 0 as spent, 0 as est, \
+                0 as estFirst, \
+                cast(strftime('%s',C.dateSzLastTrello) as INTEGER) as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
+                FROM CARDS as C \
+                JOIN LISTS as L on C.idList=L.idList \
+                JOIN BOARDS B on C.idBoard=B.idBoard";
+	    sql += sqlParams;
+	    var cValues = state.values.length;
+	    for (var iValues = 0; iValues < cValues; iValues++)
+	        state.values.push(state.values[iValues]);
+	}
+
+	
+	sql += " order by date " + (g_bBuildSqlMode ? "ASC" : "DESC");
+
+	return { sql: sql, values: state.values};
 }
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
@@ -1052,6 +1103,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 
 	if (elems["deleted"] == "")
 	    elems["deleted"] = "0"; //default to "Not deleted"
+
+	if (elems["archived"] == "")
+	    elems["archived"] = "0"; //default to "Not archived"
 
 	if (elems["checkNoCrop"] == "false")
 	    elems["checkNoCrop"] = ""; //ditto like eType
@@ -1145,11 +1199,12 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 	        if (elem && elem.config && elem.config.sortList && elem.config.headerList) {
 	            var index = elem.config.sortList[0][0]; //supports first sort only
 	            var txtHeader = getCleanHeaderName(elem.config.headerList[index].innerText);
-	            var valMatch=$('#orderBy option').filter(function () { return $(this).html() == txtHeader; }).val();
+	            var valMatch = $('#orderBy option').filter(function () { return getCleanHeaderName($(this).html()) == txtHeader; }).val();
 	            if (valMatch) {
-	                $('#orderBy').val(valMatch);
+	                var valMatchClean = getCleanHeaderName(valMatch);
+	                $('#orderBy').val(valMatchClean);
 	                var params = getUrlParams();
-	                params["orderBy"] = valMatch;
+	                params["orderBy"] = valMatchClean;
 	                configReport(params, false, true);
 	            }
 	        }
@@ -1178,7 +1233,7 @@ function configureLastViewedRowButton() {
             g_rowidLastSyncRemember = rowidLastSync; //needed when user already marked all as viewed, so there are no rows.
         var buttonMarkRead = $("#buttonMarkallRead");
         buttonMarkRead.show();
-        $("#afterRow").attr('disabled', 'disabled');
+        $("#afterRow").prop('disabled', true);
         buttonMarkRead.off().click(function () {
             buttonMarkRead.attr('disabled', 'disabled');
             setLastViewedRow();
@@ -1191,9 +1246,11 @@ function setLastViewedRow() {
 
     function finish() {
         sendExtensionMessage({ method: "updatePlusIcon" }, function (response) { });
-        var params = getUrlParams();
-        params["afterRow"] = "" + g_rowidLastSyncRemember;
-        params["setLastRowViewed"] = "true"; //new S/E could have arrived so provide the button again
+        var params = {};
+        g_bAddParamSetLastRowViewedToQuery = false;
+        params[g_paramDontQuery] = "1";
+        params[g_paramFromMarkAllViewed] = "1";
+        params["sinceSimple"] = "w-4";
         configReport(params, true);
     }
 
@@ -1560,12 +1617,24 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 			if (group === undefined)
 				group = cloneObject(row);
 			else {
-                // sum(spent), sum(est)[, max(rowid)]
+			    //rowid -1 when its just a card row (from the query UNION)
+			    if (group.rowid == -1 && row.rowid != -1) {
+			        var sSave = group.spent;
+			        var eSave = group.est;
+			        var eFirstSave = group.estFirst;
+			        var rowidSave = group.rowid;
+			        group = cloneObject(row); //re-clone so rows with s/e always take precedence over card-only rows.
+			        group.spent = sSave;
+			        group.est = eSave;
+			        group.estFirst = eFirstSave;
+			        group.rowid = rowidSave;
+			    }
 				group.spent += row.spent;
 				group.est += row.est;
 				group.estFirst += row.estFirst;
-				if (row.rowid !== undefined && group.rowid !== undefined && row.rowid>group.rowid) {
-				    group.rowid = row.rowid;
+			    
+				if (row.rowid !== undefined && row.rowid!= -1 && (group.rowid === undefined || row.rowid > group.rowid)) {
+				    group.rowid = row.rowid; //maintanin rowid so that a "mark all read" on a grouped report will still find the largest rowid
 				}
 			}
 			map[key] = group;
@@ -1606,16 +1675,17 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth) {
 	var bOrderR = (orderBy == "remain");
 	var header = [];
+	var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
 	var bShowKeyword = g_bShowKeywordFilter;
 	if (bShowKeyword)
-	    header.push({ name: "Keyword" });
-	header.push({ name: "Date" });
-	header.push({ name: "Week" });
+	    header.push({ name: "Keyword" + strAppendHeaders });
+	header.push({ name: "Date" + strAppendHeaders });
+	header.push({ name: "Week" + strAppendHeaders });
 	var bGroupByCardOrNone = (groupBy == "" || groupBy.toLowerCase().indexOf("card") >= 0);
 	var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
 	var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
 	if (bShowMonth)
-	    header.push({ name: "Month" });
+	    header.push({ name: "Month" + strAppendHeaders});
 	var bShowUser=(groupBy=="" || groupBy.toLowerCase().indexOf("user")>=0);
 	if (bShowUser)
 		header.push({ name: "User" });
@@ -1668,9 +1738,9 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	    if (bShowKeyword)
 	        rgRet.push({ name: row.keyword, bNoTruncate: true });
 	    rgRet.push({ name: dateString, bNoTruncate: true });
-		rgRet.push({ name: row.week, bNoTruncate: true });
+	    rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
 		if (bShowMonth)
-			rgRet.push({ name: row.month, bNoTruncate: true });
+		    rgRet.push({ name: row.month ? row.month : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
 		if (bShowUser)
 			rgRet.push({ name: row.user, bNoTruncate: bNoTruncate });
 
@@ -1724,7 +1794,8 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 			title += " - " + row.nameList;
 			title += " - " + row.nameCard;
 			title += " - " + row.comment;
-
+			if (row.rowid == -1)
+			    title += "\n(no s/e)";
 			rgRet.title = title;
 		} else {
 		    rgRet.title = "(" + sPush + " / " + estPush + ") " + row.comment;

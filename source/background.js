@@ -681,7 +681,7 @@ function updatePlusIcon(bTooltipOnly) {
                 ctx.font = "bold 8px Arial Narrow, Arial, sans-serif";
                 ctx.fillText(textBadgeSpent, xStart + 3, 12);
             }
-            else if (bErrorSync || g_bOffline) { //draw red X
+            else if (bErrorSync || g_bOffline) { //draw X
                 g_bLastPlusMenuIconError = true;
                 var dx = 4.5;
                 ctx.beginPath();
@@ -703,7 +703,7 @@ function updatePlusIcon(bTooltipOnly) {
             }
 
 
-            //green dot to the right
+            //white dot to the right
             if (g_cReadSyncLock > 0 || g_syncStatus.bSyncing) {
                 ctx.beginPath();
                 ctx.fillStyle = (colorTrelloSync);
@@ -1070,7 +1070,7 @@ href="'+ feedUrl + '/version"/> \
 
 function handleApiCall(url, params, bRetry, sendResponse, postBody, contentType, bAddIfMatchStar) {
 	if (chrome.identity === undefined) {
-		sendResponse({ status: "Please sign-in to Chrome from it's top-right menu." });
+		sendResponse({ status: "Please sign-in to Chrome from its top-right menu." });
 		return;
 	}
 

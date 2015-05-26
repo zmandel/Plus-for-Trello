@@ -4,13 +4,13 @@
 .grumble{
     position:absolute !important;
     background-repeat: no-repeat !important;
-    z-index: 99999;
+    z-index: 99998;
     }
 
     .grumble-text {
         position:absolute !important;
         text-align:center;
-        z-index: 99999;
+        z-index: 99998;
         display: table;
         overflow:hidden;
         font-size: 14px;
@@ -74,5 +74,5 @@
 
         cursor: pointer;
 
-        z-index: 99999;
+        z-index: 99998;
         }

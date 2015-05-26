@@ -48,7 +48,7 @@ var PREFIX_PLUSCOMMAND = "^";
 var PROP_TRELLOUSER = "plustrellouser";
 var PROP_SHOWBOARDMARKERS = "showboardmarkers";
 var TAG_RECURRING_CARD = "[R]";
-var COLUMNNAME_ETYPE = "E.type";
+var COLUMNNAME_ETYPE = "E. type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
@@ -135,6 +135,19 @@ var UNITS = {
     hours: "h",
     days: "d",
     current: "h", //current units, hours by default
+    getLongFormat: function (u) {
+        if (u == this.minutes)
+            return "minutes";
+
+        if (u == this.hours)
+            return "hours";
+
+        if (u == this.days)
+            return "days";
+
+        logPlusError("unknown units");
+        return "unknown";
+    },
     FormatWithColon: function (f) {
         assert(typeof f == "number");
         assert(f >= 0); //floor would need to change
@@ -250,7 +263,7 @@ function errFromXhr(xhr) {
     if (xhr.statusText || xhr.responseText)
         errText = errText + "\n" + xhr.statusText + "\n" + xhr.responseText;
     else if (xhr.status == 0)
-        errText = errText + "\nNo connection.";
+        errText = "No internet connection.";
     console.log(errText);
     return errText;
 }
@@ -752,7 +765,7 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		html=html+('</DIV>');
 	if (bShowTotals) {
 	    var sep = "<span class='agile_lighterText'>:</span>";
-	    title += ("&nbsp;S" + sep + parseFixedFloat(sTotal) +
+	    title += ("&nbsp;"+rows.length + " rows&nbsp;") + ("&nbsp;&nbsp;S" + sep + parseFixedFloat(sTotal) +
             (bUseEFirst ? "&nbsp;&nbsp;&nbsp;&nbspE 1ˢᵗ"+sep + parseFixedFloat(eFirstTotal) : "") +
             "&nbsp;&nbsp;&nbsp;&nbspE"+sep + parseFixedFloat(eTotal) +
             "&nbsp;&nbsp;&nbsp;&nbspR" + sep +parseFixedFloat(eTotal - sTotal));
@@ -768,7 +781,9 @@ function setScrollerHeight(heightWindow, scroller, elemTop, dyTop, bAdjustBody) 
 	dyTop = dyTop || 0;
 	bAdjustBody = bAdjustBody || false;
 	//NOTE: heightWindow is passed and not calculated here because in some cases (tab show/hide) body height changed after showing elements.
-	var height = heightWindow- position.top - dyTop; //review zig: redo scroller stuff
+	var height = heightWindow - position.top - dyTop; //review zig: redo scroller stuff
+	if ($("#reportBottomMessage").is(":visible"))
+	    height = height - 40;
 	if (height < 100) //minimum size
 		height = 100;
 	
@@ -835,7 +850,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	          }
 	      }
 	      if (selected.length > 0)
-	          $(".agile_selection_totals").html("&nbsp;(Selected S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur) + ")");
+	          $(".agile_selection_totals").html("&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
 	      else
 	          $(".agile_selection_totals").empty();
 	  }, false);
@@ -1081,6 +1096,10 @@ function cloneObject(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
 
+
+function getCurrentMonthFormatted(date) {
+    return (date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1));
+}
 
 var g_weekNumUse = null; //"2015-W05"; //set for testing only
 
@@ -1566,9 +1585,7 @@ function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userC
     obj.est = e;
     obj.user = userCur;
     obj.week = getCurrentWeekNum(dateNow);
-    var nMonth = dateNow.getMonth() + 1;
-    nMonth = getWithZeroPrefix(nMonth);
-    obj.month = dateNow.getFullYear() + "-" + nMonth;
+    obj.month = getCurrentMonthFormatted(dateNow);
     obj.comment = comment;
     return obj;
 }

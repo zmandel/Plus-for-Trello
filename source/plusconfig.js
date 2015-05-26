@@ -179,7 +179,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
                                 }
 
                                 if (g_strServiceUrl && g_strServiceUrl.length > 0 && response.cRowsTotal > 0) {
-                                    if (!confirm("You have pending S/E rows that havent synced yet to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and refresh trello so a sync starts."))
+                                    if (!confirm("You have pending S/E rows that havent yet synced to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and reload the page to start sync."))
                                         return;
                                 }
 
