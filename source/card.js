@@ -179,7 +179,9 @@ function updateEOnSChange(cRetry) {
                 }
                 return; 
             }
-            var userCur=getUserFromCombo(comboUsers);
+            var userCur = getUserFromCombo(comboUsers);
+            if (!userCur)
+                return; //timing related. card window could be gone thus no combo
             var mapSeCur = getSeCurForUser(userCur);
             if (!mapSeCur)
                 return; //shouldt happen

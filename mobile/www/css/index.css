@@ -34,7 +34,7 @@ border-radius: 0 !important;
     width: 3em !important;
     text-align: right !important;
     margin-right:0px !important;
-    font-size:1.5em !important;
+    font-size:2em !important;
 }
 
 .hmsLabel {
@@ -320,6 +320,7 @@ overflow-x:visible !important;
 }
 
 #panelAddSE {
+    z-index:9999;
     margin-top:-3.5em !important;
     transform-origin: left top !important;
     -webkit-transform-origin:left top !important;
@@ -398,15 +399,6 @@ overflow:visible !important;
 font-size:85%;
 }
 
-.seMinusPlusOp {
-font-size:200%;
-font-weight:bold;
-padding:0;
-margin:0;
-width:1.4em;
-margin-left:0.15em;
-margin-right:0.15em;
-}
 
 
 .plusHeader h1 {
@@ -415,3 +407,10 @@ white-space: nowrap;
 overflow: hidden;
 text-overflow:clip !important;
 }
+
+.backgroundShader {
+    background: lightGray !important;
+    border: 1px solid lightGray !important;
+    color: darkgray !important;
+}
+

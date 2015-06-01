@@ -46,7 +46,7 @@
                     <table style="width:100%;">
                         <tr>
                             <td class="noWrapElem noMarginPaddingTop" style="width:100%;" valign="top">
-                                <input style="width:100%;" id="plusCardCommentNote" placeholder=" note" type="text" data-wrapper-class="ui-custom-noborders" class="agile_note_box_input seInputStyles textSmaller seFormElem" data-role="none" />
+                                <input style="width:100%;" id="plusCardCommentNote" placeholder=" note" type="text" data-wrapper-class="ui-custom-noborders" class="agile_note_box_input seInputStyles seFormElem" data-role="none" />
                                 <div class="textSmaller">hello<br />world</div>
                             </td>
                             <td valign="bottom" class="tdVisibleOverflow" align="right">
@@ -55,27 +55,29 @@
                         </tr>
                     </table>
                 </form>
-                <br />
-                <div id="cardBottomContainer" class="animateTransitions">
-                    <div id="seContainer" style="display:none;">
-                        <table style="width:100%;">
-                            <thead>
-                                <tr>
-                                    <th class="colUser">User</th>
-                                    <th class="colSSum">S <span style="font-size:0.80em">sum</span></th>
-                                    <th class="colEFirst">E 1<sup>st</sup></th>
-                                    <th class="colESum">E <span style="font-size:0.80em">sum</span></th>
-                                    <th class="colR">R <span style="font-size:0.80em">(E-S)</span></th>
-                                </tr>
-                            </thead>
-                            <tbody></tbody>
-                        </table>
+                <div id="bottomParentShader" style="margin:0px;padding:0px;">
+                    <br />
+                    <div id="cardBottomContainer" class="animateTransitions">
+                        <div id="seContainer" style="display:none;">
+                            <table style="width:100%;">
+                                <thead>
+                                    <tr>
+                                        <th class="colUser">User</th>
+                                        <th class="colSSum">S <span style="font-size:0.80em">sum</span></th>
+                                        <th class="colEFirst">E 1<sup>st</sup></th>
+                                        <th class="colESum">E <span style="font-size:0.80em">sum</span></th>
+                                        <th class="colR">R <span style="font-size:0.80em">(E-S)</span></th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <h3 id="cardTitle"></h3>
+                        <div style="margin-bottom: 1em;"><span id="cardBoard"></span><span style="color:#BDBDBD;"> in </span><span id="cardList"></span></div>
+                        <div id="cardDesc" style="margin-bottom: .1em;word-wrap: break-word;"></div>
                     </div>
-                    <h3 id="cardTitle" ></h3>
-                    <div style="margin-bottom: 1em;"><span id="cardBoard"></span><span style="color:#BDBDBD;"> in </span><span id="cardList"></span></div>
-                    <div id="cardDesc" style="margin-bottom: .1em;word-wrap: break-word;"></div>
+                    <div id="cardBottomPadding"></div>
                 </div>
-            <div id="cardBottomPadding"></div>
             </div><!-- /content -->
         </div><!-- /page -->
 </body>

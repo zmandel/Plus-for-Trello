@@ -1,5 +1,7 @@
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 //var g_idGlobalAnalytics = "UA-xxxxxxxx-y";
+var TRELLO_APPKEY = "ddf61d1f3547d1b15b2d4ab2ad779842";
+var g_idGlobalAnalytics = "UA-58924888-1";
 
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
@@ -657,7 +659,8 @@ function setupSettingsPage() {
             navigator.app.exitApp(); //review zig: handle browser
         }
 
-        if (isCordova()) {
+        
+        if (navigator && navigator.notification) { //review zig: fix navigator not loading //c plugin add  org.apache.cordova.dialogs
             navigator.notification.confirm(
                 message,
                 function onPrompt(buttonIndex) {

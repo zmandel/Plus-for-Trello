@@ -124,6 +124,11 @@ function loadCardPage(page, params, bBack, urlPage) {
         $("#panelAddSEContainer").addClass("shiftUp");
         $("#cardBottomContainer").addClass("plusShiftBottom");
         $("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
+        $(".cardBackground").addClass("backgroundShader");
+        $("#seContainer table").addClass("backgroundShader");
+        $("#seContainer table th").addClass("backgroundShader");
+        $("#seContainer table td").addClass("backgroundShader");
+        
         setTimeout(function () {
             var elemSEFocus = $("#plusCardCommentSpent"); //review zig test ios keyboard
             if (isCordova())
@@ -135,6 +140,10 @@ function loadCardPage(page, params, bBack, urlPage) {
         setTimeout(function () {
         $("#panelAddSEContainer").removeClass("shiftUp");
         $("#cardBottomContainer").removeClass("plusShiftBottom");
+        $(".cardBackground").removeClass("backgroundShader");
+        $("#seContainer table").removeClass("backgroundShader");
+        $("#seContainer table th").removeClass("backgroundShader");
+        $("#seContainer table td").removeClass("backgroundShader");
         $("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
         enableSEFormElems(false, page);
         }, delayKB);

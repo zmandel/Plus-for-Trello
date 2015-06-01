@@ -936,9 +936,11 @@ function loadReport(params) {
 	if (!g_bBuildSqlMode && Object.keys(params).length > 0 && !bDontQuery) //dont execute query automatically
 	    setTimeout(function () { onQuery(true); }, 10);
 	else {
-	    delete params[g_paramDontQuery];
-	    delete params[g_paramFromMarkAllViewed];
-        updateUrlState("report.html", params);
+	    if (!g_bBuildSqlMode) {
+	        delete params[g_paramDontQuery];
+	        delete params[g_paramFromMarkAllViewed];
+	        updateUrlState("report.html", params);
+	    }
         resetQueryButton(btn);
         if (bFromMarkAllViewed)
             $("#reportBottomMessage").show().html("s/e rows marked viewed. Close this window or query a new report.");

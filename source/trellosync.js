@@ -1385,7 +1385,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
     //"copyBoard" sucede cuando se copia un board, no empezara con "createBoard". no es necesario usar ninguno
     var bFilter = true; //debe ser true. false used for testing
     var url = "https://trello.com/1/boards/" + idBoard + "/actions?action_member=true&action_memberCreator=true&action_member_fields=username&action_memberCreator_fields=username&limit=" + limit;
-    //var url = "https://trello.com/1/organizations/cloudware360devs?boards=all&board_actions=all&board_actions_limit=1";
+    //var url = "https://trello.com/1/organizations/xxx?boards=all&board_actions=all&board_actions_limit=1";
     if (bFilter) {
         url = url + "&filter=" + BOARD_ACTIONS_LIST;
         if (strDateBefore && strDateBefore.length > 0)
