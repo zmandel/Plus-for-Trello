@@ -80,6 +80,14 @@ function handleHomeTour() {
             size: 200
         },
 
+        {
+            selector: "#headerSEActivities",
+            text: "This section shows <br>Spent charts, your recent S/E and cards with Remaining balance.<br><br>Click to show or hide.",
+            angle: 90,
+            distance: 0,
+            size: 200
+        },
+
          {
              selector: ".classid_spent_week_users",
              text: "<br><br>Click on a chart title to zoom it full-window.<br><br>Click on any chart bar to drill-down.",
@@ -95,7 +103,7 @@ function handleHomeTour() {
 
           {
               selector: ".classid_spent_recent_cards",
-              text: "Your last 10<br>card S/E entries.<br>Click one to open<br>the card<br><br>",
+              text: "<br>Your last ten<br>card S/E entries.<br><br>Click one to open<br>the card<br><br>",
               angle: 135, //considers case where there are no fav. boards
               distance: 20,
               size: 150
@@ -271,7 +279,7 @@ function handleCardTour() {
 
         {
             selector: ".agile-card-seByUserModify",
-            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not delete the generated card comment</b><br><br><a style='color:white;' href='http://plusfortrello.blogspot.com/2015/03/plus-for-trello-faq.html' target='_blank'>oups too late</a>",
+            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not delete the generated card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/faq.html' target='_blank'>oups too late</a>",
             angle: 180,
             distance: 0,
             size: 200
@@ -532,6 +540,12 @@ function handleTourStart(bFromClick) {
 
     if (Help.isVisible())
         sendDesktopNotification("Close Plus help to run the tour.", 5000);
+
+    if (!g_bShowHomePlusSections) {
+        var seHeader = $("#headerSEActivities");
+        if (seHeader.length != 0)
+            seHeader.click();
+    }
 
     g_tour.bAutoShowTour = true;
     setTimeout(function () {

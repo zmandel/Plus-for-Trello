@@ -10,6 +10,7 @@ var g_bCheckedbSumFiltered = null; //null means not yet initialized (From sync s
 var DELAY_FIRST_SYNC = 2000;
 var g_cRetryingSync = 0;
 var g_cRowsWeekByUser = 0; //gets set after making the chart. Used by the tour
+var g_bShowHomePlusSections = true;
 
 //review zig: this was the easy way to prevent charts from rendering until their container is attached to the dom.
 //  in the home page case, we dont attach the plus 2x2 table until all its cells have loaded, so that its full height
@@ -362,7 +363,7 @@ function initialIntervalsSetup() {
 			        msLastDetectedActivity = msNow;
 			    }
 			});
-	}, 500);
+	}, 1000);
 
 	setInterval(function () {
 		doAllUpdates();
@@ -1171,10 +1172,11 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
     if (!dataWeek.bReuseCharts)
         g_chartsCache = {};
 
-	var divMainBoardsContainer = $(g_bNewTrello ? ".member-boards-view" : ".member-detail-modal");
+    var divMainBoardsContainer = $(".member-boards-view");
+    var divInsertAfter = $(".window-module");
     //timing note: .window-module also needs to be present
-	if (divMainBoardsContainer.length == 0 || $(".window-module").length==0) {
-		setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 200); //wait until trello loads that div
+    if (divMainBoardsContainer.length == 0 || divInsertAfter.length == 0) {
+		setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
 		return false;
 	}
 
@@ -1187,37 +1189,64 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 	var strPostfixStatus = "_status";
 
 	if (divSpentItems.length == 0) {
+	    var seHeader = $('<p id="headerSEActivities" class="agile_arrow_title"><b style="margin-left:17px;">Plus S/E</b></p>');
+
+	    if (false) {
+	        var spanIcon = $("<span>");
+	        var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
+	        icon.addClass("agile-spent-icon-homeSections");
+	        spanIcon.append(icon);
+	        seHeader.append(spanIcon);
+	    }
 	    divSpentItems = $('<div></div>').addClass(classContainer);
+	    divInsertAfter = divInsertAfter.eq(0);
 		
-		var divInsertAfter = null;
-
-		if (g_bNewTrello)
-			divInsertAfter = $(".window-module").eq(0);
-		else
-		    divInsertAfter = $(".window-sidebar");
-
+	    divSpentItems.css("opacity", 0);
 		divSpentItems.hide();
-		var bAnimateOpacity = true;
+		var seContainer = $('<div id="agile_seContainer" class="agile_arrow_closed agile_arrow_container">');
+		seContainer.append(seHeader);
+		var waiter = CreateWaiter(4, function () { //review promise
+		    seContainer.append(divSpentItems);
+		    seContainer.insertAfter(divInsertAfter);
 
-		if (bAnimateOpacity)
-		    divSpentItems.css("opacity", 0);
+		    function refreshAll() {
+                //all these is so we can have the chart drawn and height calculated before we start the slide
+		        divSpentItems.css("opacity", 0);
+		        divSpentItems.css("height", 0);
+		        divSpentItems.show();
+		        if (g_bPreventChartDraw)
+		            g_bPreventChartDraw = false;
 
-		var waiter = CreateWaiter(4, function () {
-		    divSpentItems.insertAfter(divInsertAfter);
-		            var heightPlusHome = divSpentItems.height();
-		            divSpentItems.css("height", 0);
-		    divSpentItems.show();
-		    if (g_bPreventChartDraw) {
-		        g_bPreventChartDraw = false;
 		        redrawAllCharts();
+		        
+		        divSpentItems.hide();
+		        divSpentItems.css("height", "");
 		    }
-		            var optionsAnimate = { height: heightPlusHome };
 
-		            if (bAnimateOpacity)
-		                optionsAnimate.opacity = 1;
-		            divSpentItems.animate(optionsAnimate, 350, "easeInExpo", function () {
-		                divSpentItems.css("height", ""); //so its on auto again. matters when changing the week selector.
+		    seHeader.click(function () {
+		        var bOpened = (seContainer.hasClass("agile_arrow_opened"));
+		        g_bShowHomePlusSections = !bOpened;
+		        if (!bOpened) {
+		            refreshAll();
+		        }
+		        handleSectionSlide(seContainer, divSpentItems);
+		        chrome.storage.sync.set({ "bClosePlusHomeSection": !g_bShowHomePlusSections }, function () {
+		        //ignore chrome.runtime.lastError
+		        });
+		    });
+
+		    //pretend charts are visible so we can preload charts. this speeds up the first time we drop down the header
+		    var bShowSaved = g_bShowHomePlusSections;
+		    g_bShowHomePlusSections = true;
+		    refreshAll();
+		    g_bShowHomePlusSections = bShowSaved;
+		    if (g_bShowHomePlusSections) {
+		        setTimeout(function () {//using timeout and animationFrame in hopes of improving animation sync with page dom load
+		            window.requestAnimationFrame(function () { 
+		                handleSectionSlide(seContainer, divSpentItems);
 		            });
+		        },300);
+		    }
 		});
 
 		g_bPreventChartDraw = true;
@@ -1239,8 +1268,8 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		waiter.SetWaiting(true);
 		chartModuleLoader(waiter, divSpentItems, cellA, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left");
 		chartModuleLoader(waiter, divSpentItems, cellB, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left");
-		var divItemDashboardRecent = addModuleSection(false, cellC, "Recent card S/E", idRecentModule, true, "left");
-		var divItemDashboardUnspent = addModuleSection(false, cellD, "Remaining balance cards", idPendingModule, true, "left");
+		var divItemDashboardRecent = addModuleSection(false, cellC, "Recent card S/E", idRecentModule, true, "left", true);
+		var divItemDashboardUnspent = addModuleSection(false, cellD, "Remaining balance cards", idPendingModule, true, "left", true);
 		loadDashboards(waiter, divItemDashboardRecent, divItemDashboardUnspent, user);
 	} else {
 		var divItemDashboardRecent2 = $("#" + idRecentModule);
@@ -1289,7 +1318,7 @@ function cancelZoomin(callback, bQuick) {
         callback();
 }
 
-function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat) {
+function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat, bLastRow) {
 	if (bHidden === undefined)
 		bHidden = false;
 	var divModule = $("<DIV>");
@@ -1304,12 +1333,8 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat) {
 	}
 	else
 		divModule.addClass("window-module"); //from trello
-	var spanIcon = $("<span>");
-	var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
-	icon.addClass("agile-spent-icon-shifted");
-	spanIcon.append(icon);
-	divTitleContainer.append(spanIcon);
-	var titleModule = $('<h3>').addClass("classid_"+id);
+	
+	var titleModule = $('<h3>').addClass("classid_"+id+" sectionTitleFont");
 	if (bEnableZoom) {
 	    titleModule.addClass("agile_spent_item_title_zoomable");
 	    titleModule.attr("title", "Click to zoom in/out");
@@ -1335,7 +1360,9 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat) {
 	divModule.append(divTitleContainer);
 	var divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item notranslate");
 	if (g_bNewTrello)
-		divItem.addClass("agile_spent_item_newTrello");
+	    divItem.addClass("agile_spent_item_newTrello");
+	if (bLastRow)
+	    divItem.addClass("agile_spent_item_lastRow");
 	divModule.append(divItem);
 	if (bHidden)
 		divModule.hide();
@@ -1345,12 +1372,16 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat) {
 
 function doRecentReport(waiter, elemRecent, user) {
     //note: includes deleted cards
-	var sql = "select datetime(H.date,'unixepoch','localtime') as dateLocal, B.name as nameBoard, C.name as nameCard, H.spent, H.est, H.comment, H.idCard \
+    var sql = "select count(*) as cGrouped, max(date*1000) as msDate, max(dateLocal) as dateLocal, nameBoard, nameCard, SUM(spent) as spent, sum(est) as est, GROUP_CONCAT(comment,'\n') as comment, idCard from \
+                (select H.date, datetime(H.date,'unixepoch','localtime') as dateLocal, B.name as nameBoard, C.name as nameCard, H.spent, H.est, H.comment, H.idCard \
 				from HISTORY AS H \
 				JOIN BOARDS AS B ON H.idBoard=B.idBoard \
 				JOIN CARDS AS C ON H.idCard=C.idCard \
 				WHERE H.user=? \
-				ORDER BY date DESC LIMIT 10";
+				ORDER BY date DESC LIMIT 10) \
+                GROUP BY nameBoard,nameCard,idCard \
+                ORDER BY dateLocal DESC \
+                ";
 	var values = [user];
 	getSQLReport(sql, values,
 		function (response) {
@@ -1433,26 +1464,57 @@ function addDashboardListItem(list, name, url, badge, tooltip, color) {
 }
 
 function handleLoadRecent(listElem, data) {
-	var i = 0;
+    var i = 0;
+    var dateNow = new Date();
 	for (; i < data.length; i++) {
 		var row = data[i];
 		if (row.dateLocal == null)
 			break;
 		var url = "https://trello.com/c/" + row.idCard;
-		var tooltip = "" + row.dateLocal + "\nS:" + row.spent + " E:" + row.est + "\n" + row.comment;
+		var comment = row.comment;
+		var commentNew = "";
+		do {
+		    commentNew = comment.replace(/\n\n/gm, "\n");
+		    if (commentNew == comment)
+		        break;
+		    comment = commentNew;
+		} while (true);
+		if (comment == "\n")
+		    comment = "";
+		var tooltip = "";
+		var prefixSE = "";
+		var bMultiple = (row.cGrouped > 1);
+		if (bMultiple) {
+		    prefixSE = "Sum ";
+		    tooltip = "" + row.cGrouped + " S/E rows.\nLast: ";
+		}
+
+		var cDays = dateDiffInDays(dateNow, new Date(row.msDate));
+
+		if (cDays == 0)
+		    tooltip += "today ";
+		else if (cDays == 1)
+		    tooltip += cDays+" day ago ";
+		else
+		    tooltip += cDays+" days ago ";
+
+		tooltip = tooltip + row.dateLocal + "\n" + prefixSE + "S: " + row.spent + "   E: " + row.est;
+		if (comment)
+		    tooltip=tooltip+ "\n" + (row.cGrouped > 1 ? "Comments:\n" : "Comment: ") + comment;
 
 		addDashboardListItem(listElem, strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), url, null, tooltip);
 	}
 }
 
 function handleLoadPending(listElem, data) {
-	var i = 0;
+    var i = 0;
+    var dateNow = new Date();
 	for (; i < data.length; i++) {
 		var row = data[i];
 		if (row.dateLocal == null)
 			break;
 		var url = "https://trello.com/c/" + row.idCard;
-		var cDays = dateDiffInDays(new Date(), new Date(row.msDate));
+		var cDays = dateDiffInDays(dateNow, new Date(row.msDate));
 		var tooltip = "Last S/E " + cDays;
 
 		if (cDays == 1)
@@ -1620,14 +1682,19 @@ function finishSpentChartConfig(waiter, idElem, elem, data, posLegend, pxLeft, p
 	var chartParams = g_chartsCache[idElem];
     //timing note: we also check for elemChart being the right one. Sometimes the chart cache is left behind when trello plays navigation tricks.
     //example: from home click a board, then do "back". g_chartsCache will still be the old one
-	if (chartParams === undefined || chartParams.elemChart != elem[0]) {
-		var chartNew = new google.visualization.BarChart(elem[0]);
-		chartParams = { chart: chartNew, data: data, posLegend: posLegend, pxLeft: pxLeft, pxRight: pxRight };
-		g_chartsCache[idElem] = chartParams;
+	var chartNew = null;
+	if (chartParams === undefined || chartParams.elemChart != elem[0] || !g_bShowHomePlusSections) {
+		chartNew = new google.visualization.BarChart(elem[0]);
 		google.visualization.events.addListener(chartNew, 'animationfinish', function (e) {
 			handleRemapLabels(chartParams);
 		});
 	}
+	else {
+	    chartNew = chartParams.chart;
+	}
+	chartParams = { chart: chartNew, data: data, posLegend: posLegend, pxLeft: pxLeft, pxRight: pxRight };
+	g_chartsCache[idElem] = chartParams;
+
 	chartParams.data = data;
 	chartParams.posLegend = posLegend;
 	chartParams.pxLeft = pxLeft;
@@ -1698,6 +1765,8 @@ function updateUsersList(users) {
 }
 
 function drawSpentWeekChart(chartParams) {
+    if (!g_bShowHomePlusSections)
+        return;
 	var chart = chartParams.chart;
 	var data = chartParams.data;
 	var posLegend = chartParams.posLegend;

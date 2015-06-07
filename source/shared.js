@@ -10,6 +10,7 @@ var OPT_SHOWSPENTINICON_NORMAL = 0;
 var OPT_SHOWSPENTINICON_ALWAYS = 1;
 var OPT_SHOWSPENTINICON_NEVER = 2;
 var g_optAlwaysShowSpentChromeIcon = OPT_SHOWSPENTINICON_NORMAL; //review zig these 3  need initialization. reuse loadBackgroundOptions
+var g_bDontShowTimerPopups = false;
 
 function getHashtagsFromTitle(title) {
     var hashtags = [];
@@ -240,11 +241,14 @@ function loadSharedOptions(callback) {
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
+    var keybDontShowTimerPopups = "bDontShowTimerPopups";
+
     assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
+                                 g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
@@ -919,26 +923,30 @@ function handleDrilldownWindow(chart, drilldowns, htmlFromRows, colExclude, widt
 	var container = makeReportContainer(html, widthWindow);
 }
 
-function handleSectionSlide(section, content, widthOpen,elemShowHide) {
+function handleSectionSlide(section, content, widthOpen, elemShowHide) {
+    var step = 250;
 	var bOpened = (section.hasClass("agile_arrow_opened"));
 	if (!bOpened && widthOpen) { //doing width before the toggle looks better and avoids a chrome paint bug
 		section.css("width", widthOpen);
 		if (elemShowHide)
 			elemShowHide.show();
 	}
-	content.slideToggle(150, function () {
+
+	content.animate({ opacity: bOpened?0:1 }, step, "easeOutQuad");
+
+	content.slideToggle({queue:false, duration: step, complete:function () {
 		if (bOpened) {
 			section.removeClass("agile_arrow_opened");
 			section.addClass("agile_arrow_closed");
 			if (elemShowHide)
-				elemShowHide.hide();
-			section.css("width", "auto");
-			section.css("padding-bottom", "0px");
+			    elemShowHide.hide();
+			if (widthOpen)
+			    section.css("width", "auto");
 		} else {
 			section.removeClass("agile_arrow_closed");
 			section.addClass("agile_arrow_opened");
 		}
-	});
+	}});
 	
 }
 /**
@@ -1244,7 +1252,8 @@ function findNextActiveTimer() {
 }
 
 
-function getTimerElemText(msStart, msEnd, bValuesOnly) {
+function getTimerElemText(msStart, msEnd, bValues, bNoSeconds) {
+    bNoSeconds = bNoSeconds || false;
     var txt = "";
     var ms = 0;
     if (msStart != null)
@@ -1270,45 +1279,23 @@ function getTimerElemText(msStart, msEnd, bValuesOnly) {
     ms -= minutes * divisor;
     divisor = 1000;
     var seconds = Math.floor(ms / divisor);
+    txt = (days == 0 ? "" : "" + days + "d ") + (unit == UNITS.minutes ? "" : getWithZeroPrefix(hours) + ":") + getWithZeroPrefix(minutes) +
+        (bNoSeconds?"m" : ":" + getWithZeroPrefix(seconds) + "s");
 
-    if (bValuesOnly) {
-        return { days:days, hours: hours, minutes: minutes, seconds: seconds };
+    if (bValues) {
+        return { days:days, hours: hours, minutes: minutes, seconds: seconds,text:txt };
     }
     else {
-		//review zig timers
-        txt = (days==0? "": ""+days+"d ") + (unit == UNITS.minutes? "" : getWithZeroPrefix(hours) + ":") + getWithZeroPrefix(minutes) + ":" + getWithZeroPrefix(seconds) + "s";
         return txt;
     }
 }
 
-
-//experimental
-function addFixedHeaders(table) {
-	var headers = table.find("th");
-	var pos = getElementPosition(table[0]);
-	var x = 0;
-	var y = 0;
-	var tableClone = $("<table class='agile_table_pivot' cellpadding=2 cellspacing=0 style='position:fixed'>").offset({ top: pos.y, left: pos.x });
-	headers.each(function () {
-		pos = getElementPosition(this);
-		var label = $("<th>").css("min-width", this.clientWidth).css("max-width", this.clientWidth).text(this.textContent);
-		tableClone.append(label);
-	});
-	table.after(tableClone);
+function showTimerPopup(idCard) {
+    sendExtensionMessage({ method: "showTimerWindow", idCard: idCard },
+                function (response) {
+                });
 }
 
-//from http://www.kirupa.com/html5/get_element_position_using_javascript.htm
-function getElementPosition(element) {
-	var xPosition = 0;
-	var yPosition = 0;
-
-	while (element) {
-		xPosition += (element.offsetLeft - element.scrollLeft + element.clientLeft);
-		yPosition += (element.offsetTop - element.scrollTop + element.clientTop);
-		element = element.offsetParent;
-	}
-	return { x: xPosition, y: yPosition };
-}
 
 /* processThreadedItems
  *

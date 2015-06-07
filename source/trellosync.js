@@ -1688,8 +1688,8 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error: getBoardsLastInfoWorker");
+                    //if (xhr.status == 400)
+                    //    logPlusError("trello sync error: getBoardsLastInfoWorker"); //review zig: one user reported this. when can it happen?
                     callback(objRet);
                 }
             }

@@ -196,7 +196,7 @@ var Help = {
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
 	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A href="#agile_help_languages">Language</A>&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
-<a href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
+<a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/+PlusfortrelloNews/posts" rel="publisher" target="_blank"> \
 <img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://twitter.com/PlusForTrello" rel="publisher" target="_blank"> \
@@ -628,8 +628,13 @@ var Help = {
 
 	    helpWin.para('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
-	    helpWin.para("&bull; Start a timer from any card. The active timer is always visible in the Chrome Plus icon and menu.");
-		helpWin.para("&bull; Timers measure time in your units from Preferences.");
+	    helpWin.para("&bull; Start a timer from any card. The last active timer is always visible in the Chrome Plus icon and menu.");
+	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
+	    helpWin.para("&bull; Timer popups will show much better if you <A href='' id='linkEnablePanels'>enable Chrome Panels</A>.").find("#linkEnablePanels").click(function (e) {
+	        e.preventDefault();
+	        sendExtensionMessage({ method: "openChromeOptionsPanels" }, function (response) { });
+	    });
+
 		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277?hl=en'>signed-into chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Pause the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
@@ -695,7 +700,7 @@ var Help = {
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
-	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, S/E already entered is assumed in the new units so pick it before entering any S/E.</span>'));
+	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, S/E already entered is assumed in the new units so set your units here before entering any S/E.</span>'));
 	        comboUnits.append($(new Option(UNITS.getLongFormat(UNITS.minutes), UNITS.minutes)));
 	        comboUnits.append($(new Option(UNITS.getLongFormat(UNITS.hours), UNITS.hours)));
 	        comboUnits.append($(new Option(UNITS.getLongFormat(UNITS.days), UNITS.days)));
@@ -872,6 +877,25 @@ Do not warn when starting multiple timers in parallel.</input>').children('input
 	        });
 	    }
 
+	    //option to not show timer popups
+	    if (true) {
+	        var checkDontShowTimerPopups = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontShowTimerPopups">\
+Do not show timer popups.</input>').children('input:checkbox:first');
+	        if (g_bDontShowTimerPopups)
+	            checkDontShowTimerPopups[0].checked = true;
+
+	        checkDontShowTimerPopups.click(function () {
+	            var bValue = checkDontShowTimerPopups.is(':checked');
+	            var pair = {};
+	            pair["bDontShowTimerPopups"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bDontShowTimerPopups = bValue;
+	                checkDontShowTimerPopups[0].checked = g_bDontShowTimerPopups;
+	            });
+	        });
+	    }
+
 	    //option to change the background color of cards
 	    if (true) {
 	        var checkCardColor = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedCardColor">\
@@ -969,7 +993,7 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2015/03/plus-for-trello-faq.html" >see FAQ or submit a new question or request</a>.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/faq.html" >see FAQ or submit a new question or request</a>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

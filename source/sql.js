@@ -1771,6 +1771,12 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%unusual: db not ready%'");
         });
 
+        M.migration(23, function (t) {
+            //review zig: remove by july 2015. otherwise future errors with those texts will get lost on reset
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%getBoardsLastInfoWorker%'");
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%error: idBoardShort:%'");
+        });
+
         M.doIt();
     }
 }

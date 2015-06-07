@@ -11,6 +11,7 @@ var g_bInstalledNetworkDetection = false;
 var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
+var g_mapTimerWindows = {};
 
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
     var data = null;
@@ -272,6 +273,12 @@ function processTimerCounter() {
 
             if (idCardTimer != g_idCardTimerLast) {
                 bChangedIdCard = true;
+                if (g_idCardTimerLast == null) {
+                    setTimeout(function () {
+                        //open the last active timer. do it a little later since chrome is just starting up
+                        doShowTimerWindow(idCardTimer);
+                    }, 1000);
+                }
                 g_idCardTimerLast = idCardTimer;
             }
 
@@ -410,7 +417,7 @@ var g_loaderDetector = {
                     checkNeedsSync(true);
                 }, 5000);
             }
-        }, 1000 * 10);
+        }, 1000 * 5);
 
 
         //install network detection
@@ -434,6 +441,7 @@ var g_loaderDetector = {
         processTimerCounter();
 
         function updateOnlineState(bOnline) {
+            console.log("Plus online: " + bOnline);
             g_bOffline = !bOnline;
             if (bOnline) {
                 setTimeout(function () { checkNeedsSync(true); }, 2000);
@@ -672,14 +680,13 @@ function updatePlusIcon(bTooltipOnly) {
 				//review zig: doesnt show offline/error visual status
                 ctx.fillStyle = PLUS_COLOR_SPENTBADGE;
                 ctx.strokeStyle = PLUS_COLOR_SPENTBADGE;
+                ctx.font = "bold 8px Tahoma, Arial, sans-serif"; //tahoma is very readable at small sizes
                 var textBadgeSpent = getFormattedSpentBadgeText();
                 var width = ctx.measureText(textBadgeSpent).width;
-                var xStart = Math.max(17 - width, 3);
-                ctx.fillRect(xStart, 5, 19-xStart, 8);
-                //roundRect(ctx, xStart, 0, width, 8, 0, true, true);
+                var xStart = Math.max(16 - width, 1);
+                ctx.fillRect(xStart, 4, 19, 9);
                 ctx.fillStyle = "#FFFFFF";
-                ctx.font = "bold 8px Arial Narrow, Arial, sans-serif";
-                ctx.fillText(textBadgeSpent, xStart + 3, 12);
+                ctx.fillText(textBadgeSpent, xStart + 2, 12);
             }
             else if (bErrorSync || g_bOffline) { //draw X
                 g_bLastPlusMenuIconError = true;
@@ -798,6 +805,26 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 				sendResponse({ config: retConfig });
 		}, bSkipCache);
 	}
+	else if (request.method == "showTimerWindow") {
+	    var keybDontShowTimerPopups = "bDontShowTimerPopups";
+	    chrome.storage.sync.get([keybDontShowTimerPopups], function (objSync) {
+            g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
+	        if (!g_bDontShowTimerPopups)
+	            doShowTimerWindow(request.idCard);
+	    });
+	    sendResponse({ status: STATUS_OK });
+	}
+	else if (request.method == "openChromeOptionsPanels") {
+	    alert("Enable 'Chrome panels' for much better timers.\n\
+'Panels' is a new Chrome feature that comes disabled by default. To enable now:\n\n\
+1. Press OK to open the 'Chrome options' page.\n\n\
+2. Click 'Enable' there and 'Relaunch Chrome' from\n    the bottom of that page.\n\n\
+Do not change any other option there.\n\
+With 'Panels' enabled, your card timer popups will become top-most panels that organize neatly and stay up even if you quit Chrome.\n\
+If you instead want to disable timer popups do so from Plus preferences.");
+	    chrome.tabs.create({ url: "chrome://flags/#enable-panels" });
+	    sendResponse({ status: STATUS_OK });
+	}
 	else if (request.method == "animateChromeIconFlip") {
 	    animateFlip();
 	    sendResponse({ status: STATUS_OK });
@@ -812,10 +839,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	    handlePlusMenuSync(sendResponse);
 	}
 	else if (request.method == "createNewSs") {
-		handleCreateSs(sendResponse);
+	    handleCreateSs(sendResponse);
 	}
 	else if (request.method == "getPlusFeed") {
-		handleGetPlusFeed(request.msLastPostRetrieved, sendResponse);
+	    handleGetPlusFeed(request.msLastPostRetrieved, sendResponse);
 	}
 	else if (request.method == "getAllHashtags") {
 	    handleGetAllHashtags(sendResponse);
@@ -840,10 +867,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 
 	    if (request.bAnimate)
 	        animateFlip();
-	    sendResponse({status : STATUS_OK});
+	    sendResponse({ status: STATUS_OK });
 	}
 	else if (request.method == "checkLoggedIntoChrome") {
-		handleCheckLoggedIntoChrome(sendResponse);
+	    handleCheckLoggedIntoChrome(sendResponse);
 	}
 	else if (request.method == "setBadgeData") { //str, weeknum, text
 	    if (request.text !== undefined) {
@@ -851,26 +878,26 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	        g_dataTotalSpentThisWeek.weeknum = request.weeknum;
 	        setIconBadgeText(request.text);
 	    }
-	    if (request.tooltip !==undefined)
-		    chrome.browserAction.setTitle({ title: request.tooltip });
-		sendResponse({});
+	    if (request.tooltip !== undefined)
+	        chrome.browserAction.setTitle({ title: request.tooltip });
+	    sendResponse({});
 	}
 	else if (request.method == "testBackgroundPage") {
 	    insertLogMessages(request.logMessages, sendResponse);
 	}
 	else if (request.method == "showDesktopNotification") {
-		handleShowDesktopNotification(request);
-		sendResponse({});
+	    handleShowDesktopNotification(request);
+	    sendResponse({});
 	}
 	else if (request.method == "insertHistoryRowFromUI") {
-		handleInsertHistoryRowFromUI(request, sendResponse);
+	    handleInsertHistoryRowFromUI(request, sendResponse);
 	}
 	else if (request.method == "queueRenameAllCards") {
-	    localStorage["renameCardsPendingData"] = JSON.stringify({ pending: true, bOnlyCardsWithHistory: request.bOnlyCardsWithHistory});
-	    sendResponse({status:STATUS_OK});
+	    localStorage["renameCardsPendingData"] = JSON.stringify({ pending: true, bOnlyCardsWithHistory: request.bOnlyCardsWithHistory });
+	    sendResponse({ status: STATUS_OK });
 	}
 	else if (request.method == "getReport") {
-		handleGetReport(request, sendResponse);
+	    handleGetReport(request, sendResponse);
 	}
 	else if (request.method == "openDB") {
 	    handleOpenDB(request.options, sendResponse);
@@ -892,29 +919,29 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	    handleGetTrelloBoardData(request, sendResponse);
 	}
 	else if (request.method == "getTotalDBRows") {
-		handleGetTotalRows(false, sendResponse);
+	    handleGetTotalRows(false, sendResponse);
 	}
 	else if (request.method == "getTotalDBRowsNotSync") {
-		handleGetTotalRows(true, sendResponse);
+	    handleGetTotalRows(true, sendResponse);
 	}
 	else if (request.method == "getTotalDBMessages") {
-		handleGetTotalMessages(sendResponse);
+	    handleGetTotalMessages(sendResponse);
 	}
 	else if (request.method == "getlocalStorageSize") {
-		sendResponse({ result: unescape(encodeURIComponent(JSON.stringify(localStorage))).length });
+	    sendResponse({ result: unescape(encodeURIComponent(JSON.stringify(localStorage))).length });
 	}
 	else if (request.method == "clearAllStorage") {
-		localStorage.clear();
-		handleDeleteDB(request, sendResponse);
+	    localStorage.clear();
+	    handleDeleteDB(request, sendResponse);
 	}
 	else if (request.method == "clearAllLogMessages") {
-		handleDeleteAllLogMessages(request, sendResponse);
+	    handleDeleteAllLogMessages(request, sendResponse);
 	}
 	else if (request.method == "writeLogToPlusSupport") {
 	    handleWriteLogToPlusSupport(request, sendResponse);
 	}
 	else if (request.method == "isSyncing") {
-		handleIsSyncing(sendResponse);
+	    handleIsSyncing(sendResponse);
 	}
 	else if (request.method == "beginPauseSync") {
 	    handlePause(sendResponse);
@@ -923,7 +950,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 	    handleUnpause(sendResponse);
 	}
 	else if (request.method == "copyToClipboard") {
-		handleCopyClipboard(request.html, sendResponse);
+	    handleCopyClipboard(request.html, sendResponse);
 	}
 	else
 	    sendResponse({});
@@ -947,6 +974,56 @@ function handleCopyClipboard(html, sendResponse) {
 		return;
 	}
 	sendResponse({ status: "cant copy to clipboard." });
+}
+
+function doShowTimerWindow(idCard) {
+    var idWindow = g_mapTimerWindows[idCard];
+
+    if (idWindow === undefined)
+        create(idCard);
+    else {
+        chrome.windows.get(idWindow, null, function (window) {
+            if (!window)
+                create(idCard);
+        });
+    }
+
+    function create(idCard) {
+        handleOpenDB(null, function (responseOpen) {
+            if (responseOpen.status != STATUS_OK) {
+                return;
+            }
+            var request = { sql: "SELECT cards.name as nameCard, boards.name as nameBoard FROM cards JOIN boards on cards.idBoard=boards.idBoard WHERE idCard=?", values: [idCard] };
+            handleGetReport(request,
+                function (responseReport) {
+                    if (responseReport.status != STATUS_OK)
+                        return;
+                    var nameCard = null;
+                    var nameBoard = null;
+                    if (responseReport.rows.length == 0) {
+                        nameCard = "card not synced yet";
+                        nameBoard = "";
+                    }
+                    else {
+                        nameCard = responseReport.rows[0].nameCard;
+                        nameBoard = responseReport.rows[0].nameBoard;
+                    }
+                    chrome.windows.create({
+                        url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +
+                            "&nameBoard=" + encodeURIComponent(nameBoard), width: 205, height: 88, type: "panel"
+                    },
+                        function (window) {
+                            if (!window)
+                                delete g_mapTimerWindows[idCard];
+                            else {
+                                g_mapTimerWindows[idCard] = window.id;
+                                if (!window.alwaysOnTop)
+                                    chrome.windows.update(window.id, { height: window.height + 12 });
+                            }
+                        });
+                });
+        });
+    }
 }
 
 var g_bSignedIn = false;

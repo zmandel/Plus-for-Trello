@@ -92,7 +92,7 @@ function showExtensionError(e) {
         divDialog = $('\
 <dialog class="agile_dialog_DefaultStyle agile_dialog_ExtensionUpgraded"> \
 <h2>Chrome updated Plus for Trello</h2><br> \
-<p>Reload this page to use Plus. <A href="http://plusfortrello.blogspot.com/2014/12/change-log.html" target="_blank">Whats new?</A></p> \
+<p>Reload this page to use Plus. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
 <p id="agile_dialog_ExtensionUpgraded_message"></p> \
 <a href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
 <a title="Ignore to keep working on this page.\nSome Plus features may not work until you Reload." href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Ignore">Ignore</a> \
@@ -232,6 +232,8 @@ function loadOptions(callback) {
     var keyUnits = "units";
     var keyCheckedTrelloSyncEnable = "bCheckedTrelloSyncEnable";
     var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
+    var keyClosePlusHomeSection = "bClosePlusHomeSection";
+    var keybDontShowTimerPopups = "bDontShowTimerPopups";
 
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
@@ -242,13 +244,16 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
+    chrome.storage.sync.get([keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
                              keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
+                                 
+                                 g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
+                                 g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false);
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bDontWarnParallelTimers = objSync[keyDontWarnParallelTimers] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;

@@ -458,6 +458,9 @@ div#agile_help_container h3 {
 	margin-left: 45px !important;
 }
 
+.agile_spent_item_lastRow {
+    margin-bottom:0px !important;
+}
 
 .agile_module_newtrello {
 	float: none;
@@ -487,6 +490,10 @@ div#agile_help_container h3 {
 	.agile_spent_item_title h3 {
 		display: inline;
 	}
+
+.sectionTitleFont {
+    font-size:14px !important;
+}
 
 .agile_spent_item_title_newTrello {
 	width: 500px !important;
@@ -711,6 +718,13 @@ table#tableMarkers td {
 	margin-bottom: -4px;
 }
 
+.agile-spent-icon-homeSections {
+	width: 18px;
+	height: 18px;
+	margin-left: 8px;
+	margin-bottom: -2px;
+}
+
 .agile-spent-icon-header {
 	width: 22px;
 	height: 22px;
@@ -806,6 +820,7 @@ table#tableMarkers td {
     white-space: nowrap;
     display: inline-block;
 }
+
 
 .agile_board_dashboardItem_row2_fixWidth {
         width:16em;
@@ -1522,6 +1537,11 @@ table#tableMarkers td {
     color: #10B731 !important;
 }
 
+#headerSEActivities {
+    font-size: 16px !important;
+    margin-left:5px;
+}
+
 .agile_new_report_items:active {
     color: #10B731 !important;
 }
@@ -1577,4 +1597,44 @@ table#tableMarkers td {
 
 #buttonMarkallRead:hover {
         color: black;
+}
+
+#agile_seContainer {
+    margin-bottom:1.8em !important;
+}
+
+.agile_timer_popup {
+    font-size:14px;
+    font-family:'Helvetica Neue', arial, helvetica, sans-serif;
+    background: #BBD0DB;
+    overflow:hidden;
+    cursor:pointer !important;
+    margin:7px;
+}
+
+.agile_timer_popup_hilite {
+    background: #DDE8ED !important;
+}
+
+.agile_timerPopupDescCard {
+    margin-bottom:5px;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden;
+    font-weight:bold;
+    display: block;
+    text-decoration:none;
+    color:black;
+    opacity:0.8;
+}
+
+.agile_timerPopupDescBoard {
+    margin-bottom:5px;
+    text-overflow: ellipsis;
+    white-space: nowrap !important;
+    overflow: hidden;
+    display: block;
+    font-size:12px;
+    color:black;
+    opacity:0.6 !important;
 }

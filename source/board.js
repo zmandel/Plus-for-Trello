@@ -196,7 +196,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 if (idCardCur && bCardIsVisible) {
                     var hashTimer = getCardTimerSyncHash(idCardCur);
                     rgKeysTimers.push(hashTimer);
-                    mapKeysTimersData[hashTimer] = cloneTitleTag;
+                    mapKeysTimersData[hashTimer] = { titleTag: cloneTitleTag, idCard: idCardCur };
                 }
 
                 var cleanTitle = se.titleNoSE;
@@ -410,7 +410,8 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             for (; iTimer < rgKeysTimers.length; iTimer++) {
                 var hashTimer = rgKeysTimers[iTimer];
                 var stored = obj[hashTimer];
-                processCardTimerIcon(stored, mapKeysTimersData[hashTimer]);
+                var map = mapKeysTimersData[hashTimer];
+                processCardTimerIcon(stored, map.titleTag, map.idCard);
             }
             response();
         });
@@ -576,7 +577,7 @@ function setUpdatingGlobalSums(boardCur, bUpdating) {
     }
 }
 
-function processCardTimerIcon(stored, cloneTitleTag) {
+function processCardTimerIcon(stored, cloneTitleTag, idCard) {
     var imgTimer = cloneTitleTag.find('.agile_timer_icon_small');
     if (stored !== undefined && stored.msEnd == null) {  //show
         if (imgTimer.length == 0) {
@@ -585,6 +586,7 @@ function processCardTimerIcon(stored, cloneTitleTag) {
             var span = $("<span>");
             span.append(imgTimer);
             cloneTitleTag.append(span);
+            showTimerPopup(idCard);
         }
         else {
             imgTimer.parent().show();

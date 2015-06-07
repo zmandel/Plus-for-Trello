@@ -134,8 +134,11 @@ function configureTimerElem(callback) {
 
 
 function loadPopup() {
-	$("#topTitle").css("cursor", "default");
-	$("#agile_boardSearch").focus();
+    $("#topTitle").css("cursor", "default");
+    setTimeout(function () {
+        $("#agile_boardSearch").focus(); //focus on mac for some reason doesnt work without timeout
+    }, 150);
+
 	var urlReport = chrome.extension.getURL("report.html");
 	$("#reportLink").attr("href", urlReport + "?groupBy=idCardH&weekStartRecent=true");
 	$("#reportLinkByUser").css("cursor", "-webkit-zoom-in").attr("href", urlReport + "?weekStartRecent=true&tab=1&popup=1");

@@ -283,8 +283,12 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
     }
     var bPlusCommand = false;
     if (!alldata.boards[idBoardShort]) {
-        logPlusError("error: idBoardShort:" + idBoardShort + " action:" + JSON.stringify(action) + " cardObj:" + JSON.stringify(cardObj));
-        assert(false);
+        //review zig: this happens rarely. the card could have moved to a board that the user no longer has access, but if so the comments should have moved there too.
+        //might be timing-related to trello db.
+        //if the board is not mapped by plus, this card comment should be processed when the user becomes a member or on next sync.
+        return tableRet;
+        //logPlusError("error: idBoardShort:" + idBoardShort + " action:" + JSON.stringify(action) + " cardObj:" + JSON.stringify(cardObj));
+        //assert(false);
     }
     var strBoard = alldata.boards[idBoardShort].name;
     var strCard = cardObj.name;

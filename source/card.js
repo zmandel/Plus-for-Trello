@@ -1525,6 +1525,7 @@ function loadCardTimer(idCard) {
 			if (timerStatus.bRunning) {
 			    configureTimerInterval(timerElem, timerStatus, msStart);
 			    verifyActiveTimer(idCard); //in case the user has multiple active timers, this will make  active the last one viewed in trello
+			    showTimerPopup(idCard);
 				var date = new Date();
 				msEnd = date.getTime();
 			}
@@ -1671,6 +1672,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                         clearBlinkButtonInterval();
                         $("#plusCardCommentEnterButton").removeClass("agile_box_input_hilite");
                     }
+                    showTimerPopup(idCard);
                 });
             }
             else if (stored.msStart != null && stored.msEnd == null) {
