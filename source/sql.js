@@ -1777,6 +1777,10 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%error: idBoardShort:%'");
         });
 
+        M.migration(24, function (t) {
+            //review zig: remove by july 2015. otherwise future errors with those texts will get lost on reset
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%at handleLoadRecent%'");
+        });
         M.doIt();
     }
 }

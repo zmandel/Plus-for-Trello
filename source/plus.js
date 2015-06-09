@@ -1372,7 +1372,7 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat, bLastRo
 
 function doRecentReport(waiter, elemRecent, user) {
     //note: includes deleted cards
-    var sql = "select count(*) as cGrouped, max(date*1000) as msDate, max(dateLocal) as dateLocal, nameBoard, nameCard, SUM(spent) as spent, sum(est) as est, GROUP_CONCAT(comment,'\n') as comment, idCard from \
+    var sql = "select count(*) as cGrouped, max(date*1000) as msDate, max(dateLocal) as dateLocal, nameBoard, nameCard, SUM(spent) as spent, sum(est) as est, coalesce(GROUP_CONCAT(comment,'\n'),'') as comment, idCard from \
                 (select H.date, datetime(H.date,'unixepoch','localtime') as dateLocal, B.name as nameBoard, C.name as nameCard, H.spent, H.est, H.comment, H.idCard \
 				from HISTORY AS H \
 				JOIN BOARDS AS B ON H.idBoard=B.idBoard \
@@ -1471,7 +1471,7 @@ function handleLoadRecent(listElem, data) {
 		if (row.dateLocal == null)
 			break;
 		var url = "https://trello.com/c/" + row.idCard;
-		var comment = row.comment;
+		var comment = row.comment || ""; //review zig: cant find how a user reported this was null. I added this and a colalesce into the report, but cant see how it can happen.
 		var commentNew = "";
 		do {
 		    commentNew = comment.replace(/\n\n/gm, "\n");

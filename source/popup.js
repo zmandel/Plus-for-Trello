@@ -135,6 +135,7 @@ function configureTimerElem(callback) {
 
 function loadPopup() {
     $("#topTitle").css("cursor", "default");
+    sendExtensionMessage({ method: "updatePlusIcon" }, function (response) { });
     setTimeout(function () {
         $("#agile_boardSearch").focus(); //focus on mac for some reason doesnt work without timeout
     }, 150);
