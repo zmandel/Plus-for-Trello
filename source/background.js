@@ -258,7 +258,7 @@ function handleWebRequestPermission(sendResponse) {
 
 var g_idCardTimerLast = null;
 
-function processTimerCounter() {
+function processTimerCounter(bLoadingExtension) {
 
     var bChangedIdCard = false;
     function getTimerText(response) {
@@ -273,11 +273,13 @@ function processTimerCounter() {
 
             if (idCardTimer != g_idCardTimerLast) {
                 bChangedIdCard = true;
-                if (g_idCardTimerLast == null) {
+                if (g_idCardTimerLast == null && bLoadingExtension) {
+                    //done only when bLoadingExtension as other times will be taken care from content.
+                    //otherwise, if the user closes the popup, it would come back again
                     setTimeout(function () {
                         //open the last active timer. do it a little later since chrome is just starting up
                         doShowTimerWindow(idCardTimer);
-                    }, 1000);
+                    }, 2000);
                 }
                 g_idCardTimerLast = idCardTimer;
             }
@@ -438,7 +440,7 @@ var g_loaderDetector = {
 
         }, 4000);
 
-        processTimerCounter();
+        processTimerCounter(true);
 
         function updateOnlineState(bOnline) {
             console.log("Plus online: " + bOnline);
@@ -526,19 +528,32 @@ function ease(x) {
 }
 
 function animateFlip() {
-    setTimeout(function worker() {
+    if (true) { //review zig: temporarily stopped until rotation is fixed
+        updatePlusIcon(false);
+        return;
+    }
+
+    if (g_rotation != 0)
+        return;
+
+    function worker() {
+        var bQueue = false;
+
         if (g_rotation <= 1) {
-            setTimeout(function () {
-                g_rotation += 1 / g_animationFrames;
-                worker();
-            }, g_msAnimationSpeed);
+            g_rotation += (1 / g_animationFrames);
+            bQueue = true;
         } else {
             g_rotation = 0;
         }
         updatePlusIcon(false);
-    }, 10);
+        if (bQueue) {
+            setTimeout(function () {
+                worker();
+            }, g_msAnimationSpeed);
+        }
+    }
+    worker();
 }
-
 
 
 function updatePlusIcon(bTooltipOnly) {
@@ -634,7 +649,7 @@ function updatePlusIcon(bTooltipOnly) {
         var canvas = null;
         var dxCanvas = 0;
         var dyCanvas = 0;
-
+        var rotation = g_rotation;
         if (!bTooltipOnly) {
             var img = document.getElementById("imgPlusMenu");
             img.setAttribute("width", "19");
@@ -645,20 +660,20 @@ function updatePlusIcon(bTooltipOnly) {
             canvas.setAttribute("height", "19");
             ctx = canvas.getContext("2d");
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (g_rotation != 0) {
+            if (rotation != 0) {
                 dxCanvas = Math.ceil(canvas.width / 2);
                 dyCanvas = Math.ceil(canvas.height / 2);
                 ctx.translate(dxCanvas, dyCanvas);
             }
-            ctx.rotate(2 * Math.PI * ease(g_rotation));
+            ctx.rotate(2 * Math.PI * ease(rotation));
         }
         
 
         var callback = function () {
             ctx.drawImage(img, -dxCanvas, -dyCanvas);
-            if (g_rotation != 0) {
+            if (rotation != 0) {
                 ctx.translate(-dxCanvas, -dyCanvas);
-                ctx.rotate(-2 * Math.PI * ease(g_rotation));
+                ctx.rotate(-2 * Math.PI * ease(rotation));
             }
 
             var colorTrelloSync = "#FFFFFF";
@@ -983,8 +998,10 @@ function doShowTimerWindow(idCard) {
         create(idCard);
     else {
         chrome.windows.get(idWindow, null, function (window) {
-            if (!window)
+            if (chrome.runtime.lastError || !window) {
+                delete g_mapTimerWindows[idCard];
                 create(idCard);
+            }
         });
     }
 
@@ -1007,6 +1024,11 @@ function doShowTimerWindow(idCard) {
                     else {
                         nameCard = responseReport.rows[0].nameCard;
                         nameBoard = responseReport.rows[0].nameBoard;
+                    }
+
+                    if (g_mapTimerWindows[idCard]) {
+                        //very hard or impossible to happen, but since it takes time (open db, make report) since last  check, the windows could have been created already from a previous request.
+                        return;
                     }
                     chrome.windows.create({
                         url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +

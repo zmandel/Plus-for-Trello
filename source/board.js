@@ -407,11 +407,12 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
     if (rgKeysTimers.length > 0) {
         chrome.storage.sync.get(rgKeysTimers, function (obj) {
             var iTimer = 0;
+            var stateLoop = { total: 0 };
             for (; iTimer < rgKeysTimers.length; iTimer++) {
                 var hashTimer = rgKeysTimers[iTimer];
                 var stored = obj[hashTimer];
                 var map = mapKeysTimersData[hashTimer];
-                processCardTimerIcon(stored, map.titleTag, map.idCard);
+                processCardTimerIcon(stored, map.titleTag, map.idCard, stateLoop);
             }
             response();
         });
@@ -577,7 +578,7 @@ function setUpdatingGlobalSums(boardCur, bUpdating) {
     }
 }
 
-function processCardTimerIcon(stored, cloneTitleTag, idCard) {
+function processCardTimerIcon(stored, cloneTitleTag, idCard, stateLoop) {
     var imgTimer = cloneTitleTag.find('.agile_timer_icon_small');
     if (stored !== undefined && stored.msEnd == null) {  //show
         if (imgTimer.length == 0) {
@@ -586,7 +587,10 @@ function processCardTimerIcon(stored, cloneTitleTag, idCard) {
             var span = $("<span>");
             span.append(imgTimer);
             cloneTitleTag.append(span);
-            showTimerPopup(idCard);
+            setTimeout(function () {
+                showTimerPopup(idCard); //wait a little so we dont load many timer windows in parallel (and also give priority to trello board page loading)
+            }, 500+stateLoop.total * 100);
+            stateLoop.total++;
         }
         else {
             imgTimer.parent().show();

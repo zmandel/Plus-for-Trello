@@ -1238,16 +1238,21 @@ function updateTimerChromeIcon(bAnimate) {
 function findNextActiveTimer() {
     chrome.storage.sync.get(null, function (items) {
         var szTimerPattern = "timer:";
+        var msStartLast = 0;
+        var idCardFoundLast = null;
+        //find the last active timer
         for (var item in items) {
             if (typeof item == "string" && item.indexOf(szTimerPattern) == 0) {
                 var data = items[item];
                 var idCard = item.substr(szTimerPattern.length);
-                if (data.msStart && data.msEnd == null) {
-                    verifyActiveTimer(idCard);
-                    break;
+                if (data.msStart && data.msEnd == null && data.msStart > msStartLast) {
+                    msStartLast = data.msStart;
+                    idCardFoundLast = idCard;
                 }
             }
         }
+        if (idCardFoundLast)
+            verifyActiveTimer(idCardFoundLast);
     });
 }
 

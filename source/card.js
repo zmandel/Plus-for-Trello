@@ -1525,7 +1525,10 @@ function loadCardTimer(idCard) {
 			if (timerStatus.bRunning) {
 			    configureTimerInterval(timerElem, timerStatus, msStart);
 			    verifyActiveTimer(idCard); //in case the user has multiple active timers, this will make  active the last one viewed in trello
-			    showTimerPopup(idCard);
+			    setTimeout(function () {
+			        showTimerPopup(idCard); //wait a little since the trello card window is loading
+			    }, 500);
+			    
 				var date = new Date();
 				msEnd = date.getTime();
 			}

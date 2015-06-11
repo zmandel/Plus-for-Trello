@@ -142,7 +142,7 @@ function loadPopup() {
 
 	var urlReport = chrome.extension.getURL("report.html");
 	$("#reportLink").attr("href", urlReport + "?groupBy=idCardH&weekStartRecent=true");
-	$("#reportLinkByUser").css("cursor", "-webkit-zoom-in").attr("href", urlReport + "?weekStartRecent=true&tab=1&popup=1");
+	$("#reportLinkByUser").css("cursor", "-webkit-zoom-in").attr("href", urlReport + "?orderBy=date&sinceSimple=w-4&archived=0&deleted=0&tab=1&popup=1");
 	var imgSync = $("#imgSync");
 
 	function setSyncIcon(bSync) {

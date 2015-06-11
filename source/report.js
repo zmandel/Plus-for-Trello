@@ -926,7 +926,7 @@ function loadReport(params) {
 				}, 1);
 			}, 1);
 		} else {
-		    configReport(elems, !g_bBuildSqlMode);
+		    configReport(elems, !g_bBuildSqlMode && !g_bPopupMode);
 		}
 	}
 	btn.off().click(function () {
