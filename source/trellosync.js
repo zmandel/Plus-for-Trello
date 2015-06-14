@@ -163,7 +163,7 @@ function handleSyncBoards(request, sendResponseParam) {
 
         //first stage
         g_syncStatus.setStage("", 0); //reset in case somehow a previous one was pending
-        g_syncStatus.setStage("Detecting boards to update", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
+        g_syncStatus.setStage("Starting sync", 1, true, true); //note that this will cause g_syncStatus.bSyncing=true
         //if there are pending rows, we must commit them before because they reference board/card names/ids that could change during sync
         //and sync only maintains the history table, not the queuehistory
         insertPendingSERows(function (responseInsertSE) {
@@ -715,7 +715,7 @@ function getThisListFromDb(alldata, idList, onOk, sendError) {
 function commitTrelloChanges(alldata, sendResponse) {
     
     var bMadeChanges = false;
-    g_syncStatus.setStage("Committing all", 1, true);
+    g_syncStatus.setStage("Saving all", 1, true);
     function errorTransaction() {
         if (g_lastLogError == STATUS_OK) //should never happen
             g_lastLogError = "error";

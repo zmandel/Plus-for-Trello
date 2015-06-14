@@ -338,7 +338,7 @@ function setupNotifications() {
 
 
 document.addEventListener('DOMContentLoaded', function () {
-	//chrome Content Security Policy (CSP) makes us use DOMContentLoaded
+	//chrome Content Security Policy (CSP) needs DOMContentLoaded
 	if (g_bLoaded)
 		return;
 	g_bLoaded = true;
@@ -357,6 +357,35 @@ document.addEventListener('DOMContentLoaded', function () {
 	    $("#report_top_section").css("margin-bottom", "0px");
 
 	}
+
+	loadTabs($("#tabs"));
+
+	if (g_bPopupMode) {
+	    $("#agile_title_header_report").hide();
+	    $("body").height(450); //these two are also duplicated in report.html body so that reports opened from the popup (spent this week) has the right size (prevent flicker)
+	    $("body").width(620);
+	    var dockOut = $("#dockoutImg");
+	    dockOut.attr("src", chrome.extension.getURL("images/dockout.png"));
+	    dockOut.show();
+	    dockOut.css("cursor", "pointer");
+	    dockOut.off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
+	        var urlDockout = buildUrlFromParams("report.html", getUrlParams(), true);
+	        chrome.tabs.create({ url: urlDockout });
+	        return false;
+	    });
+
+
+	    var back = $("#backImg");
+	    back.attr("src", chrome.extension.getURL("images/back.png"));
+	    back.show();
+	    back.css("cursor", "pointer");
+	    back.off().click(function () {
+	        window.history.back();
+	        return false;
+	    });
+
+	}
+
 	openPlusDb(function (response) {
 	    if (response.status != STATUS_OK) {
 	        return;
@@ -437,35 +466,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	            findMatchingMonths(request.term, response);
 	        }
 	    }));
-
-
-	    loadTabs($("#tabs"));
-
-	    if (g_bPopupMode) {
-	        $("#agile_title_header_report").hide();
-	        $("body").height(450);
-	        $("body").width(620);
-	        var dockOut = $("#dockoutImg");
-	        dockOut.attr("src", chrome.extension.getURL("images/dockout.png"));
-	        dockOut.show();
-	        dockOut.css("cursor", "pointer");
-	        dockOut.off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
-	            var urlDockout = buildUrlFromParams("report.html", getUrlParams(), true);
-	            chrome.tabs.create({ url: urlDockout });
-	            return false;
-	        });
-
-
-	        var back = $("#backImg");
-	        back.attr("src", chrome.extension.getURL("images/back.png"));
-	        back.show();
-	        back.css("cursor", "pointer");
-	        back.off().click(function () {
-	            window.history.back();
-	            return false;
-	        });
-
-	    }
 
 	    loadStorageGlobals(function () {
 	        configAllPivotFormats();
@@ -911,7 +911,7 @@ function loadReport(params) {
 		assert(g_iTabCur != null);
 		elems["tab"] = g_iTabCur;
 
-		if (bFirstTime) {
+		if (bFirstTime && !g_bPopupMode) {
 			//these set of timeouts could be done all together but the GUI wont update instantly.
 			//handles this case: 1) make a huge report, 2) view by User, 3) change the filter and click Query again.
 			//without this, the pivot view would take a long time to clear because its waiting for the report to clear (which can take a few seconds with 10,000 rows).
@@ -926,24 +926,28 @@ function loadReport(params) {
 				}, 1);
 			}, 1);
 		} else {
-		    configReport(elems, !g_bBuildSqlMode && !g_bPopupMode);
+		    configReport(elems, !bFirstTime && !g_bBuildSqlMode);
 		}
 	}
 	btn.off().click(function () {
 		onQuery();
 	});
 
-	if (!g_bBuildSqlMode && Object.keys(params).length > 0 && !bDontQuery) //dont execute query automatically
-	    setTimeout(function () { onQuery(true); }, 10);
+	if (!g_bBuildSqlMode && Object.keys(params).length > 0 && !bDontQuery) { //dont execute query automatically
+	    if (g_bPopupMode)
+	        onQuery(true);
+        else
+	        setTimeout(function () { onQuery(true); }, 10);
+	}
 	else {
 	    if (!g_bBuildSqlMode) {
 	        delete params[g_paramDontQuery];
 	        delete params[g_paramFromMarkAllViewed];
 	        updateUrlState("report.html", params);
 	    }
-        resetQueryButton(btn);
-        if (bFromMarkAllViewed)
-            $("#reportBottomMessage").show().html("s/e rows marked viewed. Close this window or query a new report.");
+	    resetQueryButton(btn);
+	    if (bFromMarkAllViewed)
+	        $("#reportBottomMessage").show().html("s/e rows marked viewed. Close this window or query a new report.");
 	}
 }
 

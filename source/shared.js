@@ -435,7 +435,10 @@ function strTruncate(str, length) {
 function sendExtensionMessage(obj, responseParam, bRethrow) {
 	try {
 	    chrome.runtime.sendMessage(obj, function (response) {
-			try {
+	        try {
+	            if (chrome.runtime.lastError) //could happen on error connecting to the extension. that case response can even be undefined https://developer.chrome.com/extensions/runtime#method-sendMessage
+	                throw new Error(runtime.lastError);
+
 			    if (responseParam)
 			        responseParam(response);
 			} catch (e) {

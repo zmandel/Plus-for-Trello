@@ -308,6 +308,7 @@ var Help = {
 
 	    helpWin.para('<b><h2 id="agile_help_basichelp">Basics</h2></b>');
 	    helpWin.para('<A target="_blank" href="https://www.youtube.com/watch?v=xj7zEaZ_NVc">One-minute intro video</A>');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/about.html">Quick introduction to Plus for Trello</A>');
 	    helpWin.para('Reports, the Chrome Plus menu, hashtags and more/less can be used by all Trello users.');
 	    helpWin.para('Other features like spent and estimate, burn-downs, timers and recurring cards are useful to those that measure card S/E (Spent and Estimate).');
 	    helpWin.para('Once you close this help Plus will offer to run the product tour. It will guide you step-by-step on all Plus features.');
@@ -601,7 +602,7 @@ var Help = {
 
 	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile Plus for Trello</b>');
 	    helpWin.para('View card S/E. Pin cards to your phone. Offline enabled.');
-	    helpWin.para('The app works very well but some basic features are still missing. Soon it will have them.');
+	    helpWin.para('The app works very well but some basic features are still missing.');
 	    helpWin.para('Soon it will have card timers and the S/E bar. Until then, once you are on a card in the app and wish to add S/E, it lets you go directly to the card in the trello app to enter S/E as a comment.');
 	    helpWin.para('The app is compatible only with "Trello card comments" sync. Upgrade if you are still using legacy google sync.');
 	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');

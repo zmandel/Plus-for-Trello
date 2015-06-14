@@ -1778,9 +1778,15 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(24, function (t) {
-            //review zig: remove by july 2015. otherwise future errors with those texts will get lost on reset
+            //review zig: remove by aug 2015. otherwise future errors with those texts will get lost on reset
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%at handleLoadRecent%'");
         });
+
+        M.migration(25, function (t) {
+            //review zig: remove by aug 2015. otherwise future errors with those texts will get lost on reset
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''dowStart'' of undefined'");
+        });
+
         M.doIt();
     }
 }
