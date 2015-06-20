@@ -1434,7 +1434,7 @@ function parseSE(title, bKeepHashTags, bAcceptSFT) {
             if (bAcceptSFT)
                 se.bSFTFormat = true;
         } else {
-            se.titleNoSE = rgResults[4].trim();
+            se.titleNoSE = (rgResults[4] || "").trim();
             se.spent = parseFixedFloat(rgResults[2]);
             se.estimate = parseFixedFloat(rgResults[3]);
         }

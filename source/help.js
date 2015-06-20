@@ -670,6 +670,7 @@ var Help = {
 	    helpWin.para('&bull; Click on a dot to see more details and drill-down to the card.');
 	    helpWin.para('&bull; Click on a user chart bar to drill-down into a report and cards.');
 	    helpWin.para('&bull; Add a chart annotation by entering a card S/E row with a <A href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html" target="_blank">note starting with "!"</A>.');
+	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">See another example</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

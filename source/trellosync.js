@@ -1143,7 +1143,14 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
                 //note cardAction.closed should be undefined, but just in case read it too (eg. if trello ever truncates history)
                 if (idList == null)
                     idList = IDLIST_UNKNOWN;
-                cardCur = { name: cardAction.name, dateSzLastTrello: actionCur.date, idList: idList, idBoard: idBoard, bCreated: true, bArchived: cardAction.closed || false };
+                var cardActionName = cardAction.name;
+                if (cardActionName === undefined) {
+                    //Trello appears to have changed the way they store deleted card history as of june 18 2015
+                    //thus a deleted card will only have a single "deleteCard" history entry.
+                    //before this change, trello used to keep all the history thus the name was never undefined ("createCard" and such were processed before)
+                    cardActionName = (actionCur.type=="deleteCard"? "deleted card" : "unknown card name");
+                }
+                cardCur = { name: cardActionName, dateSzLastTrello: actionCur.date, idList: idList, idBoard: idBoard, bCreated: true, bArchived: cardAction.closed || false };
                 alldata.cards[cardAction.shortLink] = cardCur;
             }
 
@@ -1724,7 +1731,9 @@ function matchCommentParts(text,date, bRecurringCard) {
     if (rgResults == null)
         return null;
 
-    rgResults[i_est] = rgResults[i_est] || ""; //standarize
+    //standarize regex quirks
+    rgResults[i_users] = rgResults[i_users] || "";
+    rgResults[i_est] = rgResults[i_est] || "";
     rgResults[i_note] = (rgResults[i_note] || ""); //note there is no limit. The user could in theory add millions of characters here.
     rgResults[i_note].split("\n")[0]; //note is up to newline if any
 

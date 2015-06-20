@@ -1787,6 +1787,13 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''dowStart'' of undefined'");
         });
 
+        M.migration(26, function (t) {
+            //review zig: remove by aug 2015. otherwise future errors with those texts will get lost on reset
+            //errorTransaction (trellosync.js:724
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%errorTransaction (trellosync.js:724%'");
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''dowStart'' of undefined%'");
+        });
+
         M.doIt();
     }
 }

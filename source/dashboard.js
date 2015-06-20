@@ -95,7 +95,7 @@ function loadBurndown() {
 	var idBoard = decodeURIComponent(params["idBoard"]);
     var boardName = decodeURIComponent(params["board"]);
 	document.title = (boardName + " - Plus Dashboard");
-	$("#topTitle").text(document.title);
+	$("#dashBoardTopTitle").text(document.title);
 	$("#frameFilter").attr('src', "report.html?getsql=1&idBoard=" + idBoard);
 	g_boardName = boardName;
 	$("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + encodeURIComponent(idBoard)+"&weekStartRecent=true");

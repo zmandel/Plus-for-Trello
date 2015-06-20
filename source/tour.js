@@ -519,9 +519,11 @@ function handleBoardTour() {
            }
 
         ];
-        startTourFlow(flow, "board", true);
         updateCards(boardCur, null, true); //show hiddden fields
+        setTimeout(function () {
+        startTourFlow(flow, "board", true);
         showCurrentBubble();
+        }, 500);
 }
 
 function stopTour() {

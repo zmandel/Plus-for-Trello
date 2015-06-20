@@ -862,6 +862,7 @@ function loadReport(params) {
 	    $("#archived").parent().show();
 	    $("#deleted").parent().show();
 	    if (!g_bEnableTrelloSync) {
+	        var strAppendNoSync = "Enable sync to use archived and deleted.";
 	        $("#archived").prop('disabled', true).addClass("agile_background_disabled").prop("title", strAppendNoSync);
 	        $("#deleted").prop('disabled', true).addClass("agile_background_disabled").prop("title",  strAppendNoSync);
 	    }
