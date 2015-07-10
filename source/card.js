@@ -364,7 +364,7 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	var container = $("<div class='notranslate'></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
-	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry'></table>");
+	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry no-print'></table>");
 	containerStats.append(tableStats);
 	container.append(containerStats);
 	container.append(containerBar);
@@ -1230,7 +1230,7 @@ Click for more.");
 				var elemWindowTop = elemParent;
 				while (!elemWindowTop.hasClass("window-wrapper"))
 				    elemWindowTop = elemWindowTop.parent();
-				var div = $("<div></div>");
+				var div = $("<div class='no-print'></div>");
 				div.append(createRecurringCheck()).append(createHashtagsList());
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
@@ -1781,7 +1781,7 @@ function setNewCommentInCard(idCardCur, keywordUse, s, e, commentBox,
 	comment = comment + s + "/" + e + " " + commentBox;
 
 	var board = getCurrentBoard();
-	if (board == null) {
+	if (!board) {
 		logPlusError("error: no board");
 		return; //should never happen, we had it when the S/E box was created
 	}
@@ -1792,17 +1792,16 @@ function setNewCommentInCard(idCardCur, keywordUse, s, e, commentBox,
 	FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
 		if (idBoardFound) {
 		    idBoardUse = idBoardFound;
+		    assert(idBoardUse && board);
 		    doEnterSEIntoCard(s, e, commentBox, comment, idBoardUse, idCardCur, prefix, board, keywordUse, member, onBeforeStartCommit, onFinished);
 		}
 		else {
-		    var strError = "Network error. Cannot get idBoard.\nPlease reload the page and try again.";
-		    logPlusError(strError);
-		    alert(strError);
+		    alert("Network error. Cannot get board data: idBoard.\nPlease try again when online.");
 		}
 	});
 }
 
-function bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, userCur, idHistoryRowUse, keyword) {
+function HandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, userCur, idHistoryRowUse, keyword) {
 	var dateNow = new Date();
 	var dDays = 0;
 	
@@ -1818,7 +1817,6 @@ function bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, str
 	    commentBox = "[by " + getCurrentTrelloUser() + "] " + commentBox;
 
 	helperInsertHistoryRow(dateNow, idCard, idBoard, strBoard, cleanTitle, userCur, s, e, commentBox, idHistoryRowUse, keyword);
-	return true;
 }
 
 
@@ -1842,29 +1840,32 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	var titleCardNew = null;
 	var commentEnter = comment;
 
-	if (!g_optEnterSEByComment.IsEnabled() && g_configData && g_strServiceUrl && g_strServiceUrl != "") {
-	    //legacy option to rename card titles. Keep it on if user has configured google sync and hasnt configured reading S/E from comments
-	    //note that we dont rename card titles if there is no service url. this can affect a few users, but its best because it avoids issues with new
-        //team users that never enable sync and just start using Plus without any configuration.
-		var estimation = parseFixedFloat(e + se.estimate);
-		var spent = parseFixedFloat(s + se.spent);
+	if (!IsStealthMode()) {
+	    if (!g_optEnterSEByComment.IsEnabled() && g_configData && g_strServiceUrl && g_strServiceUrl != "") {
+	        //legacy option to rename card titles. Keep it on if user has configured google sync and hasnt configured reading S/E from comments
+	        //note that we dont rename card titles if there is no service url. this can affect a few users, but its best because it avoids issues with new
+	        //team users that never enable sync and just start using Plus without any configuration.
+	        var estimation = parseFixedFloat(e + se.estimate);
+	        var spent = parseFixedFloat(s + se.spent);
 
-		if (se.bSFTFormat)
-		    titleCardNew = "(" + estimation + ") " + cleanTitle + " [" + spent + "]";
-		else
-		    titleCardNew = "(" + spent + "/" + estimation + ") " + cleanTitle;
-	} else {
-	    commentEnter = comment;
-	    if (cleanTitle != titleCur) {
-	        titleCardNew = cleanTitle;
-	        commentEnter = commentEnter + " [plus removed "+ parseFixedFloat(se.spent) + "/" + parseFixedFloat(se.estimate)+" from title]";
+	        if (se.bSFTFormat)
+	            titleCardNew = "(" + estimation + ") " + cleanTitle + " [" + spent + "]";
+	        else
+	            titleCardNew = "(" + spent + "/" + estimation + ") " + cleanTitle;
+	    } else {
+	        commentEnter = comment;
+	        if (cleanTitle != titleCur) {
+	            titleCardNew = cleanTitle;
+	            commentEnter = commentEnter + " [plus removed " + parseFixedFloat(se.spent) + "/" + parseFixedFloat(se.estimate) + " from title]";
+	        }
 	    }
 	}
 	
-	handleEnterCardComment(titleCardNew, commentEnter, idCard, s, e, commentBox, strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished);
+	handleEnterCardComment(titleCardNew, commentEnter, strBoard, idBoard, idCard, s, e, commentBox, strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished);
 }
 
-function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished) {
+function handleEnterCardComment(titleCard, comment, strBoardParam, idBoardParam, idCard, s, e, commentBox,
+            strDays, cleanTitle, keyword, member, onBeforeStartCommit, onFinished) {
     onBeforeStartCommit();
 
     function finished(bOK) {
@@ -1877,23 +1878,29 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
     //so, we pause sync for a few seconds while we finish adding the comment and database rows. Its not perfect but will cause the great mayority of cases
     //to first add the history row and later verify it from sync. Doing it this way is also more efficient and faster to update.
     sendExtensionMessage({ method: "beginPauseSync" }, function (response) {
-        addCardCommentByApi(idCard, comment, function (response) {
-            if (response.status != STATUS_OK) {
-                alert("Failed to enter S/E\n" + response.status);
-                finished(false);
-                return;
-            }
+        if (IsStealthMode()) {
+            postAddCardComment(idBoardParam, strBoardParam, null);
+        }
+        else {
+            addCardCommentByApi(idCard, comment, function (response) {
+                if (response.status != STATUS_OK) {
+                    alert("Failed to enter S/E\n" + response.status);
+                    finished(false);
+                    return;
+                }
 
-            if (!member)
-                member = response.commentObj.memberCreator.username;
-            var idBoard = response.commentObj.data.board.shortLink; //this is fresher than the one the caller has
-            var strBoard = response.commentObj.data.board.name;
-            var idHistoryRowUse = response.commentObj.id;
-            if (!bHandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, member, idHistoryRowUse, keyword)) {
-                alert("S/E was entered, but there was an error later.\nThis will be corrected on the next sync of the card comment.");
-            }
+                if (!member)
+                    member = response.commentObj.memberCreator.username;
+                var idBoard = response.commentObj.data.board.shortLink; //this is fresher than idBoardParam
+                var strBoard = response.commentObj.data.board.name; //fresher than strBoard param
+                var idHistoryRowUse = response.commentObj.id;
+                postAddCardComment(idBoard, strBoard, idHistoryRowUse); 
+            });
+        }
 
-            if (titleCard) {
+        function postAddCardComment(idBoard, strBoard, idHistoryRowUse) {
+            HandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strBoard, cleanTitle, member, idHistoryRowUse, keyword);
+            if (!IsStealthMode() && titleCard) {
                 renameCard($.cookie("token"), idCard, titleCard, function (response) {
                     if (response.status != STATUS_OK) {
                         alert("Failed to rename card to change S/E\n" + response.status);
@@ -1903,7 +1910,7 @@ function handleEnterCardComment(titleCard, comment, idCard, s, e, commentBox, st
             }
             else
                 finished(true);
-        });
+        }
     });
 }
 

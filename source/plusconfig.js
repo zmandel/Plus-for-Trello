@@ -4,10 +4,10 @@
 	isVisible: function () {
 		return ($('div#spent_serviceUrlConfig_container').size() > 0);
 	},
-	display: function (plusBarElem) {
-		PlusConfig.displayWorker(plusBarElem);
+	display: function (plusBarElem, bStealth) {
+	    PlusConfig.displayWorker(plusBarElem, bStealth);
 	},
-	displayWorker: function (plusBarElem) {
+	displayWorker: function (plusBarElem, bStealth) {
 	    var thisLocal = this;
 		function setFont(elem) { return setMediumFont(elem); }
 		if (thisLocal.isVisible()) {
@@ -22,19 +22,20 @@
 		if (g_strServiceUrl != null)
 			input.val(g_strServiceUrl);
 		container.append($('<H2 text-align="center"><b>Setup Google sync</b></H2>'));
-		container.append(setFont($('<p><b>Google sync renames card titles to include total S/E.</b></p>')));
-		container.append(setFont($('<p>If you have not <A target="_blank" href="https://support.google.com/chrome/answer/185277?hl=en">signed-into Chrome</A>, \
-Chrome will prompt you to do so if you create or type a spreadsheet url. <b>This is not the same as being signed into your gmail.</b><br>\
+		if (!bStealth)
+		    container.append(setFont($('<p><b>Google sync (legacy) renames card titles to include total S/E.</b></p>')));
+		container.append(setFont($('<p>If you have not <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>, \
+Chrome will prompt you to do so if you create or type a spreadsheet url. <b><br>This is not the same as being signed into your Gmail. </b>\
 You need to be signed-into Chrome to use this sync mode.</p>')));
-		container.append(setFont($('<p>Configure one device only. Your other devices you have signed-into Chrome will automatically pick up the new configuration. <b><A target="_blank" href="http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html">Read here</A></b> for more details.</p>')));
+		container.append(setFont($('<p>Configure one device only. Your other devices signed-into Chrome will automatically pick up the new configuration. <b>')));
+		container.append(setFont($('<p><A target="_blank" href="http://www.plusfortrello.com/2014/01/plus-for-trello-configuration-options.html">Read here</A> to compare "Google sync" with "card comments sync"<b>')));
 		container.append($('<p>&nbsp</p>'));
 		var btnCreate = setFont($('<button id="buttonCreateSs"></button>')).css('margin-bottom', '5px');
 		var strCreate = "Create a new sync spreadsheet";
 		var bAppendTeamSpreadsheetText = false;
 		btnCreate.text(strCreate);
 		if (!g_strServiceUrl) {
-		    var strTeamModeSetup = "For <A target='_blank' href='http://plusfortrello.blogspot.com/2014/01/plus-configuration-options.html'>team mode</A> the team administrator should create the spreadsheet here, share it with write permissions to team users.";
-		    container.append(setFont($('<p>' + strTeamModeSetup + '</p>')));
+		    container.append(setFont($('<p>For team mode, the team manager should create the spreadsheet here and share it with write permissions to team users.</p>')));
 		    btnCreate.show();
 		    bAppendTeamSpreadsheetText = true;
 		}
@@ -57,6 +58,8 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		}
 		
 		container.append(setFont($('<p>Do not modify the spreadsheet.</p>')));
+		container.append(setFont($("<p><A target='_blank' href='https://security.google.com/settings/security/permissions'>View or revoke Google permissions</A> given to 'Plus for Trello'. Before revoking access, set sync to 'off'. <A target='_blank' href='https://support.google.com/drive/answer/2523079'>See more help</A>.</p>")));
+
 		container.append(btnOk).append(btnCancel);
 		container.append($('<p>&nbsp</p>'));
 		var body = $('body');
@@ -279,43 +282,66 @@ function restartPlus(message) {
 
 function clearAllStorage(callback) {
 	chrome.storage.sync.clear(function () {
-		chrome.storage.local.clear(function () {
-			sendExtensionMessage({ method: "clearAllStorage" },
-				function (response) {
-				    setTimeout(function () {
-                        //keep the important user preferences
-					    chrome.storage.sync.set({
-					        'serviceUrl': g_strServiceUrl,
-					        'bDisabledSync' : g_bDisableSync,
-					        'bDontWarnParallelTimers' : g_bDontWarnParallelTimers,
-					        'bIgnoreZeroECards': g_bAllowNegativeRemaining,
-					        'bAcceptSFT': g_bAcceptSFT,
-					        'bUserSaysDonated': g_bUserDonated,
-					        'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
-					        'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
-					        'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
-					        'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
-					        'bHidePendingCards': g_bHidePendingCards,
-					        'dowStart': DowMapper.getDowStart(),
-					        'msStartPlusUsage': g_msStartPlusUsage,
-					        'bSyncOutsideTrello': g_bSyncOutsideTrello,
-					        'bChangeCardColor': g_bChangeCardColor,
-					        'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
-					        'units' : UNITS.current
-					    },
-							function () {
-							    if (chrome.runtime.lastError) {
-							        alert(chrome.runtime.lastError.message);
-							        return;
-							    }
+	    chrome.storage.local.clear(function () {
+	        if (!g_strServiceUrl) {
+	            continueClear();
+	        }
+	        else {
+	            var keyUrlLast = "serviceUrlLast";
 
-							    if (callback !== undefined)
-							        callback();
-							});
-					}, 1000); //wait 1000 to avoid quota issues after sync.clear
-				});
+	            var pairkeyUrlLast = {}; //restore it to  prevent the "spreadsheet permissions" preface dialog from showing after a reset 
+	            pairkeyUrlLast["serviceUrlLast"] = g_strServiceUrl;
+	            chrome.storage.local.set(pairkeyUrlLast, function () {
+	                if (chrome.runtime.lastError) {
+	                    //do nothing. plus recovers later
+	                    console.log(chrome.runtime.lastError.message);
+	                }
+	                continueClear();
+	            });
+	        }
 		});
 	});
+
+	function continueClear() {
+	    sendExtensionMessage({ method: "clearAllStorage" },
+            function (response) {
+                setTimeout(function () {
+                    //keep the important user preferences
+                    var objSet = {
+                        'serviceUrl': g_strServiceUrl,
+                        'bDisabledSync': g_bDisableSync,
+                        'bDontWarnParallelTimers': g_bDontWarnParallelTimers,
+                        'bIgnoreZeroECards': g_bAllowNegativeRemaining,
+                        'bAcceptSFT': g_bAcceptSFT,
+                        'bUserSaysDonated': g_bUserDonated,
+                        'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
+                        'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
+                        'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
+                        'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
+                        'bHidePendingCards': g_bHidePendingCards,
+                        'dowStart': DowMapper.getDowStart(),
+                        'msStartPlusUsage': g_msStartPlusUsage,
+                        'bSyncOutsideTrello': g_bSyncOutsideTrello,
+                        'bChangeCardColor': g_bChangeCardColor,
+                        'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
+                        'units': UNITS.current
+                    };
+
+                    objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync)? true :  false;
+
+                    chrome.storage.sync.set(objSet,
+                        function () {
+                            if (chrome.runtime.lastError) {
+                                alert(chrome.runtime.lastError.message);
+                                return;
+                            }
+
+                            if (callback !== undefined)
+                                callback();
+                        });
+                }, 1000); //wait 1000 to avoid quota issues after sync.clear
+            });
+	}
 }
 
 function RequestNotificationPermission(callback) {

@@ -1,4 +1,4 @@
-﻿var g_strServiceUrl = null; //null while not loaded. set to empty string or url
+﻿
 var g_msSyncPeriod = 3 * (60 * 1000); //3 minutes
 var g_tipUserTopReport = "Click to sync now";
 var g_marginLabelChart = 35;
@@ -46,7 +46,7 @@ function showAproveGoogleSyncPermissions(callback) {
         divDialog = $('\
 <dialog class="agile_dialog_showAproveGSP agile_dialog_DefaultStyle"> \
 <h2>Plus for Trello - Google Sync permissions</h2><br> \
-<p>Your configuration was synced to this device which requires</p>\
+<p>Your configuration was synced to this device. Plus may ask</p>\
 <p>you to approve permissions after pressing OK.</p>\
 <br>\
 <button style="float:right;" id="agile_dialog_GSP_OK">OK</button> \
@@ -102,7 +102,7 @@ function configureSsLinks(bParam) {
 				if (strUrlOld != strUrlNew && !g_bDisableSync && !g_optEnterSEByComment.IsEnabled()) {
 				    //config changed from another device.
 				    
-				    if (strUrlOld != "") {
+				    if (strUrlOld && strUrlOld != "") {
 				        alert("Google sync spreadsheet changed. Plus will reset sync.");
 				        g_strServiceUrl = strUrlNew; //needed for clearAllStorage. in other cases its handled by continueConfig
 				        clearAllStorage(function () {

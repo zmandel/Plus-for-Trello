@@ -234,7 +234,7 @@ function loadOptions(callback) {
     var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
     var keyClosePlusHomeSection = "bClosePlusHomeSection";
     var keybDontShowTimerPopups = "bDontShowTimerPopups";
-
+    var keyServiceUrl = 'serviceUrl'; //note we only get but not set. Code later will set it
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
             sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message,20000);
@@ -244,7 +244,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
+    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
                              keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
@@ -267,6 +267,7 @@ function loadOptions(callback) {
                                  DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
+                                 g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;
                                  g_bChangeCardColor = objSync[keybChangeCardColor] || false;
                                  g_bCheckedbSumFiltered = objSync[keyPropbSumFilteredCardsOnly] || false;

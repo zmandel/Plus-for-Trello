@@ -1711,8 +1711,8 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(17, function (t) {
-            //to simplify v3 code, convert history ids by removing user from th eend of the history id,
-            //"ids"+messageId+user   to   "ids"+messageId
+            //to simplify v3 code, convert history ids by removing user from the end of the history id,
+            //"idc"+messageId+user   to   "idc"+messageId
             //this allows stronger handling when trello users are renamed. there is no need of the user in there.
             t.executeSql("update HISTORY set idHistory = replace(idHistory, user, '') where idHistory like 'idc%' and replace(idHistory, user, '')||user=idHistory");
         });

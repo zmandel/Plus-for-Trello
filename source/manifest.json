@@ -1,7 +1,7 @@
 ﻿{
     "name": "Plus for Trello (time track, reports, scrum)",
     "short_name": "Plus for Trello",
-    "version": "3.1.7",
+    "version": "3.2.0",
     "manifest_version": 2,
     "description": "Reports, Timers, hashtags, offline support, burn-downs, spent vs estimate by card/list/board/user/team, history and more!",
     "icons": {
@@ -14,11 +14,12 @@
         "page": "background.html"
     },
 
+    "homepage_url": "http://www.plusfortrello.com",
     "oauth2": {
         "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
         "scopes": [
             "https://spreadsheets.google.com/feeds",
-            "https://docs.google.com/feeds"
+			"https://www.googleapis.com/auth/drive.file"
         ]
     },
 

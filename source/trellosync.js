@@ -19,7 +19,7 @@ var g_syncStatus = {
     stageNum: 0,
     rgStepHistory: [], //review zig: for debugging errors in steps
     msStart: 0,
-    msLast: 0,
+    msLast: Date.now(),
     bSingleStep: false,
     bExtraRenameStep:false,
     setStage: function (name, cSteps, bSingleStep, bFirstStep) { //bSingleStep indicates this stage always has one step
@@ -74,15 +74,17 @@ var g_syncStatus = {
                 }
             }
         }
-     
-    
+        
         var segDelta = " delta prev:" + Math.round((msNow - (bFinished ? this.msStart : this.msLast)) / 10) / 100 + "s";
-        this.msLast = msNow;
+        if (!(bFinished && !bSyncingOld))
+            this.msLast = msNow;
         updatePlusIcon(bSyncingOld == this.bSyncing);
         if (!bFinished)
             logTrelloSync("sync: " + this.stage + " total:" + this.cSteps + segDelta);
-        else if (g_bEnableTrelloSync)
-            logTrelloSync("sync: finished." + segDelta);
+        else {
+            if (g_bEnableTrelloSync && bSyncingOld)
+                logTrelloSync("sync: finished." + segDelta);
+        }
     }
 };
 
@@ -334,7 +336,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
             function onFinishedAll(status) {
                 saveAsFile({ totalCards: rgRenamedCards.length, cards: rgRenamedCards }, "plus for trello renamed cards json.txt", true);
                 handleShowDesktopNotification({
-                    notification: "Finished renaming "+rgRenamedCards.length+" cards.\nAll renamed cards are in the downloaded file.",
+                    notification: "Finished renaming "+rgRenamedCards.length+" cards.\nAs a backup, all renamed cards are in the file just downloaded.",
                     timeout: 20000
                 });
                 sendResponse({ status: status });
@@ -626,10 +628,10 @@ function getAllItemsFromDb(actions, alldata, sendStatus) {
             populateDataCardFromDb(cardsNotFound, alldata, card, nextAction);
         }
         else {
-            if ((iAction % 20) == 10) { //reduce long callstacks
+            if ((iAction % 2000) == 0) { //reduce long callstacks. must be large else is slow in canary
                 setTimeout(function () {
                     nextAction(STATUS_OK);
-                }, 0);
+                });
             }
             else
                 nextAction(STATUS_OK);
@@ -882,10 +884,10 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
         }
 
         var actionCur = actions[iAction];
-        if ((iAction % 20)==10) { //reduce long callstacks
+        if ((iAction % 2000)==0) { //reduce long callstacks. must be large else is slow in canary
             setTimeout(function () {  
                 processCurrent(actionCur);
-            }, 0);
+            });
         }
         else
             processCurrent(actionCur);

@@ -740,7 +740,7 @@ function updatePlusIcon(bTooltipOnly) {
             //orange dot to the right
             if (g_cWriteSyncLock > 0) {
                 ctx.beginPath();
-                ctx.fillStyle = "#FC6F2E";
+                ctx.fillStyle = "#FED89E";
                 ctx.arc(15, 2, 2, 0, 2 * Math.PI, false);
                 ctx.fill();
                 ctx.lineWidth = 1;
@@ -999,8 +999,10 @@ function doShowTimerWindow(idCard) {
     else {
         chrome.windows.get(idWindow, null, function (window) {
             if (chrome.runtime.lastError || !window) {
-                delete g_mapTimerWindows[idCard];
-                create(idCard);
+                if (g_mapTimerWindows[idCard] === idWindow) {
+                    delete g_mapTimerWindows[idCard];
+                    create(idCard);
+                }
             }
         });
     }
@@ -1027,7 +1029,7 @@ function doShowTimerWindow(idCard) {
                     }
 
                     if (g_mapTimerWindows[idCard]) {
-                        //very hard or impossible to happen, but since it takes time (open db, make report) since last  check, the windows could have been created already from a previous request.
+                        //very hard (impossible?) to happen, but it takes time (open db, make report) since last map check. windows could have been created from a previous request.
                         return;
                     }
                     chrome.windows.create({
@@ -1035,12 +1037,21 @@ function doShowTimerWindow(idCard) {
                             "&nameBoard=" + encodeURIComponent(nameBoard), width: 205, height: 88, type: "panel"
                     },
                         function (window) {
-                            if (!window)
-                                delete g_mapTimerWindows[idCard];
-                            else {
-                                g_mapTimerWindows[idCard] = window.id;
-                                if (!window.alwaysOnTop)
-                                    chrome.windows.update(window.id, { height: window.height + 12 });
+                            if (window) {
+                                if (g_mapTimerWindows[idCard]) {
+                                    //disclaimer: in v3.1.7 there was a bug where sometimes a card timer window would show twice.
+                                    //repro was to click on the timer button inside the chrome popup
+                                    //the card would open with the board behind it. both cards and boards would ask for the timer window but there
+                                    //already was code here to deal with it. I made other parts more robust but I have also added this final check
+                                    //even though I dont think its needed anymore
+                                    chrome.windows.remove(window.id);
+                                    logPlusError("duplicate timer window removed");
+                                }
+                                else {
+                                    g_mapTimerWindows[idCard] = window.id;
+                                    if (!window.alwaysOnTop)
+                                        chrome.windows.update(window.id, { height: window.height + 12 }); //grow to show panel enabling instructions
+                                }
                             }
                         });
                 });
@@ -1094,7 +1105,7 @@ function handleCheckLoggedIntoChrome(sendResponse) {
 function handleCreateSs(sendResponse) {
     var url = null;
     var postData = null;
-    if (true) {
+    if (false) { //no longer works with the stricter drive.file permission
         postData = {title:"Plus for Trello sync spreadsheet",description:"Do NOT modify this spreadsheet"};
         url = "https://www.googleapis.com/drive/v2/files/1-C2J31LslVj-AlB9PJP-68ADhK5gpx0o5PKGZE_kxvM/copy";
         handleApiCall(url, {convert:false, ocr:false}, true, function (response) {
@@ -1123,7 +1134,7 @@ function handleCreateSs(sendResponse) {
             if (response.status != STATUS_OK)
                 sendResponse({ status: response.status, id: null });
             else
-                handleConfigNewSs(id, gid_to_wid(0), sendResponse);
+                handleConfigNewSs(id, gid_to_wid(0), sendResponse); //gid_to_wid(0) works with new sheets as well
         }, JSON.stringify(postData), "application/json");
     }
 }

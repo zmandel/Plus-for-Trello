@@ -53,6 +53,11 @@ var COLUMNNAME_ETYPE = "E. type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
+
+var SYNCPROP_bStealthSEMode = "bStealthSEMode";
+var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
+
+var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
 var SEKEYWORD_DEFAULT = "plus!";
 var g_strUserMeOption = "me";
 var SEKEYWORD_LEGACY = "plus s/e";
@@ -63,6 +68,10 @@ var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a 
 var g_hackPaddingTableSorter = "&nbsp;&nbsp;"; //because we remove many tablesorter css styles, appending spaces to header text was the easiest way to avoid overlap with sort arrow
 var g_dateMinCommentSELegacy = new Date(2014, 11, 12);
 var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
+
+function IsStealthMode() {
+    return (!g_bDisableSync && g_bStealthSEMode && !g_optEnterSEByComment.IsEnabled() && g_strServiceUrl);
+}
 
 var g_optEnterSEByComment = {
     bInitialized: false,
@@ -242,12 +251,17 @@ function loadSharedOptions(callback) {
     var keyrgKeywordsforSECardComment = "rgKWFCC";
     var keyUnits = "units";
     var keybDontShowTimerPopups = "bDontShowTimerPopups";
+    var keyServiceUrl = 'serviceUrl';
 
     assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([keyServiceUrl, SYNCPROP_bStealthSEMode, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
+                                 g_strServiceUrl = objSync[keyServiceUrl]; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
+                                 if (g_strServiceUrl === undefined || g_strServiceUrl == null)
+                                     g_strServiceUrl = ""; //means simple trello. (do the same as in content script)
+
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
@@ -255,6 +269,7 @@ function loadSharedOptions(callback) {
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
+                                 g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && g_strServiceUrl && !g_bDisableSync) ? true : false;
                                  chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
                                      g_userTrelloBackground = (obj[PROP_TRELLOUSER] || null);
                                      callback();
@@ -1560,14 +1575,14 @@ function replaceBrackets(str) {
 function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userCur, s, e, comment, idHistoryRowUse, keyword) {
     //console.log(dateNow + " idCard:" + idCard + " idBoard:" + idBoard + " card:" + strCard + " board:" + strBoard);
     var obj = {};
-    var userForId = userCur.replace(/-/g, '~'); //replace dashes from username. should never happen since trello already strips dashes from trello username.
+    var userForId = userCur.replace(/-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username.
     if (idHistoryRowUse) {
         idHistoryRowUse = idHistoryRowUse.replace(/-/g, '~'); //replace dashes just in case
         obj.idHistory = 'idc' + idHistoryRowUse; //make up a unique 'notification' id across team users. start with string so it never confuses the spreadsheet, and we can also detect the ones with comment ids
     }
     else {
-        assert(s == 0 && e == 0); //without an id, must be 0/0 to not mess up the totals on reset. plus commands fall here
-        obj.idHistory = 'id' + dateNow.getTime() + userForId; //make up a unique 'notification' id across team users. start with a string so it will never be confused by a number in the ss
+        assert(IsStealthMode() || (s == 0 && e == 0)); //without an id, must be 0/0 to not mess up the totals on reset. plus commands fall here
+        obj.idHistory = 'id' + dateNow.getTime() + userForId; //make up a unique 'notification' id across team users. start with a string so it will never be confused by a number in the ss. user added to prevent multiple users with dup id
     }
     obj.idCard = idCard;
     obj.idBoard = idBoard;

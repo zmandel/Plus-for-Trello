@@ -455,7 +455,7 @@ function handleCardTour() {
     {
         selector: ".agile-spent-icon-header_cardwindow",
         focus: ".agile-spent-icon-header_cardwindow",
-        text: "Read the<br>full help anytime.<br><br>Please <A href='http://plusfortrello.blogspot.com/2015/04/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
+        text: "Read the<br>full help anytime.<br><br>Please <A href='http://www.plusfortrello.com/p/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
         angle: 180,
         distance: 0,
         size: 150,
