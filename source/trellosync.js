@@ -1,5 +1,10 @@
 ﻿
 var g_bLogTrelloSyncStatusToConsole = true;  //review zig: turn off in v3
+var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
+
+function checkMaxCallStack(iLoop) {
+    return (((iLoop+1) % g_cMaxCallstack) == 0);
+}
 
 function logTrelloSync(message) {
     if (g_bLogTrelloSyncStatusToConsole)
@@ -628,7 +633,7 @@ function getAllItemsFromDb(actions, alldata, sendStatus) {
             populateDataCardFromDb(cardsNotFound, alldata, card, nextAction);
         }
         else {
-            if ((iAction % 2000) == 0) { //reduce long callstacks. must be large else is slow in canary
+            if (checkMaxCallStack(iAction)) { //reduce long callstacks. must be large else is slow in canary
                 setTimeout(function () {
                     nextAction(STATUS_OK);
                 });
@@ -884,7 +889,7 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
         }
 
         var actionCur = actions[iAction];
-        if ((iAction % 2000)==0) { //reduce long callstacks. must be large else is slow in canary
+        if (checkMaxCallStack(iAction)) { //reduce long callstacks. must be large else is slow in canary
             setTimeout(function () {  
                 processCurrent(actionCur);
             });
