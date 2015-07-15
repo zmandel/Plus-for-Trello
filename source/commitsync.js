@@ -430,11 +430,13 @@ function insertPendingSERows(callback, bAllowWhileOpeningDb) {
                 return;
             }
 
-            var rowsCommit = [];
+            var rowsCommit = new Array(responseReport.rows.length);
+			var iCommit=0;
             responseReport.rows.forEach(function (row) {
                 var rowAdd = JSON.parse(row.obj);
                 rowAdd.iRow = row.iRow;
-                rowsCommit.push(rowAdd);
+                rowsCommit[iCommit]=rowAdd;
+				iCommit++;
             });
             insertIntoDBWorker(rowsCommit, callback, undefined, true);
         },

@@ -19,6 +19,10 @@ border-radius: 0 !important;
     border-radius: 0 !important;
 }
 
+.disabledClicks {
+pointer-events:none !important;
+}
+
 .seInputStyles {
     box-shadow: none !important;
     border-image:none !important;
@@ -31,7 +35,7 @@ border-radius: 0 !important;
 }
 
 .seNumbers {
-    width: 3em !important;
+    width: 2em !important;
     text-align: right !important;
     margin-right:0px !important;
     font-size:2em !important;
@@ -39,6 +43,7 @@ border-radius: 0 !important;
 
 .hmsLabel {
     color:#AEAEAE !important;
+    overflow:hidden !important;
 }
 
 .custom-label-flipswitch.ui-flipswitch .ui-btn.ui-flipswitch-on {
@@ -133,8 +138,9 @@ margin-bottom:0em;
 
 #plusCardCommentNote {
     margin-top:0px !important;
-    padding-top:1px !important;
-    padding-left:3px !important;
+    padding:6px !important;
+    margin-right:1em !important;
+    
 }
 
 .noMarginPaddingTop {
@@ -326,8 +332,11 @@ overflow-x:visible !important;
     -webkit-transform-origin:left top !important;
     border: solid;
     border-color:#DDDDDD;
-    border-width:1px;
-    border-radius:1px;
+    border-bottom-width:1px;
+    border-left-width:1px;
+    border-right-width:1px;
+    border-top-width:0px;
+    border-radius:2px;
     padding:5px;
     margin-left:-11px;
     margin-right:-11px;
@@ -414,3 +423,18 @@ text-overflow:clip !important;
     color: darkgray !important;
 }
 
+.plusCardCommentUser-width .ui-mini { /* fix crop bug in jqm combining with &nbsp before button */
+    margin-left: 0px !important;
+}
+
+.agile_button_leftmargin { /* fix crop bug in jqm */
+  margin-left:1px;
+}
+
+.agile_nofocusRing:focus {
+    outline-width:0px !important;
+    outline:none !important;
+    -moz-box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    box-shadow: none !important;
+}

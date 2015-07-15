@@ -172,6 +172,9 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
         var cached = localStorage[keyCached];
         if (cached) {
             cached = JSON.parse(cached);
+            if ((msWaitStart < 0 || msWaitStart > 400) && cached.now && (Date().now() - cached.now > 1000 * 60 * 10))
+                msWaitStart = 250; //hurry up refresh if cache is older than 10 minutes
+                
             var objRetCached = {};
             if (cached.bTransformed) {
                 objRetCached.objTransformed = JSON.parse(LZString.decompress(cached.compressed));
@@ -197,10 +200,8 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                 var objRet = { status: "unknown error", obj: [], bCached:false };
                 var bReturned = false;
                 var bQuotaExceeded = (xhr.status == 429);
-                g_analytics.hit({ t: "event", ec: "trelloApiCalls", ea: "call" }, 2000);
-                if (bQuotaExceeded)
-                    g_analytics.hit({ t: "event", ec: "trelloApiCalls", ea: "callRetry" }, 3000);
-
+                g_analytics.hit({ t: "event", ec: "trelloApiCalls", ea: (bQuotaExceeded? "callRetry" : "call") }, 1000);
+               
                 if (!bOKContext())
                     return;
 
@@ -214,7 +215,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                             objTransformedFirst = null; //invalidate if user navigated away since first cache return
                         var objTransformed = callback(objRet, objTransformedFirst);
                         bOkCallback = true; //covers exception from callback
-                        var cacheItem={compressed:null, bTransformed:false};
+                        var cacheItem={compressed:null, bTransformed:false,now:Date.now()};
                         if (objTransformed) {
                             cacheItem.bTransformed = true;
                             cacheItem.compressed = LZString.compress(JSON.stringify(objTransformed));
@@ -229,14 +230,12 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                 } else {
                     if (bQuotaExceeded) {
                         var waitNew = (waitRetry || 500) * 2;
-                        if (waitNew < 8000) {
-                            bReturned = true;
-                            bOkCallback = true; //fake it
+                        if (waitNew < 8001) {
                             setTimeout(function () {
                                 console.log("Plus: retrying api call");
-                              //callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context)
-                                callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitNew,   true,       context);
+                                callTrelloApi(urlParam, bContext, 300, callback, bReturnErrors, waitNew, true, context);
                             }, waitNew);
+                            return;
                         }
                         else {
                             objRet.status = errFromXhr(xhr);
@@ -271,14 +270,13 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
         xhr.send();
     }
 
-    if (bReturnedCached) {
-        if (msWaitStart >= 0) {
-            setTimeout(function () {
-                worker();
-            }, msWaitStart);
-        }
-    } else {
-        worker();
+    if (!bReturnedCached)
+        msWaitStart = 100; a//always wait a little bit
+
+    if (msWaitStart >= 0) {
+        setTimeout(function () {
+            worker();
+        }, msWaitStart);
     }
 }
 

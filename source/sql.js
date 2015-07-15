@@ -515,9 +515,9 @@ function handleGetReport(request, sendResponse, bAllowWhileOpening, cRetries) {
 	g_db.transaction(function (tx) {
 		tx.executeSql(sql, values,
 			function (t, results) {
-				var i = 0;
-				for (; i < results.rows.length; i++)
-					rowsResult.push(results.rows.item(i));
+			    rowsResult = new Array(results.rows.length);
+				for (var i = 0; i < results.rows.length; i++)
+					rowsResult[i]=results.rows.item(i);
 			},
 			function (trans, error) {
 				logPlusError(error.message + " sql: " + sql);
@@ -621,10 +621,10 @@ function cleanupStringSpreadsheet(str) {
 
 function processNewRows(rowsInput, sendResponse, iRowEndLastSpreadsheet) {
 
-	var rows = [];
-	var i = 0;
-	for (; i < rowsInput.length; i++) {
-		rows.push(parseNewHistoryRow(rowsInput[i]));
+    var rows = new Array(rowsInput.length);
+	
+	for (var i = 0; i < rowsInput.length; i++) {
+		rows[i]=parseNewHistoryRow(rowsInput[i]);
 	}
 	insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet);
 

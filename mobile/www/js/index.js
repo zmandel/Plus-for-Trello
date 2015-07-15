@@ -865,9 +865,11 @@ function populateUser(user) {
     g_user = user;
     if (!user)
         return;
-    var image = $("<img>").attr("src", "https://trello-avatars.s3.amazonaws.com/" + user.avatarHash + "/30.png");
     var label = $("<div>").text(user.fullName.split(" ")[0]);
-    userElems.append(image);
+    if (user.avatarHash) {
+        var image = $("<img>").attr("src", "https://trello-avatars.s3.amazonaws.com/" + user.avatarHash + "/30.png");
+        userElems.append(image);
+    }
     userElems.append(label);
 }
 
@@ -974,7 +976,7 @@ function loadBoardsPage(page, params, bBack) {
         return;
     var list = $("#boardsList").listview();
     list.empty();
-    callTrelloApi("members/me/boards?fields=id,name,closed", true, 4000, function (response) {
+    callTrelloApi("members/me/boards?fields=id,name,closed", true, 3000, function (response) {
         list.empty();
         var rgBoards = [];
         var objReturn = {};
@@ -1033,7 +1035,7 @@ function handleBoardClick(idBoard, name) {
     setTimeout(function () {
         g_recentBoards.markRecent(name, idBoard);
     }, 500);
-    callTrelloApi("boards/" + idBoard + "/lists?fields=id,name,closed", true, 4000, function (response) {
+    callTrelloApi("boards/" + idBoard + "/lists?fields=id,name,closed", true, 3000, function (response) {
         list.empty();
         $(".titleListLists").text(response.obj.name);
         response.obj.forEach(function (elem) {
@@ -1061,7 +1063,7 @@ function handleListClick(idList, nameBoard, nameList) {
     list.append($("<li data-role='list-divider'>" + titleHeader + "</li>"));
     list.listview("refresh");
     g_stateContext.idList = idList;
-    callTrelloApi("lists/" + idList + "?cards=open&card_fields=name,shortLink,closed", true, 4000, function (response) {
+    callTrelloApi("lists/" + idList + "?cards=open&card_fields=name,shortLink,closed", true, 3000, function (response) {
         $('#cardsList li:not(:first)').remove();
         var rgCards = [];
         var objReturn = {};

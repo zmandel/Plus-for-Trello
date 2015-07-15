@@ -1,4 +1,17 @@
 var g_valDayExtra = null;
+var g_bNoAnimationDelay = false; //to optimize animation when pressing back button
+var SEKEYWORD_LEGACY = "plus s/e";
+
+function getAllKeywords(bExcludeLegacyLast) {
+    var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
+    var rgKeywords = [];
+    strKeywords.split(",").forEach(function (k) {
+        rgKeywords.push(k.toLowerCase().trim());
+    });
+    if (bExcludeLegacyLast && rgKeywords.length > 0 && rgKeywords[rgKeywords.length - 1] == SEKEYWORD_LEGACY)
+        rgKeywords.pop();
+    return rgKeywords;
+}
 
 var g_seCard = {
     clear: function() {
@@ -117,10 +130,27 @@ function loadCardPage(page, params, bBack, urlPage) {
 
     enableSEFormElems(false, page);
     var cTimesClickedAdd = 0;
+    var bNeedBounceFocus = false;
+    var panelAddSE = page.find($("#panelAddSE")); //review zig test ios keyboard
+
+    page.find("#panelAddSE").off("click").click(function (event) {
+        if (bNeedBounceFocus) {
+            bNeedBounceFocus = false;
+            //$("#panelAddSE").find("input,select").removeClass("disabledClicks");
+            $("#plusCardCommentSpent").focus();
+            event.stopPropagation();
+            event.preventDefault();
+            return false;
+        }
+    });
+
     page.find("#addSE").off("click").click(function (event) {
-        //$(this).slideUp(paramsAnim);
+        hookBack();
+        event.stopPropagation();
+        event.preventDefault();
         cTimesClickedAdd++;
-        enableSEFormElems(true, page, cTimesClickedAdd>1);
+        enableSEFormElems(true, page, cTimesClickedAdd > 1);
+        bNeedBounceFocus = true;
         $("#panelAddSEContainer").addClass("shiftUp");
         $("#cardBottomContainer").addClass("plusShiftBottom");
         $("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
@@ -130,13 +160,28 @@ function loadCardPage(page, params, bBack, urlPage) {
         $("#seContainer table td").addClass("backgroundShader");
         
         setTimeout(function () {
-            var elemSEFocus = $("#plusCardCommentSpent"); //review zig test ios keyboard
             if (isCordova())
-                cordova.plugins.Focus.focus(elemSEFocus);
+                cordova.plugins.Focus.focus(panelAddSE);
+            else
+                $("#plusCardCommentSpent").focus();
         }, delayKB);
+        return false;
     });
     
-    page.find("#plusCardCommentCancelButton").off("click").click(function () {
+    if (false) {
+        window.addEventListener("backbutton", function (evt) {
+            evt.preventDefault();
+            alert("hello");
+            return false;
+        });
+    }
+    page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
+        unhookBack();
+        var delay = delayKB * 2;
+        if (g_bNoAnimationDelay) {
+            g_bNoAnimationDelay = false;
+            delay = 0;
+        }
         setTimeout(function () {
         $("#panelAddSEContainer").removeClass("shiftUp");
         $("#cardBottomContainer").removeClass("plusShiftBottom");
@@ -146,10 +191,14 @@ function loadCardPage(page, params, bBack, urlPage) {
         $("#seContainer table td").removeClass("backgroundShader");
         $("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
         enableSEFormElems(false, page);
-        }, delayKB);
+
+        }, delay);
+        event.stopPropagation();
+        event.preventDefault();
+        return false;
     });
 
-    page.find("#openTrelloCard").off("click").click(function () {
+    page.find("#openTrelloCard").off("click").click(function (event) {
         var urlCard = "https://trello.com/c/" + params.shortLink;
         if (isCordova()) {
             window.plugins.webintent.startActivity({
@@ -157,13 +206,41 @@ function loadCardPage(page, params, bBack, urlPage) {
                 url: urlCard
             },
             function () { },
-            function (e) { alertMobile('Failed to open card'); }
+            function (e) { alertMobile('Could not open card'); }
         );
         }
         else {
             window.open(urlCard, '_blank', 'location=yes');
         }
+
+        event.stopPropagation();
+        event.preventDefault();
+        return false;
     });
+}
+
+var g_bBackHooked=false;
+
+function onBackKeyDown() {
+    var elem = $("#plusCardCommentCancelButton");
+    if (elem.length > 0) {
+        g_bNoAnimationDelay = true;
+        elem.eq(0).click();
+    }
+}
+
+function hookBack() {
+    if (g_bBackHooked)
+        return;
+    g_bBackHooked=true;
+    document.addEventListener("backbutton", onBackKeyDown, false);
+}
+
+function unhookBack() {
+    if (!g_bBackHooked)
+        return;
+    g_bBackHooked = false;
+    document.removeEventListener("backbutton", onBackKeyDown, false);
 }
 
 function enableSEFormElems(bEnable,
@@ -173,6 +250,7 @@ function enableSEFormElems(bEnable,
         page.find(".seFormElem").removeAttr('disabled');
         page.find("#plusCardCommentEnterButton").removeClass("ui-disabled");
         page.find("#plusCardCommentCancelButton").removeClass("ui-disabled");
+        var listKeywords = page.find("#plusCardCommentKeyword").selectmenu("enable");
         var listUsers = page.find("#plusCardCommentUser").selectmenu("enable");
         var listDays = page.find("#plusCardCommentDays").selectmenu("enable");
 
@@ -201,6 +279,24 @@ function enableSEFormElems(bEnable,
             listUsers.append(item);
         }
 
+        function appendKeyword(keyword, bSelected) {
+            var item = $("<option value='" + keyword + "'" + (bSelected ? " selected='selected'" : "") + ">" + keyword + "</option>");
+            listKeywords.append(item);
+        }
+
+        function fillKeywords(keywordSelected) {
+            var rgKeywords = getAllKeywords(true);
+            rgKeywords.forEach(function (keyword) {
+                appendKeyword(keyword, keywordSelected && keywordSelected == keyword);
+            });
+            
+            listKeywords.selectmenu("refresh");
+            if (rgKeywords.length < 2)
+                listKeywords.parent().hide();
+            else
+                listKeywords.parent().show();
+        }
+
         function fillUserList(userSelected) {
             listUsers.empty();
             g_recentUsers.users.sort(function (a, b) {
@@ -217,6 +313,8 @@ function enableSEFormElems(bEnable,
             appendUser(valUserOther);
             listUsers.selectmenu("refresh");
         }
+
+        fillKeywords();
         fillUserList();
         listUsers.off("change.plusForTrello");
         listUsers.on("change.plusForTrello", function () {
@@ -235,7 +333,7 @@ function enableSEFormElems(bEnable,
 
                 if (navigator && navigator.notification) {
                     navigator.notification.prompt(
-                        "type username",  // message
+                        "Type username",  // message
                         function onPrompt(results) {
                             var text = null;
                             if (results.buttonIndex == 1)
@@ -247,13 +345,13 @@ function enableSEFormElems(bEnable,
                         "");                // defaultText
                 }
                 else {
-                    process(prompt("type username", ""));
+                    process(prompt("Type username", ""));
                 }
             }
         });
         
         var valDayOther = "other";
-        var valMaxDaysCombo = 9;
+        var valMaxDaysCombo = 5;
         function appendDay(cDay, cDaySelected) {
             var nameOption = null;
             var bSelected = (cDay == cDaySelected);
@@ -302,8 +400,10 @@ function enableSEFormElems(bEnable,
 
                 if (typeof (datePicker) != "undefined") {
                     datePicker.show(options, function (date) {
-
-                        if (date > dateNow) {
+                        if (!date || date=="cancel") {
+                            date = "";
+                        }
+                        else if (date > dateNow) {
                             alert("Date must be in the past");
                             date = null;
                         }
@@ -325,6 +425,7 @@ function enableSEFormElems(bEnable,
 
     } else {
         page.find(".seFormElem").attr('disabled', 'disabled');
+        page.find("#plusCardCommentKeyword").selectmenu("disable");
         page.find("#plusCardCommentUser").selectmenu("disable");
         page.find("#plusCardCommentDays").selectmenu("disable");
         page.find("#plusCardCommentEnterButton").addClass("ui-disabled");
@@ -334,6 +435,7 @@ function enableSEFormElems(bEnable,
 
 function fillSEData(page, container, tbody, params, bBack, callback) {
     var idCard = params.id;
+    g_seCard.clear();
     function appendRow(user, s, eFirst, e, r) {
         var row = $("<tr>");
         row.append("<td class='colUser'>" + user + "</td>");
@@ -346,7 +448,8 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
 
     g_stateContext.idCard = idCard;
     //on back, dont call trello, rely on cache only
-    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 500, function (response, responseCached) {
+    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 200, function (response, responseCached) {
+        g_seCard.clear(); //might not be necessary but timing issues might require another clear
         var rgComments = [];
         var rgRows = [];
         var objReturn = {};
@@ -358,11 +461,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             objReturn.desc = response.objTransformed.desc;
 
         } else {
-            var strKeywords = localStorage[PROP_PLUSKEYWORDS];
-            var rgKeywords = [];
-            strKeywords.split(",").forEach(function (k) {
-                rgKeywords.push(k.toLowerCase().trim());
-            });
+            var rgKeywords = getAllKeywords();
             var cActions = response.obj.actions.length;
             for (iAction = cActions - 1; iAction >= 0; iAction--) {
                 var action=response.obj.actions[iAction];
@@ -378,9 +477,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             objReturn.name = response.obj.name;
             objReturn.nameList = response.obj.list.name;
             objReturn.nameBoard = response.obj.board.name;
-            objReturn.desc = response.obj.desc;
-
-            
+            objReturn.desc = response.obj.desc;   
         }
 
         //review zig: ugly to have to update both objReturn and params
@@ -407,6 +504,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             elems.click(function (e) {
                 //prevent jqm from handling it.
                 e.preventDefault();
+                e.stopPropagation();
                 var url = $(e.target).prop("href");
                 openUrlAsActivity(url); //better as activity so drive attachments etc open native
             });
@@ -414,7 +512,10 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         }
         tbody.empty();
         rgRows.forEach(function (row) {
-            appendRow(row.user, parseFixedFloat(row.spent), parseFixedFloat(row.estFirst), parseFixedFloat(row.est), parseFixedFloat(row.est - row.spent));
+            var sLoop = parseFixedFloat(row.spent);
+            var eLoop = parseFixedFloat(row.est);
+            g_seCard.setSeCurForUser(row.user, sLoop, eLoop);
+            appendRow(row.user, sLoop, parseFixedFloat(row.estFirst), eLoop, parseFixedFloat(row.est - row.spent));
         });
 
         callback(rgRows.length, response.bCached);

@@ -203,10 +203,10 @@ function findMatchingBoards(term, autoResponse) {
             return;
         }
         
-        var ret = [];
-        var i = 0;
-        for (; i < rows.length; i++) {
-            ret.push(rows[i].name);
+        var ret = new Array(rows.length);
+        
+        for (var i = 0; i < rows.length; i++) {
+            ret[i]=rows[i].name;
         }
 
         autoResponse(ret);
@@ -249,10 +249,10 @@ function findMatchingLists(term, autoResponse) {
             return;
         }
 
-        var ret = [];
-        var i = 0;
-        for (; i < rows.length; i++) {
-            ret.push(rows[i].name);
+        var ret = new Array(rows.length);
+        
+        for (var i = 0; i < rows.length; i++) {
+            ret[i]=rows[i].name;
         }
 
         autoResponse(ret);
@@ -277,10 +277,10 @@ function findMatchingUsers(term, autoResponse) {
             return;
         }
 
-        var ret = [];
-        var i = 0;
-        for (; i < rows.length; i++) {
-            ret.push(rows[i].user);
+        var ret = new Array(rows.length);
+        
+        for (var i = 0; i < rows.length; i++) {
+            ret[i]=rows[i].user;
         }
 
         autoResponse(ret);
@@ -346,6 +346,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	g_bPopupMode = (params["popup"] == "1");
 	g_bBuildSqlMode = (params["getsql"] == "1");
 	if (g_bBuildSqlMode) {
+	    $("body").removeClass("agile_report_minSize");
 	    $("#checkNoCrop").parent().hide();
 	    $("#tabs").hide();
 	    $("#agile_title_header_report").hide();

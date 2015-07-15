@@ -6,6 +6,11 @@
     }
 }
 
+.agile_report_minSize {
+ min-height:450px;
+ min-width:620px;
+}
+
 .agile_unselectable {
     -webkit-touch-callout: none;
     -webkit-user-select: none;
