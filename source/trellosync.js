@@ -796,8 +796,10 @@ function processTrelloActions(tokenTrello, actions, boards, hasBoardAccess, send
             else if (card.idList == IDLIST_UNKNOWN)
                 cUnknownIdList++;
         }
-        logTrelloSync(cNullIdList + " 'NULL' idList");
-        logTrelloSync(cUnknownIdList + " 'UNKNOWN' idList");
+        if (cNullIdList>0)
+            logTrelloSync(cNullIdList + " 'NULL' idList");
+        if (cUnknownIdList > 0)
+            logTrelloSync(cUnknownIdList + " 'UNKNOWN' idList");
         commitTrelloChanges(alldata, sendResponseParam);
     }
 

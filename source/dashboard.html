@@ -5,9 +5,12 @@
     <link href="css/jquery-ui-custom.min.css" rel="stylesheet" type="text/css">
 	<link href="css/style.css" rel="stylesheet" type="text/css">
     <link href="css/tooltip.css" rel="stylesheet" type="text/css">
+    <link href="css/jquery.qtip.min.css" rel="stylesheet" type="text/css">
     <link href="css/plottable.css" rel="stylesheet" type="text/css">
+    <link href="css/dashboard.css" rel="stylesheet" type="text/css">
 	<script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
+    <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
 	<script type="text/javascript" src="libs/jsapi.js"></script>
 	<script type="text/javascript" src="libs/formatchart.js"></script>
     <script type="text/javascript" src="libs/d3.min.js"></script>
@@ -18,11 +21,13 @@
 <body style="font-family: arial; font-size: 16px;">
     <div style="width:100%;" align="center" id="agile_title_header_report">
     <span id="dashBoardTopTitle">Plus Dashboard</span>
-        <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank" title="¡dlǝɥ">Help</a>
+        <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank" title="Click to view a burndown example.
+View Plus help inside Trello about !annotations and burndowns.">Help</a>
         <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=FH223PYNLWZQU&lc=US&item_name=Plus%20for%20Trello&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted" target="_blank" title="Thank you!">Donate</a>
         <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" target="_blank" title="Rate Plus to release the guilt from not donating!">Rate</a>
         </div>
-	<a style="display:none" id="reportLink" href="" target="_blank">Recent entries report</a>
+	<a style="display:none" id="reportLink" href="" target="_blank">Recent S/E report</a>
+    <a style="display:none;margin-left:1em;" id="boardLink" href="" target="_blank">Go to board</a>
     <div style="display:none;"  id="boardMarkersContainer" class="agile_arrow_closed agile_arrow_container">
         <p id="headerMarker" class="agile_arrow_title"><b>Board Markers</b></p>
         <div style="display:none;margin-bottom:1.5em;margin-top:0.5em;margin-left:1em;" id="boardMarkersContent">
@@ -41,9 +46,8 @@
         </div>
     </div>
     <p id="progress">Loading...</p>
-    <div id="visualization" style="width:100%;height:20%"></div>
-    <svg id="timeline" style="width:100%;height:60%">></svg>
-    <div id="timelineDetail"></div>
+    <svg id="timeline" style="width:100%;height:60%;margin-top:20px;"></svg>
+    <div style="font-size:0.9em;" id="timelineDetail"></div>
     <div style="text-align: center;">
         <div id="visualizationBottom" style="display: inline-block; width: 60%; margin-top: 45px; margin-bottom: 20px;"></div>
     </div>

@@ -725,9 +725,9 @@ function getSEDate(callback) {
     }
     
     elemCommentDate = divDialog.find("#dialog_SEDate_comment");
-    var strDateNow = makeDateOnlyString(dateNow);
+    var strDateNow = makeDateCustomString(dateNow);
     elemDate = divDialog.find("#dialog_SEDate_date");
-    elemDate.prop("min", makeDateOnlyString(dateMin));
+    elemDate.prop("min", makeDateCustomString(dateMin));
     elemDate.prop("max", strDateNow);
     elemDate.prop("value", strDateNow);
     elemCommentDate.text("");
@@ -914,7 +914,7 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
 <button id="agile_modify_SETotal">Modify</button> \
 <button id="agile_cancel_SETotal">Cancel</button> \
 <br><br><p class="agile_mtseMessage"></p> \
-<A style="float:right" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html" target="_blank">help</A> \
+<A style="float:right" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
 </dialog>');
         $("body").append(divDialog);
         divDialog = $(".agile_dialog_editSETotal");
@@ -1215,7 +1215,7 @@ function addCardCommentHelp() {
 				    }
 				    else if (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length > 0) {
 				        var kw = g_optEnterSEByComment.getDefaultKeyword();
-				        help = setSmallFont($("<A class='quiet-button u-float-left' style='margin-left:10px' href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'><b>" + kw + "</b> keyword help</A>").addClass(classSpentCommentHelp), 0.85);
+				        help = setSmallFont($("<A class='quiet-button u-float-left' style='margin-left:10px' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'><b>" + kw + "</b> keyword help</A>").addClass(classSpentCommentHelp), 0.85);
 				        help.prop("title", kw + " 0/4  :  adds 4 to your estimate\n\n\
 " + kw + " -2d 5/3 fix doc : adds 2days ago 5/3 with note 'fix doc'\n\n\
 " + kw + " @john 0/6 : adds to john 6 estimate\n\n\

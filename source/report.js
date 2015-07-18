@@ -228,6 +228,12 @@ function findMatchingLists(term, autoResponse) {
     }
     else {
         sql = "SELECT distinct(lists.name) FROM lists";
+        var idBoard = $("#idBoard").val().trim();
+        if (idBoard) {
+            sql = sql + " WHERE idBoard=?";
+            cWhere++;
+            params.push(idBoard);
+        }
     }
 
     if (term != "") {
@@ -1608,12 +1614,14 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 		var cMax = rowsOrig.length;
 		var pGroups = propertyGroup.split("-");
 		var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
+		var propDateTimeString = "dtString";
 		for (; i < cMax; i++) {
 		    var row = rowsOrig[i];
 
-		    if (row[propDateString] === undefined && row.date !== undefined) {
+		    if (row.date !== undefined && (row[propDateString] === undefined || row[propDateTimeString] === undefined)) {
 		        var dateRow = new Date(row.date * 1000); //db is in seconds
-		        row[propDateString] = makeDateOnlyString(dateRow);
+		        row[propDateString] = makeDateCustomString(dateRow);
+		        row[propDateTimeString]= makeDateCustomString(dateRow,true);
 		    }
 
 			var key = "";
@@ -1684,10 +1692,11 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	var bOrderR = (orderBy == "remain");
 	var header = [];
 	var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
+	var bGroupedByDate = (groupBy.toLowerCase().indexOf("datestring") >= 0);
 	var bShowKeyword = g_bShowKeywordFilter;
 	if (bShowKeyword)
 	    header.push({ name: "Keyword" + strAppendHeaders });
-	header.push({ name: "Date" + strAppendHeaders });
+	header.push({ name: "Date" + (bGroupedByDate? "" : strAppendHeaders) });
 	header.push({ name: "Week" + strAppendHeaders });
 	var bGroupByCardOrNone = (groupBy == "" || groupBy.toLowerCase().indexOf("card") >= 0);
 	var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
@@ -1740,12 +1749,15 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	        g_rowidLastSyncRemember = row.rowid;
 	    var rgRet = [];
 	    var dateString = row["dateString"];
-	    if (dateString === undefined) {
-	        dateString = makeDateOnlyString(new Date(row.date * 1000)); //db is in seconds
+	    var dateTimeString = row["dtString"];
+	    if (dateString === undefined || dateTimeString === undefined) {
+	        var dateDbUse = new Date(row.date * 1000); //db is in seconds
+	        dateString = makeDateCustomString(dateDbUse);
+	        dateTimeString = makeDateCustomString(dateDbUse,true);
 	    }
 	    if (bShowKeyword)
 	        rgRet.push({ name: row.keyword, bNoTruncate: true });
-	    rgRet.push({ name: dateString, bNoTruncate: true });
+	    rgRet.push({ name: (bGroupedByDate?dateString : dateTimeString), bNoTruncate: true });
 	    rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
 		if (bShowMonth)
 		    rgRet.push({ name: row.month ? row.month : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
@@ -1809,7 +1821,8 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		    rgRet.title = "(" + sPush + " / " + estPush + ") " + row.comment;
 		}
 		if (row.date) {
-		    var delta = getDeltaDates(dateNowCache, new Date(row.date * 1000)); //db is in seconds
+		    var dateRow = new Date(row.date * 1000);
+		    var delta = getDeltaDates(dateNowCache, dateRow); //db is in seconds
 		    var postFix = " days ago";
 		    if (delta == 1)
 		        postFix = " day ago";
@@ -1817,8 +1830,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		        delta = "";
 		        postFix = "today";
 		    }
-
-		    rgRet.title = rgRet.title + "\n" + delta + postFix;
+		    rgRet.title = rgRet.title + "\n" +  makeDateCustomString(dateRow,true)+ " "+delta + postFix;
 		}
 		return rgRet;
 	}

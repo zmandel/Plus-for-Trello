@@ -2,11 +2,13 @@
 var g_marginLabelChart = 35;
 var g_heightBarUser = 30;
 
-var g_chart = null;
 var g_data = null;
 var g_chartUser = null;
 var g_dataUser = null;
 var g_userTrello = null;
+var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations:null };
+
+var g_TimelineColors = ["#D25656", "#6F83AD", "#519B51", "black"]; //red, blue, green (spent, estimate, remaining, annotation)
 
 document.addEventListener('DOMContentLoaded', function () {
 	if (g_bLoaded)
@@ -16,9 +18,31 @@ document.addEventListener('DOMContentLoaded', function () {
 	google.setOnLoadCallback(loadBurndown);
 });
 
+
+function checkHideTimelineSpark() {
+    if (g_tl.chartBottom && g_tl.chartBottom.height() < 12) {
+        g_tl.container.remove(g_tl.chartBottom);
+        g_tl.container.remove(g_tl.xAxisBottom);
+        g_tl.container.computeLayout();
+        g_tl.container.redraw();
+    }
+}
+
 function redrawCharts() {
-	drawChart();
-	drawChartUser();
+    if (g_tl.container) {
+        if (g_tl.chartBottom)
+            g_tl.container.add(g_tl.chartBottom, 2, 1);
+        
+        if (g_tl.xAxisBottom)
+            g_tl.container.add(g_tl.xAxisBottom, 3, 1);
+        
+        g_tl.container.computeLayout();
+        g_tl.container.redraw();
+        checkHideTimelineSpark();
+        if (g_tl.redrawAnnotations)
+            g_tl.redrawAnnotations();
+    }
+    drawChartUser();
 }
 
 window.addEventListener('resize', function () {
@@ -41,7 +65,6 @@ function setSql(sql, values) {
 
 function resizeMe(innerHeight) {
     $("#frameFilter").height(innerHeight);
-    //redrawCharts();
 }
 
 var g_sql = "select H.user, H.spent, H.est, H.date, H.comment, H.eType, H.idCard as idCardH, C.name as nameCard FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard WHERE c.bDeleted=0 AND c.idBoard=? order by H.date ASC";
@@ -75,22 +98,8 @@ function configBoardBurndownData(idBoard) {
 
 
 
-function createCloseTooptipMonitor(callback) {
-	var classHooked = "closeBurndownTooltip_hooked";
-	setInterval(function () {
-		var elems = $(".closeBurndownTooltip");
-		if (elems.length>0 && !elems.hasClass(classHooked)) {
-			elems.click(function () {
-				setTimeout(function () { callback(); }, 20);
-				
-			});
-			elems.addClass(classHooked);
-		}
-	}, 300);
-}
-
 function loadBurndown() {
-	createCloseTooptipMonitor(drawChart);
+    resetChartline();
 	var params = getUrlParams();
 	var idBoard = decodeURIComponent(params["idBoard"]);
     var boardName = decodeURIComponent(params["board"]);
@@ -98,7 +107,8 @@ function loadBurndown() {
 	$("#dashBoardTopTitle").text(document.title);
 	$("#frameFilter").attr('src', "report.html?getsql=1&idBoard=" + idBoard);
 	g_boardName = boardName;
-	$("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + encodeURIComponent(idBoard)+"&weekStartRecent=true");
+	$("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + encodeURIComponent(idBoard) + "&weekStartRecent=true");
+	$("#boardLink").attr("href", "https://trello.com/b/" + encodeURIComponent(idBoard));
 	var header = $("#headerMarker");
 	var container = $("#boardMarkersContainer");
 	header.click(function () {
@@ -208,19 +218,33 @@ function addRowMarkerData(table, rowData, colors, bHeader) {
 	table.append(row);
 }
 
+function resetChartline() {
+    g_tl.chartBottom = null;
+    g_tl.xAxisBottom = null;
+    g_tl.redrawAnnotations = null;
+    if (g_tl.container)
+        g_tl.container.destroy();
+    g_tl.container = null;
+    resetTDOutput(d3.select("#timelineDetail"));
+}
 
-function loadExample() {
+function resetTDOutput(output) {
+    output.html("&nbsp;<br>&nbsp;"); //pretend it has two lines of text, so layout height doesnt change when setting output later.
+    //covers the most common case, but height could still change if the s/e note is long. a vertical scrollbar could appear and cover
+    //the legend a little. oh well.
+}
+
+function loadTimeline(series) {
     var xScale = new Plottable.Scales.Time();
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     xAxis.formatter(Plottable.Formatters.multiTime());
     var yScale = new Plottable.Scales.Linear();
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
-    var colorScale  = ["#D25656", "#6F83AD", "#519B51"];
-
-    var series1 = new Plottable.Dataset(makeSeriesData(200, null,colorScale[0]), { name: "Estimate" });
-    var series2 = new Plottable.Dataset(makeSeriesData(200, null, colorScale[1]), { name: "Spent" });
-    var series3 = new Plottable.Dataset(makeSeriesData(200, null, colorScale[2]), { name: "Remain" });
     
+    var series1 = new Plottable.Dataset(series.spent, { name: "Spent" });
+    var series2 = new Plottable.Dataset(series.est, { name: "Estimate" });
+    var series3 = new Plottable.Dataset(series.remain, { name: "Remain" });
+    var seriesAnnotation = new Plottable.Dataset(series.annotation, { name: "Annotation" });
 
     var plot = new Plottable.Plots.Line(xScale, yScale);
     plot.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
@@ -228,13 +252,29 @@ function loadExample() {
     plot.addDataset(series1).addDataset(series2).addDataset(series3);
     plot.autorangeMode("y");
 
+    var plotAnnotations = new Plottable.Plots.Scatter(xScale, yScale);
+    plotAnnotations.addClass("tooltipped");
+    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
+    plotAnnotations.size(13);
+    plotAnnotations.attr("fill","black");
+    plotAnnotations.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
+    plotAnnotations.addDataset(seriesAnnotation);
+    plotAnnotations.autorangeMode("y");
+
     var sparklineXScale = new Plottable.Scales.Time();
     var sparklineXAxis = new Plottable.Axes.Time(sparklineXScale, "bottom");
+    sparklineXAxis.addClass("minichartBurndownXLine");
     var sparklineYScale = new Plottable.Scales.Linear();
     var sparkline = new Plottable.Plots.Line(xScale, sparklineYScale);
     sparkline.x(function (d) { return d.x; }, sparklineXScale).y(function (d) { return d.y; }, sparklineYScale);
     sparkline.attr("stroke", function (d, i, dataset) { return d.stroke; });
     sparkline.addDataset(series1).addDataset(series2).addDataset(series3);
+
+    var sparklineAnnotations = new Plottable.Plots.Scatter(xScale, sparklineYScale);
+    sparklineAnnotations.size(8);
+    sparklineAnnotations.attr("fill", "black");
+    sparklineAnnotations.x(function (d) { return d.x; }, sparklineXScale).y(function (d) { return d.y; }, sparklineYScale);
+    sparklineAnnotations.addDataset(seriesAnnotation);
 
     var dragBox = new Plottable.Components.XDragBoxLayer();
     dragBox.resizable(true);
@@ -248,6 +288,30 @@ function loadExample() {
             xScale.domain(sparklineXScale.domain());
         }
     });
+
+    var txtAnnotations = [];
+    function addAnnotationText(annotation,x,y) {
+        var txt = plotAnnotations.foreground().append("text");
+        txt.attr({
+            "text-anchor": "middle",
+            "font-size": "0.8em",
+            "font-weight" : "bold",
+            "dx": "0em", //use if you want to offset x
+            "dy": "1.5em" //offset y relative to text-anchor
+        });
+        txt.text(annotation);
+        txtAnnotations.push({ txt: txt, x: x, y: y });
+    }
+
+    function redrawAnnotations() {
+        txtAnnotations.forEach(function (elem) {
+            elem.txt.attr({
+                "x": xScale.scale(elem.x),
+                "y": yScale.scale(elem.y)
+            });
+        });
+    }
+
     xScale.onUpdate(function () {
         dragBox.boxVisible(true);
         var xDomain = xScale.domain();
@@ -255,41 +319,72 @@ function loadExample() {
             topLeft: { x: sparklineXScale.scale(xDomain[0]), y: null },
             bottomRight: { x: sparklineXScale.scale(xDomain[1]), y: null }
         });
+        redrawAnnotations();
     });
-    var miniChart = new Plottable.Components.Group([sparkline, dragBox]);
 
+    yScale.onUpdate(function () {
+        redrawAnnotations();
+    });
+    var miniChart = new Plottable.Components.Group([sparkline, sparklineAnnotations, dragBox]);
     var pzi = new Plottable.Interactions.PanZoom(xScale, null);
     pzi.attachTo(plot);
 
     var output = d3.select("#timelineDetail");
-    var outputDefaultText = "Closest:"
-    output.text(outputDefaultText);
+    resetTDOutput(output);
 
-    var chart = new Plottable.Components.Table([
-      [yAxis, plot],
+    var colorScale = new Plottable.Scales.Color().range(g_TimelineColors).domain(["Spent", "Estimate", "Remain", "!Annotation"]);
+    var legend = new Plottable.Components.Legend(colorScale).xAlignment("center").yAlignment("center");
+    var gridline = new Plottable.Components.Gridlines(xScale, yScale);
+    resetChartline();
+    g_tl.chartBottom = miniChart;
+    g_tl.xAxisBottom = sparklineXAxis;
+    g_tl.container = new Plottable.Components.Table([ //ALERT: resize code assumes table positions
+      [yAxis, new Plottable.Components.Group([plot, plotAnnotations,gridline]),legend],
       [null, xAxis],
       [null, miniChart],
-      [null, sparklineXAxis]
+      [null, sparklineXAxis],
     ]);
-    chart.rowWeight(2, 0.2);
-    chart.renderTo("#timeline");
+    g_tl.container.rowWeight(2, 0.2);
+    g_tl.container.renderTo("#timeline");
+    checkHideTimelineSpark(); //this before annotations, top chart height could change
+    series.annotation.forEach(function (annotation) {
+        addAnnotationText(annotation.tooltip, annotation.x, annotation.y);
+    });
 
+    g_tl.redrawAnnotations = redrawAnnotations;
+    redrawAnnotations();
+    $($(".tooltipped")[0].getElementsByTagName("path")).qtip({
+        position: {
+            my: "bottom middle",
+            at: "top middle"
+        },
+        hide: {
+            delay: 400 //stay up a little so its harder to accidentally move a little the mouse and close it
+        },
+        style: {
+            classes: "qtip-dark"
+        }
+    });
     var crosshair = createCrosshair(plot);
     var pointer = new Plottable.Interactions.Click();
     pointer.onClick(function (p) {
         var nearestEntity = plot.entityNearest(p);
-        if (nearestEntity.datum == null) {
+        if (!nearestEntity || nearestEntity.datum == null) {
             return;
         }
         crosshair.drawAt(nearestEntity.position);
         var datum = nearestEntity.datum;
-        output.text("Closest: (" + datum.x.toLocaleString() + ", " + datum.y.toFixed(2) + ")");
+        if (!datum)
+            return; //for future
+        var d = datum.drill;
+        var html = getHtmlBurndownTooltip(d.user, d.card, d.date, d.spent, d.est, d.spentSum, d.estSum, d.remainSum, d.idCard, d.note);
+        output.html(html);
     });
     
     pointer.attachTo(plot);
 }
 
-function makeSeriesData(n, startDate,color) {
+function makeSeriesData(n, startDate,color, bDots) {
     startDate = startDate || new Date();
     var startYear = startDate.getUTCFullYear();
     var startMonth = startDate.getUTCMonth();
@@ -297,10 +392,12 @@ function makeSeriesData(n, startDate,color) {
     var toReturn = new Array(n);
     for (var i = 0; i < n; i++) {
         toReturn[i] = {
-            x: new Date(Date.UTC(startYear, startMonth, startDay + i)),
+            x: new Date(Date.UTC(startYear, startMonth, startDay + (i * (bDots?10:1)))),
             y: i > 0 ? toReturn[i - 1].y + Math.random() * 2 - 1 : Math.random() * 5,
-            stroke:color
+            stroke: color
         };
+        if (bDots)
+            toReturn[i].color = "black";
     };
     return toReturn;
 }
@@ -334,24 +431,11 @@ function createCrosshair(plot) {
 }
 
 function setChartData(rows, idBoard) {
-    loadExample();
-	$("#reportLink").show();
-	g_data = new google.visualization.DataTable();
-	g_data.addColumn('datetime', 'Date');
-	
-	g_data.addColumn('number', 'Spent');
-	g_data.addColumn({ 'type': 'string', 'role': 'tooltip', 'p': { 'html': true } });
-
-	g_data.addColumn({ type: 'string', role: 'annotation' });
-
-	g_data.addColumn('number', 'Estimate');
-	g_data.addColumn({ 'type': 'string', 'role': 'tooltip', 'p': { 'html': true } });
-
-	g_data.addColumn('number', 'Remaining');
-	g_data.addColumn({ 'type': 'string', 'role': 'tooltip', 'p': { 'html': true } });
-
+    resetChartline();
+    $("#reportLink").show();
+    $("#boardLink").show();
 	var i = 0;
-	var rowsNew = [];
+	var seriesTimeline = {spent:[],est:[],remain:[],annotation:[]};
 	var spentTotal = 0;
 	var estTotal = 0;
 	var totalByUser = {};
@@ -380,12 +464,20 @@ function setChartData(rows, idBoard) {
 		var remainTotalDisplay = parseFixedFloat(estTotal - spentTotal);
 		var spentTotalDisplay = parseFixedFloat(spentTotal);
 		var estTotalDisplay = parseFixedFloat(estTotal);
-		var html = getHtmlBurndownTooltip(user, card, date, parseFixedFloat(spent), parseFixedFloat(est), spentTotalDisplay, estTotalDisplay, remainTotalDisplay, idCard, comment);
 		var annotation = "";
 		var iAnnotation = comment.indexOf("!");
 		if (iAnnotation == 0 || comment.indexOf("] !") > 0) //needs to start with ! (] happens when Spent autoinserts markers like [+E] in the comment
 			annotation = comment.slice(iAnnotation + 1);
-		rowsNew.push([date, spentTotalDisplay, html, annotation, estTotalDisplay, html, remainTotalDisplay, html]);
+		
+		var objHtml = {
+            user:user, card:card, date:date, spent:parseFixedFloat(spent), est:parseFixedFloat(est), spentSum:spentTotalDisplay,
+		    estSum:estTotalDisplay, remainSum:remainTotalDisplay, idCard:idCard, note:comment
+            };
+		seriesTimeline.spent.push({ x: date, y: spentTotalDisplay, stroke: g_TimelineColors[0], drill: objHtml });
+		seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
+		seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
+		if (annotation)
+		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
 	}
 	g_dataUser = new google.visualization.DataTable();
 	g_dataUser.addColumn('string', 'Who');
@@ -400,23 +492,23 @@ function setChartData(rows, idBoard) {
 	}
 	addSumToRows(true, rowsUser, "E: ");
 	g_dataUser.addRows(rowsUser);
-	g_data.addRows(rowsNew);
 	var elemProgress = document.getElementById("progress");
-	var elemVisualization = document.getElementById('visualization');
 	var chartBottom = $("#visualizationBottom"); //review zig cleanup mix of jquery and native
+	var elemTimeline = $("#timeline");
 	if (rows.length == 0) {
 	    elemProgress.innerText = "No data for given board.";
 	    elemProgress.style.display = "block";
-	    elemVisualization.style.display = "none";
 	    chartBottom.hide();
+	    elemTimeline.hide();
+	    resetChartline();
 	}
 	else {
-	    elemVisualization.style.display = "block";
-	    g_chart = new google.visualization.LineChart(elemVisualization);
 		elemProgress.style.display = "none";
 		var heightUser = ((2 + g_dataUser.getNumberOfRows()) * g_heightBarUser);
+		elemTimeline.show();
 		chartBottom.show();
 		chartBottom.css("height", "" + heightUser);
+		loadTimeline(seriesTimeline);
 		g_chartUser = new google.visualization.BarChart(chartBottom[0]);
 		var chartLocal = g_chartUser;
 		g_chartUser.setAction({
@@ -437,7 +529,6 @@ function setChartData(rows, idBoard) {
 
 		if (g_bShowBoardMarkers && idBoard!=null)
 			loadBoardMarkers(idBoard, totalByUser);
-		drawChart();
 		drawChartUser();
 	}
 }
@@ -447,7 +538,7 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
-		rgRet.push({ name: makeDateOnlyString(date), bNoTruncate: true });
+		rgRet.push({ name: makeDateCustomString(date,true), bNoTruncate: true });
 
 		var urlCard = null;
 		if (row.idCardH.indexOf("https://") == 0)
@@ -469,8 +560,7 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 }
 
 function getHtmlBurndownTooltip(user, card, date, spent, est, sTotal, eTotal, rTotal, idCard, comment) {
-	var html = '<div class="agile_simpleTooltip">';
-	html += '<div class="agile_tooltipTable" style="padding:10px 10px 10px 10px;">';
+	var html = '';
 	var url = "";
 
 	if (idCard.indexOf("https://") == 0)
@@ -478,41 +568,14 @@ function getHtmlBurndownTooltip(user, card, date, spent, est, sTotal, eTotal, rT
 	else
 		url = "https://trello.com/c/" + idCard;
 
-	html += '<b><A target="_blank" href="' + url + '">' + card + '</A></b>';
-	html += '<P>' + date.toDateString() + '</P>';
-	html += '<P>user: ' + user + '</P>';
-	html += '<P>S:' + spent + '  E:' + est + '</P>';
+	html += makeDateCustomString(date,true) + '. ';
+	html += '<A target="_blank" href="' + url + '">' + card + '</A> ';
+	html += 'by ' + user + '. ';
+	html += 'S:' + spent + '  E:' + est;
 	if (comment != "")
-		html += '<P>' + comment + '</P>';
-	html += '<P></P>';
-	html += '<P>running totals S:' + sTotal + ' E:' + eTotal + ' R:' + rTotal + '</P>';
-	html += '<button class="closeBurndownTooltip">Close</button>';
-	html += '</DIV></DIV>';
+	    html += '. Note:' + comment;
+	html += '<br>Total S:' + sTotal + '&nbsp; E:' + eTotal + '&nbsp; R:' + rTotal;
 	return html;
-}
-
-function drawChart() {
-	if (g_chart == null)
-		return;
-	g_chart.draw(g_data, {
-		smoothLine: true,
-		//chartArea: {top: 0, bottom:0},
-		hAxis: {
-			format: 'yyyy.MM.dd',
-			slantedText: true,
-			slantedTextAngle: "45",
-			textStyle: { fontSize: "11" }
-		},
-
-		width: "100%", height: "100%", title: "Burndown", legend: "bottom",
-		titleTextStyle: { fontSize: "18", bold: true },
-		tooltip: { isHtml: true, trigger: 'selection' },
-		series: {
-		    0: { pointSize: 7, lineWidth: 2, color: '#D25656' },
-		    1: { pointSize: 7, lineWidth: 2, color: '#6F83AD' },
-		    2: { pointSize: 7, lineWidth: 2, color: '#519B51' }
-		}
-	});
 }
 
 

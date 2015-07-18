@@ -407,7 +407,7 @@ var Help = {
 	        helpWin.para('Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.', divCur);
 	    var txtSEByCardComments ='Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate multiple keywords with comma.';
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
-	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
 	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
@@ -630,8 +630,9 @@ var Help = {
 	    helpWin.para('&bull; When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b>.');
 	    helpWin.para('&bull; Similarly if S goes over E, increase R so its not negative. The card S/E bar automatically pre-fills E to');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;help you prevent negative R.');
-	    helpWin.para('&bull; You can use the <b>units:subunits</b> format to enter S/E. (hours:minutes when using "hour" units)');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 using hour units = <i>1 hour and 25 minutes</i> = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
+	    helpWin.para('&bull; You may use the units:subunits <b>colon format</b> to enter S/E. (ie hours:minutes when using "hour" units)');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 in hour units = 1 hour 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Soon Plus will have a preference to always show in "colon format". Currently Plus always converts to "decimal format".');
 	    helpWin.para('&bull; Add <b>[exclude]</b> to list names to exclude them from board sums on the trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
 	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
@@ -670,6 +671,7 @@ var Help = {
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
 	    helpWin.para("&bull; Start a timer from any card. The last active timer is always visible in the Chrome Plus icon and menu.");
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
+	    helpWin.para("&bull; Timers always fill Spent using 'decimal format' and not 'colon format'. See more under 'Best practices'.");
 	    helpWin.para("&bull; Timer popups will show much better if you <A href='' id='linkEnablePanels'>enable Chrome Panels</A>.").find("#linkEnablePanels").click(function (e) {
 	        e.preventDefault();
 	        sendExtensionMessage({ method: "openChromeOptionsPanels" }, function (response) { });
@@ -708,7 +710,7 @@ var Help = {
 	    helpWin.para('&bull; At the end, green (R) stays at zero and red (S) stops climbing.');
 	    helpWin.para('&bull; Click on a dot to see more details and drill-down to the card.');
 	    helpWin.para('&bull; Click on a user chart bar to drill-down into a report and cards.');
-	    helpWin.para('&bull; Add a chart annotation by entering a card S/E row with a <A href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html" target="_blank">note starting with "!"</A>.');
+	    helpWin.para('&bull; Add a chart annotation by entering a card S/E row with a <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">note starting with "!"</A>.');
 	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">See another example</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');

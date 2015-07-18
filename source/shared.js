@@ -1191,8 +1191,15 @@ function getWithZeroPrefix(number) {
 }
 
 //YYYY-MM-DD 
-function makeDateOnlyString(date) {
-	return date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1) + "-" + getWithZeroPrefix(date.getDate());
+function makeDateCustomString(date, bWithTime) {
+    var ret = date.getFullYear() + "-" + getWithZeroPrefix(date.getMonth() + 1) + "-" + getWithZeroPrefix(date.getDate());
+    if (bWithTime) {
+        var hours = date.getHours();
+        var minutes = date.getMinutes();
+        var strTime = getWithZeroPrefix(hours) + ':' + getWithZeroPrefix(minutes);
+        ret = ret + " " + strTime;
+    }
+    return ret;
 }
 
 function getDeltaDates(dateA, dateB) {

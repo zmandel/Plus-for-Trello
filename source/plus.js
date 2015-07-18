@@ -1138,7 +1138,7 @@ function processUserSENotifications(sToday,sWeek) {
 		sendExtensionMessage({ method: "setBadgeData", text: "" + sBadge, weeknum: getCurrentWeekNum()});
 		var dtToday = new Date();
 		var key = "spentLastNotified";
-		var strToday = makeDateOnlyString(dtToday);
+		var strToday = makeDateCustomString(dtToday);
 		chrome.storage.local.get(key, function (obj) {
 			var value = obj[key];
 			if (value != null) {
@@ -1618,7 +1618,7 @@ function getHtmlDrillDownTooltip(rows, bReverse, colExclude) {
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
-		rgRet.push({ name: makeDateOnlyString(date), bNoTruncate: true });
+		rgRet.push({ name: makeDateCustomString(date,true), bNoTruncate: true });
 		if (colExclude!="User")
 			rgRet.push({ name: row.user, bNoTruncate: false });
 		if (colExclude != "Board")

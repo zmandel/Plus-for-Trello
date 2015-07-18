@@ -329,7 +329,7 @@ function handleCardTour() {
                {
                    selector: ".agile-se-bar-entry",
                    focus: ".agile_days_box_input",
-                   text: "For advanced S/E entry see<br><a style='color:white;' href='http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html' target='_blank'>S/E comment format</a>.",
+                   text: "For advanced S/E entry see<br><a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>S/E comment format</a>.",
                    angle: 90,
                    distance: 0,
                    size: 200
