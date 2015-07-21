@@ -54,18 +54,18 @@ svg.plottable {
 }
 
 .plottable .label text {
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
   fill: #32313F;
 }
 
 .plottable .bar-label-text-area text {
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
   font-size: 14px;
 }
 
 .plottable .label-area text {
   fill: #32313F;
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
   font-size: 14px;
 }
 
@@ -102,7 +102,7 @@ svg.plottable {
 
 .plottable .axis text {
   fill: #32313F;
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
   font-size: 12px;
   font-weight: 200;
   line-height: normal;
@@ -147,7 +147,7 @@ svg.plottable {
 
 .plottable .legend text {
   fill: #32313F;
-  font-family: "Helvetica Neue", sans-serif;
+  font-family: "Helvetica Neue",Arial,Helvetica,sans-serif;
   font-size: 12px;
   font-weight: bold;
   line-height: normal;

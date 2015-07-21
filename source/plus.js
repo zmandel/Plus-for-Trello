@@ -303,9 +303,9 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 var g_bDidInitialIntervalsSetup = false;
 
 function initialIntervalsSetup() {
-	spentTotal = InfoBoxFactory.makeTotalInfoBox(SPENT).hide();
-	estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION).hide();
-	remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING).hide();
+	spentTotal = InfoBoxFactory.makeTotalInfoBox(SPENT,true).hide();
+	estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, true).hide();
+	remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
 
 	setTimeout(function () {
 	    update(false); //first update
@@ -1534,7 +1534,7 @@ function handleLoadPending(listElem, data) {
 			bError = true;
 		}
 
-		var badge = BadgeFactory.makeRemainingBadge();
+		var badge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_home");
 		badge.contents().last()[0].textContent = parseFixedFloat(row.diff);
 		var color = null;
 		if (cDays > 7 && !bError)
@@ -1545,23 +1545,6 @@ function handleLoadPending(listElem, data) {
 	}
 }
 
-function handleLoadUnspent(listElem, data) {
-	var i = 0;
-	for (i = 12; ; i++) {
-		if (i >= data.length)
-			break;
-		var row = data[i];
-		if (row[1] == "" || row[1] == "--")
-			break;
-		var badge = BadgeFactory.makeRemainingBadge();
-		badge.contents().last()[0].textContent = data[i][3];
-		var tooltip = "Last S/E " + row[4] + (row[4] == "1" ? " day ago." : " days ago.");
-		var color = null;
-		if (row[4] > 7 && !bError)
-			color = "darkgray";
-		addDashboardListItem(listElem, data[i][1] + " - " + data[i][2], data[i][5], badge, tooltip, color);
-	}
-}
 
 function dateDiffInDays(a, b) {
 	// Discard the time and time-zone information.

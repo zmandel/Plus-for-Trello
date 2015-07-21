@@ -27,7 +27,7 @@
 }
 
 .agile_remaining_background {
-    background: #CAE3CA !important;
+    background: #BCDCBC !important;
 }
 
 .agile_dialog_ExtensionUpgraded {
@@ -117,16 +117,17 @@ border:none !important;
 div.agile_box {
 	border: 0;
 	border-radius: 3px;
-	color: black;
+	color: #4d4d4d;
 	float: left;
-	font: 15px Helvetica;   
+    font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
+	font: 14px;   
 	padding: 2px 4px 2px 4px;
 	text-align: center;
 	width: auto;
 }
 
 .agile_box_partialUpdate {
-    color: #777777 !important;
+    color: #D9D9D9 !important;
 }
 
 .agile_plus_filter_old {
@@ -149,24 +150,51 @@ div.agile_box {
 }
 
 div.agile_estimation_box {
-	background-color: #C5CDDE;
     margin-right: 5px;
 }
 
+.agile_estimation_box:hover {
+	background-color: #6F83AD !important;
+    color: black !important;
+}
+
 div.agile_spent_box {
-	background-color: #F2CECE;
 	margin-right: 5px;
 }
 
-div.agile_remaining_box {
-	background-color: #CAE3CA;
+.agile_spent_box:hover {
+	background-color: #D25656 !important;
+    color: black !important;
+}
+
+
+.agile_remaining_box:hover {
+	background-color: #519B51 !important;
+    color: black !important;
+}
+
+div.agileBox_right {
+    float: right !important;
+    margin-top: 5px !important;
+    margin-right: 10px !important;
+}
+
+div.agileBox_home {
+    line-height:14px !important;
+    font-size: 14px !important;
+    font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
 }
 
 div.agile_total_box {
-	float: right;
-	margin-right: 10px;
-	margin-top: 5px;
+	margin-right: 5px;
     cursor:default;
+    border-radius:2px;
+    border: solid 1px rgba(255, 255, 155, .5);
+    color: #f6f6f6;
+    background-color: transparent;
+    min-width:1em !important;
+    font-weight:normal !important;
+    font-size: 14px !important;
 }
 
 .agile_miniHelp_container {
@@ -190,42 +218,85 @@ label.agile_ignore_filters_option input {
 }
 
 .agile_badge {
-	color: black !important;
 	padding-left: 4px !important;
+    border-radius:2px;
+    color: #8c8c8c !important;
+    min-width:.9em !important;
 }
 
-div.agile_badge_estimate {
-	background: #C5CDDE;
-	border: 1px solid #C5CDDE;
+.agile_badge_cardback {
+    margin-top: -2px !important;
+    margin-bottom: 8px !important;
+    text-align:center !important;
 }
 
-div.agile_badge_spent {
-	background: #F2CECE;
-	border: 1px solid #F2CECE;
+.agile_badge_home {
+    margin-top: 3px !important;
 }
 
-div.agile_badge_remaining {
-	background: #CAE3CA;
-	border: 1px solid #CAE3CA;
+.agile_listboard_header {
+    margin-top:3px !important;
+}
+
+.agile_badge_list {
+    background-color:transparent !important;
+    border: 1px solid #B2B2B2 !important;
+    min-width:0.9em !important;
+    border-radius:2px !important;
+    color: #8D8D8D !important;
+    line-height: 0.9em !important;
+}
+
+.agile_badge_estimate {
+	border: 1px solid #E2E2E2;
+    color: #8c8c8c !important;
+}
+
+.agile_badge_estimate:hover {
+	background-color: #6F83AD !important;
+    color: black !important;
+}
+
+.agile_badge_spent {
+	border: 1px solid #E2E2E2;
+    color: #8c8c8c !important;
+}
+
+.agile_badge_spent:hover {
+	background-color: #D25656 !important;
+    color: black !important;
+}
+
+.agile_badge_remaining {
+	border: 1px solid #E2E2E2;
+    color: #8c8c8c !important;
+}
+
+.agile_badge_remaining:hover {
+	background-color: #519B51 !important;
+    color: #4d4d4d !important;
+}
+
+.agile_badge_hashtag:hover {
 }
 
 .agile_badge_hashtag_primary {
-	line-height: 1em;
-	color: black;
-	background: #FBF3D7;
-	border: 1px solid #E5D49C;
+	line-height: 17px;
+	color: #8c8c8c;
 	font-weight: bold;
-	padding: 4px 4px 2px 4px !important;
+	padding: 1px 5px 0px 5px !important;
+    margin: -2px 8px 8px 0px !important;
 	border-radius: 7px !important;
+    border: 1px solid #DBDBDB;
 }
 
 .agile_badge_hashtag_secondary {
-	line-height: 1em;
-	color: black;
-	background: #FBF3D7;
-	border: 1px solid #E5D49C;
-	padding: 4px 4px 2px 4px !important;
+	line-height: 17px;
+	color: #8c8c8c;
+	padding: 1px 5px 0px 5px !important;
+    margin: -2px 8px 8px 0px !important;
 	border-radius: 7px !important;
+    border: 1px solid #DBDBDB;
 }
 
 a.agile_close_button {
@@ -237,15 +308,6 @@ a.agile_close_button {
 	padding: 0 5px 0 5px !important;
 }
 
-.agile_spreadsheet_note_a {
-	color: white !important;
-	background-color: #D64141 !important;
-}
-
-.agile_spreadsheet_note_b {
-	color: black !important;
-	background-color: white !important;
-}
 
 .agile_plus_header_error {
 	background-color: #D64141 !important;
@@ -315,7 +377,7 @@ div#spent_serviceUrlConfig_container {
 
 
 .agile_topLevelTooltipContainer {
-	font-family: arial !important;
+	font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
 }
 
 .agile_tooltip_scroller {
@@ -357,7 +419,7 @@ padding-left:4px;
 .agile_tooltipTable {
 	border: 0px !important;
 	border-spacing: 0px !important;
-	font-family: arial !important;
+	font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
 	font-size: 14px !important;
     width: 100% !important;
 }
@@ -1256,6 +1318,7 @@ table#tableMarkers td {
 .agile_tabselector_list {
     margin-bottom:0px;
     margin-top:10px;
+    line-height: 17px !important;
 }
 
 .agile_tabselector_list table tr {
@@ -1406,7 +1469,7 @@ table#tableMarkers td {
 }
 
 .agile_toplevel_report_container {
-	font-family: arial !important;
+	font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
 	font-size: 12px !important;
 }
 
@@ -1510,10 +1573,10 @@ table#tableMarkers td {
     color:#939393;
     padding-left: 10px;  /* increase click area */
     padding-right: 10px;
-    padding-bottom:3px;
-    padding-top:2px;
+    padding-bottom:0px;
+    padding-top:0px;
     border-radius:2px;
-    vertical-align:middle;
+    vertical-align:top;
 }
 
 .agile-open-card-composer:hover {

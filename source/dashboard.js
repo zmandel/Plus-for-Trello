@@ -29,6 +29,9 @@ function checkHideTimelineSpark() {
 }
 
 function redrawCharts() {
+    if (g_tl.crosshair)
+        g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
+
     if (g_tl.container) {
         if (g_tl.chartBottom)
             g_tl.container.add(g_tl.chartBottom, 2, 1);
@@ -219,6 +222,7 @@ function addRowMarkerData(table, rowData, colors, bHeader) {
 }
 
 function resetChartline() {
+    g_tl.crosshair = null;
     g_tl.chartBottom = null;
     g_tl.xAxisBottom = null;
     g_tl.redrawAnnotations = null;
@@ -254,7 +258,7 @@ function loadTimeline(series) {
 
     var plotAnnotations = new Plottable.Plots.Scatter(xScale, yScale);
     plotAnnotations.addClass("tooltipped");
-    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
+    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>' + makeDateCustomString(d.x) + '</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
     plotAnnotations.size(13);
     plotAnnotations.attr("fill","black");
     plotAnnotations.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
@@ -313,6 +317,8 @@ function loadTimeline(series) {
     }
 
     xScale.onUpdate(function () {
+        if (g_tl.crosshair)
+            g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
         dragBox.boxVisible(true);
         var xDomain = xScale.domain();
         dragBox.bounds({
@@ -335,6 +341,7 @@ function loadTimeline(series) {
     var colorScale = new Plottable.Scales.Color().range(g_TimelineColors).domain(["Spent", "Estimate", "Remain", "!Annotation"]);
     var legend = new Plottable.Components.Legend(colorScale).xAlignment("center").yAlignment("center");
     var gridline = new Plottable.Components.Gridlines(xScale, yScale);
+    gridline.addClass("timelineGridline");
     resetChartline();
     g_tl.chartBottom = miniChart;
     g_tl.xAxisBottom = sparklineXAxis;
@@ -342,7 +349,7 @@ function loadTimeline(series) {
       [yAxis, new Plottable.Components.Group([plot, plotAnnotations,gridline]),legend],
       [null, xAxis],
       [null, miniChart],
-      [null, sparklineXAxis],
+      [null, sparklineXAxis]
     ]);
     g_tl.container.rowWeight(2, 0.2);
     g_tl.container.renderTo("#timeline");
@@ -366,6 +373,7 @@ function loadTimeline(series) {
         }
     });
     var crosshair = createCrosshair(plot);
+    g_tl.crosshair = crosshair;
     var pointer = new Plottable.Interactions.Click();
     pointer.onClick(function (p) {
         var nearestEntity = plot.entityNearest(p);
@@ -398,21 +406,15 @@ function makeSeriesData(n, startDate,color, bDots) {
         };
         if (bDots)
             toReturn[i].color = "black";
-    };
+    }
     return toReturn;
 }
 
 function createCrosshair(plot) {
     var crosshair = {};
     var crosshairContainer = plot.foreground().append("g").style("visibility", "hidden");
-    crosshair.vLine = crosshairContainer.append("line")
-                      .attr("stroke", "black")
-                      .attr("y1", 0)
-                      .attr("y2", plot.height());
-    crosshair.circle = crosshairContainer.append("circle")
-                      .attr("stroke", "black")
-                      .attr("fill", "white")
-                      .attr("r", 3);
+    crosshair.vLine = crosshairContainer.append("line").attr("stroke", "black").attr("y1", 0).attr("y2", plot.height());
+    crosshair.circle = crosshairContainer.append("circle").attr("stroke", "black").attr("fill", "white").attr("r", 3);
     crosshair.drawAt = function (p) {
         crosshair.vLine.attr({
             x1: p.x,
@@ -423,10 +425,10 @@ function createCrosshair(plot) {
             cy: p.y
         });
         crosshairContainer.style("visibility", "visible");
-    }
+    };
     crosshair.hide = function () {
         crosshairContainer.style("visibility", "hidden");
-    }
+    };
     return crosshair;
 }
 
@@ -477,7 +479,7 @@ function setChartData(rows, idBoard) {
 		seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
 		seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
 		if (annotation)
-		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation.substring(0,40), sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
 	}
 	g_dataUser = new google.visualization.DataTable();
 	g_dataUser.addColumn('string', 'Who');
@@ -560,7 +562,7 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 }
 
 function getHtmlBurndownTooltip(user, card, date, spent, est, sTotal, eTotal, rTotal, idCard, comment) {
-	var html = '';
+	var html = "";
 	var url = "";
 
 	if (idCard.indexOf("https://") == 0)

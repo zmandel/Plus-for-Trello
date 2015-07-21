@@ -1,3 +1,15 @@
 ﻿.minichartBurndownXLine * {
     font-size:10px !important;
 }
+
+.minichartBurndownXLine line {
+    stroke:#CDCDCD !important;
+}
+
+.timelineGridline line {
+    stroke:#CDCDCD !important;
+}
+
+#timelineDetail {
+    font-size: 0.8em !important;
+}
