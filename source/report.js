@@ -627,7 +627,7 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 		        el.css("background", color);
 		        if (rgb == null)
 		            rgb = rgbFromHex(color);
-		        var colorText = "black";
+		        var colorText = g_colorTrelloBlack;
 		        if (rgb) {
 		            if (el.hasClass("agile_pivotCell_Zero"))
 		                colorText = color; //prevent filling report with zeros which clutter it. value is there but with color equal to background
@@ -982,6 +982,7 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 	if (completerPattern)
 		val = completeString(val, completerPattern);
 	var sql = "";
+	var parts = null;
 	if (bString && btoUpper)
 		val = val.toUpperCase();
 
@@ -990,7 +991,7 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 		val = g_mapETypeParam[val];
 
 	if (param == "sinceSimple") {
-		var parts = val.split("-");
+		parts = val.split("-");
 		if (parts.length < 2)
 			return "";	 //ignore if value is not in tuple format. caller deals with those (advanced, all, etc)
 		var now = new Date();
@@ -1001,6 +1002,25 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 
 		now.setDate(now.getDate() - delta);
 		val = Math.round(now.getTime() / 1000); //db date are in seconds
+	}
+
+    //a bit ugly to reuse the old month field but it was easiest like this and falls back to month when needed
+    //historically this only filtered on months. really using the month field is about the same as using the date filter perf-wise
+    //but keeping the special-case month filter as it might be a bit faster on large reports
+	if (param == "monthStart" || param == "monthEnd") {
+	    parts = val.split("-");
+	    if (parts.length == 3) {
+	        var yearParsed = parseInt(parts[0],10);
+	        var monthParsed = parseInt(parts[1], 10);
+	        var dayParsed = parseInt(parts[2], 10);
+	        if (yearParsed > 1900 && monthParsed > 0 && dayParsed > 0) {
+	            var dateParsed = new Date(yearParsed, monthParsed-1, dayParsed);
+	            if (param == "monthEnd")
+	                dateParsed.setHours(23, 59, 59, 999);
+	            sqlField = "date";
+	            val = Math.round(dateParsed.getTime() / 1000); //db date are in seconds
+	        }
+	    }
 	}
 
 	if (param == "archived") {
@@ -1084,16 +1104,16 @@ function buildSql(elems) {
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
 	var groupByLower = groupBy.toLowerCase();
-	if (groupBy != "" && groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0 &&
-        !elems["weekStart"] && !elems["weekEnd"] &&
-        !elems["monthStart"] && !elems["monthEnd"]) {
+	if (groupBy != "" &&
+        (groupByLower.indexOf("card") >= 0 || (groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0)) &&
+        !elems["weekStart"] && !elems["weekEnd"]) {
 	    assert(!g_bBuildSqlMode);
 
 	    //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
 	    sql += " UNION ALL \
-                select -1 as rowid, '' as keyword, '' as user, '' as week, '' as month, 0 as spent, 0 as est, \
+                select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
                 0 as estFirst, \
-                cast(strftime('%s',C.dateSzLastTrello) as INTEGER) as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
+                case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
@@ -1615,8 +1635,19 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 		var pGroups = propertyGroup.split("-");
 		var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
 		var propDateTimeString = "dtString";
+		var bGroupByCardUser = (propertyGroup == "idCardH-user"); //in this case, we want to remove rows without user when another s/e row with the same card exists in the result
+		var mapCardsHandled = {}; //only used for bGroupByCardUser
+		var row = null;
 		for (; i < cMax; i++) {
-		    var row = rowsOrig[i];
+		    row = rowsOrig[i];
+
+		    if (bGroupByCardUser && row.idCardH) {
+		        if (row.user && !mapCardsHandled[row.idCardH])
+		            mapCardsHandled[row.idCardH] = true;
+
+		        if (!row.user && mapCardsHandled[row.idCardH])
+		            continue; //filter row out
+		    }
 
 		    if (row.date !== undefined && (row[propDateString] === undefined || row[propDateTimeString] === undefined)) {
 		        var dateRow = new Date(row.date * 1000); //db is in seconds
@@ -1633,7 +1664,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 			if (group === undefined)
 				group = cloneObject(row);
 			else {
-			    //rowid -1 when its just a card row (from the query UNION)
+			    //rowid -1 when its a card row (from the query UNION)
 			    if (group.rowid == -1 && row.rowid != -1) {
 			        var sSave = group.spent;
 			        var eSave = group.est;
@@ -1658,6 +1689,14 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 
 
 		for (i in map) {
+		    row = map[i];
+		    if (bGroupByCardUser && row.idCardH) {
+		        if (row.user && !mapCardsHandled[row.idCardH])
+		            mapCardsHandled[row.idCardH] = true;
+
+		        if (!row.user && mapCardsHandled[row.idCardH])
+		            continue; //filter row out
+		    }
 			ret.push(map[i]);
 		}
 	} else {
@@ -1750,17 +1789,18 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	    var rgRet = [];
 	    var dateString = row["dateString"];
 	    var dateTimeString = row["dtString"];
+	    var daterow = new Date(row.date * 1000); //db is in seconds
 	    if (dateString === undefined || dateTimeString === undefined) {
-	        var dateDbUse = new Date(row.date * 1000); //db is in seconds
+	        var dateDbUse = daterow;
 	        dateString = makeDateCustomString(dateDbUse);
 	        dateTimeString = makeDateCustomString(dateDbUse,true);
 	    }
 	    if (bShowKeyword)
 	        rgRet.push({ name: row.keyword, bNoTruncate: true });
 	    rgRet.push({ name: (bGroupedByDate?dateString : dateTimeString), bNoTruncate: true });
-	    rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
+	    rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
 		if (bShowMonth)
-		    rgRet.push({ name: row.month ? row.month : getCurrentWeekNum(new Date(row.date * 1000)), bNoTruncate: true });
+		    rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
 		if (bShowUser)
 			rgRet.push({ name: row.user, bNoTruncate: bNoTruncate });
 
@@ -1830,7 +1870,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		        delta = "";
 		        postFix = "today";
 		    }
-		    rgRet.title = rgRet.title + "\n" +  makeDateCustomString(dateRow,true)+ " "+delta + postFix;
+		    rgRet.title = rgRet.title + "\n" + makeDateCustomString(dateRow, true) + " (" + getCurrentWeekNum(dateRow) + ") " + delta + postFix;
 		}
 		return rgRet;
 	}

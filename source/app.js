@@ -18,7 +18,7 @@ function getSpentSpecialUser() {
 
 //insertCardTimer
 //
-function insertCardTimer() {
+function insertCardTimer(containerBar) {
 
     tryInsert();
 
@@ -48,7 +48,7 @@ function insertCardTimer() {
 	    if (divInsert.find($("#agile_timer")).size() != 0)
 	        return true;
 
-	    divInsert.prepend(loadCardTimer(idCardCur));
+	    divInsert.prepend(loadCardTimer(idCardCur, containerBar));
 	    return true;
 	}
 }

@@ -258,7 +258,7 @@ function loadTimeline(series) {
 
     var plotAnnotations = new Plottable.Plots.Scatter(xScale, yScale);
     plotAnnotations.addClass("tooltipped");
-    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>' + makeDateCustomString(d.x) + '</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
+    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>' + makeDateCustomString(d.x) + ' (' + getCurrentWeekNum(d.x) + ')</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
     plotAnnotations.size(13);
     plotAnnotations.attr("fill","black");
     plotAnnotations.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
@@ -301,7 +301,8 @@ function loadTimeline(series) {
             "font-size": "0.8em",
             "font-weight" : "bold",
             "dx": "0em", //use if you want to offset x
-            "dy": "1.5em" //offset y relative to text-anchor
+            "dy": "1.5em", //offset y relative to text-anchor
+            "fill": g_colorTrelloBlack
         });
         txt.text(annotation);
         txtAnnotations.push({ txt: txt, x: x, y: y });
@@ -392,29 +393,12 @@ function loadTimeline(series) {
     pointer.attachTo(plot);
 }
 
-function makeSeriesData(n, startDate,color, bDots) {
-    startDate = startDate || new Date();
-    var startYear = startDate.getUTCFullYear();
-    var startMonth = startDate.getUTCMonth();
-    var startDay = startDate.getUTCDate();
-    var toReturn = new Array(n);
-    for (var i = 0; i < n; i++) {
-        toReturn[i] = {
-            x: new Date(Date.UTC(startYear, startMonth, startDay + (i * (bDots?10:1)))),
-            y: i > 0 ? toReturn[i - 1].y + Math.random() * 2 - 1 : Math.random() * 5,
-            stroke: color
-        };
-        if (bDots)
-            toReturn[i].color = "black";
-    }
-    return toReturn;
-}
 
 function createCrosshair(plot) {
     var crosshair = {};
     var crosshairContainer = plot.foreground().append("g").style("visibility", "hidden");
-    crosshair.vLine = crosshairContainer.append("line").attr("stroke", "black").attr("y1", 0).attr("y2", plot.height());
-    crosshair.circle = crosshairContainer.append("circle").attr("stroke", "black").attr("fill", "white").attr("r", 3);
+    crosshair.vLine = crosshairContainer.append("line").attr("stroke", g_colorTrelloBlack).attr("y1", 0).attr("y2", plot.height());
+    crosshair.circle = crosshairContainer.append("circle").attr("stroke", g_colorTrelloBlack).attr("fill", "white").attr("r", 3);
     crosshair.drawAt = function (p) {
         crosshair.vLine.attr({
             x1: p.x,
@@ -496,6 +480,7 @@ function setChartData(rows, idBoard) {
 	g_dataUser.addRows(rowsUser);
 	var elemProgress = document.getElementById("progress");
 	var chartBottom = $("#visualizationBottom"); //review zig cleanup mix of jquery and native
+	var elemFilter = $("#filtersContainer");
 	var elemTimeline = $("#timeline");
 	if (rows.length == 0) {
 	    elemProgress.innerText = "No data for given board.";
@@ -507,6 +492,7 @@ function setChartData(rows, idBoard) {
 	else {
 		elemProgress.style.display = "none";
 		var heightUser = ((2 + g_dataUser.getNumberOfRows()) * g_heightBarUser);
+		elemFilter.show();
 		elemTimeline.show();
 		chartBottom.show();
 		chartBottom.css("height", "" + heightUser);
@@ -554,7 +540,7 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 		rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
 		rgRet.push({ name: row.comment, bNoTruncate: false });
 		rgRet.push({ name: nameFromEType(row.eType), bNoTruncate: true });
-		rgRet.title = "("+sPush+" / "+estPush+") "+row.comment;
+		rgRet.title = "(" + sPush + " / " + estPush + ") " + " " + getCurrentWeekNum(date) + ". " + row.comment;
 		return rgRet;
 	}
 
@@ -570,7 +556,7 @@ function getHtmlBurndownTooltip(user, card, date, spent, est, sTotal, eTotal, rT
 	else
 		url = "https://trello.com/c/" + idCard;
 
-	html += makeDateCustomString(date,true) + '. ';
+	html += makeDateCustomString(date, true) + " (" + getCurrentWeekNum(date)+") ";
 	html += '<A target="_blank" href="' + url + '">' + card + '</A> ';
 	html += 'by ' + user + '. ';
 	html += 'S:' + spent + '  E:' + est;
@@ -585,11 +571,12 @@ function drawChartUser() {
 	if (g_chartUser == null)
 		return;
 	var style = {
-		title: "By User",
+	    title: "By User",
 		tooltip: { isHtml: false, trigger: 'selection' },
 		titleTextStyle: { fontSize: "16", bold: true },
 		chartArea: { left: 130, top: 40, height: g_dataUser.getNumberOfRows() * g_heightBarUser },
 		height: "100%",
+		titleTextStyle: { color: '#4D4D4D', fontSize: 16 },
 		vAxes: [{
 			textStyle: {
 				//color: "#222",

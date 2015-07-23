@@ -330,7 +330,9 @@ var Help = {
         helpWin.para('&nbsp');
 
         helpWin.para('<b>Plus card S/E bar</b>');
-        helpWin.para('Open any card to see its S/E bar.');
+        helpWin.para('Open any card and click the Plus icon inside the card comment.');
+        helpWin.para('<img src="' + chrome.extension.getURL("images/showsebar.png") + '"/>');
+        helpWin.para('&nbsp');
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
         helpWin.para('<b>E</b>stimate the units needed to finish a card, for "me" (you) or any user.');
         helpWin.para('<b>S</b>pend units from your estimate.');
@@ -652,7 +654,7 @@ var Help = {
 	    helpWin.para('<b><h2 id="agile_help_plusmenu">Plus menu</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/plusmenu.png") + '"/>');
 	    helpWin.para('<A href="https://www.youtube.com/watch?v=gbAZXtaRi5o" target="_blank">Don\'t see the Plus menu icon?</A>');
-	    helpWin.para('The icon changes to <img src="' + chrome.extension.getURL("images/icon19New.png") + '"/> (green dot top-left) when there are <b>new S/E</b> rows from your team.');
+	    helpWin.para('The icon changes to <img src="' + chrome.extension.getURL("images/icon19new.png") + '"/> (green dot top-left) when there are <b>new S/E</b> rows from your team.');
 	    helpWin.para('Click the menu to open a board, card, report or dashboard even when offline.');
 	    helpWin.para('Find boards, top 10 cards (last 12 months) and Plus notes (last 4 months).');
         helpWin.para('Type words in any order. Cards are searched if you type three or more characters.');
@@ -693,12 +695,12 @@ var Help = {
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_hashtags">Card Hashtags #</h2></b>');
-	    helpWin.para('Add #tags to cards to classify them. Use the hashtag list inside cards or type them directly in card titles.');
-	    helpWin.para('Hashtags are similar to Trello labels with the advantage of seeing hashtag text in the board view and shared across all boards.');
+	    helpWin.para('Add #tags to cards. Use the hashtag list inside cards or type them directly in card titles.');
+	    helpWin.para('Hashtags are similar to Trello labels with the advantage of viewing them in the card back and shared across all boards.');
 	    helpWin.para('Search cards by hashtag in the Chrome Plus menu or reports (Plus does not currently support reports by labels.)');
-	    helpWin.para('A card with title "This is a card #low #review" shows as:');
+	    helpWin.para('A card with title "This is a card <b>#review #sales #urgent!</b>" shows as:');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/cardht.png") + '"/>');
-	    helpWin.para('The first #tag is always shown bold.');
+	    helpWin.para('Tags containing "!" are highlighted in yellow.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -727,8 +729,8 @@ var Help = {
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_moreless">More - Less</h2></b>');
-	    helpWin.para("&bull; Clicking 'Less' on the top bar hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
+	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
+	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/810-enabling-power-ups">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -738,7 +740,7 @@ var Help = {
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_prefs">&#10162; Preferences</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('Reload this and other Chrome Trello tabs after changing preferences.');
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');

@@ -179,10 +179,12 @@ function insertPlusFeedWorker(stateFeed, key) {
 		icon.attr("src", chrome.extension.getURL(bShowNewIcon ? "images/new.png" : pathImgRecent));
 		var iitem = 0;
 		var titleTip = titleTipBase;
-		for (; stateFeed.items && iitem < stateFeed.items.length; iitem++) {
-			var item = stateFeed.items[iitem];
-				var datePub = new Date(item.d);
-				titleTip += ("\n\n• " + datePub.toLocaleDateString() + ": " + item.t);
+		if (false) { //dont show preview 
+		    for (; stateFeed.items && iitem < stateFeed.items.length; iitem++) {
+		        var item = stateFeed.items[iitem];
+		        var datePub = new Date(item.d);
+		        titleTip += ("\n\n• " + datePub.toLocaleDateString() + ": " + item.t);
+		    }
 		}
 		icon.attr("title", titleTip);
 		spanIcon.fadeIn(600, function () {

@@ -1,5 +1,6 @@
 ﻿var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
+var g_bShowSEBar = false;
 
 var g_strDateOtherOption = "other date...";
 var g_valDayExtra = null; //for "other" date in S/E bar
@@ -356,6 +357,59 @@ function fillComboUsers(comboUsers, userSelected) {
 		});
 }
 
+
+function showSEButtonBubble(elem) {
+    if (isTourRunning())
+        return;
+
+    var step = {
+        selector: elem,
+        text: "Add Plus S/E<br>from here!",
+        angle: 0,
+        distance: 10,
+        size: 150
+    };
+    showBubbleFromStep(step, true, true, 0);
+}
+
+function createSEButton() {
+    var parent = $(".new-comment .comment-box-options");
+    if (parent.length == 1) {
+        var a = $("<A class='comment-box-options-item agile-addSEButton' href='#' title='Add Plus S/E...'>");
+        var spanIcon = $("<span class='icon-sm'/>");
+        var icon = $("<img style='margin-top:2px;'>").attr("src", chrome.extension.getURL("images/iconaddse.png"));
+
+        //icon.addClass("agile-spent-icon-cardcommentSE");
+        spanIcon.append(icon);
+        a.append(spanIcon);
+        parent.prepend(a);
+        chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
+            if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
+                showSEButtonBubble(a);
+                obj[SYNCPROP_bShowedFeatureSEButton] = true;
+                chrome.storage.sync.set(obj, function () {
+                    if (chrome.runtime.lastError !== undefined)
+                        return; //just to reference it so chrome debugger doesnt complain
+                });
+            }
+        });
+
+        a.click(function () {
+            showSEBarContainer();
+            setTimeout(function () {
+                $(".agile_spent_box_input").focus();
+            },0);
+            
+        });
+    }
+}
+
+function showSEBarContainer(bDontRemember) {
+    $(".agile-se-bar-entry").show();
+    if (!bDontRemember)
+        g_bShowSEBar = true;
+}
+
 function createCardSEInput(parentSEInput, idCardCur) {
     assert(idCardCur);
 	var bHasSpentBackend = isBackendMode();
@@ -365,6 +419,8 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	var containerStats = $("<div></div>");
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry no-print'></table>");
+	if (!g_bShowSEBar)
+        containerBar.hide();
 	containerStats.append(tableStats);
 	container.append(containerStats);
 	container.append(containerBar);
@@ -617,6 +673,8 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	parentSEInput.before(container);
 	fillCardSEStats(tableStats, function () {
 	    container.show();
+	    createSEButton();
+	    insertCardTimer();
 	    g_currentCardSEData.loadFromStorage(idCardCur, function () {
 	        if (g_currentCardSEData.idCard != idCardCur)
 	            return; //timing. should never happen but just in case
@@ -650,7 +708,8 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	        if (bFocus) {
 	            $("#plusCardCommentEnterButton").addClass("agile_box_input_hilite");
 	            var strWhen = getTimeDifferenceAsString(g_currentCardSEData.msTime, true);
-	            sendDesktopNotification("This card has a draft s/e row from " + strWhen+".\nEnter it or clear s/e/note.", 8000);
+	            sendDesktopNotification("This card has a draft s/e row from " + strWhen + ".\nEnter it or clear s/e/note.", 8000);
+	            showSEBarContainer();
 	        }
 	    });
 	});
@@ -825,14 +884,22 @@ function fillCardSEStats(tableStats,callback) {
         getSQLReport(sql, values,
             function (response) {
                 tableStats.empty();
+                containerStats.hide();
                 //reset totals
                 g_seCardCur = {};
                 var elemRptLink = containerStats.find(".agile_card_report_link");
+                var estimateBadge = containerStats.find(".agile_badge_estimate");
+                var spentBadge = containerStats.find(".agile_badge_spent");
                 if (response.status == STATUS_OK && (response.rows.length > 0 || isTourRunning())) {
-                    elemRptLink.show();
-                    if (elemRptLink.length == 0)
-                        containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
-                    var i = 0;
+                    containerStats.show();
+                    if (elemRptLink.length == 0) {
+                        estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront").attr('title', 'E sum\nall users');
+                        spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront agile_badge_cardfrontSpent").attr('title', 'S sum\nall users');
+                        containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline no-print" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
+                        containerStats.prepend(estimateBadge);
+                        containerStats.prepend(spentBadge);
+                    }
+                    
                     //<span style="vertical-align: top;position: relative; top: -0.3em;font-size:0.7em">st</span>
                     var headTable = $("<thead>");
                     tableStats.append(headTable);
@@ -855,10 +922,16 @@ function fillCardSEStats(tableStats,callback) {
                             bSample: true,
                             idCard: idCard
                         }, false);
+
+                    var sTotalCard = 0;
+                    var eTotalCard = 0;
+                    var i = 0;
                     for (; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
                         addCardSERowData(bodyTable, rowData, false);
+                        sTotalCard += rowData.spent;
+                        eTotalCard += rowData.est;
                         var mapCur = g_seCardCur[rowData.user];
                         if (!mapCur) {
                             mapCur = {
@@ -871,10 +944,11 @@ function fillCardSEStats(tableStats,callback) {
                             mapCur.e = mapCur.e + rowData.est;
                         }
                     }
+                    spentBadge.text(parseFixedFloat(sTotalCard));
+                    estimateBadge.text(parseFixedFloat(eTotalCard));
+
                 }
-                else {
-                    elemRptLink.hide();
-                }
+
                 updateNoteR();
                 tableStats.tablesorter({
                     headers: {
@@ -1235,7 +1309,6 @@ Click for more.");
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
 				createCardSEInput(elemParent, idCardCur);
-				insertCardTimer();
 				break;
 			}
 		}
@@ -1693,6 +1766,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     var sCalc = UNITS.TimeToUnits(ms);
                     var sUse = parseFixedFloat(sCalc);
                     if (sUse != 0) {
+                        showSEBarContainer();
                         addSEFieldValues(sCalc, "");
                     }
                     else {

@@ -5,6 +5,7 @@ var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
 var g_regexpHashtags = /#([\S-]+)/g;
+var g_colorTrelloBlack = "#4D4D4D";
 
 var OPT_SHOWSPENTINICON_NORMAL = 0;
 var OPT_SHOWSPENTINICON_ALWAYS = 1;
@@ -53,7 +54,7 @@ var COLUMNNAME_ETYPE = "E. type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
-
+var SYNCPROP_bShowedFeatureSEButton = "bShowedFeatureSEButton";
 var SYNCPROP_bStealthSEMode = "bStealthSEMode";
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 
@@ -237,7 +238,7 @@ var DowMapper = {
     init: function () {        
         //initialize the object. see http://stackoverflow.com/questions/4616202/self-references-in-object-literal-declarations
         this.m_dowStart = this.DOWSTART_DEFAULT;
-        delete this.init;
+        delete this.init; //dont you ever call me back again you...
         return this;
     }
 }.init();

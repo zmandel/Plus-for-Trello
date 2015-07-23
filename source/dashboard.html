@@ -18,7 +18,7 @@
 	<script type="text/javascript" src="shared.js"></script>
 	<script type="text/javascript" src="dashboard.js"></script>
 </head>
-<body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;">
+<body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;color:#4D4D4D">
     <div style="width:100%;" align="center" id="agile_title_header_report">
     <span id="dashBoardTopTitle">Plus Dashboard</span>
         <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank" title="Click to view a burndown example.
@@ -26,8 +26,8 @@ View Plus help inside Trello about !annotations and burndowns.">Help</a>
         <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=FH223PYNLWZQU&lc=US&item_name=Plus%20for%20Trello&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted" target="_blank" title="Thank you!">Donate</a>
         <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" target="_blank" title="Rate Plus to release the guilt from not donating!">Rate</a>
         </div>
-	<a style="display:none" id="reportLink" href="" target="_blank">Recent S/E report</a>
-    <a style="display:none;margin-left:1em;" id="boardLink" href="" target="_blank">Go to board</a>
+    <a style="display:none" id="reportLink" class="reportLinkClass" href="" target="_blank">Recent S/E report</a>
+    <a style="display:none;margin-left:1em;" id="boardLink" class="reportLinkClass" href="" target="_blank">Go to board</a>
     <div style="display:none;"  id="boardMarkersContainer" class="agile_arrow_closed agile_arrow_container">
         <p id="headerMarker" class="agile_arrow_title"><b>Board Markers</b></p>
         <div style="display:none;margin-bottom:1.5em;margin-top:0.5em;margin-left:1em;" id="boardMarkersContent">
@@ -39,15 +39,15 @@ View Plus help inside Trello about !annotations and burndowns.">Help</a>
             <table id="tableMarkers"></table>
         </div>
     </div>
-    <div id="filtersContainer" class="agile_arrow_closed agile_arrow_container">
+    <div id="filtersContainer" style="display:none" class="agile_arrow_closed agile_arrow_container">
         <p id="headerFilter" class="agile_arrow_title"><b>Add filters</b></p>
         <div style="display:none;margin-left:0.5em;" id="report_filter_section">
             <iframe seamless id="frameFilter" src="" frameborder="0" style="overflow:hidden;height:0px;width:100%"></iframe>
         </div>
     </div>
-    <p id="progress">Loading...</p>
+    <a id="progress">Loading...</a>
     <svg id="timeline" style="width:100%;height:60%;margin-top:20px;"></svg>
-    <div id="timelineDetail"></div>
+    <div id="timelineDetail" style="margin-left:40px;margin-right:40px;"></div>
     <div style="text-align: center;">
         <div id="visualizationBottom" style="display: inline-block; width: 60%; margin-top: 45px; margin-bottom: 20px;"></div>
     </div>

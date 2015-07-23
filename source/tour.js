@@ -136,6 +136,7 @@ function hookTour(elem) {
 }
 
 function handleCardTour() {
+    showSEBarContainer(true);
     var flow = [
     {
         selector: ".agile-spent-icon-header_cardwindow",
@@ -171,6 +172,15 @@ function handleCardTour() {
         distance: 0,
         size: 150
     },
+
+      {
+          selector: ".agile-addSEButton",
+          focus: ".agile-addSEButton",
+          text: "To show the<br>card 'S/E bar'<br>when hidden<br>click here.",
+          angle: 0,
+          distance: 0,
+          size: 150
+      },
 
     {
         selector: ".agile-se-bar-entry",
@@ -646,7 +656,7 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         var textStep = (step.getText ? step.getText() : step.text);
         var text = '<span class="agile_ballonBody">' + textStep + '<div style="padding-top:1em">';
         if (!bFirst)
-            text = text + '<span title="Previous tip" style="display:inline-block" class="agile_bubbleArrow agile_bubbleArrowLeft agile_rotated">&#10152;</span>';
+            text = text + '<span title="Previous tip" style="display:inline-block" class="agile_bubbleArrow agile_bubbleArrowLeft agile_rotated">&#10140;</span>';
 
         var szClassClose = "agile_bubbleClose";
         if (!bFirst && !bLast)
@@ -654,11 +664,11 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         text = text + '<span style="display:inline-block" title="Close" class="'+szClassClose+'">&#10006;</span>';
 
         if (!bLast)
-            text = text + '<span style="display:inline-block" title="Next tip" class="agile_bubbleArrow agile_bubbleArrowRight">&#10152;</span>';
+            text = text + '<span style="display:inline-block" title="Next tip" class="agile_bubbleArrow agile_bubbleArrowRight">&#10140;</span>';
         text = text + '</div></span>';
         var distance = (step.distance === undefined ? 30 : step.distance);
         var size = (step.size === undefined ? 50 : step.size);
-        var elemTarget = $(step.selector);
+        var elemTarget = (typeof (step.selector) == "string" ? $(step.selector) : step.selector);
         if (elemTarget.length == 0) {
             showNextBubble(delta);
             return;

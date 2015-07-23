@@ -48,7 +48,9 @@ Group resulting rows to the level of detail you need.
 Each resulting row will show the sum of its grouped S/E rows.
 
 Grouping only affects the Report tab.
-When grouping by 'S/E rows', rows without S/E do not appear in the report." class="agile_report_filter agile_groupby_report_section">
+When grouping by 'S/E rows', cards without S/E do not appear in the report.
+
+'User' refers to those with S/E, not card members." class="agile_report_filter agile_groupby_report_section">
                     <p class="agile_report_filter_label">Group by</p>
                     <select id="groupBy">
                         <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
@@ -127,34 +129,34 @@ Otherwise it uses the date of the card's last create, move or rename." class="ag
                 </div>
                 <div class="agile_report_filter_group" id="groupDateAdvanced">
                     <form title="
-Examples:
+Valid formats:
 2014
 2014-W12
 
-Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
                     </form>
                     <form title="
-Examples:
+Valid formats:
 2014
 2014-W15
 
-Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
                     </form>
                     <form title="
-Examples:
-2014
-2014-02
-Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
-                        <p class="agile_report_filter_label">Month start</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
+Valid formats:
+2014  (year)
+2014-02  (month)
+2014-02-09 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Date start</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
                     </form>
                     <form title="
-Examples:
-2014
-2014-07
-Using advanced filters will only show results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
-                        <p class="agile_report_filter_label">Month end</p><input autocomplete="on" spellcheck="false" maxlength="7" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
+Valid formats:
+2014  (year)
+2014-07  (month)
+2014-07-03 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+                        <p class="agile_report_filter_label">Date end</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
                     </form>
                 </div>
                 <div class="agile_report_filter" title="

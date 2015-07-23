@@ -27,7 +27,7 @@
 }
 
 .agile_remaining_background {
-    background: #BCDCBC !important;
+    background: #DEEEDE !important;
 }
 
 .agile_dialog_ExtensionUpgraded {
@@ -118,12 +118,10 @@ div.agile_box {
 	border: 0;
 	border-radius: 3px;
 	color: #4d4d4d;
-	float: left;
     font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
 	font: 14px;   
 	padding: 2px 4px 2px 4px;
 	text-align: center;
-	width: auto;
 }
 
 .agile_box_partialUpdate {
@@ -159,7 +157,7 @@ div.agile_estimation_box {
 }
 
 div.agile_spent_box {
-	margin-right: 5px;
+	margin-right: 3px !important;
 }
 
 .agile_spent_box:hover {
@@ -183,13 +181,15 @@ div.agileBox_home {
     line-height:14px !important;
     font-size: 14px !important;
     font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
+    float: left !important;
+    cursor:pointer !important;
 }
 
 div.agile_total_box {
 	margin-right: 5px;
     cursor:default;
-    border-radius:2px;
-    border: solid 1px rgba(255, 255, 155, .5);
+    border-radius:4px;
+    border: solid 1px rgba(255, 255, 155, .2);
     color: #f6f6f6;
     background-color: transparent;
     min-width:1em !important;
@@ -219,32 +219,50 @@ label.agile_ignore_filters_option input {
 
 .agile_badge {
 	padding-left: 4px !important;
-    border-radius:2px;
+    border-radius:3px;
     color: #8c8c8c !important;
     min-width:.9em !important;
+    text-align:center !important;
+    cursor:default !important;
 }
 
 .agile_badge_cardback {
-    margin-top: -2px !important;
+    margin-top: -1px !important;
+    margin-bottom: 2px !important;
+    text-align:center !important;
+    font-size:12px !important;
+    float: left !important;
+    cursor:pointer !important;
+}
+
+div.agile_badge_cardfront {
+    margin-top: -1px !important;
     margin-bottom: 8px !important;
     text-align:center !important;
+    font-size:12px !important;
+    display: inline-block !important;
+    color: #8c8c8c !important;
+    border-color: #B7B7B7 !important;
+}
+
+.agile_badge_cardfrontSpent {
+   margin-left:40px !important;
 }
 
 .agile_badge_home {
     margin-top: 3px !important;
 }
 
-.agile_listboard_header {
-    margin-top:3px !important;
-}
 
 .agile_badge_list {
     background-color:transparent !important;
-    border: 1px solid #B2B2B2 !important;
+    border: 1px solid #C9C9C9 !important;
     min-width:0.9em !important;
-    border-radius:2px !important;
+    border-radius:3px !important;
     color: #8D8D8D !important;
-    line-height: 0.9em !important;
+    line-height: 14px !important;
+    font-size:12px !important;
+    float: left !important;
 }
 
 .agile_badge_estimate {
@@ -260,6 +278,7 @@ label.agile_ignore_filters_option input {
 .agile_badge_spent {
 	border: 1px solid #E2E2E2;
     color: #8c8c8c !important;
+    margin-right: 3px !important;
 }
 
 .agile_badge_spent:hover {
@@ -280,12 +299,22 @@ label.agile_ignore_filters_option input {
 .agile_badge_hashtag:hover {
 }
 
+.agile_badge_hashtag {
+    font-size:12px !important;
+    cursor:pointer !important;
+    background-color: #FBFBFB !important;
+}
+
+.agile_badge_hashtag_shout {
+    background-color: #FFE44B !important;
+    color: #4d4d4d !important;
+}
+
 .agile_badge_hashtag_primary {
 	line-height: 17px;
 	color: #8c8c8c;
-	font-weight: bold;
 	padding: 1px 5px 0px 5px !important;
-    margin: -2px 8px 8px 0px !important;
+    margin: -2px 6px 8px 0px !important;
 	border-radius: 7px !important;
     border: 1px solid #DBDBDB;
 }
@@ -294,7 +323,7 @@ label.agile_ignore_filters_option input {
 	line-height: 17px;
 	color: #8c8c8c;
 	padding: 1px 5px 0px 5px !important;
-    margin: -2px 8px 8px 0px !important;
+    margin: -2px 6px 8px 0px !important;
 	border-radius: 7px !important;
     border: 1px solid #DBDBDB;
 }
@@ -338,7 +367,7 @@ div#agile_help_container {
 	background: #FAFAFA;
 	border-top-right-radius: 5px;
 	border-bottom-right-radius: 5px;
-	color: black;
+	color: #4D4D4D;
 	left: 0;
 	padding: 12px;
 	padding-bottom: 10px;
@@ -359,7 +388,7 @@ div#spent_serviceUrlConfig_container {
 	border-bottom-right-radius: 5px;
 	border-top-left-radius: 5px;
 	border-bottom-left-radius: 5px;
-	color: black;
+	color: #4D4D4D;
 	left: 30px;
 	padding: 12px;
 	padding-bottom: 10px;
@@ -370,7 +399,7 @@ div#spent_serviceUrlConfig_container {
 	z-index: 1002;
 	border: 1px;
 	border-style: solid;
-	border-color: black;
+	border-color: #4D4D4D;
 }
 
 
@@ -594,6 +623,14 @@ td.agile_cell_drilldown {
     padding-right:10px !important;
 }
 
+td.agile_cell_drilldown a {
+     text-decoration: none !important;
+}
+
+td.agile_cell_drilldown a:hover {
+     text-decoration: underline !important;
+}
+
 .agile_nowrap {
     white-space: nowrap !important;
 }
@@ -723,10 +760,8 @@ th.agile_drill_th_extend {
 }
 
 .agile_card_report_link {
-    margin-left: 40px;
-    display: block;
     margin-bottom:2px;
-    width:10em;
+    width:auto !important;
 }
 
 .agile-se-bar-table {
@@ -1206,9 +1241,9 @@ table#tableMarkers td {
 	margin-bottom: 0px !important;
 	min-height: 10px !important;
 	padding: 1px !important;
-	background-color: #FFFAFA !important;
 	width: 40px;
 	display: inline !important;
+    background-color: white !important;
 }
 
 .agile_focusColorBorder:focus {
@@ -1222,7 +1257,7 @@ table#tableMarkers td {
 	margin-bottom: 0px !important;
 	min-height: 10px !important;
 	padding: 1px !important;
-	background-color: #FAFAFF !important;
+	background-color: white !important;
 	width: 40px;
 	display: inline !important;
 }
@@ -1319,6 +1354,7 @@ table#tableMarkers td {
     margin-bottom:0px;
     margin-top:10px;
     line-height: 17px !important;
+    border-color: 
 }
 
 .agile_tabselector_list table tr {
@@ -1568,15 +1604,23 @@ table#tableMarkers td {
     color: #4F4F4F !important;
 }
 
+.agile_listboard_header {
+float:right;
+margin-top:0px !important;
+height:16px; /* prevent trello from growing the list title height */
+overflow:visible;
+}
+
 .agile-open-card-composer {
     text-decoration:none;
     color:#939393;
-    padding-left: 10px;  /* increase click area */
-    padding-right: 10px;
+    padding-left: 6px;  /* increase click area */
+    padding-right: 6px;
     padding-bottom:0px;
     padding-top:0px;
-    border-radius:2px;
+    border-radius:3px;
     vertical-align:top;
+    margin-right:5px;
 }
 
 .agile-open-card-composer:hover {
@@ -1623,11 +1667,11 @@ table#tableMarkers td {
 }
 
 .agile_popup_topLinks:link {
-    color: black;
+    color: #4D4D4D;
 }
 
 .agile_popup_topLinks:visited {
-    color: black;
+    color: #4D4D4D;
 }
 
 .agile_popup_topLinks:hover {
@@ -1635,7 +1679,7 @@ table#tableMarkers td {
 }
 
 .agile_popup_topLinks:active {
-    color: black;
+    color: #4D4D4D;
 }
 
 .agile_disabled_color {
@@ -1700,7 +1744,7 @@ table#tableMarkers td {
     font-weight:bold;
     display: block;
     text-decoration:none;
-    color:black;
+    color:#4D4D4D;
     opacity:0.8;
 }
 
@@ -1711,7 +1755,7 @@ table#tableMarkers td {
     overflow: hidden;
     display: block;
     font-size:12px;
-    color:black;
+    color:#4D4D4D;
     opacity:0.6 !important;
 }
 
