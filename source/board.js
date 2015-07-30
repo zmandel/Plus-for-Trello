@@ -1,4 +1,6 @@
-﻿var g_minutesExpireBoardTotalCache = (60 * 24 * 7 * 2);	//after this many, board total cache is deleted.
+﻿/// <reference path="intellisense.js" />
+
+var g_minutesExpireBoardTotalCache = (60 * 24 * 7 * 2);	//after this many, board total cache is deleted.
 var g_totalSpentAllBoards = 0;
 var g_totalEstimateAllBoards = 0;
 

@@ -1,4 +1,6 @@
-﻿var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
+﻿/// <reference path="intellisense.js" />
+
+var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_cSearchTotal = 0; //used for detecting if search is still current
 var g_mapCards = {}; //to know if card was already added
 

@@ -1,4 +1,6 @@
-﻿var Language = {
+﻿/// <reference path="intellisense.js" />
+
+var Language = {
 
 };
 

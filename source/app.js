@@ -1,4 +1,6 @@
-﻿var UPDATE_STEP = 1000;
+﻿/// <reference path="intellisense.js" />
+
+var UPDATE_STEP = 1000;
 var ESTIMATION = 'estimation';
 var SPENT = 'spent';
 var REMAINING = 'remaining';
@@ -329,9 +331,6 @@ function updateSsLinksDetector(globalTotalSpent, globalTotalEstimation) {
 	}
 }
 
-function stringStartsWith(string, input) {
-	return string.substring(0, input.length) === input;
-}
 
 function ResetPlus() {
     chrome.storage.sync.get([SYNCPROP_ACTIVETIMER], function (obj) {

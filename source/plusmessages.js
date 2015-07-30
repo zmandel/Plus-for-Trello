@@ -1,4 +1,6 @@
-﻿var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
+﻿/// <reference path="intellisense.js" />
+
+var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 
 
 document.addEventListener('DOMContentLoaded', function () {

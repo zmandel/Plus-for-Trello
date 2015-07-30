@@ -1,4 +1,6 @@
-﻿var g_inputSEClass = "agile_plus_addCardSE";
+﻿/// <reference path="intellisense.js" />
+
+var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
 var g_bShowSEBar = false;
 
@@ -359,15 +361,14 @@ function fillComboUsers(comboUsers, userSelected) {
 
 
 function showSEButtonBubble(elem) {
-    if (isTourRunning())
-        return;
 
     var step = {
         selector: elem,
         text: "Add Plus S/E<br>from here!",
         angle: 0,
         distance: 10,
-        size: 150
+        size: 150,
+        hiliteTime:20000
     };
     showBubbleFromStep(step, true, true, 0);
 }
@@ -383,17 +384,18 @@ function createSEButton() {
         spanIcon.append(icon);
         a.append(spanIcon);
         parent.prepend(a);
-        chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
-            if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
-                showSEButtonBubble(a);
-                obj[SYNCPROP_bShowedFeatureSEButton] = true;
-                chrome.storage.sync.set(obj, function () {
-                    if (chrome.runtime.lastError !== undefined)
-                        return; //just to reference it so chrome debugger doesnt complain
-                });
-            }
-        });
-
+        if (!isTourRunning()) {
+            chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
+                if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
+                    showSEButtonBubble(a);
+                    obj[SYNCPROP_bShowedFeatureSEButton] = true;
+                    chrome.storage.sync.set(obj, function () {
+                        if (chrome.runtime.lastError !== undefined)
+                            return; //just to reference it so chrome debugger doesnt complain
+                    });
+                }
+            });
+        }
         a.click(function () {
             showSEBarContainer();
             setTimeout(function () {

@@ -1,4 +1,6 @@
-﻿var g_bNeedStartTourBubble = false;
+﻿/// <reference path="intellisense.js" />
+
+var g_bNeedStartTourBubble = false;
 
 var SYNCMETHOD = {
     disabled:0,

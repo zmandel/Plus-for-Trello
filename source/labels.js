@@ -1,4 +1,6 @@
-﻿var LabelsManager = {
+﻿/// <reference path="intellisense.js" />
+
+var LabelsManager = {
     reduceColor: function (part) {
         return Math.round(255-(255-part) / 8);
     },

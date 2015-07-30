@@ -1,3 +1,5 @@
+/// <reference path="intellisense.js" />
+
 var g_prefixCustomUserId = "customUser:";
 var g_deletedUserIdPrefix = "deleted"; //prefix for user id and user (when making up a username on deleted users)
 
@@ -43,7 +45,6 @@ function commitBoardSyncData(tx, alldata) {
     return bChanged;
 }
 
-
 function commitListSyncData(tx, alldata) {
     var idList = null;
     var sql = "";
@@ -63,7 +64,8 @@ function commitListSyncData(tx, alldata) {
         }
 
         if (list.orig) {
-            if (list.orig.idList == idList && list.orig.name == list.name && list.orig.idBoard == list.idBoard && list.orig.bArchived == list.bArchived) {
+            if (list.orig.idList == idList && list.orig.name == list.name && list.orig.idBoard == list.idBoard &&
+                list.orig.bArchived == list.bArchived && list.orig.pos == list.pos) {
                 thisChanged = false;
                 if (list.orig.dateSzLastTrello == list.dateSzLastTrello)
                     continue;
@@ -73,8 +75,8 @@ function commitListSyncData(tx, alldata) {
         if (thisChanged)
             bChanged = true;
 
-        sql = "INSERT OR REPLACE INTO LISTS (idList, name, idBoard, dateSzLastTrello, bArchived) VALUES (?,?,?,?,?)";
-        tx.executeSql(sql, [idList, list.name, list.idBoard, list.dateSzLastTrello, list.bArchived || list.bDeleted ? 1 : 0], null,
+        sql = "INSERT OR REPLACE INTO LISTS (idList, name, idBoard, dateSzLastTrello, bArchived, pos) VALUES (?,?,?, ?,?,?)";
+        tx.executeSql(sql, [idList, list.name, list.idBoard, list.dateSzLastTrello, list.bArchived || list.bDeleted ? 1 : 0, list.pos || null], null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop

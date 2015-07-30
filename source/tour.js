@@ -1,4 +1,6 @@
-﻿/* step
+﻿/// <reference path="intellisense.js" />
+
+/* step
  *
  *  selector:   jquery selector of element. .eq(0) will be used 
  *  text:       html text to show
@@ -148,7 +150,6 @@ function handleCardTour() {
 
        {
            selector: "#container_agile_checkRecurringCard",
-           focus: "#agile_checkRecurringCard",
            text: "check 'Recurring'<br>so cards (like weekly meetings) will not have a '1ˢᵗ estimate' and wont inflate changed estimate reports.",
            angle: 180,
            distance: 0,
@@ -157,7 +158,6 @@ function handleCardTour() {
 
     {
         selector: ".agile_hashtags_list",
-        focus: ".agile_hashtags_list",
         text: "Add #tags<br>to cards and later search them from reports.",
         angle: 180,
         distance: 0,
@@ -166,7 +166,6 @@ function handleCardTour() {
 
     {
         selector: ".js-card-title",
-        focus: ".js-card-title",
         text: "You can also change the card title directly to manage #tags/recurring.",
         angle: 180,
         distance: 0,
@@ -175,7 +174,6 @@ function handleCardTour() {
 
       {
           selector: ".agile-addSEButton",
-          focus: ".agile-addSEButton",
           text: "To show the<br>card 'S/E bar'<br>when hidden<br>click here.",
           angle: 0,
           distance: 0,
@@ -297,7 +295,6 @@ function handleCardTour() {
 
         {
             selector: "#plusCardCommentUsers",
-            focus: "#plusCardCommentUsers",
             text: "To enter an <b>S/E row</b><br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one from another list.",
             angle: 180,
             distance: 0,
@@ -305,7 +302,6 @@ function handleCardTour() {
         },
      {
          selector: ".agile_days_box_input",
-         focus: ".agile_days_box_input",
          text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago' etc.",
          angle: 180,
          distance: 0,
@@ -313,7 +309,6 @@ function handleCardTour() {
      },
       {
           selector: ".agile_spent_box_input",
-          focus: ".agile_spent_box_input",
           text: "type <b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
           angle: 180,
           distance: 0,
@@ -321,7 +316,6 @@ function handleCardTour() {
       },
            {
                selector: ".agile_estimation_box_input",
-               focus: ".agile_estimation_box_input",
                text: "type <b>Estimate</b><br><br>Leave blank<br>to enter only <b>S</b>pent<br><br>The first row entered will be the 1ˢᵗ estimate (<b>E 1ˢᵗ</b>) in the table above.",
                angle: 180,
                distance: 0,
@@ -330,7 +324,6 @@ function handleCardTour() {
 
            {
                selector: ".agile_comment_box_input",
-               focus: ".agile_comment_box_input",
                text: "Type an<br>optional note here and press the Enter key or button.",
                angle: 180,
                distance: 0,
@@ -346,7 +339,6 @@ function handleCardTour() {
                },
        {
            selector: ".agile_card_report_link",
-           focus: ".agile_card_report_link",
            text: "Once there are<br>S/E rows entered, this report shows a breakdown<br>per user.<br><br>Click this to drill-down on the card.",
            angle: 180,
            distance: 0,
@@ -355,7 +347,6 @@ function handleCardTour() {
 
        {
            selector: ".agile-card-statrow-data",
-           focus: ".agile-card-statrow-data",
            text: "Users with positive <b>R</b><br>have remaining work.<br><br>Mouse-over the user<br>to see their last S/E date.<br><br>Click the user to drill-down.<br>",
            angle: 180,
            distance: 0,
@@ -364,7 +355,6 @@ function handleCardTour() {
        
        {
            selector: ".agile-card-first-estimate-header",
-           focus: ".agile-card-first-estimate-header",
            text: "<b>1ˢᵗ E</b>stimate per user.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
            angle: 180,
            distance: 0,
@@ -372,7 +362,6 @@ function handleCardTour() {
        },
         {
             selector: ".agile-card-first-estimate-header",
-            focus: ".agile-card-first-estimate-header",
             text: "1ˢᵗ estimates<br>appear also in reports<br>to compare at the board/user/date level.",
             angle: 180,
             distance: 0,
@@ -380,7 +369,6 @@ function handleCardTour() {
         },
         {
             selector: ".agile-card-now-estimate-header",
-            focus: ".agile-card-now-estimate-header",
             text: "<br><b>Total estimate</b><br>per user to compare with E 1ˢᵗ",
             angle: 180,
             distance: 0,
@@ -390,7 +378,6 @@ function handleCardTour() {
     
        {
            selector: "#agile_timer",
-           focus: "#agile_timer",
            text: "<b>Card Timer</b><br><br>Start, Pause or Stop a timer.<br><br>",
            angle: (180 + 45),
            distance: 0,
@@ -400,7 +387,6 @@ function handleCardTour() {
 
         {
             selector: "#agile_timer",
-            focus: "#agile_timer",
             text: "<br>Once started,<br>the timer also shows in the Chrome Plus menu <br><br><a style='color:white;' href='https://www.youtube.com/watch?v=gbAZXtaRi5o' target='_blank'>can\'t see the Plus menu?</a><br>",
             angle: (180 + 45),
             distance: 0,
@@ -411,7 +397,6 @@ function handleCardTour() {
 
        {
            selector: "#agile_timer",
-           focus: "#agile_timer",
            text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you 'Enter' the s/e row.",
            angle: (180 + 45),
            distance: 0,
@@ -421,7 +406,6 @@ function handleCardTour() {
 
        {
            selector: ".agile_spent_box_input",
-           focus: ".agile_spent_box_input",
            text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/pausing the timer.",
            angle: 180-45,
            distance: 0,
@@ -430,7 +414,6 @@ function handleCardTour() {
 
         {
             selector: ".agile_spent_box_input",
-            focus: ".agile_spent_box_input",
             text: "If you forgot<br>to start a timer, type here the Spent so far and start the timer<br>to start at that value.<br>",
             angle: 180 - 45,
             distance: 0,
@@ -439,7 +422,6 @@ function handleCardTour() {
 
          {
              selector: ".agile_spent_box_input",
-             focus: ".agile_spent_box_input",
              text: "Also,<br>if you type Spent here once the timer is running, pausing the timer will add to it.",
              angle: 180 - 45,
              distance: 0,
@@ -448,7 +430,6 @@ function handleCardTour() {
 
          {
              selector: "#plusCardCommentEnterButton",
-             focus: "#plusCardCommentEnterButton",
              text: "Once a timer pre-fills Spent,<br>you need to Enter it.",
              angle: 180 - 45,
              distance: 0,
@@ -456,7 +437,6 @@ function handleCardTour() {
          },
         {
             selector: "#plusCardCommentEnterButton",
-            focus: "#plusCardCommentEnterButton",
             text: "If you dont enter it,<br>Plus will remember your Draft row and remind you next time you open the card from the same computer.",
             angle: 180 - 45,
             distance: 0,
@@ -464,7 +444,6 @@ function handleCardTour() {
         },
     {
         selector: ".agile-spent-icon-header_cardwindow",
-        focus: ".agile-spent-icon-header_cardwindow",
         text: "Read the<br>full help anytime.<br><br>Please <A href='http://www.plusfortrello.com/p/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
         angle: 180,
         distance: 0,
@@ -684,16 +663,14 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         elemTarget = elemTarget.eq(0);
 
         //use focus as a way to force scrolling, certain special windows like Cards scroll in a custom way and body scrolling doesnt work.
-        if (step.focus) {
-            var elemFocus = $(step.focus).eq(0);
-            var bRestoreTI = false;
-            if (elemFocus[0].tabIndex < 0) {
+        var elemFocus = elemTarget;
+        if (step.focus)
+            elemFocus = $(step.focus).eq(0);
+            if (elemFocus[0].tabIndex < 0)
                 elemFocus[0].tabIndex = 1000; //force it to have a tabindex otherwise focus will be noop
-            }
-            $(step.focus).focus();
-        }
+            elemFocus.focus();
 
-        hiliteOnce(elemTarget, 2000);
+        hiliteOnce(elemTarget, step.hiliteTime || 2000);
         elemTarget.grumble({
             text: text,
             angle: step.angle,

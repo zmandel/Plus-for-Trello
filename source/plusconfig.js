@@ -1,4 +1,6 @@
-﻿var PlusConfig = {
+﻿/// <reference path="intellisense.js" />
+
+var PlusConfig = {
     bClosed:true,
     bReset:false,
 	isVisible: function () {

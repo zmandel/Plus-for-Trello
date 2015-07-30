@@ -1,4 +1,6 @@
-﻿var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
+﻿/// <reference path="intellisense.js" />
+
+var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_marginLabelChart = 35;
 var g_heightBarUser = 30;
 
@@ -462,8 +464,12 @@ function setChartData(rows, idBoard) {
 		seriesTimeline.spent.push({ x: date, y: spentTotalDisplay, stroke: g_TimelineColors[0], drill: objHtml });
 		seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
 		seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
-		if (annotation)
-		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation.substring(0,40), sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		if (annotation) {
+		    var maxLength=40;
+		    if (annotation.length > maxLength)
+		        annotation = annotation.substring(0, maxLength);
+		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		}
 	}
 	g_dataUser = new google.visualization.DataTable();
 	g_dataUser.addColumn('string', 'Who');

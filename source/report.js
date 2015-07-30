@@ -1,4 +1,6 @@
-﻿var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
+﻿/// <reference path="intellisense.js" />
+
+var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_mapETypeParam = { "ALL": "", "EINCR": 1, "EDECR": -1, "ENEW": 2 };
 var g_iTabCur = null; //invalid initially
 var ITAB_REPORT = 0;
@@ -858,6 +860,8 @@ function loadReport(params) {
 
 	if (!g_bEnableTrelloSync) {
 	    $("#list").prop('disabled', true).prop("title", "Disabled until you enable Sync from Plus help.");
+	    $("#orderBy option[value*='nameList']").remove();
+	    $("#orderBy option[value*='posList']").remove();
 	    $("#groupBy option[value*='nameList']").remove();
 	}
 
@@ -1089,7 +1093,7 @@ function buildSql(elems) {
 	var groupBy = elems["groupBy"] || "";
 	var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
-                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
+                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
                 FROM HISTORY as H \
                 JOIN CARDS as C on H.idCard=C.idCard \
@@ -1113,7 +1117,8 @@ function buildSql(elems) {
 	    sql += " UNION ALL \
                 select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
                 0 as estFirst, \
-                case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, L.name as nameList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
+                case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
+                L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
@@ -1707,8 +1712,16 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
     //note: propDateString might not be in rows at this point (is here only if there was grouping)
 	if (ret.length > 0 && propertySort.length > 0 && propertySort != "date") {
 		var bString = typeof(ret[0][propertySort])=="string";
-		var bRemain = (propertySort=="remain");
+		var bRemain = (propertySort == "remain");
+		var bPosList = (propertySort == "posList");
 		ret.sort(function doSort(a, b) {
+		    if (bPosList) {
+		        var namePropBoard = "nameBoard";
+		        var ret = a[namePropBoard].localeCompare(b[namePropBoard]);
+		        if (ret != 0)
+		            return ret;
+		        return a[propertySort]-b[propertySort];
+		    }
 			if (bString)
 				return (a[propertySort].localeCompare(b[propertySort]));
 			var va = null;
@@ -1752,7 +1765,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 
 	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
 
-	var bShowList = (g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || bShowCard));
+	var bShowList = (g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || groupBy.indexOf("posList") >= 0 || bShowCard));
 	if (bShowList)
 	    header.push({ name: "List" });
 	if (bShowCard)

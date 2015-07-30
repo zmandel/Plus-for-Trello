@@ -1,4 +1,6 @@
-﻿var IDBOARD_UNKNOWN = "//"; //board shortLink/idLong reserved for unknown boards. saved into db. for cases where user does not have permission for a board (for example when moving a card there)
+﻿/// <reference path="intellisense.js" />
+
+var IDBOARD_UNKNOWN = "//"; //board shortLink/idLong reserved for unknown boards. saved into db. for cases where user does not have permission for a board (for example when moving a card there)
 var IDLIST_UNKNOWN = "//"; //list idLong. deals with missing idList in convertToCardFromCheckItem board action. saved to db
 var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
@@ -12,6 +14,7 @@ var OPT_SHOWSPENTINICON_ALWAYS = 1;
 var OPT_SHOWSPENTINICON_NEVER = 2;
 var g_optAlwaysShowSpentChromeIcon = OPT_SHOWSPENTINICON_NORMAL; //review zig these 3  need initialization. reuse loadBackgroundOptions
 var g_bDontShowTimerPopups = false;
+var g_bIncreaseLogging = false;
 
 function getHashtagsFromTitle(title) {
     var hashtags = [];
@@ -40,7 +43,7 @@ var COLOR_ERROR = "#D64141";
 var MS_TRELLOAPI_WAIT = (1000 / 30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
 var CMAX_THREADS = 4;
 var g_callbackOnAssert = null;
-var g_bDebuggingInfo = false;
+var g_bDebuggingInfo = true; //hipri
 
 var g_bAcceptSFT = false;
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
@@ -280,8 +283,10 @@ function loadSharedOptions(callback) {
 
 function errFromXhr(xhr) {
     var errText = "error: " + xhr.status;
-    if (xhr.statusText || xhr.responseText)
+    if (xhr.statusText || xhr.responseText) {
+        g_bIncreaseLogging = true;
         errText = errText + "\n" + xhr.statusText + "\n" + xhr.responseText;
+    }
     else if (xhr.status == 0)
         errText = "No internet connection.";
     console.log(errText);
@@ -289,7 +294,8 @@ function errFromXhr(xhr) {
 }
 
 function assert(condition, message) {
-	if (!condition) {
+    if (!condition) {
+        g_bIncreaseLogging = true;
 		var log = "Assertion failed. ";
 		if (message)
 			log += message;
@@ -495,10 +501,9 @@ function bIgnoreError(str) {
 // bAddStackTrace: defaults to true.
 //
 function logPlusError(str, bAddStackTrace) {
-   
     if (bIgnoreError(str))
         return;
-
+    g_bIncreaseLogging = true;
 	var strStack = null;
 	var date = new Date();
 	if (bAddStackTrace === undefined)

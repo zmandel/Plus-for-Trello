@@ -1,4 +1,6 @@
-﻿
+﻿/// <reference path="intellisense.js" />
+
+
 var HelpButton = {
     strClass: 'agile_help_button',
 	create: function () {

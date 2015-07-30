@@ -1,4 +1,6 @@
-﻿
+﻿/// <reference path="intellisense.js" />
+
+
 var g_dataTotalSpentThisWeek = { str: null, weeknum: null };
 var g_msSyncRateLimit = 1000 * 1; //1 second (used to be larger and more relevant back when syncing on spreadsheets with my developer key
 var MSDELAY_FIRSTSYNC = 500;
@@ -445,12 +447,9 @@ var g_loaderDetector = {
         function updateOnlineState(bOnline) {
             console.log("Plus online: " + bOnline);
             g_bOffline = !bOnline;
-            if (bOnline) {
+            updatePlusIcon(false);
+            if (bOnline)
                 setTimeout(function () { checkNeedsSync(true); }, 2000);
-            }
-            else {
-                updatePlusIcon(false);
-            }
         }
 
         window.addEventListener("online", function () { updateOnlineState(true); }, false);

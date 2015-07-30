@@ -1,4 +1,6 @@
-﻿var g_db = null;
+﻿/// <reference path="intellisense.js" />
+
+var g_db = null;
 var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
@@ -1171,7 +1173,7 @@ function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callback
 }
 
 function handleWriteLogToPlusSupport(request, sendResponse) {
-    var sql = "select date,message FROM LOGMESSAGES";
+    var sql = "select date,message FROM LOGMESSAGES order by date DESC"; //desc because it could be truncated on a long log. We want to receive the latest entries.
     var query = { sql: sql, values: [] };
     handleGetReport(query,
         function (response) {
@@ -1326,6 +1328,9 @@ function insertLogMessages(log, callback) {
 
 function startWritePublicLog(messages) {
     var merged = messages.join("\n\n");
+    var maxLength = 4000;
+    if (merged.length > maxLength)
+        merged = merged.substring(0, maxLength);
     var urlForm = "https://docs.google.com/forms/d/1IpMQnmIKXVXeDeKhZRxWFK1-YAg8aGnqFlZbX9lUUP8/viewform?entry.1934000221=" + encodeURIComponent(merged);
     window.open(urlForm,"_blank");
 }
@@ -1793,6 +1798,12 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%errorTransaction (trellosync.js:724%'");
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''dowStart'' of undefined%'");
         });
+
+        M.migration(27, function (t) {
+            t.executeSql('ALTER TABLE LISTS ADD COLUMN pos REAL DEFAULT NULL');
+            t.executeSql("update LISTS set pos = -1 where idList= '" + IDLIST_UNKNOWN + "' OR idBoard='" + IDBOARD_UNKNOWN+"'");
+        });
+
 
         M.doIt();
     }
