@@ -5,6 +5,7 @@ var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
+var g_verDeepSyncCur = 1; //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync.
 
 function isDbOpened() {
     if (typeof (g_db) == "undefined") //in case its called from a global object
@@ -1801,7 +1802,8 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 
         M.migration(27, function (t) {
             t.executeSql('ALTER TABLE LISTS ADD COLUMN pos REAL DEFAULT NULL');
-            t.executeSql("update LISTS set pos = -1 where idList= '" + IDLIST_UNKNOWN + "' OR idBoard='" + IDBOARD_UNKNOWN+"'");
+            t.executeSql("update LISTS set pos = -1 where idList= '" + IDLIST_UNKNOWN + "' OR idBoard='" + IDBOARD_UNKNOWN + "'");
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN verDeepSync INT DEFAULT 0');
         });
 
 

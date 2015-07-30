@@ -1,7 +1,6 @@
 ﻿/// <reference path="intellisense.js" />
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_verDeepSyncBoardData = 1; //simple way to force one or all boards to get a full "deep" sync of all lists and cards (not incremental)
-var LSPROP_PREFIX_DEEPSYNC_CARD_LIST = "DeepSyncAllCardList:"; //keep track of which board needs a deep sync
 
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
@@ -219,7 +218,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     startSyncProcess();
 
     function startSyncProcess() {
-        var request = { sql: "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
+        var request = { sql: "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
         handleGetReport(request,
             function (responseReport) {
                 if (responseReport.status != STATUS_OK) {
@@ -253,7 +252,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
             broadcastMessage({ event: EVENTS.FIRST_SYNC_RUNNING, status: STATUS_OK });
             handleShowDesktopNotification({
                 notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering over the Plus icon on the top-right of Chrome.",
-                timeout: 40000
+                timeout: 30000
             });
         }
         getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process);
@@ -1172,8 +1171,8 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                 if (!list || list.id==IDLIST_UNKNOWN)
                     return;
 
-                if (list.pos && (typeof (list.pos) == "object")) {
-                    console.log(JSON.stringify(actionCur, undefined, 4));
+                if (list.pos && (typeof (list.pos) == "object")) { //trello bug causes these to appear here
+                    //console.log(JSON.stringify(actionCur, undefined, 4));
                     var posObj = list.pos;
                     list.pos = null;
                     if (posObj.updatedLists && posObj.updatedLists.length > 0) {
@@ -1494,7 +1493,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
     //closed==archived
     //"copyBoard" sucede cuando se copia un board, no empezara con "createBoard".
     var bFilter = true; //debe ser true. false used for testing
-    var url = "https://trello.com/1/boards/" + idBoard + "/actions?action_member=true&action_memberCreator=true&action_member_fields=username&action_memberCreator_fields=username&limit=" + limit; //review zig email trello support about honoring memberCreator fields filter. currently causes excess download
+    var url = "https://trello.com/1/boards/" + idBoard + "/actions?action_member=true&action_memberCreator=true&action_member_fields=username&action_memberCreator_fields=username&limit=" + limit; //review zig trello promised to add filtering of memberCreator fields. currently causes excess download
     
     if (bFilter) {
         url = url + "&filter=" + BOARD_ACTIONS_LIST;
@@ -1622,21 +1621,23 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                     bPendingCreation : true,
 					dateSzLastTrello : null,
 					idActionLast: null,
-					bArchived:0
+					bArchived: 0,
+					verDeepSync:0 //0 is always smaller and will cause a deep sync
                 };
             }
             assert(boardDb.idBoard == board.shortLink);
             var actionLast = board.actions[0];
+            boardDb.bProcessActions = true;
             if (boardDb.dateSzLastTrello && actionLast.date < boardDb.dateSzLastTrello) {
                 //when cards are deleted or moved, their history will be moved out of the board so the last action date could be smaller.
-                return;
+                boardDb.bProcessActions = false;
             }
-		            
-            var bForce = false;
-            var lsProp = LSPROP_PREFIX_DEEPSYNC_CARD_LIST + boardDb.idBoard;
-            var bForce = (localStorage[lsProp] != g_verDeepSyncBoardData);
-               
-            if (bForce || actionLast.id != boardDb.idActionLast) {
+		    
+            var bSameLastAction = (actionLast.id == boardDb.idActionLast);
+            if (bSameLastAction)
+                boardDb.bProcessActions = false;
+
+            if (boardDb.verDeepSync < g_verDeepSyncCur || !bSameLastAction) {
                 var dateLastAction = new Date(actionLast.date);
                 dateLastAction.setTime(dateLastAction.getTime() + 1);
                 assert(board.name);
@@ -1686,7 +1687,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
             if (board.hasPermission === false)
                 return false;
 
-            if (!board.dateSzLastTrelloNew) { //review zig: 2nd pass case. revise if still needed
+            if (!board.dateSzLastTrelloNew) {
                 board.dateSzLastTrelloNew = (board.dateSzLastTrello || "");
                 board.idActionLastNew = (board.idActionLast || "");
             }
@@ -1702,10 +1703,9 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                 var bContinueProcessItem = true;
                 if (status == STATUS_OK) {
                     var idBoard = board.idBoard;
-                    var lsProp = LSPROP_PREFIX_DEEPSYNC_CARD_LIST + idBoard;
-                    if (localStorage[lsProp] != g_verDeepSyncBoardData) {
+                    
+                    if (board.verDeepSync < g_verDeepSyncCur) {
                         bContinueProcessItem = false;
-
                         //get all board lists in db, so we can have an "orig"
                         var request = { sql: "select idBoard, name, dateSzLastTrello, idList, bArchived, pos FROM LISTS where idBoard=?", values: [idBoard] };
                         handleGetReport(request,
@@ -1755,7 +1755,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                                     alldata.cardsByLong[card.id] = card.shortLink;
                                                     bUpdateAlldataCard(null, alldata.cards, card, idBoard, card.dateLastActivity || szdateNowDefault);
                                                 });
-                                                //localStorage[lsProp] = g_verDeepSyncBoardData;
+                                                board.verDeepSync = g_verDeepSyncCur;
                                             }
                                             postProcessItem(data.status, board, iitem);
                                         });
@@ -1767,7 +1767,10 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                     postProcessItem(status, board, iitem);
             }
 
-            getBoardActions(tokenTrello, iitem, board.idBoard, limit, board.dateSzBefore, board.dateSzLastTrelloNew, [board.idActionLastNew], callbackGetBoardActions);
+            if (board.bProcessActions === false)
+                callPost(STATUS_OK); //shortcut getting actions.
+            else
+                getBoardActions(tokenTrello, iitem, board.idBoard, limit, board.dateSzBefore, board.dateSzLastTrelloNew, [board.idActionLastNew], callbackGetBoardActions);
 
             function callbackGetBoardActions(response, lengthOriginal) {
                 var boardCur = board;
@@ -1785,7 +1788,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                 if (response.hasPermission !== undefined)
                     boardCur.hasPermission = response.hasPermission;
 
-                if (response.items.length > 0) {
+                if (response.items && response.items.length > 0) {
                     var actionFirst = response.items[0];
                     var dateFirst = new Date(actionFirst.date);
                     dateFirst.setTime(dateFirst.getTime() - 1);

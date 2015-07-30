@@ -43,7 +43,7 @@ var COLOR_ERROR = "#D64141";
 var MS_TRELLOAPI_WAIT = (1000 / 30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
 var CMAX_THREADS = 4;
 var g_callbackOnAssert = null;
-var g_bDebuggingInfo = true; //hipri
+var g_bDebuggingInfo = false;
 
 var g_bAcceptSFT = false;
 var g_regexExcludeList = /\[\s*exclude\s*\]/;

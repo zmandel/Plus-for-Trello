@@ -13,11 +13,13 @@ function commitBoardSyncData(tx, alldata) {
             continue;
 
         var thisChanged = true;
+
         assert(board.dateSzLastTrelloNew || !board.dateSzLastTrello);
         assert(board.idActionLastNew || !board.idActionLast);
 
         if (board.orig) {
-            if (board.orig.name == board.name && board.orig.bArchived == board.bArchived && board.orig.idLong == board.idLong && board.orig.idBoard == board.idBoard) {
+            if (board.orig.name == board.name && board.orig.bArchived == board.bArchived &&
+                board.orig.idLong == board.idLong && board.orig.idBoard == board.idBoard && board.orig.verDeepSync == board.verDeepSync) {
                 thisChanged = false;
                 if (board.orig.dateSzLastTrello == board.dateSzLastTrello && board.orig.idActionLast == board.idActionLast)
                     continue;
@@ -29,14 +31,14 @@ function commitBoardSyncData(tx, alldata) {
         if (board.bPendingCreation) {
             assert(!board.orig);
             //could use this for both cases, but maybe sqlite optimizes for update
-            //also consider replace as the board could have been alreadt created during sync (by user entering S/E into a card)
-            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, idBoard) VALUES (?,?,?,?,?,?)";
+            //using "replace" as the board could have been alreadt created during sync (by user entering S/E into a card)
+            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, verDeepSync, idBoard) VALUES (?,?,?, ?,?,?,?)";
         }
         else {
             assert(board.orig);
-            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=? WHERE idBoard=?";
+            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=?,verDeepSync=? WHERE idBoard=?";
         }
-        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.idBoard], null,
+        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.verDeepSync || 0, board.idBoard], null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
