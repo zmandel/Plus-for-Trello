@@ -1806,6 +1806,10 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql('ALTER TABLE BOARDS ADD COLUMN verDeepSync INT DEFAULT 0');
         });
 
+        M.migration(28, function (t) {
+            t.executeSql("delete from lists where idList like '[%'"); //fix trello bug with corrupted idLists in trello board actions
+            t.executeSql("update cards set idList='" + IDLIST_UNKNOWN + "' where idList LIKE '[%'"); //ditto
+        });
 
         M.doIt();
     }

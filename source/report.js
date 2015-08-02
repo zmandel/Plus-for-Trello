@@ -987,8 +987,11 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 		val = completeString(val, completerPattern);
 	var sql = "";
 	var parts = null;
-	if (bString && btoUpper)
-		val = val.toUpperCase();
+	if (bString) {
+	    val = val.trim();
+	    if (btoUpper)
+	        val = val.toUpperCase();
+	}
 
 	//review zig: need more generic way to interpret parameters without hardcoding all here
 	if (param == "eType")
@@ -1047,21 +1050,62 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 		sql += " AND ";
 
 	var decorate = "";
-	var opNot = ""; //by default is not negated
+	var bAllowOrAnd = false;
 
 	if (operator.toUpperCase() == "LIKE") {
+	    assert(bString);
 	    decorate = "%";
-	    if (bString && val.charAt(0) == "!") {
+	    bAllowOrAnd = true;
+	}
+
+	if (bAllowOrAnd && val.length>1) {
+	    var chFirst=val.charAt(0);
+	    var chLast=val.slice(-1);
+	    if ((chFirst == "'" || chFirst == '"') && chFirst == chLast) {
+	        bAllowOrAnd = false;
+	        val = val.substring(1,val.length-1);
+	    }
+	}
+
+	var opOrAnd = "";
+	var valElems = [val];
+	if (bAllowOrAnd) {
+	    if (val.indexOf(" AND ") > 0)
+	        opOrAnd = " AND ";
+	    else if (val.indexOf(" OR ") > 0)
+	        opOrAnd = " OR ";
+
+	    if (opOrAnd) {
+	        valElems = val.split(opOrAnd);
+	    }
+	}
+
+	var bMultiple = valElems.length > 1;
+	var cProcessed = 0;
+	if (bMultiple)
+	    sql += "(";
+	valElems.forEach(function (val) {
+	    cProcessed++;
+	    var opNot = "";
+	    if (bString)
+	        val = val.trim();
+	    if (bAllowOrAnd && val.charAt(0) == "!") {
 	        opNot = "NOT ";
 	        val = val.substr(1);
 	    }
-	}
-	if (bString && btoUpper)
-	    sql += ("UPPER(" + sqlField + ") " + opNot + operator + " ?");
-	else
-		sql += (sqlField + " " + operator + " ?");
-	state.cFilters++;
-	state.values.push(decorate==""? val : decorate + val + decorate);
+
+	    if (bString && btoUpper)
+	        sql += ("UPPER(" + sqlField + ") " + opNot + operator + " ?");
+	    else
+	        sql += (sqlField + " " + operator + " ?");
+
+	    if (bMultiple && cProcessed != valElems.length)
+	        sql = sql + opOrAnd;
+	    state.cFilters++;
+	    state.values.push(decorate == "" ? val : decorate + val + decorate);
+	});
+	if (bMultiple)
+	    sql += ")";
 	return sql;
 }
 
@@ -1075,7 +1119,7 @@ function buildSql(elems) {
 	    sql += buildSqlParam("monthStart", elems, "month", ">=", state);
 	    sql += buildSqlParam("monthEnd", elems, "month", "<=", state, "9999-99");
 	    sql += buildSqlParam("user", elems, "user", "LIKE", state);
-	    sql += buildSqlParam("board", elems, "nameBoard", "LIKE", state);
+	    sql += buildSqlParam("board", elems, "nameBoard", "LIKE", state); //note LIKE allows and/or
 	    sql += buildSqlParam("list", elems, "nameList", "LIKE", state);
 	    sql += buildSqlParam("card", elems, "nameCard", "LIKE", state);
 	    sql += buildSqlParam("comment", elems, "comment", "LIKE", state);
@@ -1085,7 +1129,7 @@ function buildSql(elems) {
 	    sql += buildSqlParam("idBoard", elems, "idBoardH", "=", state);
 	    sql += buildSqlParam("idCard", elems, "idCardH", "=", state);
 	    sql += buildSqlParam("afterRow", elems, "rowid", ">", state, null, false);
-	    sql += buildSqlParam("keyword", elems, "keyword", "LIKE", state);
+	    sql += buildSqlParam("keyword", elems, "keyword", "=", state);
 	    return sql;
 	}
 

@@ -1171,6 +1171,20 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                 if (!list || list.id==IDLIST_UNKNOWN)
                     return;
 
+                function updateCorruptedListFromObj(cur) {
+                    if (cur._id !== undefined)
+                        list.id = cur._id;
+                    if (cur.closed !== undefined)
+                        list.closed = cur.closed;
+                    if (cur.name !== undefined)
+                        list.name = cur.name;
+                    if (cur.pos !== undefined)
+                        list.pos = cur.pos;
+                }
+
+                if (typeof (list.id) == "object" && list.id._id)
+                    updateCorruptedListFromObj(list.id);
+
                 if (list.pos && (typeof (list.pos) == "object")) { //trello bug causes these to appear here
                     //console.log(JSON.stringify(actionCur, undefined, 4));
                     var posObj = list.pos;
@@ -1179,12 +1193,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                         for (var ipos = 0; ipos < posObj.updatedLists.length; ipos++) {
                             var cur = posObj.updatedLists[ipos];
                             if (cur._id == list.id) {
-                                if (cur.closed !== undefined)
-                                    list.closed = cur.closed;
-                                if (cur.name !== undefined)
-                                    list.name = cur.name;
-                                if (cur.pos !== undefined)
-                                    list.pos = cur.pos;
+                                updateCorruptedListFromObj(cur);
                             } else if (cur.name && cur._id) {
                                 //recurse
                                 updateList({id:cur._id, name: cur.name, closed: cur.closed || false, pos: cur.pos || null});
@@ -1873,8 +1882,8 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                 }
 
                 if (!bReturned) {
-                    //if (xhr.status == 400)
-                    //    logPlusError("trello sync error: getBoardsLastInfoWorker"); //review zig: one user reported this. when can it happen?
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error: getBoardsLastInfoWorker");
                     callback(objRet);
                 }
             }
