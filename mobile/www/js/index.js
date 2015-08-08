@@ -10,20 +10,36 @@ var PROP_LASTACTIVITYINFO = "lastActivityInfo";
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
 var g_cPageNavigations = 0;
-var g_bReadyForIntent = false;
 var g_bLocalNotifications = false;
 var g_mapLastActivityInfo = null;
 var g_user = null;
 
 g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
+
 function assert(val) {
+
     if (!val) {
-        var x = 1;
+        //review zig: send to log
+        if (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel")) {
+            var str = "assert failed! ";
+            try {
+                throw new Error();
+            } catch (e) {
+                str = str + " :: " + e.stack;
+                //remove self/known callstack elements, and remove column from each line number
+                str = str.replace(/\n\s*(at assert).*\n/, "\n").replace(/:\d\)/g, ")");
+                //remove absolute paths
+                str = str.replace(/file:\/\/.*\//g, "");
+            }
+            alert(str);
+        }
     }
 }
 
 //called when plusfortrello://activity is received
 function handleOpenURL(url) {
+    //alertMobile(url);
+
     //duplicate detection is needed so that we can launch several identical activities into the app when a notification is clicked.
     //needed because on cold start it takes time for the app to load and would miss the notification callback if we didnt
     //send many events. see onLocalNotification
@@ -40,7 +56,7 @@ function handleOpenURL(url) {
     if (iFind >= 0)
         url = url.substr(iFind + strFind.length);
 
-    //alertMobile(url);
+    
     var msNow = new Date().getTime();
     var cRetry = 0;
     var idNotificationFrom = null;
@@ -103,7 +119,8 @@ function handleOpenURL(url) {
 
 function changePage(url, transition) {
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
-    url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/%27/g, ' ').replace(/%22/g, ' ');
+    //review zig: no longer needed as we only pass card long id in parameters
+	url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/\(/g, ' ').replace(/\)/g, ' ');
     $.mobile.changePage(url, { transition: transition, showLoadMsg:false});
 }
 
@@ -160,7 +177,7 @@ var g_analytics = {
         var payload = "v=1&tid=" + g_idGlobalAnalytics + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
-        };
+        }
         setTimeout(function () {
         $.post("http://www.google-analytics.com/collect", payload, function (data) {
             var x = data;
@@ -444,7 +461,7 @@ function onLocalNotification(id, state, json) {
     var url = "";
     var action = "unknown";
     if (json) {
-        var parsed = JSON.parse(json)
+        var parsed = JSON.parse(json);
         url = parsed.url;
         action = parsed.action;
     }
@@ -489,6 +506,57 @@ function onLocalNotification(id, state, json) {
     worker();
 }
 
+function handleBoardOrCardActivity(text) {
+    function getId(strFind) {
+        var i = text.indexOf(strFind);
+        var split = null;
+        if (i >= 0) {
+            text = text.substring(i + strFind.length);
+            split = text.split("/");
+            if (split.length > 0)
+                text = split[0];
+            return text;
+        }
+        return null;
+    }
+    
+    var bHandled = false;
+    var idBoard = getId("trello.com/b/");
+    if (idBoard) {
+        bHandled = true;
+        setTimeout(function () {
+            callTrelloApi("boards/" + idBoard + "?fields=name", false, 0, callbackTrelloApi,undefined, undefined, undefined, undefined, true);
+
+            function callbackTrelloApi(response, responseCached) {
+                handleBoardClick(response.obj.id, response.obj.name);
+            }
+        }, 400);
+    }
+    else {
+        var idCardShortLink = getId("trello.com/c/");
+        if (idCardShortLink) {
+            bHandled = true;
+            setTimeout(function () {
+                var idCardFull = g_cardsByShortLink[idCardShortLink];
+                if (idCardFull) {
+                    handleCardClick(idCardFull, "", "", "", idCardShortLink);
+                }
+                else {
+                    callTrelloApi("cards/" + idCardShortLink + "?fields=name,shortLink", false, 0, callbackTrelloApi, undefined, undefined, undefined, undefined, true);
+
+                    function callbackTrelloApi(response, responseCached) {
+                        handleCardClick(response.obj.id, response.obj.name, "", "", response.obj.shortLink);
+                    }
+                }
+            }, 400);
+        }
+    }
+
+    if (!bHandled)
+        alertMobile("No card or board url received.");
+}
+
+
 var app = {
     // Application Constructor
     initialize: function () {
@@ -517,6 +585,18 @@ var app = {
                 //https://github.com/katzer/cordova-plugin-local-notifications/issues/357
                 //window.plugin.notification.local.oncancel = onLocalNotificationCancel;
             }
+
+
+            window.plugins.webintent.getExtra(window.plugins.webintent.EXTRA_TEXT, function (text) {
+                handleBoardOrCardActivity(text);
+            }, function() {
+                // There was no extra supplied.
+            });
+
+            window.plugins.webintent.onNewIntent(function (text) {
+                handleBoardOrCardActivity(text);
+            });
+
         }
 
         g_analytics.init();
@@ -541,6 +621,10 @@ var app = {
                 if (iFind >= 0)
                     params = urlNew.substr(iFind);
             }
+            if (g_fnCancelSEBar) {
+                g_fnCancelSEBar();
+				g_fnCancelSEBar=null;
+			}
             defaultPageInit(idPage, page, params, bBack, urlNew);
         }
 
@@ -564,9 +648,6 @@ var app = {
         }
 
         function onAfterPageChange(page) {
-            if (!g_bReadyForIntent) {
-                setTimeout(function () { g_bReadyForIntent = true; }, 10000);
-            }
             $(window).off("scroll.plusForTrello");
             $(window).on("scroll.plusForTrello", function () {
                 if (typeof (requestAnimationFrame) == "undefined")
@@ -725,21 +806,21 @@ function setupSettingsPage() {
 
 function getUrlParams(url) {
     // http://stackoverflow.com/a/23946023/2407309
-    url = url.split('#')[0] // Discard fragment identifier.
-    var urlParams = {}
-    var queryString = url.split('?')[1]
+    url = url.split('#')[0]; // Discard fragment identifier.
+    var urlParams = {};
+    var queryString = url.split('?')[1];
     if (!queryString) {
         if (url.search('=') !== false) {
-            queryString = url
+            queryString = url;
         }
     }
     if (queryString) {
-        var keyValuePairs = queryString.split('&')
+        var keyValuePairs = queryString.split('&');
         for (var i = 0; i < keyValuePairs.length; i++) {
-            var keyValuePair = keyValuePairs[i].split('=')
-            var paramName = keyValuePair[0]
-            var paramValue = keyValuePair[1] || ''
-            urlParams[paramName] = decodeURIComponent(paramValue.replace(/\+/g, ' '))
+            var keyValuePair = keyValuePairs[i].split('=');
+            var paramName = keyValuePair[0];
+            var paramValue = keyValuePair[1] || '';
+            urlParams[paramName] = decodeURIComponent(paramValue.replace(/\+/g, ' '));
         }
     }
     return urlParams;
@@ -798,7 +879,7 @@ function defaultPageInit(idPage, page, params, bBack, urlNew) {
     else if (idPage == "pageSettings")
         setupSettingsPage();
     else if (idPage == "pageListBoards")
-        loadBoardsPage(page, params, bBack);
+        loadBoardsPage(page, bBack);
     else if (idPage == "pageCardDetail")
         loadCardPage(page, params, bBack, urlNew);
 }
@@ -813,12 +894,12 @@ function loadHelpPage() {
     });
 
     $("#plusLicences").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://plusfortrello.blogspot.com/2015/02/plus-for-trello-licences.html", '_blank', 'location=no');
+        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/licences.html", '_blank', 'location=no');
     });
 
     var cHelpClicked = 0;
     $("#helpMoreInfo").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://plusfortrello.blogspot.com/2015/01/mobile-plus-for-trello.html", '_blank', 'location=no');
+        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/mobile-plus-for-trello.html", '_blank', 'location=no');
         cHelpClicked++;
         if (cHelpClicked == 8) {
             if (!confirm("Are you sure you want to turn " + (g_analytics.bDisableAnalytics ? "ON" : "OFF") + " Google Analytics?"))
@@ -828,7 +909,7 @@ function loadHelpPage() {
     });
 
     $("#clearCache").off("click").click(function () {
-        if (!confirm("All stored information including recent boards will be removed. Are your sure?"))
+        if (!confirm("All stored information including recent boards will be cleared from this device. Are your sure?"))
             return;
         clearAllStorage(true);
         refreshCurrentPage();
@@ -842,10 +923,10 @@ function loadHelpPage() {
     //use separate window because otherwise it messes up the app header when going back from external page
     //also, an external window loads inmediately after click, then loads content, while jqm loads content first giving lag impression
     $("#helpPlusCommentFormat").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://plusfortrello.blogspot.com/2014/12/plus-for-trello-se-card-comment-format.html", 'fs', 'location=no');
+        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html", 'fs', 'location=no');
     });
 
-    //note: should use unescape(encodeURIComponent( but cant because of the compression library generating invalid uris. not worth setting uri compression mode to gain presition.
+    //note: should use unescape(encodeURIComponent( but cant because of the compression library generating invalid uris. not worth setting uri compression mode.
     var sizeStorage = JSON.stringify(localStorage).length * 2; //*2 as each char is utf16 = 2 bytes
     var txt = Math.round((sizeStorage * 100) / 1024 / 1024) / 100;
     if (txt == 0)
@@ -971,7 +1052,7 @@ function logoutTrello() {
     clearAllStorage(false);    
 }
 
-function loadBoardsPage(page, params, bBack) {
+function loadBoardsPage(page, bBack) {
     if (bBack) //optimize. since its on main index page, it works
         return;
     var list = $("#boardsList").listview();
@@ -1029,16 +1110,26 @@ function handleBoardClick(idBoard, name) {
     var list = $("#listsList");
     list.empty();
     list.listview();
+    //
+    //REVIEW zig: note about boards navigation: This also applies to most page navigations (except the card details page).
+    //jqm is not very good as storing parameters in the url. Ive had to workarround many bugs where it doesnt handle well some characters even when encoded properly.
+    //see jqm 1.4.5 bug https://github.com/jquery/jquery-mobile/issues/1383
+    //either we need a new framework for navigation, or we upgrade to a better jqm and handle navigation properly by putting all parameters in the url.
+    //currently we only handle the cards details page by special-handling a mapping of id to parameters.
+    //the issue can be easily reproduced by using the official trello app to "send board link" to plus, then navigate forward, then send another board and go back.
+    //the result is that the previous pages will not reset their content and just show the last loaded board/list.
+    //
     $(".titleListLists").text(name);
+    //idBoard is a "long id". we do not pass a shortLink because other code depends on using the id to map things (like api result caches)
     g_stateContext.idBoard = idBoard;
     changePage("index.html#pageListLists", "slide");
-    setTimeout(function () {
-        g_recentBoards.markRecent(name, idBoard);
-    }, 500);
-    callTrelloApi("boards/" + idBoard + "/lists?fields=id,name,closed", true, 3000, function (response) {
+    callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name", true, 3000, function (response) {
         list.empty();
-        $(".titleListLists").text(response.obj.name);
-        response.obj.forEach(function (elem) {
+        idBoard = response.obj.id; //refresh in case a shortLink was passed
+        name = response.obj.name;
+        g_recentBoards.markRecent(name, idBoard);
+        $(".titleListLists").text(name);
+        response.obj.lists.forEach(function (elem) {
             if (elem.closed)
                 return;
             var item = $("<li><a href='#'>" + elem.name + "</a></li>");
@@ -1047,7 +1138,6 @@ function handleBoardClick(idBoard, name) {
             });
             list.append(item);
         });
-
         list.listview("refresh");
     });
 }
@@ -1088,6 +1178,7 @@ function handleListClick(idList, nameBoard, nameList) {
                 handleCardClick(elem.id, elem.name, nameList, nameBoard, elem.shortLink);
             });
             list.append(item);
+            g_cardsByShortLink[elem.shortLink] = elem.id;
         });
         list.listview("refresh");
         return objReturn;
@@ -1095,8 +1186,19 @@ function handleListClick(idList, nameBoard, nameList) {
 }
 
 function handleCardClick(id, name, nameList, nameBoard, shortLink) {
-    changePage("card.html?id=" + encodeURIComponent(id) + "&name=" + encodeURIComponent(name) + "&nameBoard=" + encodeURIComponent(nameBoard) +
-                    "&nameList=" + encodeURIComponent(nameList) + "&shortLink=" + encodeURIComponent(shortLink), "slidedown");
+    assert(id); //note that the other fields could be blank on some offline scenarios
+    var cardCached = g_cardsById[id];
+    if (name && (!cardCached || (nameList && nameBoard && shortLink))) {
+        //see jqm issue on why we dont store params in the url (other than id) https://github.com/jquery/jquery-mobile/issues/1383
+        cardCached = {
+            name: name,
+            nameList: nameList,
+            nameBoard: nameBoard,
+            shortLink: shortLink
+        };
+        g_cardsById[id] = cardCached;
+    }
+    changePage("card.html?id=" + encodeURIComponent(id), "slidedown");
 }
 
 function loginToTrello() {

@@ -62,6 +62,7 @@ var UNITS = {
         if (this.current == this.days)
             return this.hours;
         assert(false);
+        return null; //happy lint
     }
 };
 
@@ -154,7 +155,7 @@ function errFromXhr(xhr) {
 
 //bReturnErrors false (default): will display error and not call callback.
 //always changePane before calling this for a page
-function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context) {
+function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context, bReturnOnlyCachedIfExists) {
     var keyCached = "td:" + urlParam;
     var bReturnedCached = false;
     var objTransformedFirst = null;
@@ -162,6 +163,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
     if (bContext && !context)
         context = JSON.stringify(g_stateContext);
 
+    //NOTE: negative msWaitStart means use cache only if possible and do not call trello
     function bOKContext() {
         return (!bContext || context == JSON.stringify(g_stateContext));
     
@@ -172,20 +174,23 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
         var cached = localStorage[keyCached];
         if (cached) {
             cached = JSON.parse(cached);
-            if ((msWaitStart < 0 || msWaitStart > 400) && cached.now && (Date().now() - cached.now > 1000 * 60 * 10))
-                msWaitStart = 250; //hurry up refresh if cache is older than 10 minutes
+            if ((msWaitStart > 250) && cached.now && (Date.now() - cached.now > 1000 * 60 * 10))
+                msWaitStart = 250; //hurry up refreshing if cache is older than 10 minutes
                 
             var objRetCached = {};
-            if (cached.bTransformed) {
-                objRetCached.objTransformed = JSON.parse(LZString.decompress(cached.compressed));
-            }
-            else {
-                objRetCached.obj = JSON.parse(LZString.decompress(cached.compressed));
-            }
+            var objSet = JSON.parse(LZString.decompress(cached.compressed));
+
+            if (cached.bTransformed)
+                objRetCached.objTransformed = objSet;
+            else           
+                objRetCached.obj = objSet;
+            
             objRetCached.bCached = true;
             objTransformedFirst = objRetCached;
             bReturnedCached = true;
             callback(objRetCached);
+            if (bReturnOnlyCachedIfExists)
+                return; //dont make the request again
         }
     }
     var url = "https://trello.com/1/" + urlParam + "&key=" + TRELLO_APPKEY + "&token=" + localStorage[PROP_TRELLOKEY];
@@ -231,10 +236,8 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                     if (bQuotaExceeded) {
                         var waitNew = (waitRetry || 500) * 2;
                         if (waitNew < 8001) {
-                            setTimeout(function () {
-                                console.log("Plus: retrying api call");
-                                callTrelloApi(urlParam, bContext, 300, callback, bReturnErrors, waitNew, true, context);
-                            }, waitNew);
+                            console.log("Plus: retrying api call");
+                            callTrelloApi(urlParam, bContext, waitNew, callback, bReturnErrors, waitNew, true, context);
                             return;
                         }
                         else {
@@ -271,13 +274,17 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
     }
 
     if (!bReturnedCached)
-        msWaitStart = 100; a//always wait a little bit
-
-    if (msWaitStart >= 0) {
+        msWaitStart = 0;
+    
+    if (msWaitStart > 0) {
         setTimeout(function () {
             worker();
         }, msWaitStart);
     }
+    else if (msWaitStart == 0)  {
+        worker();
+    }
+    //negative msWaitStart means we do not call worker
 }
 
 //taken from chrome extension code

@@ -1,6 +1,9 @@
 var g_valDayExtra = null;
 var g_bNoAnimationDelay = false; //to optimize animation when pressing back button
 var SEKEYWORD_LEGACY = "plus s/e";
+var g_fnCancelSEBar = null;
+var g_cardsById = {}; //has name, nameBoard, nameList, shortLink
+var g_cardsByShortLink = {}; //has id
 
 function getAllKeywords(bExcludeLegacyLast) {
     var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
@@ -37,7 +40,27 @@ var g_seCard = {
     mapUsers: {}
 };
 
+function resetSEPanel(page) {
+    unhookBack();
+    page.find("#panelAddSEContainer").removeClass("shiftUp");
+    page.find("#cardBottomContainer").removeClass("plusShiftBottom");
+    page.find(".cardBackground").removeClass("backgroundShader");
+    page.find("#seContainer table").removeClass("backgroundShader");
+    page.find("#seContainer table th").removeClass("backgroundShader");
+    page.find("#seContainer table td").removeClass("backgroundShader");
+    page.find("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
+    enableSEFormElems(false, page);
+}
+
 function loadCardPage(page, params, bBack, urlPage) {
+    assert(params.id); //note that the rest of params could be missing on some cases (cold navigation here from trello app)
+    var cardCached=g_cardsById[params.id];
+    if (cardCached) {
+        params.name = cardCached.name;
+        params.nameList = cardCached.nameList;
+        params.nameBoard = cardCached.nameBoard;
+        params.shortLink = cardCached.shortLink;
+    }
     var card = page.find("#cardTitle");
     var container = page.find("#seContainer");
     
@@ -49,15 +72,28 @@ function loadCardPage(page, params, bBack, urlPage) {
     var elemList = page.find("#cardList");
 
     function updateTexts() {
-        elemBoard.text(params.nameBoard);
-        elemList.text(params.nameList);
-        card.text(params.name);
+        var strUnknown = "..."; //shows while values load from trello. could stay like that on some offline scenarios.
+        elemBoard.text(params.nameBoard || strUnknown);
+        elemList.text(params.nameList || strUnknown);
+        card.text(params.name || strUnknown);
     }
     tbody.empty();
     updateTexts();
 
     function refreshSE(bSlide) {
         fillSEData(page, container, tbody, params, bBack, function (cRows, bCached) {
+            //params have been updated. Update the card cache as well
+            //review zig: ugly. sometimes we have a partial cache
+            if (!cardCached || !bCached || !!cardCached.name || !cardCached.nameList || !cardCached.nameBoard) {
+                cardCached = {
+                    name: params.name,
+                    nameList: params.nameList,
+                    nameBoard: params.nameBoard,
+                    shortLink: params.shortLink
+                };
+                g_cardsById[params.id] = cardCached;
+                g_cardsByShortLink[params.shortLink] = params.id;
+            }
             updateTexts();
             if (!bCached) {
                 g_pinnedCards.updatePinned(params.id, params.name, params.nameList, params.nameBoard); //handle trello renames etc
@@ -133,6 +169,9 @@ function loadCardPage(page, params, bBack, urlPage) {
     var bNeedBounceFocus = false;
     var panelAddSE = page.find($("#panelAddSE")); //review zig test ios keyboard
 
+    //this is part of the hack to get the focus event into the spent box and display the android numeric keyboard
+    //we simulate a click with the "focus" plugin https://github.com/46cl/cordova-android-focus-plugin/
+    //which gives us the right to simulate other user events like "focus" to bring the keyboard up.
     page.find("#panelAddSE").off("click").click(function (event) {
         if (bNeedBounceFocus) {
             bNeedBounceFocus = false;
@@ -151,47 +190,43 @@ function loadCardPage(page, params, bBack, urlPage) {
         cTimesClickedAdd++;
         enableSEFormElems(true, page, cTimesClickedAdd > 1);
         bNeedBounceFocus = true;
-        $("#panelAddSEContainer").addClass("shiftUp");
-        $("#cardBottomContainer").addClass("plusShiftBottom");
-        $("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
-        $(".cardBackground").addClass("backgroundShader");
-        $("#seContainer table").addClass("backgroundShader");
-        $("#seContainer table th").addClass("backgroundShader");
-        $("#seContainer table td").addClass("backgroundShader");
+        page.find("#panelAddSEContainer").addClass("shiftUp");
+        page.find("#cardBottomContainer").addClass("plusShiftBottom");
+        page.find("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
+        page.find(".cardBackground").addClass("backgroundShader");
+        page.find("#seContainer table").addClass("backgroundShader");
+        page.find("#seContainer table th").addClass("backgroundShader");
+        page.find("#seContainer table td").addClass("backgroundShader");
         
+        page.find("#seBarFeedback").off("click").click(function () {
+            var appInBrowserSurvey = window.open("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form", '_blank', 'location=no');
+        });
+
         setTimeout(function () {
             if (isCordova())
                 cordova.plugins.Focus.focus(panelAddSE);
             else
-                $("#plusCardCommentSpent").focus();
+                page.find("#plusCardCommentSpent").focus();
         }, delayKB);
+
+        function cancelSEBar() {
+            g_fnCancelSEBar = null;
+            resetSEPanel(page);
+        }
+
+        g_fnCancelSEBar = cancelSEBar;
         return false;
     });
     
-    if (false) {
-        window.addEventListener("backbutton", function (evt) {
-            evt.preventDefault();
-            alert("hello");
-            return false;
-        });
-    }
     page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
-        unhookBack();
+        g_fnCancelSEBar = null;
         var delay = delayKB * 2;
         if (g_bNoAnimationDelay) {
             g_bNoAnimationDelay = false;
             delay = 0;
         }
         setTimeout(function () {
-        $("#panelAddSEContainer").removeClass("shiftUp");
-        $("#cardBottomContainer").removeClass("plusShiftBottom");
-        $(".cardBackground").removeClass("backgroundShader");
-        $("#seContainer table").removeClass("backgroundShader");
-        $("#seContainer table th").removeClass("backgroundShader");
-        $("#seContainer table td").removeClass("backgroundShader");
-        $("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
-        enableSEFormElems(false, page);
-
+            resetSEPanel(page);
         }, delay);
         event.stopPropagation();
         event.preventDefault();
@@ -418,7 +453,7 @@ function enableSEFormElems(bEnable,
                 }
                 else {
                     var strValDelta = prompt("enter positive delta", "");
-                    process(parseInt(strValDelta) || 0);
+                    process(parseInt(strValDelta,10) || 0);
                 }
             }
         });
@@ -448,7 +483,9 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
 
     g_stateContext.idCard = idCard;
     //on back, dont call trello, rely on cache only
-    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 200, function (response, responseCached) {
+    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack? -1: 200, callbackTrelloApi);
+
+    function callbackTrelloApi(response, responseCached) {
         g_seCard.clear(); //might not be necessary but timing issues might require another clear
         var rgComments = [];
         var rgRows = [];
@@ -461,6 +498,9 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             objReturn.desc = response.objTransformed.desc;
 
         } else {
+            //update params.id, as we might have received a shortLink (currently does not happen)
+            params.id = response.obj.id;
+            idCard = params.id;
             var rgKeywords = getAllKeywords();
             var cActions = response.obj.actions.length;
             for (iAction = cActions - 1; iAction >= 0; iAction--) {
@@ -496,17 +536,16 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         else {
             descElem.html(converter.makeHtml(objReturn.desc));
             var elems = descElem.find("a");
-            elems.each(function (index) {
-                var elem = elems[index];
-                if ($(elem).prop("href").indexOf("/www/dont_modify")>0)
-                    $(elem).hide();
-            });
             elems.click(function (e) {
                 //prevent jqm from handling it.
                 e.preventDefault();
                 e.stopPropagation();
                 var url = $(e.target).prop("href");
-                openUrlAsActivity(url); //better as activity so drive attachments etc open native
+                var urlLower = url.toLowerCase();
+                if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
+                    handleBoardOrCardActivity(url);
+                else
+                    openUrlAsActivity(url); //better as activity so drive attachments etc open native
             });
             descElem.show();
         }
@@ -520,7 +559,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
 
         callback(rgRows.length, response.bCached);
         return objReturn;
-    });
+    }
 }
 
 function calculateCardSEReport(rgComments, nameCard, bFromCache) {
@@ -564,6 +603,8 @@ function calculateCardSEReport(rgComments, nameCard, bFromCache) {
             //review zig: add check for bFromCache so it doesnt do double work. not here yet because it would cause already-cached card data to
             //not go through here, because older versions didnt have this code to update the users list storage.
             //by june 2015 the check could be added and most users wont notice the issue
+            //review 2 zig: cant see how to prevent the double check. we want to update when reading from cache but also when reading from trello if
+            //plus users list changed in the card
             bModifiedUsers = true;
         }
     }
