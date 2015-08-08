@@ -2,8 +2,7 @@ var g_valDayExtra = null;
 var g_bNoAnimationDelay = false; //to optimize animation when pressing back button
 var SEKEYWORD_LEGACY = "plus s/e";
 var g_fnCancelSEBar = null;
-var g_cardsById = {}; //has name, nameBoard, nameList, shortLink
-var g_cardsByShortLink = {}; //has id
+var g_cardsById = {}; //has name, nameBoard, nameList, shortLink. used for navigation as jqm cant yet store well params in url
 
 function getAllKeywords(bExcludeLegacyLast) {
     var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
@@ -92,6 +91,7 @@ function loadCardPage(page, params, bBack, urlPage) {
                     shortLink: params.shortLink
                 };
                 g_cardsById[params.id] = cardCached;
+                g_mapShortLinks.
                 g_cardsByShortLink[params.shortLink] = params.id;
             }
             updateTexts();

@@ -1,7 +1,16 @@
+/// <reference path="intellisense.js" />
+
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 //var g_idGlobalAnalytics = "UA-xxxxxxxx-y";
-var TRELLO_APPKEY = "ddf61d1f3547d1b15b2d4ab2ad779842";
-var g_idGlobalAnalytics = "UA-58924888-1";
+
+//localStorage usage:
+//some items are stored directly with a fixed string, using global PROP_* properties
+//dinamically named properties are always prefixed by a string and a colon, plus one parameter.
+// rnid:id for notifications
+// td:url for caching trello api calls
+// mpc:shortLink maps card shortlink to id
+// mpb:shortLink maps board shortlink to id
+
 
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
@@ -401,6 +410,24 @@ var g_pinnedCards = {
 
         return idPinnedUse;
     }
+};
+
+var g_mapShortLinks = {
+    prefixBoard: "mpb:",
+    prefixCard: "mpc:",
+    setBoardId: function (shortLink, id) {
+        localStorage[this.prefixBoard + shortLink] = id;
+    },
+    getBoardId: function (shortLink) {
+        return localStorage[this.prefixBoard + shortLink]; //can be undefined
+    },
+
+    setCardId: function (shortLink, id) {
+        localStorage[this.prefixCard + shortLink] = id;
+    },
+    getCardId: function (shortLink) {
+        return localStorage[this.prefixCard + shortLink]; //can be undefined
+    },
 };
 
 //Exists just for testing purposes by running locally in chrome
