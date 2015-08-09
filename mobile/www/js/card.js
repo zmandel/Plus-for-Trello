@@ -1,3 +1,5 @@
+/// <reference path="intellisense.js" />
+
 var g_valDayExtra = null;
 var g_bNoAnimationDelay = false; //to optimize animation when pressing back button
 var SEKEYWORD_LEGACY = "plus s/e";
@@ -91,8 +93,7 @@ function loadCardPage(page, params, bBack, urlPage) {
                     shortLink: params.shortLink
                 };
                 g_cardsById[params.id] = cardCached;
-                g_mapShortLinks.
-                g_cardsByShortLink[params.shortLink] = params.id;
+                g_mapShortLinks.setCardId(params.shortLink, params.id);
             }
             updateTexts();
             if (!bCached) {

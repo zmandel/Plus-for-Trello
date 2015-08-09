@@ -1,3 +1,5 @@
+/// <reference path="intellisense.js" />
+
 //from plus extension code
 var g_dateMinCommentSE = new Date(2013, 6, 30);
 var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -xd will be ignored on x<-2 for non spent-backend admins, like the backend used to do

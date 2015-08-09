@@ -427,7 +427,7 @@ var g_mapShortLinks = {
     },
     getCardId: function (shortLink) {
         return localStorage[this.prefixCard + shortLink]; //can be undefined
-    },
+    }
 };
 
 //Exists just for testing purposes by running locally in chrome
@@ -548,14 +548,20 @@ function handleBoardOrCardActivity(text) {
     }
     
     var bHandled = false;
-    var idBoard = getId("trello.com/b/");
-    if (idBoard) {
+    var idBoardShortLink = getId("trello.com/b/");
+    if (idBoardShortLink) {
         bHandled = true;
         setTimeout(function () {
-            callTrelloApi("boards/" + idBoard + "?fields=name", false, 0, callbackTrelloApi,undefined, undefined, undefined, undefined, true);
+            var idBoardFull = g_mapShortLinks.getBoardId(idBoardShortLink);
+            if (idBoardFull) {
+                handleBoardClick(idBoardFull, "");
+            }
+            else {
+                callTrelloApi("boards/" + idBoardShortLink + "?fields=name", false, 0, callbackTrelloApi,undefined, undefined, undefined, undefined, true);
 
-            function callbackTrelloApi(response, responseCached) {
-                handleBoardClick(response.obj.id, response.obj.name);
+                function callbackTrelloApi(response, responseCached) {
+                    handleBoardClick(response.obj.id, response.obj.name);
+                }
             }
         }, 400);
     }
@@ -564,7 +570,7 @@ function handleBoardOrCardActivity(text) {
         if (idCardShortLink) {
             bHandled = true;
             setTimeout(function () {
-                var idCardFull = g_cardsByShortLink[idCardShortLink];
+                var idCardFull = g_mapShortLinks.getCardId(idCardShortLink);
                 if (idCardFull) {
                     handleCardClick(idCardFull, "", "", "", idCardShortLink);
                 }
@@ -1119,6 +1125,8 @@ function addBoardsToList(list, rgBoards) {
             handleBoardClick(elem.id, elem.name);
         });
         list.append(item);
+        if (elem.shortLink)
+            g_mapShortLinks.setBoardId(elem.shortLink, elem.id);
     });
 }
 
@@ -1150,9 +1158,10 @@ function handleBoardClick(idBoard, name) {
     //idBoard is a "long id". we do not pass a shortLink because other code depends on using the id to map things (like api result caches)
     g_stateContext.idBoard = idBoard;
     changePage("index.html#pageListLists", "slide");
-    callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name", true, 3000, function (response) {
+    callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name,shortLink", true, 3000, function (response) {
         list.empty();
         idBoard = response.obj.id; //refresh in case a shortLink was passed
+        g_mapShortLinks.setBoardId(response.obj.shortLink, idBoard); //useful for offline + opening plus from trello board link
         name = response.obj.name;
         g_recentBoards.markRecent(name, idBoard);
         $(".titleListLists").text(name);
@@ -1205,7 +1214,10 @@ function handleListClick(idList, nameBoard, nameList) {
                 handleCardClick(elem.id, elem.name, nameList, nameBoard, elem.shortLink);
             });
             list.append(item);
-            g_cardsByShortLink[elem.shortLink] = elem.id;
+            //note we do not remember the mapping because entering an unvisited card offline would just show all empty.
+            //instead, the card mapping is saved only when the card has been visited before
+            //g_mapShortLinks.setCardId(elem.shortLink, elem.id); 
+
         });
         list.listview("refresh");
         return objReturn;
