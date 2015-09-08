@@ -11,6 +11,14 @@
 /// <reference path="language.js" />
 /// <reference path="labels.js" />
 /// <reference path="help.js" />
+/// <reference path="commitsync.js" />
+/// <reference path="app.js" />
+/// <reference path="background.js" />
+/// <reference path="board.js" />
+/// <reference path="burndown.js.js" />
+/// <reference path="buttons.js" />
+/// <reference path="card.js" />
+/// <reference path="dashboard.js" />
 
 //https://msdn.microsoft.com/en-us/library/bb385682.aspx
 

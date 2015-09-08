@@ -15,9 +15,16 @@ var KEY_bEnableTrelloSync = "bEnableTrelloSync";
 var keybEnterSEByCardComments = "bEnterSEByCardComments"; //review zig reuse shared globals loader
 var keyrgKeywordsforSECardComment = "rgKWFCC";
 var g_postFixHeaderLast = " last"; //special postfix for column headers
-var g_paramDontQuery = "dontQuery"; //1 when set
-var g_paramFromMarkAllViewed = "fromMAV"; //1 when set
+var g_namedReport = null; //stores named report from initial url param
 
+var g_namedParams = { //review move all here
+    dontQuery: "dontQuery",//1 when set
+    fromMarkAllViewed : "fromMAV",//1 when set
+    sortListNamed: "sortList",
+    namedReport: "named" //popup inline reports use this
+};
+
+var NR_POPUP_REMAIN = "_remain"; //used in html
 var g_cSyncSleep = 0;  //for controlling sync abuse
 var g_bIgnoreEnter = false; //review zig
 var FILTER_DATE_ADVANCED = "advanced";
@@ -25,6 +32,7 @@ var g_bNeedSetLastRowViewed = false;
 var g_bAddParamSetLastRowViewedToQuery = false;
 var g_rowidLastSyncRemember = -1;
 var g_bBuildSqlMode = false;
+var g_sortListNamed = null; //when not null, this array specifies the sort list by column name
 
 var PIVOT_BY = {
     year: "year",
@@ -45,17 +53,25 @@ function getCleanHeaderName(name) {
     var iLast = ret.indexOf(g_postFixHeaderLast);
     if (iLast>0)
         ret = ret.substr(0, iLast);
-    return ret;
+    //remove parenthesis (R case)
+    iLast = ret.indexOf("(");
+    if (iLast > 0)
+        ret = ret.substr(0, iLast);
+    return ret.trim();
 }
 
-function buildUrlFromParams(doc, params, bNoPopupMode) {
+function buildUrlFromParams(params, bNoPopupMode) {
+    var doc="report.html";
     var url = chrome.extension.getURL(doc);
 
-    if (bNoPopupMode)
+    if (bNoPopupMode) {
         params["popup"] = 0;
-    else if (params["popup"] === undefined && g_bPopupMode)
-        params["popup"] = "1";
-
+        params[g_namedParams.namedReport] = "";
+    }
+    else {
+        if (params["popup"] === undefined && g_bPopupMode)
+            params["popup"] = "1";
+    }
     assert(!g_bBuildSqlMode);
 
     var c = 0;
@@ -73,9 +89,17 @@ function buildUrlFromParams(doc, params, bNoPopupMode) {
     return url;
 }
 
-function updateUrlState(doc, params) {
+function updateNamedReport(url) {
+    if (g_namedReport)
+        localStorage[g_namedParams.namedReport + ":" + g_namedReport] = url;
+}
 
-    window.history.replaceState('data', '', buildUrlFromParams(doc, params));
+function updateUrlState(params) {
+    if (g_namedReport)
+        params[g_namedParams.namedReport] = g_namedReport;
+    var url = buildUrlFromParams(params);
+    window.history.replaceState('data', '', url);
+    updateNamedReport(url);
 }
 
 function loadStorageGlobals(callback) {
@@ -135,7 +159,7 @@ function selectTab(iTab, href, bForce) {
 	if (params["tab"] != iTab) {
 	    if (params["tab"] || iTab != 0) { //not just an optimization. Print (ctrl+print) causes a resize. updating the url causes the print dialog to go away in windows chrome.
 	        params["tab"] = iTab;
-	        updateUrlState("report.html", params);
+	        updateUrlState(params);
 	    }
 	}
 }
@@ -160,7 +184,7 @@ function selectTabUI(iTab, href) {
 	for (; i < g_rgTabs.length; i++) {
 		var cur = g_rgTabs[i];
 		if (i == iTab || (href && href == cur)) {
-			iTab = i;//for he href case
+			iTab = i;//for the href case
 			selector = cur;
 		}
 		else {
@@ -175,14 +199,19 @@ function selectTabUI(iTab, href) {
 		var selectedNew=$(".agile_tabselector_list").find("a[href='" + selector + "']");
 		selectedNew.addClass(classSelected);
 		selectedNew.parent().addClass("agile_tabcell_selected");
-		setTimeout(function () {
+		function fixScroller() {
 			if (elemsHide)
 				elemsHide.hide();
 			var heightWindow=window.innerHeight;
 			elem.show();
 			var scroller = elem.find(iTab==0?".agile_tooltip_scroller" : ".agile_report_containerScroll");
 			setScrollerHeight(heightWindow, scroller, scroller);
-		}, 40); //this allows the tabs to refresh in case the tab is large (report tab)
+		}
+
+		setTimeout(function () {
+		    fixScroller(); //this allows the tabs to refresh in case the tab is large (report tab)
+		}, 10);
+		
 	}
 	return iTab;
 }
@@ -350,11 +379,46 @@ document.addEventListener('DOMContentLoaded', function () {
 	if (g_bLoaded)
 		return;
 	g_bLoaded = true;
+
+	addTableSorterParsers();
+    //any params that do not have a UI counterpart will be stripped later, so get them here and set a few global states
 	var params = getUrlParams();
-	g_bPopupMode = (params["popup"] == "1");
+	var bHideSortInPopup=true;
+	var namedReport = params[g_namedParams.namedReport];
+	var bNeedReplaceState = false;
+	g_bPopupMode = (params["popup"] == "1"); //this one wins over saved one
 	g_bBuildSqlMode = (params["getsql"] == "1");
-	if (g_bBuildSqlMode) {
+
+	if (namedReport) {
+	    g_namedReport = namedReport;
+	    if (params["useStoredNamed"]) {
+	        var urlNew = localStorage[g_namedParams.namedReport + ":" + namedReport];
+	        if (urlNew) {
+	            params = getUrlParams(urlNew);
+	            //for safety prevent bad params from getting stuck
+	            params["popup"] = (g_bPopupMode ? "1" : "0");
+	            params["getsql"] = (g_bBuildSqlMode ? "1" : "0");
+	            bNeedReplaceState = true;
+	        }
+	    }
+
+	    if (g_namedReport == NR_POPUP_REMAIN) {
+	        bHideSortInPopup = false; //not hiding means disabling (So user sees how that report is made)
+	        params["orderBy"] = "remain"; //force. we disable it so user could get stuck if someone the combo changes (in theory shouldnt change thou)
+	        bNeedReplaceState = true;
+	    }
+	}
+
+	if (bNeedReplaceState) {
+	    if (g_namedReport)
+	        params[g_namedParams.namedReport] = g_namedReport;
+	    window.history.replaceState('data', '', buildUrlFromParams(params));
+	}
+
+	if (!g_bPopupMode)
 	    $("body").removeClass("agile_report_minSize");
+
+	if (g_bBuildSqlMode) {
 	    $("#checkNoCrop").parent().hide();
 	    $("#tabs").hide();
 	    $("#agile_title_header_report").hide();
@@ -370,15 +434,40 @@ document.addEventListener('DOMContentLoaded', function () {
 	loadTabs($("#tabs"));
 
 	if (g_bPopupMode) {
+	    $("#archived").parent().hide();
+	    $("#deleted").parent().hide();
+	    $("#eType").parent().hide();
+	    if (bHideSortInPopup)
+	        $("#orderBy").parent().hide();
+	    else
+	        $("#orderBy").prop('disabled', true);
+
+
+	    $("#card").parent().hide();
+	    $("#list").parent().hide();
+	    $("#comment").parent().hide();
+
+	    if (params["orderBy"] == "remain") {
+	        $("#sinceSimple").parent().hide();
+	        $("#pivotBy").parent().hide();
+	        $(".agile_tab_rest").hide();
+	    }
+	}
+	else {
+	    $("#archived").parent().show();
+	    $("#deleted").parent().show();
+	}
+
+	if (g_bPopupMode) {
 	    $("#agile_title_header_report").hide();
-	    $("body").height(450); //these two are also duplicated in report.html body so that reports opened from the popup (spent this week) has the right size (prevent flicker)
-	    $("body").width(620);
+	    //$("body").height(450); //these two are also duplicated in report.html body so that reports opened from the popup (spent this week) has the right size (prevent flicker)
+	    //$("body").width(620);
 	    var dockOut = $("#dockoutImg");
 	    dockOut.attr("src", chrome.extension.getURL("images/dockout.png"));
 	    dockOut.show();
 	    dockOut.css("cursor", "pointer");
 	    dockOut.off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
-	        var urlDockout = buildUrlFromParams("report.html", getUrlParams(), true);
+	        var urlDockout = buildUrlFromParams(getUrlParams(), true);
 	        chrome.tabs.create({ url: urlDockout });
 	        return false;
 	    });
@@ -548,7 +637,7 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 		    return; //performance
 
 		if (g_iTabCur != null && g_iTabCur != iTab)
-		    setTimeout(function () { workerCells(); }, 300);
+		    setTimeout(function () { workerCells(); }, 200);
 		else
 		    workerCells();
 
@@ -764,8 +853,15 @@ function getParamAndPutInFilter(elem, params, name, valDefault) {
 function loadReport(params) {
 	selectTab(params["tab"] || null);
 	$("#divMain").show();
-	var bDontQuery = (params[g_paramDontQuery] == "1");
-	var bFromMarkAllViewed = (params[g_paramFromMarkAllViewed] == "1");
+	var bDontQuery = (params[g_namedParams.dontQuery] == "1");
+	var bFromMarkAllViewed = (params[g_namedParams.markAllViewed] == "1");
+	var szSortListParam = params[g_namedParams.sortListNamed];
+	if (szSortListParam) {
+	    g_sortListNamed = JSON.parse(szSortListParam);
+	}
+	else {
+	    g_sortListNamed = null;
+	}
 	var sinceSimple = "";
 	if (params.weekStartRecent == "true") {
 		sinceSimple = "w-4";
@@ -775,15 +871,6 @@ function loadReport(params) {
 	    g_bNeedSetLastRowViewed = true;
 	else
 	    g_bNeedSetLastRowViewed = false;
-
-	var bShowZeroR = true;
-	if (params.showZeroR === undefined) {
-	    if (params.orderBy == "remain")
-	        bShowZeroR = false;
-	}
-	else {
-	    bShowZeroR = (params.showZeroR == "true");
-	}
 
 	var comboSinceSimple = $("#sinceSimple");
 	var comboOrderBy = $('#orderBy');
@@ -865,18 +952,10 @@ function loadReport(params) {
 	    $("#groupBy option[value*='nameList']").remove();
 	}
 
-	if (g_bPopupMode) {
-	    $("#archived").parent().hide();
-	    $("#deleted").parent().hide();
-	}
-	else {
-	    $("#archived").parent().show();
-	    $("#deleted").parent().show();
-	    if (!g_bEnableTrelloSync) {
-	        var strAppendNoSync = "Enable sync to use archived and deleted.";
-	        $("#archived").prop('disabled', true).addClass("agile_background_disabled").prop("title", strAppendNoSync);
-	        $("#deleted").prop('disabled', true).addClass("agile_background_disabled").prop("title",  strAppendNoSync);
-	    }
+	if (!g_bPopupMode && !g_bEnableTrelloSync) {
+	    var strAppendNoSync = "Enable sync to use archived and deleted.";
+	    $("#archived").prop('disabled', true).addClass("agile_background_disabled").prop("title", strAppendNoSync);
+	    $("#deleted").prop('disabled', true).addClass("agile_background_disabled").prop("title", strAppendNoSync);
 	}
 
 	updateDateState();
@@ -927,16 +1006,10 @@ function loadReport(params) {
 			//these set of timeouts could be done all together but the GUI wont update instantly.
 			//handles this case: 1) make a huge report, 2) view by User, 3) change the filter and click Query again.
 			//without this, the pivot view would take a long time to clear because its waiting for the report to clear (which can take a few seconds with 10,000 rows).
-			setTimeout(function () {
-				$(".agile_report_container_byUser").empty().html(" •••");
-				$(".agile_report_container_byBoard").empty().html(" •••");
-				setTimeout(function () {
-					$(".agile_topLevelTooltipContainer").empty().html(" •••");
-					setTimeout(function () {
-						configReport(elems);
-					}, 1);
-				}, 1);
-			}, 1);
+			    $(".agile_report_container_byUser").empty().html("&nbsp;&nbsp;&nbsp;•••");
+			    $(".agile_report_container_byBoard").empty().html("&nbsp;&nbsp;&nbsp;•••");
+			    $(".agile_topLevelTooltipContainer").empty().html("&nbsp;&nbsp;&nbsp;•••");
+			    configReport(elems);
 		} else {
 		    configReport(elems, !bFirstTime && !g_bBuildSqlMode);
 		}
@@ -953,9 +1026,9 @@ function loadReport(params) {
 	}
 	else {
 	    if (!g_bBuildSqlMode) {
-	        delete params[g_paramDontQuery];
-	        delete params[g_paramFromMarkAllViewed];
-	        updateUrlState("report.html", params);
+	        delete params[g_namedParams.dontQuery];
+	        delete params[g_namedParams.markAllViewed];
+	        updateUrlState(params);
 	    }
 	    resetQueryButton(btn);
 	    if (bFromMarkAllViewed)
@@ -975,7 +1048,11 @@ function completeString(str, pattern) {
 	return str;
 }
 
-function buildSqlParam(param, params, sqlField, operator, state, completerPattern, btoUpper) {
+function buildSqlParam(param, params, table, sqlField, operator, state, completerPattern, btoUpper) {
+    if (table)
+        table = table + ".";
+    else
+        table = "";
     if (btoUpper === undefined)
         btoUpper = true;
 	var val = params[param];
@@ -1095,9 +1172,9 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 	    }
 
 	    if (bString && btoUpper)
-	        sql += ("UPPER(" + sqlField + ") " + opNot + operator + " ?");
+	        sql += ("UPPER(" + table+sqlField + ") " + opNot + operator + " ?");
 	    else
-	        sql += (sqlField + " " + operator + " ?");
+	        sql += (table+sqlField + " " + operator + " ?");
 
 	    if (bMultiple && cProcessed != valElems.length)
 	        sql = sql + opOrAnd;
@@ -1110,51 +1187,65 @@ function buildSqlParam(param, params, sqlField, operator, state, completerPatter
 }
 
 function buildSql(elems) {
+   
+    function buildAllParams(state, bTable) {
+        //bTable is needed to dissambiguate when table column names collide in joins
+        var sql = "";
+        var pre = (bTable ? "H" : "");
+	    sql += buildSqlParam("sinceSimple", elems, pre, "date",         ">=", state);
+	    sql += buildSqlParam("weekStart",   elems, "",  "week",         ">=", state);
+	    sql += buildSqlParam("weekEnd",     elems, "",  "week",         "<=", state, "9999-W99");
+	    sql += buildSqlParam("monthStart",  elems, "",  "month",        ">=", state);
+	    sql += buildSqlParam("monthEnd",    elems, "",  "month",        "<=", state, "9999-99");
+	    sql += buildSqlParam("user",        elems, pre, "user",         "LIKE", state);
+	    sql += buildSqlParam("board",       elems, "",  "nameBoard",    "LIKE", state); //note LIKE allows and/or
+	    sql += buildSqlParam("list",        elems, "",  "nameList",     "LIKE", state);
+	    sql += buildSqlParam("card",        elems, "",  "nameCard",     "LIKE", state);
+	    sql += buildSqlParam("comment",     elems, "",  "comment",      "LIKE", state);
+	    sql += buildSqlParam("eType",       elems, "",  "eType",        "=", state);
+	    sql += buildSqlParam("archived",    elems, "",  "bArchivedCB",  "=", state);
+	    sql += buildSqlParam("deleted",     elems, "",  "bDeleted",     "=", state);
+	    sql += buildSqlParam("idBoard",     elems, "",  "idBoardH",     "=", state);
+	    sql += buildSqlParam("idCard",      elems, "",  "idCardH",      "=", state);
+	    sql += buildSqlParam("afterRow",    elems, pre, "rowid",        ">", state, null, false);
+	    sql += buildSqlParam("keyword",     elems, "",  "keyword",      "=", state);
 
-	function buildAllParams(state) {
-        var sql="";
-	    sql += buildSqlParam("sinceSimple", elems, "date", ">=", state);
-	    sql += buildSqlParam("weekStart", elems, "week", ">=", state);
-	    sql += buildSqlParam("weekEnd", elems, "week", "<=", state, "9999-W99");
-	    sql += buildSqlParam("monthStart", elems, "month", ">=", state);
-	    sql += buildSqlParam("monthEnd", elems, "month", "<=", state, "9999-99");
-	    sql += buildSqlParam("user", elems, "user", "LIKE", state);
-	    sql += buildSqlParam("board", elems, "nameBoard", "LIKE", state); //note LIKE allows and/or
-	    sql += buildSqlParam("list", elems, "nameList", "LIKE", state);
-	    sql += buildSqlParam("card", elems, "nameCard", "LIKE", state);
-	    sql += buildSqlParam("comment", elems, "comment", "LIKE", state);
-	    sql += buildSqlParam("eType", elems, "eType", "=", state);
-	    sql += buildSqlParam("archived", elems, "bArchivedCB", "=", state);
-	    sql += buildSqlParam("deleted", elems, "bDeleted", "=", state);
-	    sql += buildSqlParam("idBoard", elems, "idBoardH", "=", state);
-	    sql += buildSqlParam("idCard", elems, "idCardH", "=", state);
-	    sql += buildSqlParam("afterRow", elems, "rowid", ">", state, null, false);
-	    sql += buildSqlParam("keyword", elems, "keyword", "=", state);
+	    if (elems["orderBy"] == "dateDue")
+	        sql += buildSqlParam("dateDue", { dateDue: null }, "", "dateDue", "IS NOT", state);
+	    
 	    return sql;
 	}
 
     //note: the query itself doesnt group because we later do need the entire history to fill the pivot tabs.
-	var groupBy = elems["groupBy"] || "";
+    var groupByLower = (elems["groupBy"] || "").toLowerCase();
+    var bByROpt=false;
 	var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
                 H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
-                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM HISTORY as H \
                 JOIN CARDS as C on H.idCard=C.idCard \
                 JOIN LISTS as L on C.idList=L.idList \
                 JOIN BOARDS B on H.idBoard=B.idBoard";
 
+	var bOrderByR = (elems["orderBy"] == "remain"); //this special-case filters out zero R. special-case it to speed it up
+	var bAllDates = (elems["sinceSimple"] == "");
+
+    //cardbalance is indexed by diff. using that index makes report O(log n) versus O(n)
+    //cant do it with filters because S/E/E1st totals would be off 
+	if (bOrderByR && bAllDates && elems["eType"] == "" && elems["afterRow"] == "" && elems["comment"] == "") {
+	    sql += " JOIN CARDBALANCE CB on CB.idCard=C.idCard AND H.user=CB.user AND CB.diff<>0";
+	    bByROpt=true;
+	}
 	var state = { cFilters: 0, values: [] };
-	var sqlParams = buildAllParams(state);
-	sql += sqlParams;
+	sql += buildAllParams(state, true);
 
 
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
-	var groupByLower = groupBy.toLowerCase();
-	if (groupBy != "" &&
+	if (groupByLower != "" &&
         (groupByLower.indexOf("card") >= 0 || (groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0)) &&
-        !elems["weekStart"] && !elems["weekEnd"]) {
+        !elems["weekStart"] && !elems["weekEnd"] && !bOrderByR) {
 	    assert(!g_bBuildSqlMode);
 
 	    //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
@@ -1163,20 +1254,19 @@ function buildSql(elems) {
                 0 as estFirst, \
                 case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
                 L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
-                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
                 JOIN BOARDS B on C.idBoard=B.idBoard";
-	    sql += sqlParams;
-	    var cValues = state.values.length;
-	    for (var iValues = 0; iValues < cValues; iValues++)
-	        state.values.push(state.values[iValues]);
+        //rebuild filters again because table names are different
+	    state.cFilters = 0;
+	    sql += buildAllParams(state, false);
 	}
 
 	
 	sql += " order by date " + (g_bBuildSqlMode ? "ASC" : "DESC");
 
-	return { sql: sql, values: state.values};
+	return { sql: sql, values: state.values, bByROpt:bByROpt};
 }
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
@@ -1196,7 +1286,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 	    if (g_bAddParamSetLastRowViewedToQuery) {
 	        elems["setLastRowViewed"] = "true";
 	    }
-	    updateUrlState("report.html", elems);
+	    updateUrlState(elems);
 	}
 
 	if (bOnlyUrl)
@@ -1228,7 +1318,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 					function (response) {
 						var rows = response.rows;
 						try {
-							setReportData(rows, elems["checkNoCrop"] == "true", elems);
+						    setReportData(rows, elems["checkNoCrop"] == "true", elems, sqlQuery);
 						}
 						catch (e) {
 							var strError = "error: " + e.message;
@@ -1245,7 +1335,7 @@ function resetQueryButton(btn) {
 	btn.text("Query");
 }
 
-function setReportData(rowsOrig, bNoTruncate, urlParams) {
+function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
 	var rowsGrouped = rowsOrig;
 
 	var groupBy = urlParams["groupBy"];
@@ -1256,40 +1346,46 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 
 
 	var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
-	var html = getHtmlDrillDownTooltip(rowsGrouped, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth);
+	var headersSpecial = {};
+	var html = getHtmlDrillDownTooltip(rowsGrouped, headersSpecial, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
 	var parentScroller = $(".agile_report_container");
 	var container = makeReportContainer(html, 1300, true, parentScroller, true);
 	var tableElem = $(".tablesorter");
-	if (tableElem.length > 0 && rowsGrouped.length>0) {
-	    var sortList = null;
-	    if (orderBy) {
+	var bDoSort = true;
+	if (tableElem.length > 0 && rowsGrouped.length > 0) {
+	    var sortList=[];
+	    if (g_sortListNamed) {
+	        //some scenarios could end up pointing to nonexistent rows from a previous saved report
+	        sortList = namedToIndexedSortList(g_sortListNamed, tableElem);
+	    }
+
+	    if (sortList.length == 0 && orderBy) {
 	        var elemMatch = $('#orderBy option').filter(function () { return $(this).val() == orderBy; });
 	        if (elemMatch.length > 0) {
 	            var textSort = getCleanHeaderName(elemMatch[0].innerText);
-	            var ascdesc=0;
-	            if (orderBy == "date" || typeof (rowsGrouped[0][orderBy]) != "string")
+	            var ascdesc = 0;
+	            if (orderBy != "dateDue" && (orderBy == "date" || typeof (rowsGrouped[0][orderBy]) != "string"))
 	                ascdesc = 1;
-	            sortList = [[textSort,ascdesc]];
+
+	            //dont update g_sortListNamed as this is not an explicit custom sort, it just came from the filter combo
+                //in reality it shouldnt make a difference but not updating it just to reduce code change impact
+	            sortList = namedToIndexedSortList([[textSort, ascdesc]], tableElem);
+	            bDoSort = false;
 	        }
 	    }
-
 	    tableElem.tablesorter({
-	        sortList: sortList //note the modified tablesorter only sets headers here, wont sort (again) the list
+	        sortList: sortList,
+	        bDoSort: bDoSort,
+	        headers: headersSpecial
 	    });
 	    
 	    tableElem.bind("sortEnd", function () {
 	        var elem = this;
 	        if (elem && elem.config && elem.config.sortList && elem.config.headerList) {
-	            var index = elem.config.sortList[0][0]; //supports first sort only
-	            var txtHeader = getCleanHeaderName(elem.config.headerList[index].innerText);
-	            var valMatch = $('#orderBy option').filter(function () { return getCleanHeaderName($(this).html()) == txtHeader; }).val();
-	            if (valMatch) {
-	                var valMatchClean = getCleanHeaderName(valMatch);
-	                $('#orderBy').val(valMatchClean);
-	                var params = getUrlParams();
-	                params["orderBy"] = valMatchClean;
-	                configReport(params, false, true);
-	            }
+	            var params = getUrlParams();
+	            g_sortListNamed = indexedToNamedSortList(elem.config.sortList, tableElem);
+	            params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed);
+	            configReport(params, false, true);
 	        }
 	    });
 	}
@@ -1305,6 +1401,49 @@ function setReportData(rowsOrig, bNoTruncate, urlParams) {
 	    g_bAddParamSetLastRowViewedToQuery = true;
 	}
 }
+
+function indexedToNamedSortList(list, table) {
+
+    var cols = []; //array
+    var iCol = 0;
+    table.find("thead tr th").each(function () {
+        var txt = getCleanHeaderName($(this)[0].innerText);
+        cols[iCol] = txt;
+        iCol++;
+    });
+
+    var ret = [];
+    list.forEach(function (elem) {
+        if (elem[0] >= cols.length)
+            return;
+        var txt = cols[elem[0]];
+        ret.push([txt, elem[1]]);
+    });
+    return ret;
+}
+
+function namedToIndexedSortList(list, table) {
+    
+    var cols={}; //object
+    var iCol=0;
+    table.find("thead tr th").each(function () {
+        var txt = getCleanHeaderName($(this)[0].innerText).toLowerCase();
+        cols[txt]=iCol;
+        iCol++;
+    });
+    
+    var ret = [];
+    list.forEach(function (elem) {
+        if (elem.length!=2 || typeof (elem[0]) != "string")
+            return;
+        var iFound = cols[elem[0].toLowerCase()];
+        if (iFound === undefined)
+            return;
+        ret.push([iFound, elem[1]]);
+    });
+    return ret;
+}
+
 
 function configureLastViewedRowButton() {
     var keyLastSyncViewed = "rowidLastHistorySyncedViewed";
@@ -1331,8 +1470,8 @@ function setLastViewedRow() {
         sendExtensionMessage({ method: "updatePlusIcon" }, function (response) { });
         var params = {};
         g_bAddParamSetLastRowViewedToQuery = false;
-        params[g_paramDontQuery] = "1";
-        params[g_paramFromMarkAllViewed] = "1";
+        params[g_namedParams.dontQuery] = "1";
+        params[g_namedParams.markAllViewed] = "1";
         params["sinceSimple"] = "w-4";
         configReport(params, true);
     }
@@ -1395,9 +1534,9 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) 
 	          params[rep.name] = rep.value;
 	      }
 
-	      if (data.bPivotByWeek)
+	      if (data.bPivotByWeek || data.bPivotByMonth)
 	          params["pivotBy"] = PIVOT_BY.day;
-	      else if (data.bPivotByYear || data.bPivotByMonth)
+	      else if (data.bPivotByYear)
 	          params["pivotBy"] = PIVOT_BY.month;
 	      else
 	          params["tab"] = 0;
@@ -1405,10 +1544,13 @@ function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) 
 	      if (data.bRemoveSimpleDateFilter)
 	          params["sinceSimple"] = FILTER_DATE_ADVANCED;
 
-	      if (ev.ctrlKey)
-	          window.open(buildUrlFromParams("report.html", params, true), '_blank');
-	      else
-	          window.location.href = buildUrlFromParams("report.html", params);
+	      if (ev.ctrlKey) {
+	          window.open(buildUrlFromParams( params, true), '_blank');
+	      }
+	      else {
+	          delete params[g_namedParams.namedReport];
+	          window.location.href =  buildUrlFromParams(params);
+	      }
 	  }, false);
 	}
 
@@ -1719,11 +1861,13 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 			        var eSave = group.est;
 			        var eFirstSave = group.estFirst;
 			        var rowidSave = group.rowid;
+			        var dateDueSave = group.dateDue;
 			        group = cloneObject(row); //re-clone so rows with s/e always take precedence over card-only rows.
 			        group.spent = sSave;
 			        group.est = eSave;
 			        group.estFirst = eFirstSave;
 			        group.rowid = rowidSave;
+			        group.dateDue = dateDueSave;
 			    }
 				group.spent += row.spent;
 				group.est += row.est;
@@ -1775,8 +1919,15 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 				va = a.est - a.spent;
 				vb = b.est - b.spent;
 			} else {
-				va = a[propertySort];
-				vb = b[propertySort];
+			    if (propertySort == "dateDue") { //REVIEW ZIG: ugly duplication in setReportData
+				    va = b[propertySort];
+				    vb = a[propertySort];
+				}
+				else {
+				    va = a[propertySort];
+				    vb = b[propertySort];
+				}
+
 			}
 			return (vb - va);
 		});
@@ -1784,17 +1935,34 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 	return ret;
 }
 
-function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth) {
+function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
 	var bOrderR = (orderBy == "remain");
 	var header = [];
+
+	function pushSpecialLinkHeader() {
+	    assert(header.length > 0);
+	    headersSpecial[header.length - 1] = {
+	        sorter: 'links'
+	    };
+	}
+
 	var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
 	var bGroupedByDate = (groupBy.toLowerCase().indexOf("datestring") >= 0);
 	var bShowKeyword = g_bShowKeywordFilter;
 	if (bShowKeyword)
 	    header.push({ name: "Keyword" + strAppendHeaders });
-	header.push({ name: "Date" + (bGroupedByDate? "" : strAppendHeaders) });
-	header.push({ name: "Week" + strAppendHeaders });
-	var bGroupByCardOrNone = (groupBy == "" || groupBy.toLowerCase().indexOf("card") >= 0);
+
+	var bRPopup = (bOrderR && g_bPopupMode);
+	var bShowDate = (!bRPopup || groupBy.indexOf("date") >= 0);
+	if (bShowDate)
+	    header.push({ name: "Date" + (bGroupedByDate ? "" : strAppendHeaders) });
+
+	var bCardGrouping = (groupBy.toLowerCase().indexOf("card") >= 0);
+	if (bCardGrouping)
+	    header.push({ name: "Due date" }); //without strAppendHeaders
+	if (bShowDate)
+	    header.push({ name: "Week" + strAppendHeaders });
+	var bGroupByCardOrNone = (groupBy == "" || bCardGrouping);
 	var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
 	var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
 	if (bShowMonth)
@@ -1804,22 +1972,30 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		header.push({ name: "User" });
 	
 	var bShowBoard=(groupBy=="" || groupBy.indexOf("idBoardH")>=0 || groupBy.indexOf("idCardH")>=0);
-	if (bShowBoard)
-		header.push({ name: "Board" });
-
+	if (bShowBoard) {
+	    header.push({ name: "Board" });
+	    pushSpecialLinkHeader();
+	}
 	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
 
-	var bShowList = (g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || groupBy.indexOf("posList") >= 0 || bShowCard));
+	var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
 	if (bShowList)
 	    header.push({ name: "List" });
-	if (bShowCard)
+	if (bShowCard) {
 	    header.push({ name: "Card" });
+	    pushSpecialLinkHeader();
+	}
 
+	var bShowSE = true;
 
-	header.push({ name: "S" });
-	header.push({ name: "E 1ˢᵗ" });
-	header.push({ name: "E" });
+	if (bOrderR && groupBy != "idCardH-user" && bByROpt)
+	    bShowSE = false; //S/E is not meaningful when filtering only by cards with non-zero R
 
+	if (bShowSE) {
+	    header.push({ name: "S" });
+	    header.push({ name: "E 1ˢᵗ" });
+	    header.push({ name: "E" });
+	}
 	bShowRemain = (bOrderR || groupBy != "");
 	if (bShowRemain)
 		header.push({ name: "R" });
@@ -1854,8 +2030,19 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 	    }
 	    if (bShowKeyword)
 	        rgRet.push({ name: row.keyword, bNoTruncate: true });
-	    rgRet.push({ name: (bGroupedByDate?dateString : dateTimeString), bNoTruncate: true });
-	    rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
+        if (bShowDate)
+	        rgRet.push({ name: (bGroupedByDate ? dateString : dateTimeString), bNoTruncate: true });
+	    if (bCardGrouping) {
+	        var dateDueTimeString = row.dateDue || "";
+	        if (dateDueTimeString) {
+	            dateDueTimeString = new Date(dateDueTimeString * 1000);
+	            dateDueTimeString = makeDateCustomString(dateDueTimeString, true);
+	        }
+	        rgRet.push({ name: dateDueTimeString, bNoTruncate: true });
+	    }
+
+	    if (bShowDate)
+	        rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
 		if (bShowMonth)
 		    rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
 		if (bShowUser)
@@ -1883,9 +2070,11 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		}
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
-		rgRet.push({ type: "S", name: sPush, bNoTruncate: true });
-		rgRet.push({ type: "EFirst", name: parseFixedFloat(row.estFirst), bNoTruncate: true }); //not type "E". that is used when showing sum of row selections
-		rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
+		if (bShowSE) {
+		    rgRet.push({ type: "S", name: sPush, bNoTruncate: true });
+		    rgRet.push({ type: "EFirst", name: parseFixedFloat(row.estFirst), bNoTruncate: true }); //not type "E". that is used when showing sum of row selections
+		    rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
+        }
 		if (bShowRemain) {
 			var remainCalc = parseFixedFloat(row.est - row.spent);
 			if (bOrderR && remainCalc == 0)
@@ -1915,7 +2104,7 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 			    title += "\n(no s/e)";
 			rgRet.title = title;
 		} else {
-		    rgRet.title = "(" + sPush + " / " + estPush + ") " + row.comment;
+		    rgRet.title = (bShowSE? "(" + sPush + " / " + estPush + ") " : "") + row.comment;
 		}
 		if (row.date) {
 		    var dateRow = new Date(row.date * 1000);
@@ -1932,11 +2121,11 @@ function getHtmlDrillDownTooltip(rows, bNoTruncate, groupBy, orderBy, eType, arc
 		return rgRet;
 	}
 
-	return getHtmlBurndownTooltipFromRows(true, rows, false, header, callbackRowData, true, "");
+	return getHtmlBurndownTooltipFromRows(true, rows, false, header, callbackRowData, true, "", bShowSE);
 }
 
 function getSQLReport(sql, values, callback) {
-	getSQLReportShared(sql, values, callback, function onError(status) {
-		showError(status);
-	});
+    getSQLReportShared(sql, values, callback, function onError(status) {
+        showError(status);
+    });
 }

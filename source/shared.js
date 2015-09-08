@@ -3,6 +3,7 @@
 var IDBOARD_UNKNOWN = "//"; //board shortLink/idLong reserved for unknown boards. saved into db. for cases where user does not have permission for a board (for example when moving a card there)
 var IDLIST_UNKNOWN = "//"; //list idLong. deals with missing idList in convertToCardFromCheckItem board action. saved to db
 var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
+var PREFIX_COMMAND_SE_COMMENT = "[^";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
@@ -15,6 +16,41 @@ var OPT_SHOWSPENTINICON_NEVER = 2;
 var g_optAlwaysShowSpentChromeIcon = OPT_SHOWSPENTINICON_NORMAL; //review zig these 3  need initialization. reuse loadBackgroundOptions
 var g_bDontShowTimerPopups = false;
 var g_bIncreaseLogging = false;
+var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
+
+function addTableSorterParsers() {
+    $.tablesorter.addParser({
+        // set a unique id 
+        id: 'links',
+        is: function (s) {
+            // return false so this parser is not auto detected 
+            return false;
+        },
+        format: function (s) {
+            // format your data for normalization 
+            return s.replace(new RegExp(/<.*?>/), "");
+        },
+        // set type, either numeric or text
+        type: 'text'
+    });
+
+    $.tablesorter.addParser({
+        // set a unique id 
+        id: 'digitWithParen',
+        is: function (s) {
+            // return false so this parser is not auto detected 
+            return false;
+        },
+        format: function (s) {
+            // format your data for normalization
+            return s.split("(")[0].trim(); //remove possible (E 1st)
+        },
+        // set type, either numeric or text
+        type: 'numeric'
+    });
+
+}
+
 
 function getHashtagsFromTitle(title) {
     var hashtags = [];
@@ -48,8 +84,15 @@ var g_bDebuggingInfo = false;
 var g_bAcceptSFT = false;
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
-var ID_PLUSCOMMAND = "/PLUSCOMMAND";
-var PREFIX_PLUSCOMMAND = "^";
+var ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
+var PLUSCOMMAND_RESET = "^resetsync";
+var PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
+var g_regexWords = /\S+/g; //parse words from an s/e comment. kept global in hopes of increasing perf by not having to parse the regex every time
+
+//regex is easy to break. check well your changes. consider newlines in comments.
+//                          users               days           spent                      command           /        estimate              spaces   note
+var g_regexSEFull= new RegExp("^((\\s*@\\w+\\s+)*)((-[0-9]+)[dD]\\s+)?(([+-]?[0-9]*[.:]?[0-9]*)|(\\^[a-zA-Z]+))?\\s*(/?)\\s*([+-]?[0-9]*[.:]?[0-9]*)?(\\s*)(\\s[\\s\\S]*)?$");
+
 var PROP_TRELLOUSER = "plustrellouser";
 var PROP_SHOWBOARDMARKERS = "showboardmarkers";
 var TAG_RECURRING_CARD = "[R]";
@@ -424,12 +467,14 @@ function CreateWaiter(cTasks, callback) {
 }
 
 
-function getUrlParams() {
-	var iParams = window.location.href.indexOf("?");
+function getUrlParams(href) {
+    if (!href)
+        href = window.location.href;
+	var iParams = href.indexOf("?");
 	var objRet = {};
 	if (iParams < 0)
 		return objRet;
-	var strParams = window.location.href.substring(iParams + 1);
+	var strParams = href.substring(iParams + 1);
 	var params = strParams.split("&");
 	var i = 0;
 	for (i = 0; i < params.length; i++) {
@@ -561,15 +606,28 @@ function setCallbackPostLogMessage(callback) {
 
 
 function getSQLReportShared(sql, values, okCallback, errorCallback) {
-	sendExtensionMessage({ method: "getReport", sql: sql, values: values }, function (response) {
-		if (response.status != STATUS_OK) {
-			if (errorCallback)
-				errorCallback(response.status);
-			return; //dont call  okCallback
-		}
-		okCallback(response);
-	});
+
+    function sendResponse(response) {
+        if (response.status != STATUS_OK) {
+            if (errorCallback)
+                errorCallback(response.status);
+            return; //dont call  okCallback
+        }
+        okCallback(response);
+    }
+
+    var obj = { method: "getReport", sql: sql, values: values };
+    if (chrome && chrome.runtime && chrome.runtime.getBackgroundPage) { //calling directly background (vs using a message) should be more efficient and allow bigger returned tables
+        chrome.runtime.getBackgroundPage(function (bkPage) {
+            bkPage.handleGetReport(obj, sendResponse);
+        });
+    }
+    else {
+        sendExtensionMessage(obj, sendResponse);
+    }
 }
+
+
 
 function selectElementContents(el) {
 	if (window.getSelection && document.createRange) {
@@ -685,7 +743,7 @@ function getDrilldownTopButtons(bNoClose, title) {
 	return ret;
 }
 
-function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, callbackGetRowData, bOnlyTable, title) {
+function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, callbackGetRowData, bOnlyTable, title,bSEColumns) {
 	bOnlyTable = bOnlyTable || false;
 	if (title === undefined)
 		title = "Plus Drill-down";
@@ -717,8 +775,13 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		if (tds.title && tds.title != "")
 		    strPost = " title='" + tds.title + "'";
 		var strClassRow = "agile-drilldown-row";
-		if (iColComment >= 0 && tds.length > iColComment && tds[iColComment].name.toLowerCase().indexOf(PREFIX_ERROR_SE_COMMENT) >= 0)
-		    strClassRow = strClassRow + " agile-drilldown-row-error";
+		if (iColComment >= 0 && tds.length > iColComment) {
+		    var commentLow = tds[iColComment].name.toLowerCase();
+		    if (commentLow.indexOf(PREFIX_ERROR_SE_COMMENT) >= 0)
+		        strClassRow = strClassRow + " agile-drilldown-row-error";
+		    else if (commentLow.indexOf(PREFIX_COMMAND_SE_COMMENT) >= 0)
+		        strClassRow = strClassRow + " agile-drilldown-row-command";
+		}
 		var html = "<tr class='"+strClassRow+"'" + strPost + ">";
 		var iCol = 0;
 		for (; iCol < tds.length; iCol++) {
@@ -793,10 +856,12 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		html=html+('</DIV>');
 	if (bShowTotals) {
 	    var sep = "<span class='agile_lighterText'>:</span>";
-	    title += ("&nbsp;"+rows.length + " rows&nbsp;") + ("&nbsp;&nbsp;S" + sep + parseFixedFloat(sTotal) +
+	    title += ("&nbsp;" + rows.length + " rows&nbsp;");
+	    if (bSEColumns)
+	        title += ("&nbsp;&nbsp;S" + sep + parseFixedFloat(sTotal) +
             (bUseEFirst ? "&nbsp;&nbsp;&nbsp;&nbspE 1ˢᵗ"+sep + parseFixedFloat(eFirstTotal) : "") +
-            "&nbsp;&nbsp;&nbsp;&nbspE"+sep + parseFixedFloat(eTotal) +
-            "&nbsp;&nbsp;&nbsp;&nbspR" + sep +parseFixedFloat(eTotal - sTotal));
+            "&nbsp;&nbsp;&nbsp;&nbspE"+sep + parseFixedFloat(eTotal) + "&nbsp;&nbsp;");
+	    title +="&nbsp;&nbspR" + sep +parseFixedFloat(eTotal - sTotal);
 	}
 	htmlTop += getDrilldownTopButtons(bOnlyTable, title);
 	return htmlTop+html;
@@ -866,18 +931,24 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	      var iSelected = 0;
 	      var sCur = 0;
 	      var eCur = 0;
+	      var bAdded = false; //simple way of not showing selected s/e when not present (sort by R for example)
 	      for (; iSelected < selected.length; iSelected++) {
 	          var children = selected.eq(iSelected).children("td");
 	          var iChildren = 0;
 	          for (; iChildren < children.length; iChildren++) {
 	              var childCur = children.eq(iChildren);
-	              if (childCur.hasClass("agile_cell_drilldownS"))
+	              if (childCur.hasClass("agile_cell_drilldownS")) {
 	                  sCur += parseFloat(childCur.text());
-	              else if (childCur.hasClass("agile_cell_drilldownE"))
+	                  bAdded = true;
+
+	              }
+	              else if (childCur.hasClass("agile_cell_drilldownE")) {
 	                  eCur += parseFloat(childCur.text());
+	                  bAdded = true;
+	              }
 	          }
 	      }
-	      if (selected.length > 0)
+	      if (selected.length > 0 && bAdded)
 	          $(".agile_selection_totals").html("&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
 	      else
 	          $(".agile_selection_totals").empty();

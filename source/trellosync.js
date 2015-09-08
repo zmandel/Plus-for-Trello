@@ -1,6 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
+
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
-var g_verDeepSyncBoardData = 1; //simple way to force one or all boards to get a full "deep" sync of all lists and cards (not incremental)
+var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
 
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
@@ -11,7 +12,7 @@ function logTrelloSync(message) {
         console.log(message);
 }
 
-var TOTAL_SYNC_STAGES = 8;
+var TOTAL_SYNC_STAGES = 9;
 
 var g_syncStatus = {
     postfixStage: "",
@@ -202,14 +203,23 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     var boardsTrello = []; //boards the user has access. This list is later intersected with the db boards list.
     var boardsReport = [];
 
+    //Arquitecture note about rgCardResetData: see http://sqlite.org/autoinc.html regarding deleting rows and rowid behaviour. some plus features rely on an always-incrementing rowid,
+    //(like etype for E1st, and boardmarkers). We could use autoincrement on history, but requires an upgrade of the table and decreases performace.
+    //that sqlite link in our case says that you cant ever delete the row with the largest rowid, which could be of a card in this array.
+    //to avoid the issue, and to maintain a record of the original values being modified, I instead make the existing card history rows 0/0,
+    //and include in the note the [details] of the original S/E in the row.
+    //this does not break 1st estimates, because they ignore 0/0 when calculating min(rowid) see updateCardRecurringStatusInHistory, handleMakeNonRecurring
+    //CARDBALANCE and BOARDMARKER tables are reset for the cards, and are re-generated.
+
     var alldata = {
-        boards: {}, //hash by shortLink. (name, dateSzLastTrello, idActionLast, bArchived)
+        boards: {}, //hash by shortLink. (name, dateSzLastTrello, idActionLast, bArchived) note dateSzLastTrello is 1ms behind (see note in sql)
         lists: {},  //hash by idLong. (name, idBoard, dateSzLastTrello, bArchived, pos)
         cards: {},  //hash by shortLink. (name, idBoard, dateSzLastTrello, idList, bArchived, listCards[] (idList,dateSzIn,dateSzOut,userIn,userOut) )
         cardsByLong: {}, //hash idLong -> shortLink.
         boardsByLong: {}, //hash idLong -> shortLink.
         hasBoardAccess: {}, //hash by shortLink -> true iff user has access to that board
-        commentsSE: [] //all possible S/E comments
+        rgCommentsSE: [], //all possible S/E comments
+        rgCardResetData: [] //array of {idCard: shortLink, idBoard: shortLink, dateSzBefore, idActionReset: action with resetsync command } of cards needing reset
     };
 
     g_lastLogError = ""; //reset
@@ -245,10 +255,15 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
         var bFirstSync = (boardsTrello.length > 0 && ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true"));
         if (bFirstSync) {
             animateFlip();
-            setTimeout(function () {
-                if (g_syncStatus.bSyncing)
-                    animateFlip();
-            }, 3000);
+            doAnim(1000);
+            doAnim(2000);
+            doAnim(3000);
+            function doAnim(ms) {
+                setTimeout(function () {
+                    if (g_syncStatus.bSyncing)
+                        animateFlip();
+                }, ms);
+            }
             broadcastMessage({ event: EVENTS.FIRST_SYNC_RUNNING, status: STATUS_OK });
             handleShowDesktopNotification({
                 notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering over the Plus icon on the top-right of Chrome.",
@@ -504,6 +519,8 @@ function completeMissingListData(tokenTrello, alldata, sendResponse) {
 
 function matchesCardShortLinkFromTrelloWelcomeBoard(shortLink) {
     var rg = [
+        //all cards from both "welcome board" in https://trello.com/examples
+        //1: https://trello.com/b/bKbdmCKB/welcome-board 
 "YdSxoGcc",
 "XNItoCqd",
 "B5h0PIBw",
@@ -524,7 +541,16 @@ function matchesCardShortLinkFromTrelloWelcomeBoard(shortLink) {
 "bVlkHq2d",
 "JSccv2Cq",
 "sfAshneN",
-"xa7yvDpA"
+"xa7yvDpA",
+
+//2: https://trello.com/b/HF8XAoZd/welcome-board
+"QB1UIzwU",
+"TqE553J6",
+"rlJzoJEd",
+"UlhkFUUd",
+"OR0JbMVP",
+"ZQK0l0oa",
+"AgCyecMP"
 ];
     for (var i = 0; i < rg.length; i++) {
         if (rg[i] == shortLink)
@@ -563,6 +589,7 @@ function preProcessActionsCaches(tokenTrello, actions, alldata, nextAction) {
             //NOTE: confirmed trello bug where board.shortLink != action.idBoardSrc
             //Ive seen it happen on a customer, where an updateList action had board.shortLink be the trello welcome board, but idBoardSrc was the copy that trello makes.
             //WARNING: this means that code elsewhere cant trust board.shortLink unless it came from the db :(
+            //there is code that currently identifies cards from trello sample boards, where this often happens, to ignore those shortLinks
             if (board.shortLink && board.shortLink != action.idBoardSrc) {
                 console.log("Plus unusual: board.shortLink != action.idBoardSrc. shortLink:" + board.shortLink + " idBoardSrc:" + action.idBoardSrc+" .Full action:");
                 console.log(JSON.stringify(action, undefined, 4));
@@ -664,11 +691,12 @@ function getAllItemsFromDb(actions, alldata, sendStatus) {
         }
         var action = actions[iAction];
         var card = action.data.card;
+        var bCheckMaxCallstack = checkMaxCallStack(iAction);
         if (card) {
-            populateDataCardFromDb(cardsNotFound, alldata, card, nextAction);
+            populateDataCardFromDb(cardsNotFound, alldata, card, nextAction, bCheckMaxCallstack);
         }
         else {
-            if (checkMaxCallStack(iAction)) { //reduce long callstacks. must be large else is slow in canary
+            if (bCheckMaxCallstack) { //reduce long callstacks. must be large else is slow in canary
                 setTimeout(function () {
                     nextAction(STATUS_OK);
                 });
@@ -679,15 +707,25 @@ function getAllItemsFromDb(actions, alldata, sendStatus) {
     }
 }
 
-function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus) {
+function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus, bAsync) {
     assert(card);
     var idShortCard = card.shortLink;
     var idLongCard = card.id;
     var cardDb = null;
     
+    function earlyFinish() {
+        if (bAsync) {
+            setTimeout(function () {
+                sendStatus(STATUS_OK);
+            });
+        }
+        else
+            sendStatus(STATUS_OK);
+    }
+
     assert(idLongCard);
     if (cardsNotFound[idLongCard]) {
-        sendStatus(STATUS_OK);
+        earlyFinish();
         return;
     }
 
@@ -701,11 +739,11 @@ function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus) {
     }
     
     if (cardDb) {
-        sendStatus(STATUS_OK);
+        earlyFinish();
         return;
     }
 
-    var request = { sql: "select idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where (idCard=? OR idLong=?)", values: [idShortCard, idLongCard] };
+    var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where (idCard=? OR idLong=?)", values: [idShortCard, idLongCard] };
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK) {
@@ -819,10 +857,22 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
 
 
     var cardCur = cards[card.shortLink];
+    var dueDate = undefined;
+    if (typeof card.due != "undefined") {
+        if (card.due == null)
+            dueDate = null;
+        else
+            dueDate = Math.round(new Date(card.due).getTime()/1000);
+    }
+        
     if (cardCur) {
         if (!cardCur.dateSzLastTrello || dateCard >= cardCur.dateSzLastTrello) {
             if (card.name) //not present on deleteCard
                 cardCur.name = card.name;
+
+            if (typeof dueDate != "undefined")
+                cardCur.dateDue = dueDate; //can be null
+
             cardCur.dateSzLastTrello = dateCard;
             if (true) {
                 //for consistency, thou note that its not always true that an unknown list means unknown board
@@ -852,7 +902,7 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
             //before this change, trello used to keep all the history thus the name was never undefined ("createCard" and such were processed before)
             cardActionName = (typeAction == "deleteCard" ? "deleted card" : "unknown card name");
         }
-        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false };
+        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false, dateDue: dueDate || null };
         cards[card.shortLink] = cardCur;
     }
 
@@ -869,7 +919,7 @@ function bUpdateAlldataList(lists, list, idBoard, dateList) {
     var listCur = lists[list.id];
     if (listCur) {
         if (!listCur.dateSzLastTrello || dateList >= listCur.dateSzLastTrello) {
-            if (list.name) //test just in case. on cards, sometimes its not there.
+            if (list.name) //on cards, sometimes its not there.
                 listCur.name = list.name;
 
             if (list.pos)
@@ -896,6 +946,7 @@ function bUpdateAlldataList(lists, list, idBoard, dateList) {
 function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAccess, sendResponseParam) {
     var bProcessCommentSE = g_optEnterSEByComment.IsEnabled();
     var rgKeywords = [];
+    var bFirstSync = ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true");
     if (bProcessCommentSE)
         rgKeywords = cloneObject(g_optEnterSEByComment.rgKeywords); //prevent issues if object changes during sync
 
@@ -970,7 +1021,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             //also skip those with dateSzLastTrello not null. that can happen on a non-deleted card that was on the db but now the user doenst have permission.
             //those are set to a non-null dateSzLastTrello so that we dont keep permanently trying to complete them here.
             //this list is unfortunately big on the very first sync, most items are skipped
-            var request = { sql: "select idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList='" + IDLIST_UNKNOWN + "' AND bArchived=0 AND dateSzLastTrello IS NULL", values: [] };
+            var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList='" + IDLIST_UNKNOWN + "' AND bArchived=0 AND dateSzLastTrello IS NULL", values: [] };
             handleGetReport(request,
                 function (responseReport) {
                     if (responseReport.status != STATUS_OK) {
@@ -1019,14 +1070,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             g_syncStatus.setStage("Processing history", actions.length);
         }
         if (iAction == actions.length) {
-            var rgResult = [];
-            for (var iFilterAction = 0; iFilterAction < actions.length; iFilterAction++) {
-                if (!actions[iFilterAction].ignore)
-                    rgResult.push(actions[iFilterAction]);
-            }
-
-
-            sendResponse({ status: STATUS_OK });
+            processResetCardCommands(tokenTrello, alldata, sendResponse);
             return;
         }
 
@@ -1074,7 +1118,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                 stepDone(STATUS_OK);
                 return;
             }
-            var shortLinkCard = alldata.cardsByLong[actionCur.data.card.id];
+            var shortLinkCard = alldata.cardsByLong[actionCur.data.card.id]; //note we previously ran getAllMissingCardShortlinks
             if (shortLinkCard) {
                 actionCur.data.card.shortLink = shortLinkCard;
             }
@@ -1124,7 +1168,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             var idList = actionCur.data.list.id;
             var listCur = alldata.lists[idList];
             assert(listCur); //done in processListAction
-            var request = { sql: "select idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList=?", values: [idList] };
+            var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList=?", values: [idList] };
             handleGetReport(request,
                 function (responseReport) {
                     if (responseReport.status != STATUS_OK) {
@@ -1239,11 +1283,35 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
 
         function processCommentSEAction() {
             var comment = actionCur.data.text.toLowerCase();
-
+            var mapHandledCardCommand = {};
             rgKeywords.every(function (keyword) {
                 keyword = keyword.trim().toLowerCase() + " ";
-                if (comment.indexOf(keyword) >= 0) {
-                    alldata.commentsSE.push(actionCur); //candidate for being a S/E comment. Later we will perform stricter checks
+                var iStart = comment.indexOf(keyword);
+                if (iStart >= 0) {
+                    if (iStart > 0 && comment.charAt(iStart - 1) != " ") //whole word keyword
+                        return true; //continue
+                    //detect the card "resetsync" command
+                    //in bFirstSync case, there is no need to process the command, and also serves as a way to workarround possible future sync issues caused
+                    //by the command: those users could reset sync as a last resort.
+                    var commentLower = comment.toLowerCase();
+                    if (!bFirstSync && commentLower.indexOf(PLUSCOMMAND_RESET) >= 0) { //this "if" just prevents running the regex on every comment
+                        var words = commentLower.substring(iStart + keyword.length).match(g_regexWords); //http://stackoverflow.com/a/9402526/2213940
+                        if (words.length > 0 && words[0] == PLUSCOMMAND_RESET) {
+                            if (actionCur.data.card && actionCur.data.board) { //really should assert these
+                                var idCardPush = actionCur.data.card.shortLink;
+                                var idBoardCur = actionCur.idBoardSrc;
+                                var boardLoop = alldata.boards[idBoardCur];
+                                if (idCardPush && boardLoop) //really should assert as it was set (if needed) by addShortLinkToCard
+                                    assert(boardLoop.dateSzBefore);
+                                if (!mapHandledCardCommand[idCardPush]) {
+                                    alldata.rgCardResetData.push({ idCard: idCardPush, idBoard: idBoardCur, dateSzBefore: boardLoop.dateSzBefore, idActionReset: actionCur.id });
+                                    mapHandledCardCommand[idCardPush] = true;
+                                }
+                            }
+                        }
+                    }
+
+                    alldata.rgCommentsSE.push(actionCur); //candidate for being a S/E comment. Later we will perform stricter checks
                     return false; //stop
                 }
                 return true; //continue
@@ -1267,7 +1335,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             assert(board);
             var idBoard = alldata.boardsByLong[board.id];
             assert(idBoard); //can be unknown
-            if (bUpdateAlldataCard(actionCur, alldata.cards, cardAction, idBoard, actionCur.date))
+            if (!bUpdateAlldataCard(actionCur, alldata.cards, cardAction, idBoard, actionCur.date))
                 actionCur.old = true;
             stepDone(STATUS_OK);
         }
@@ -1300,6 +1368,81 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
 
         stepDone(STATUS_OK); //start chain of functions
     } //processCurrent
+}
+
+function processResetCardCommands(tokenTrello, alldata, sendResponse) {
+    var limit = g_cLimitActionsPerPage;
+
+    g_syncStatus.setStage("Processing cards with reset sync", alldata.rgCardResetData.length);
+    if (alldata.rgCardResetData.length == 0)
+        sendResponse({ status: STATUS_OK });
+    else {
+        //first, remove all S/E for cards getting reset
+        alldata.rgCommentsSE.forEach(function (action) {
+            alldata.rgCardResetData.forEach(function (obj) { //this is a small array
+                var idCard = obj.idCard;
+                if (action.data.card && action.data.card.shortLink == idCard)
+                    action.ignore = true;
+            });
+        });
+        
+
+        var cGotActions = 0;
+        processThreadedItemsSync(tokenTrello, alldata.rgCardResetData, onPreProcessItem, onProcessItem, onFinishedAll);
+
+
+        function onFinishedAll(status) {
+            sendResponse({ status: status});
+        }
+
+        function onPreProcessItem(cardData) {
+            return true;
+        }
+
+        function onProcessItem(tokenTrello, cardData, iitem, postProcessItem) {
+
+            function callPost(status) {
+                postProcessItem(status, cardData, iitem);
+            }
+
+            //note: dateSzBefore comes from board.dateSzBefore, which will include the last action processed in the board (if its for the same card)
+            //this is ok because this getCardActions is for getting all actions for a card, and the last one processed will be deleted anyway
+            getCardActions(tokenTrello, iitem, cardData.idCard, cardData.idBoard, limit, cardData.dateSzBefore, [],callbackGetCardActions);
+
+            function callbackGetCardActions(response, lengthOriginal) {
+                if (response.status != STATUS_OK) {
+                    callPost(response.status);
+                    return;
+                }
+
+                if (response.items && response.items.length > 0) {
+                    response.items.forEach(function (item) {
+                        //when reseting a card, we will zero s/e of entered items (not delete them) thus we must use
+                        //a different action id.
+                        item.id = item.id + "~" + cardData.idActionReset; //use ~ as - is reserved in makeHistoryRowObject
+                        alldata.rgCommentsSE.push(item); 
+                    });
+
+                    if (lengthOriginal < limit) {
+                        callPost(response.status);
+                        return;
+                    }
+                    
+                    var actionLast = response.items[response.items.length - 1];
+                    var dateLast = new Date(actionLast.date);
+                    //see "Why skip an item and query with a date 1 millisecond  after the last item"
+                    dateLast.setTime(dateLast.getTime() + 1);
+
+                    setTimeout(function () {
+                        getCardActions(tokenTrello, iitem, cardData.idCard, cardData.idBoard, limit, dateLast.toISOString(), [actionLast.id], callbackGetCardActions);
+                    }, MS_TRELLOAPI_WAIT);
+                }
+                else {
+                    callPost(response.status);
+                }
+            }
+        }
+    }
 }
 
 function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
@@ -1494,7 +1637,100 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
     xhr.open("GET", url);
     xhr.send();
 }
-var BOARD_ACTIONS_LIST = "updateList,deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard:idList,updateCard:closed,updateCard:name";
+var BOARD_ACTIONS_LIST = "updateList,deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard";
+
+function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefore, actionsSkip, callback, waitRetry) {
+    //https://trello.com/docs/api/card/index.html
+    //the API gets actions from newest to oldest always
+    
+    var url = "https://trello.com/1/cards/" + idCard + "/actions?action_member=true&action_memberCreator=true&action_member_fields=username&action_memberCreator_fields=username&limit=" + limit;
+
+    if (true) {
+        url = url + "&filter=commentCard";
+        if (strDateBefore && strDateBefore.length > 0)
+            url = url + "&before=" + strDateBefore;
+    }
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
+    xhr.onreadystatechange = function (e) {
+        if (xhr.readyState == 4) {
+            handleFinishRequest();
+
+            function handleFinishRequest() {
+                var objRet = { status: "unknown error", hasPermission: false, items: [], iCard: iCard };
+                var bReturned = false;
+
+                if (xhr.status == 200) {
+                    try {
+                        objRet.hasPermission = true;
+                        var obj = JSON.parse(xhr.responseText);
+                        var lengthOriginal = obj.length;
+
+                        objRet.status = STATUS_OK;
+                        var listRet = [];
+                        //NOTE
+                        //Why skip an item and query with a date 1 millisecond  after the last item?
+                        //see the note in getBoardActions on why we paginate this way Trello actions
+                        //note that cards currently only use one action to skip, but ive kept the code similar to
+                        //getBoardActions in hopes of later unifying both
+                        for (var iAddBoardSrc = 0; iAddBoardSrc < obj.length; iAddBoardSrc++) {
+                            var itemCur = obj[iAddBoardSrc];
+                            if (actionsSkip.length > 0) {
+                                var iSkip = 0;
+                                for (iSkip = 0; iSkip < actionsSkip.length; iSkip++) {
+                                    if (actionsSkip[iSkip] == itemCur.id)
+                                        break;
+                                }
+                                if (iSkip < actionsSkip.length) {
+                                    actionsSkip.splice(iSkip, 1); //it appears once at most, so speed things up by removing it
+                                    continue; //found above
+                                }
+                            }
+                            itemCur.idBoardSrc = idBoard; //we cant trust action's board shortLink because of trello bugs. see note on getBoardActions
+                            listRet.push(itemCur);
+                        }
+                        objRet.items = listRet;
+                        callback(objRet, lengthOriginal);
+                        bReturned = true;
+                    } catch (ex) {
+                        objRet.status = "error: " + ex.message;
+                    }
+                } else {
+                    if (xhr.status == 401) { //no permission to the card
+                        objRet.hasPermission = false;
+                        objRet.status = STATUS_OK;
+                    }
+                    else if (xhr.status == 429) { //too many request, reached quota. 
+                        var waitNew = (waitRetry || 500) * 2;
+                        if (waitNew < 8000) {
+                            bReturned = true;
+                            setTimeout(function () {
+                                console.log("Plus: retrying api call");
+                                getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefore, actionsSkip, callback, waitNew);
+                            }, waitNew);
+                        }
+                        else {
+                            objRet.status = errFromXhr(xhr);
+                        }
+                    }
+                    else {
+                        objRet.status = errFromXhr(xhr);
+                    }
+                }
+
+                if (!bReturned) {
+                    if (xhr.status == 400)
+                        logPlusError("trello sync error. idCard: " + idCard);
+                    callback(objRet);
+                }
+            }
+        }
+    };
+
+    xhr.open("GET", url);
+    xhr.send();
+}
+
 
 function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, strDateAfter, actionsSkip, callback, waitRetry) {
     //https://trello.com/docs/api/board/index.html#get-1-boards-board-id-actions
@@ -1536,6 +1772,13 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                         //same date down to the millisecond. If I were to simply use "before"/"after" the last action querried,
                         //it could skip on those with the same date (depending on how trello decided to order them).
                         //Thus, I instead use a query before the last date plus one millisecond.
+                        //NOTE 2
+                        //This way of paging can end up with duplicates being inserted, consider the case
+                        //where the last two actions we got have the same timestamp (this IS possible, see note where we later sort actions)
+                        //then we would end up getting those two again on the next iteration. but we only put the last one on actionsSkip
+                        //Plus deals with this by treating each action applied as being idempotent. for example an s/e row with duplicate id will be ignored and not commited
+                        //However, we still here attempt to cover the most common case and remove the expected dups.
+                        //this helps performance-wise otherwise every time all boards will have one "new" (duplicate) action to process
                         for (var iAddBoardSrc = 0; iAddBoardSrc < obj.length; iAddBoardSrc++) {
                             var itemCur=obj[iAddBoardSrc];
                             if (actionsSkip.length > 0) {
@@ -1544,11 +1787,13 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                                     if (actionsSkip[iSkip] == itemCur.id)
                                         break;
                                 }
-                                if (iSkip < actionsSkip.length)
+                                if (iSkip < actionsSkip.length) {
+                                    actionsSkip.splice(iSkip, 1);   //it appears once at most, so speed things up by removing it
                                     continue; //found above
+                                }
                             }
-                            obj[iAddBoardSrc].idBoardSrc = idBoard; //for debugging, but might have a role later
-                            listRet.push(obj[iAddBoardSrc]);
+                            itemCur.idBoardSrc = idBoard;  //sometimes the trello board is not correct. use this one always
+                            listRet.push(itemCur);
                         }
                         objRet.items = listRet;
                         callback(objRet, lengthOriginal);
@@ -1600,7 +1845,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
         sendResponse({ status: STATUS_OK });
         return;
     }
-    var limit = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
+    var limit = g_cLimitActionsPerPage;
     var statusProcess = { boards: [], iBoard: -1, hasBoardAccess: {}};
     var results = [];
     var bReturned = false;
@@ -1682,6 +1927,14 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                         return -1;
                     else if (b.type.indexOf("From") >= 0 && a.type.indexOf("To") >= 0)
                         return 1;
+                    else if (b.type != a.type) {
+                        //sometimes an updateCard happens at the same time as others. in plus case, in old versions
+                        //it would add a comment and in paralel it would rename the card. we want updateCard to win
+                        //and since "updateCard" > "commentCard", this works like the order we want
+                        //this also gives order consistency.
+                        
+                        return a.type.localeCompare(b.type);
+                    }
                 }
                 return cmp;
             });
@@ -1731,7 +1984,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                 });
 
                                 //get all board cards in db, so we can have an "orig"
-                                var request = { sql: "select idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS WHERE idBoard=?", values: [idBoard] };
+                                var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS WHERE idBoard=?", values: [idBoard] };
                                 handleGetReport(request,
                                     function (responseReport) {
                                         if (responseReport.status != STATUS_OK) {
@@ -1747,7 +2000,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 
                                         //trello returns null dateLastActivity sometimes. use a default a little before now, so in case local clock is a little off, it wont save a future date.
                                         var szdateNowDefault = new Date(Date.now() - 1000 * 60 * 60).toISOString();
-                                        getBoardData(tokenTrello, idBoard, "cards=all&card_fields=closed,dateLastActivity,idList,shortLink,name&lists=all&list_fields=closed,name,pos&fields=dateLastActivity", function (data) {
+                                        getBoardData(tokenTrello, idBoard, "cards=all&card_fields=due,closed,dateLastActivity,idList,shortLink,name,due&lists=all&list_fields=closed,name,pos&fields=dateLastActivity", function (data) {
                                             if (data.status == STATUS_OK && data.board) {
                                                 var lists = data.board.lists;
                                                 var cards = data.board.cards;
@@ -1837,7 +2090,7 @@ function getBoardsLastInfo(tokenTrello, callback) {
 
 function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
     //https://trello.com/docs/api/member/index.html
-    var url = "https://trello.com/1/members/me/boards?fields=name,closed,shortLink&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date";
+    var url = "https://trello.com/1/members/me/boards?fields=name,closed,shortLink&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date&action_memberCreator=false";
 	var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {
@@ -1904,25 +2157,27 @@ function matchCommentParts(text,date, bRecurringCard) {
     //? is used to force non-greedy
     var i_users = 1;
     var i_days = 4;
-    var i_spent = 5;
-    var i_sep = 6;
-    var i_est = 7;
-    var i_spacesPreComment = 8;
-    var i_note = 9;
+    
+    var i_spent = 6;
+    var i_command = 7;
+    var i_sep = 8;
+    var i_est = 9;
+    var i_spacesPreComment = 10;
+    var i_note = 11;
     var preComment = "";
 
-    //note: this regex is highly sensitive to changes. consider newlines in comments.
-    //                          1-users                4-days         5-spent          6- / separator    7-estimate          8-spaces   9-note
-    var patt = new RegExp("^((\\s*@\\w+\\s+)*)((-[0-9]+)[dD]\\s+)?([+-]?[0-9]*[.:]?[0-9]*)?\\s*(/?)\\s*([+-]?[0-9]*[.:]?[0-9]*)?(\\s*)(\\s[\\s\\S]*)?$");
-    var rgResults = patt.exec(text);
+    var rgResults = g_regexSEFull.exec(text);
     if (rgResults == null)
         return null;
 
     //standarize regex quirks
     rgResults[i_users] = rgResults[i_users] || "";
+    rgResults[i_command] = (rgResults[i_command] || "").toLowerCase();
     rgResults[i_est] = rgResults[i_est] || "";
     rgResults[i_note] = (rgResults[i_note] || ""); //note there is no limit. The user could in theory add millions of characters here.
     rgResults[i_note].split("\n")[0]; //note is up to newline if any
+
+    assert(rgResults[i_command] == "" || (rgResults[i_command].length > 0 && rgResults[i_command].charAt(0) == PREFIX_PLUSCOMMAND));
 
     if (!rgResults[i_sep]) { //separator
         if (date && date < g_dateMinCommentSERelaxedFormat) {
@@ -1958,6 +2213,7 @@ function matchCommentParts(text,date, bRecurringCard) {
     ret.days = rgResults[i_days] || "";
     ret.strSpent = rgResults[i_spent] || "";
     ret.strEstimate = rgResults[i_est] || "";
+    ret.strCommand = rgResults[i_command] || "";
     ret.comment = preComment + replaceBrackets(rgResults[i_note] || "");
     return ret;
 }

@@ -19,8 +19,17 @@ var g_bShowHomePlusSections = true;
 // if we dont do this, the charts draw smaller, probably are not picking up some font-size/type that makes them paint smaller.
 // task: investigate if changing css attributes to match body, like font type/size will make the chart draw right.
 //end-review
-var g_bPreventChartDraw = true; 
+var g_bPreventChartDraw = true;
 
+var g_optIsPlusDisplayDisabled = null; //null means uninitialized. dont use directly. private to below
+function isPlusDisplayDisabled() {
+    if (g_optIsPlusDisplayDisabled === null)
+        g_optIsPlusDisplayDisabled = localStorage[g_lsKeyDisablePlus]; //we want to read it once so its consistent for future calls. user must refresh page if changed
+
+    if (g_optIsPlusDisplayDisabled == "true")
+        return true;
+    return false;
+}
 
 /* isBackendMode
  *
@@ -247,10 +256,12 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 		urlUserElem = $('<span id="urlUser"></span>').css("margin-left", "0px").css("margin-right", "2px");
 		urlUserElem.addClass('agile_urlUser');
 		urlUserElem.appendTo(b);
-		getRecentWeeksList(urlUserElem).appendTo(b);
+		if (!isPlusDisplayDisabled())
+		    getRecentWeeksList(urlUserElem).appendTo(b);
 	}
 
-	checkCreateRecentFilter(b);
+	if (!isPlusDisplayDisabled())
+	    checkCreateRecentFilter(b);
 	urlUserElem.attr("title", g_tipUserTopReport); //reset
 	if (url == "") {
 		g_configData = null;
@@ -308,10 +319,19 @@ function initialIntervalsSetup() {
 	estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, true).hide();
 	remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
 
+	doAllUpdates();
+
+	setInterval(function () {
+	    doAllUpdates();
+	}, UPDATE_STEP);
+
+	if (isPlusDisplayDisabled())
+	    return;
+
 	setTimeout(function () {
 	    update(false); //first update
 	}, 20);
-	doAllUpdates();
+
 	detectMovedCards();
 	var oldLocation = location.href;
 	setInterval(function () {
@@ -365,10 +385,6 @@ function initialIntervalsSetup() {
 			    }
 			});
 	}, 1000);
-
-	setInterval(function () {
-		doAllUpdates();
-	}, UPDATE_STEP);
 
 	setInterval(function () {
 	    testExtensionAndcommitPendingPlusMessages();
@@ -467,7 +483,7 @@ function startOpenDB(config, user) {
 				urlUser.unbind("hover");
 				urlUser.hover(handlerIn, handlerOut);
 
-				if (true) {
+				if (!isPlusDisplayDisabled()) {
 					g_intervalSync = setInterval(function () { doSyncDB(user, true, false, false); }, g_msSyncPeriod);
 					//review zig: these all should be at urlUser creation time to avoid the unbinds and such
 					urlUser.unbind("click");
@@ -639,12 +655,13 @@ function onDbOpened() {
 
 
 function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
+    if (Help.isVisible() || isPlusDisplayDisabled())
+        return;
     bOnlyTrelloSync = bOnlyTrelloSync || false;
     if (bRetry === undefined)
         bRetry = true;
     var config = g_configData;
-    if (Help.isVisible())
-       return;
+
 
     var urlUser = null;
     var dateNow = new Date();
@@ -741,6 +758,12 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
 }
 
 function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshCardReport) {
+    var topbarElem = $("#help_buttons_container");
+    if (isPlusDisplayDisabled()) {
+        configureSsLinksWorkerPostOauth(null, topbarElem, user, false);
+        return;
+    }
+
     if (bUpdateErrorState === undefined)
         bUpdateErrorState = true;
 
@@ -750,7 +773,6 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
     bReuseCharts = bReuseCharts || false;
     if (bRefreshCardReport)
         refreshCardTableStats(); //review zig: register for refresh notifications instead of hardcoding here all these. also this causes two reports when card page refreshed
-	var topbarElem = $("#help_buttons_container");
 	var dateToday = new Date();
 	var weekCur = getCurrentWeekNum();
 	var dowToday = dateToday.getDay();
@@ -982,10 +1004,11 @@ function buildDailyTable(content) {
 }
 
 function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
+    //resp can be null in case plus display changes are is disabled from plus help
 	if (bUpdateErrorState === undefined)
 		bUpdateErrorState = true;
 	var urlUserElem = $('#urlUser');
-	if (resp.status != STATUS_OK) {
+	if (resp && resp.status != STATUS_OK) {
 		if (bUpdateErrorState) {
 			setTimeout(function () {
 				//set error text later, to avoid cases when user navigates back/away while on this xhr call.
@@ -995,21 +1018,26 @@ function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
 		return;
 	}
 
-	processUserSENotifications(resp.sToday, resp.sWeek);
 	var nameSsLink = "";
 	if (bUpdateErrorState)
 		setSyncErrorStatus(urlUserElem, resp.status);
-	
-	if (resp.weekSummary.rows.length == 0)
-	    nameSsLink = "<tr><td>Ø</td></tr>";
+
+	if (!resp) {
+	    nameSsLink = "<tr><td>Plus disabled</td></tr>";
+	}
 	else {
-	    var row1="";
-	    var row2="";
-	    resp.weekSummary.rows.forEach(function (row) {
-	        row1 = row1 + "<td>" + row.day + "</td>";
-	        row2 = row2 + "<td>" + parseFixedFloat(row.total,false,true) + "</td>";
-	    });
-	    nameSsLink = "<tr>" + row1 + "</tr>" + "<tr>" + row2 + "</tr>";
+	    processUserSENotifications(resp.sToday, resp.sWeek);
+	    if (resp.weekSummary.rows.length == 0)
+	        nameSsLink = "<tr><td>Ø</td></tr>";
+	    else {
+	        var row1 = "";
+	        var row2 = "";
+	        resp.weekSummary.rows.forEach(function (row) {
+	            row1 = row1 + "<td>" + row.day + "</td>";
+	            row2 = row2 + "<td>" + parseFixedFloat(row.total, false, true) + "</td>";
+	        });
+	        nameSsLink = "<tr>" + row1 + "</tr>" + "<tr>" + row2 + "</tr>";
+	    }
 	}
 	urlUserElem.html(buildDailyTable(nameSsLink));
 	var trelloLogo = $(".header-logo-default");
@@ -1174,8 +1202,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
         g_chartsCache = {};
 
     var divMainBoardsContainer = $(".member-boards-view");
-    var divInsertAfter = $(".window-module");
-    //timing note: .window-module also needs to be present
+    var divInsertAfter = $(".boards-page-board-section");
     if (divMainBoardsContainer.length == 0 || divInsertAfter.length == 0) {
 		setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
 		return false;
@@ -1332,8 +1359,7 @@ function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat, bLastRo
 		if (strFloat)
 			divModule.css("float", strFloat);
 	}
-	else
-		divModule.addClass("window-module"); //from trello
+
 	
 	var titleModule = $('<h3>').addClass("classid_"+id+" sectionTitleFont");
 	if (bEnableZoom) {
@@ -1947,6 +1973,8 @@ function checkEnableMoses() {
 
 
 function doShowAgedCards(bShow) {
+    if (isPlusDisplayDisabled())
+        return;
     var elems = $(".aging-level-3");
     var elemTrelloFilter=$(".board-header-btn-filter-indicator");
     var bTrelloFilter = (elemTrelloFilter && !elemTrelloFilter.hasClass("hide"));
@@ -1985,6 +2013,8 @@ function checkCreateRecentFilter(header) {
 }
 
 function updateShowAllButtonState(elem, bFirstTime) {
+    if (isPlusDisplayDisabled())
+        return;
 	chrome.storage.sync.get("bShowAllItems", function (obj) {
 		var bShow = obj["bShowAllItems"];
 		if (bShow === undefined)

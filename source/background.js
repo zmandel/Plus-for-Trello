@@ -1,6 +1,5 @@
 ﻿/// <reference path="intellisense.js" />
 
-
 var g_dataTotalSpentThisWeek = { str: null, weeknum: null };
 var g_msSyncRateLimit = 1000 * 1; //1 second (used to be larger and more relevant back when syncing on spreadsheets with my developer key
 var MSDELAY_FIRSTSYNC = 500;
@@ -521,6 +520,7 @@ var g_dataSyncLast = { stage: "", ms: 0 }; //to avoid spamming tooltip update
 var g_animationFrames = 18;
 var g_msAnimationSpeed = 17;
 var g_rotation = 0;
+var g_bHilitePlusIcon = false;
 
 function ease(x) {
     return (1 - Math.sin(Math.PI / 2 + x * Math.PI)) / 2;
@@ -528,7 +528,12 @@ function ease(x) {
 
 function animateFlip() {
     if (true) { //review zig: temporarily stopped until rotation is fixed
+        g_bHilitePlusIcon = true;
         updatePlusIcon(false);
+        setTimeout(function () {
+            g_bHilitePlusIcon = false;
+            updatePlusIcon(false);
+        }, 600);
         return;
     }
 
@@ -554,9 +559,16 @@ function animateFlip() {
     worker();
 }
 
-
 function updatePlusIcon(bTooltipOnly) {
+    setTimeout(function () {
+        updatePlusIconWorker(bTooltipOnly); //review zig: ugly workarround because code sets storage props and inmediately calls updatePlusIcon
+    }, 100);
+}
+
+function updatePlusIconWorker(bTooltipOnly) {
     bTooltipOnly = bTooltipOnly || false;
+    if (g_bLastPlusMenuIconError)
+        bTooltipOnly = false; //force it
     var keyLastSync = "rowidLastHistorySynced";
     var keyLastSyncViewed = "rowidLastHistorySyncedViewed";
     var key_plus_datesync_last = "plus_datesync_last";
@@ -587,8 +599,11 @@ function updatePlusIcon(bTooltipOnly) {
             bNew = true;
         var strBase = "images/icon19";
         if (bNew) {
-            strBase += "New";
+            strBase += "new";
         }
+
+        if (g_bHilitePlusIcon)
+            strBase = "images/icon19hilite";
 
         //returns false if there is no sync error
         function setTooltipSyncStatus() {
@@ -1048,8 +1063,11 @@ function doShowTimerWindow(idCard) {
                                 }
                                 else {
                                     g_mapTimerWindows[idCard] = window.id;
-                                    if (!window.alwaysOnTop)
-                                        chrome.windows.update(window.id, { height: window.height + 12 }); //grow to show panel enabling instructions
+                                    if (!window.alwaysOnTop) {
+                                        var heightNew = window.height + 12; //for the line showing panel instructions
+                                        var widthNew = window.width + 40; //some OSs (win10) need more space for the max/restore/min win buttons
+                                        chrome.windows.update(window.id, { height: heightNew, width: widthNew }); //grow to show panel enabling instructions
+                                    }
                                 }
                             }
                         });

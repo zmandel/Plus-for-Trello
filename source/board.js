@@ -103,55 +103,51 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             var hashtags = [];
             var bCardIsVisible = false;
 
-            //note: the "partx" functions are here to more easily detect performance issues using chrome profiling
-            function updateTitle() {
-
-                function part1() {
-                    originalTitleTag = Card.titleTag(card);
-                    function isElemVisible(elem) {
-                        return (!$(elem).hasClass("hide")); //note: changed from using jquery visibility method, which eventually reads a width/height and strangely takes a long time in chrome
-                    }
-
-                    bCardIsVisible = isElemVisible(card);
-                    updateTotals = (!g_bCheckedbSumFiltered || bCardIsVisible);
-                    if (!updateTotals)
-                        bFilteredCard = true;
-
-                    if (!bCardIsVisible)
-                        bHasHiddenCard = true;
+            
+            function bUpdateTitle() {
+                originalTitleTag = Card.titleTag(card);
+                if (originalTitleTag.length == 0) {
+                    bResetHtmlLast = true;
+                    return false;
                 }
 
-                function part2() {
-                    if (g_bChangeCardColor)
-                        LabelsManager.update($(card));
-                    //
-                    // Get the estimated scrum units
-                    //
-                    var nodeTitle = originalTitleTag.contents().filter(function () {
-                        return this.nodeType == 3;
-                    });
-                    if (nodeTitle && nodeTitle.length > 0)
-                        title = nodeTitle[0].nodeValue;
-                    else {
-                        title = "";  //hack. some cases e.g. user moving the card while this runs, returns no node
-                        bResetHtmlLast = true;
-                    }
+                function isElemVisible(elem) {
+                    return (!$(elem).hasClass("hide")); //note: changed from using jquery visibility method, which eventually reads a width/height and strangely takes a long time in chrome
                 }
 
-                part1();
-                part2();
+                bCardIsVisible = isElemVisible(card);
+                updateTotals = (!g_bCheckedbSumFiltered || bCardIsVisible);
+                if (!updateTotals)
+                    bFilteredCard = true;
+
+                if (!bCardIsVisible)
+                    bHasHiddenCard = true;
+
+                if (g_bChangeCardColor)
+                    LabelsManager.update($(card));
+
+                var nodeTitle = originalTitleTag.contents().filter(function () { //this method covers cases when trello changes the html
+                    return this.nodeType == 3;
+                });
+                if (nodeTitle && nodeTitle.length > 0)
+                    title = nodeTitle[0].nodeValue;
+                else {
+                    title = "";  //hack. some cases e.g. user moving the card while this runs, returns no node
+                    bResetHtmlLast = true;
+                    return false;
+                }
+                return true;
             }
 
 
             function updateSE() {
-                if (title == "") {  //special case when couldnt parse it
+                if (title == "" || idCardCur==null) {  //special case when couldnt parse it
                     estimation = 0;
                     spent = 0;
                     hashtags = [];
                     return;
                 }
 
-                var idCardCur = getIdCardFromUrl(originalTitleTag[0].href);
                 var se = parseSE(title, false, g_bAcceptSFT);
                 var seFromDb = mapIdCardToSE[idCardCur];
 
@@ -181,7 +177,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 // Show a title w/o the markup
                 //
 
-                var bRecurring = (se.titleNoSE.indexOf(TAG_RECURRING_CARD) >= 0);
+                bRecurring = (se.titleNoSE.indexOf(TAG_RECURRING_CARD) >= 0);
                 var cloneTitleTag = null;
                 var originalTitleSiblings = originalTitleTag.siblings('a.agile_clone_title');
                 if (originalTitleSiblings.size() == 0) {
@@ -193,41 +189,23 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                     cloneTitleTag = originalTitleSiblings.eq(0);
                 }
 
-                var elRecurring = cloneTitleTag.children(".agile_recurring");
-
-                if (idCardCur && bCardIsVisible) {
-                    var hashTimer = getCardTimerSyncHash(idCardCur);
-                    rgKeysTimers.push(hashTimer);
-                    mapKeysTimersData[hashTimer] = { titleTag: cloneTitleTag, idCard: idCardCur };
-                }
-
                 var cleanTitle = se.titleNoSE;
-                if (bRecurring) {
+                if (bRecurring)
                     cleanTitle = cleanTitle.replace(/\[R\]/g, "");
-                    if (elRecurring.length != 0)
-                        elRecurring.show();
-                    else {
-                        var imgRecurring = $("<img>").attr("src", chrome.extension.getURL("images/recurring.png"));
-                        imgRecurring.attr("title", TAG_RECURRING_CARD);
-                        var spanRecurring = $("<span>").addClass("agile_recurring");
-                        spanRecurring.append(imgRecurring);
-                        cloneTitleTag.append(spanRecurring);
-                    }
-                }
-                else {
-                    if (elRecurring.length != 0)
-                        elRecurring.hide();
-                }
+                
 
-                var ctlUpdate = cloneTitleTag.contents()[1];
+                var ctlUpdate = cloneTitleTag[0];
                 if (ctlUpdate !== undefined)
-                    ctlUpdate.textContent = cleanTitle;
+                    ctlUpdate.text = cleanTitle;
                 else {
                     var test = 1; //for breakpoint
                 }
             }
 
-            updateTitle();
+            if (!bUpdateTitle())
+                return;
+            var idCardCur=getIdCardFromUrl(originalTitleTag[0].href);
+            var bRecurring = false;
             updateSE();
 
             //
@@ -270,6 +248,24 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             if (!bNoBadges)
                 spentBadge.contents().last()[0].textContent = spent;
 
+            //Recurring
+            if (true) {
+                //always create so it maintains order respect to s/e and stuff to the right
+                var elRecurring = badges.children(".agile_recurring");
+                if (elRecurring.length == 0) {
+                    var imgRecurring = $("<img class='agile_image_recurring_back'>").attr("src", chrome.extension.getURL("images/recurring.png"));
+                    imgRecurring.attr("title", "Recurring card");
+                    var spanRecurring = $("<span>").addClass("agile_recurring");
+                    spanRecurring.append(imgRecurring);
+                    badges.append(spanRecurring);
+                }
+
+                if (bRecurring)
+                        elRecurring.show();
+                    else
+                        elRecurring.hide();
+            }
+
             // Hashtags
             var hashtagsJq = badges.children('.agile_hashtags');
             if (hashtagsJq.length == 0) {
@@ -286,6 +282,12 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                         html(hashLoop));
                 if (hashLoop.indexOf("!") >= 0)
                     spanLoop.addClass("agile_badge_hashtag_shout");
+            }
+
+            if (idCardCur && bCardIsVisible) {
+                var hashTimer = getCardTimerSyncHash(idCardCur);
+                rgKeysTimers.push(hashTimer);
+                mapKeysTimersData[hashTimer] = { titleTag: badges, idCard: idCardCur };
             }
         }
 
@@ -435,6 +437,10 @@ function updateWorker(bShowBoardTotals) {
     updateNewTrelloFlag();
     HelpButton.display();
     InfoBoxManager.update();
+
+    if (isPlusDisplayDisabled())
+        return;
+
     if (!g_bForceUpdate && isTimerRunningOnScreen())
         return;
 
@@ -476,6 +482,8 @@ function removeTimerForCard(idCardParsed) {
 }
 
 function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards) {
+    if (isPlusDisplayDisabled())
+        return;
     if (bRecalcAgedCards === undefined)
         bRecalcAgedCards = true;
 
@@ -586,15 +594,15 @@ function setUpdatingGlobalSums(boardCur, bUpdating) {
     }
 }
 
-function processCardTimerIcon(stored, cloneTitleTag, idCard, stateLoop) {
-    var imgTimer = cloneTitleTag.find('.agile_timer_icon_small');
+function processCardTimerIcon(stored, container, idCard, stateLoop) {
+    var imgTimer = container.find('.agile_timer_icon_small');
     if (stored !== undefined && stored.msEnd == null) {  //show
         if (imgTimer.length == 0) {
             imgTimer = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png")).addClass('agile_timer_icon_small');
             imgTimer.attr("title", "Active timer");
             var span = $("<span>");
             span.append(imgTimer);
-            cloneTitleTag.append(span);
+            container.append(span);
             setTimeout(function () {
                 showTimerPopup(idCard); //wait a little so we dont load many timer windows in parallel (and also give priority to trello board page loading)
             }, 500+stateLoop.total * 100);

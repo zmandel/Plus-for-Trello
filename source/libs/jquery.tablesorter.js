@@ -808,22 +808,7 @@
                         cache.normalized[pos[0]][pos[1]] = config.parsers[pos[1]].format(
                         getElementText(config, cell), cell);
                     }).bind("sorton", function (e, list, bHeadersOnly) {
-                        //this part modified by zig (bHeadersOnly added, support for named column)
-                        if (list && list.length == 1 && typeof(list[0][0])=="string") {
-                            var txtFind = list[0][0];
-                            var iFound = -1;
-                            //review zig: currently only supports setting first elem by column name
-                            for (var iHeaders = 0; iHeaders < $headers.length; iHeaders++) {
-                                if (getCleanHeaderName($headers[iHeaders].innerText) == txtFind) {
-                                    iFound = iHeaders;
-                                    break;
-                                }
-                            }
-                            if (iFound < 0)
-                                list = [];
-                            else
-                                list = [[iFound, list[0][1]]];
-                        }
+                        //this part modified by zig (bHeadersOnly added)
                         config.sortList = list;
                         // update and store the sortlist
                         var sortList = config.sortList;
@@ -853,7 +838,7 @@
                         //otherwise we could let tablesorter do the initial sort but it means it will re-parse the table.
                         //instead i prefer caller to be responsible for initial sort and just pass the sorted info here to set headers.
                         //tablesorter overhead this way only kicks in if the user ever clicks a column to change sort
-                        $this.trigger("sorton", [config.sortList, true]); 
+                        $this.trigger("sorton", [config.sortList, !settings.bDoSort]);
                     }
                     // apply widgets
                     applyWidget(this);

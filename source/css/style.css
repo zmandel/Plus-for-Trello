@@ -6,17 +6,20 @@
     }
 }
 
+.agile_color_warning {
+ color:red !important;
+}
+
 .agile_report_minSize {
- min-height:450px;
- min-width:620px;
+ height:450px !important;
+ width:620px !important;
+ min-height:450px !important;
+ min-width:620px !important;
 }
 
 .agile_unselectable {
     -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
+    -webkit-user-select: none;  
     user-select: none;
 }
 
@@ -24,6 +27,13 @@
   border: none;
   border-radius: 4px;
   box-shadow: 0 5px 9px rgba(0, 0, 0, 0.7);
+}
+
+.agile_image_recurring_back {
+    float:left !important;
+    margin-top: 2px !important;
+    padding-right: 3px !important;
+    opacity:.7 !important;
 }
 
 .agile_remaining_background {
@@ -78,8 +88,11 @@
     background:white !important;
 }
 
+.agile_lightMessage {
+        color:darkgray !important;
+}
+
 .agile_mtseMessage {
-    color:darkgray !important;
     width:25em;
     height:2em;
 }
@@ -245,7 +258,7 @@ div.agile_badge_cardfront {
     border-color: #B7B7B7 !important;
 }
 
-.agile_badge_cardfrontSpent {
+.agile_badge_cardfrontFirst {
    margin-left:40px !important;
 }
 
@@ -302,7 +315,7 @@ div.agile_badge_cardfront {
 .agile_badge_hashtag {
     font-size:12px !important;
     cursor:pointer !important;
-    background-color: #FBFBFB !important;
+    background-color: #F9F9F9 !important;
 }
 
 .agile_badge_hashtag_shout {
@@ -745,6 +758,15 @@ th.agile_drill_th_extend {
 .agile-drilldown-row-error:hover {
 		background-color: white !important;
 	}
+
+.agile-drilldown-row-command {
+    	background: #e7ed9e;
+}
+
+.agile-drilldown-row-command:hover {
+    background-color: white !important;
+}
+
 
 .agile_selection_totals {
     margin-left:60px;
@@ -1312,6 +1334,7 @@ table#tableMarkers td {
 
 .agile_timer_icon_small {
 	margin-left: 4px;
+    margin-top: 2px;
 	width: 14px;
 	width: 14px;
 }
@@ -1666,6 +1689,15 @@ overflow:visible;
     color: #10B731 !important;
 }
 
+.agile_popup_topLinks {
+    color: black;
+    text-decoration: none;
+}
+
+.agile_popup_nfLink {
+    margin-left: .62em;
+}
+
 .agile_popup_topLinks:link {
     color: #4D4D4D;
 }
@@ -1676,6 +1708,7 @@ overflow:visible;
 
 .agile_popup_topLinks:hover {
     color: black;
+    text-decoration: underline !important;
 }
 
 .agile_popup_topLinks:active {

@@ -279,7 +279,7 @@ function handleCardTour() {
         },
         {
             selector: ".agile-card-seByUserModify",
-            text: "For example,<br>if the card is done but there is still <b>R</b>, just edit here <b>E sum</b> to be equal to <b>S sum</b>.",
+            text: "For example,<br>if the card is done but there is still <b>R</b>, just zero or empty <b>R</b> to reduce the estimate.",
             angle: 180,
             distance: 0,
             size: 200
@@ -287,7 +287,7 @@ function handleCardTour() {
 
         {
             selector: ".agile-card-seByUserModify",
-            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not delete the generated card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/faq.html' target='_blank'>oups too late</a>",
+            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not edit or delete the card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/faq.html' target='_blank'>oups too late</a>",
             angle: 180,
             distance: 0,
             size: 200
@@ -302,7 +302,7 @@ function handleCardTour() {
         },
      {
          selector: ".agile_days_box_input",
-         text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago' etc.",
+         text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago', or 'other' to pick from a calendar.",
          angle: 180,
          distance: 0,
          size: 200
@@ -352,29 +352,27 @@ function handleCardTour() {
            distance: 0,
            size: 200
        },
-       
+        {
+            selector: ".agile-card-now-estimate-header",
+            text: "<br><b>E Sum</b> is the current estimate per user.<br><br>Calculated as the sum of all E in S/E rows for the user.",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
        {
-           selector: ".agile-card-first-estimate-header",
-           text: "<b>1ˢᵗ E</b>stimate per user.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
+           selector: ".agile-card-now-estimate-header",
+           text: "<b>(E 1ˢᵗ)</b> shows when<br>the current estimate has been modified.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
            angle: 180,
            distance: 0,
            size: 200
        },
         {
-            selector: ".agile-card-first-estimate-header",
+            selector: ".agile-card-now-estimate-header",
             text: "1ˢᵗ estimates<br>appear also in reports<br>to compare at the board/user/date level.",
             angle: 180,
             distance: 0,
             size: 200
         },
-        {
-            selector: ".agile-card-now-estimate-header",
-            text: "<br><b>Total estimate</b><br>per user to compare with E 1ˢᵗ",
-            angle: 180,
-            distance: 0,
-            size: 150
-        },
-       
     
        {
            selector: "#agile_timer",

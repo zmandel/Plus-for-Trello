@@ -3,17 +3,19 @@
 
 var HelpButton = {
     strClass: 'agile_help_button',
-	create: function () {
+    create: function () {
+        var bPlusDisplayDisabled = isPlusDisplayDisabled();
 	    var b = $('<span id="help_buttons_container"></span>').addClass('notranslate header-btn header-notifications ' + this.strClass);
 		b.hide();
 
 		var spanIcon = $('<span></span>').css('cursor', 'help');
 		var spanTour = $('<span class="agile_tour_link agile_plus_header_link">Tour</span>');
 		hookTour(spanTour);
-		var icon = $("<img>").attr("src",chrome.extension.getURL("images/iconspenthelp.png"));
+		var icon = $("<img>").attr("src", chrome.extension.getURL(bPlusDisplayDisabled ? "images/iconspenthelpwarn.png" : "images/iconspenthelp.png"));
 		icon.addClass("agile-spent-icon-header");
 		icon.attr("title", "Plus Help");
-		b.append(spanTour);
+		if (!bPlusDisplayDisabled)
+		    b.append(spanTour);
 		spanIcon.append(icon);
 		b.append(spanIcon);
 		icon.click(function (evt) {
@@ -74,7 +76,9 @@ function insertPlusFeed(bForce) {
 				stateFeed = data;
 			var msNow = Date.now();
 			var msWait = 1000 * 60 * 60 * 3; //3 hours (there is a quota of 50,000 queries/day for all users) code.google.com/apis/console/b/0/?noredirect#project:147493868263:stats
-			//msWait = 1000; //1 sec, for test
+		    //msWait = 1000; //1 sec, for test
+			if (isPlusDisplayDisabled())
+			    msWait = 1000 * 60 * 60 * 0.5; //half hour in case there is a new g+ post about an issue fixed
 			if (msNow - stateFeed.msLastQuery > msWait) {
 				setTimeout(function () { //delay a few seconds because usually happens on trello page load, wait until that settles
 					sendExtensionMessage({ method: "getPlusFeed", msLastPostRetrieved: stateFeed.msLastPostReadByUser },

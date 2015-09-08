@@ -5,7 +5,7 @@ var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
-var g_verDeepSyncCur = 1; //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync.
+var g_verDeepSyncCur = 2; //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync.
 
 function isDbOpened() {
     if (typeof (g_db) == "undefined") //in case its called from a global object
@@ -271,8 +271,10 @@ function handleSyncDBWorker(request, sendResponseParam) {
         }
 
         var pairLastStatus = {};
-        if (response.status != STATUS_OK)
+        if (response.status != STATUS_OK) {
             g_cErrorSync++;
+            updatePlusIcon();
+        }
 
         if (!bEnterSEByComments) {
             pairLastStatus["plusSyncLastStatus"] = makeLastStatusSync(response.status, response.statusLastWriteSync || STATUS_OK);
@@ -642,7 +644,7 @@ function handleMakeNonRecurring(tx, idCard) {
         " END END where idCard=?";
     tx.executeSql(sqlUpdateEtype, [idCard], function (tx2, results) {
         var sqlUpdate2 = "update history set eType=" +
-            ETYPE_NEW + " where idHistory in (select min(idHistory) from history  where idCard=? and (spent<>0 OR est<>0) group by user,idCard)";
+            ETYPE_NEW + " where rowid in (select min(rowid) from history  where idCard=? and (spent<>0 OR est<>0) group by user,idCard)";
         tx2.executeSql(sqlUpdate2, [idCard], function (tx3, results) {},
             function (tx3, error) {
                 logPlusError(error.message);
@@ -780,7 +782,7 @@ function handleRecurringChange(tx, idCard, nameOld, nameNew) {
 
 function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
     var row = rowParam;
-    if (row.spent == 0 && row.est == 0)
+    if (row.spent == 0 && row.est == 0) //see updateCardRecurringStatusInHistory, handleMakeNonRecurring usage of min(rowid)
         return;
 	var strExecute = "INSERT OR IGNORE INTO CARDBALANCE (idCard, user, spent, est, diff, date) VALUES (?, ?, ?, ?, ?, ?)";
 	tx.executeSql(strExecute, [row.idCard, row.user, 0, 0, 0, row.date],
@@ -937,7 +939,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                         createNewUser(row.user, tx2);
                     }
                     //must do this only when history is created, not updated, thus its in here and not outside the history insert.
-                    if (rowInner.idCard != ID_PLUSCOMMAND) {
+                    if (rowInner.idCard != ID_PLUSBOARDCOMMAND) {
                         if (rowidLastInserted == null || rowidInner > rowidLastInserted) {
                             if (rowInner.user != g_userTrelloBackground || row.comment.indexOf("[by ") >= 0 || row.comment.indexOf(PREFIX_ERROR_SE_COMMENT) >= 0) //comments by the user dont count, unless they were made by another user in the name of the user
                                 rowidLastInserted = rowidInner;
@@ -952,7 +954,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                         }
                     }
                     else {
-                        handlePlusCommand(rowInner, rowidInner, tx2, !bFromSource, function (rowidError) {
+                        handleBoardCommand(rowInner, rowidInner, tx2, !bFromSource, function (rowidError) {
                             if (rowidLastInserted == null || rowidError > rowidLastInserted)
                                 rowidLastInserted = rowidError; //we skipped setting this for commands, but we do want to show error commands as 'new rows'
                         });
@@ -973,17 +975,17 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 		if (cRowsMaxLoop > cRows)
 			cRowsMaxLoop = cRows;
 
+        //note: spreadsheet row parsing does not yet support the new commands, and board commands are undocumented.
 		//note about commands: when processing commands, we need to reference data from previous commands (eg [un]markboard)
 		//and some of that data is created in secondary handlers, thus the primary handler in the row loop wont see the data as it hasnt
 		//been created yet, (being async, primary handlers excute all first, then secondary)
-		//thus, in this loop we will break after encountering a 2nd command.
-		var cCommands = 0;
+		//thus, in this loop we will break after encountering a 2nd board command.
+		var cBoardCommands = 0;
 		for (; i < cRowsMaxLoop; i++) {
 			var rowLoop = rows[i];
-			var bCommand = (rowLoop.idCard == ID_PLUSCOMMAND);
-			if (bCommand)
-				cCommands++;
-			if (cCommands > 1)
+			if (rowLoop.idCard == ID_PLUSBOARDCOMMAND)
+			    cBoardCommands++;
+			if (cBoardCommands > 1)
 				break; //dont allow two commands on the same transaction
 			if (rowLoop.idHistory == "") { //this really cant happen, an empty row would have been refused at parse time (before this)
 			    i = cRows; //force stop of toplevel closure
@@ -1063,7 +1065,13 @@ function createNewUser(nameUser, tx) {
                         );
 }
 
-function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callbackOnError) {
+
+/* old board commands (undocumented) still here in case we reuse this code later.
+ *
+ * this code is tricky because rows sometimes refer to previous rows that were just commited, and sometimes
+ * needs to undo changes.
+ **/
+function handleBoardCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callbackOnError) {
 	//note on mark balances. defining sums of S/E by history rowid makes it a strict mark that cant be changed with back-reporting (-3d etc)
 	var rowInner = rowInnerParam;
 	var rowidHistory = rowidInner;
@@ -1106,7 +1114,7 @@ function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callback
 	    restoreHistoryCard("bad command format", tx);
 	} else {
 	    var userMarking = rgResults[2] || userMarked;
-	    var command = rgResults[3];
+	    var commandBoard = rgResults[3];
 	    var nameMarker = (rgResults[5] || "").trim();
 	    var nameMarkerUpper = nameMarker.toUpperCase();
 
@@ -1120,7 +1128,7 @@ function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callback
 			    if (length > 0)
 			        rowMarker = resultSet.rows.item(0);
 
-			    if (command == "markboard") {
+			    if (commandBoard == "markboard") {
 			        if (rowMarker != null) {
 			            restoreHistoryCard("open marker already exists", tx2);
 			            return;
@@ -1139,7 +1147,7 @@ function handlePlusCommand(rowInnerParam, rowidInner, tx, bThrowErrors, callback
 						}
 					);
 			        return;
-			    } else if (command == "unmarkboard") {
+			    } else if (commandBoard == "unmarkboard") {
 			        if (rowMarker == null) {
 			            restoreHistoryCard("no such open marker to close", tx2);
 			            return;
@@ -1530,12 +1538,14 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 							)');
 
             //FOREIGN KEY (idCard) REFERENCES CARDS(idCard) not supported by chrome
-            //NOTE: HISTORY.idCard could be ID_PLUSCOMMAND, in which case the card wont exist in CARDS. consider when joining etc.
+            //NOTE: HISTORY.idCard could be ID_PLUSBOARDCOMMAND, in which case the card wont exist in CARDS. consider when joining etc.
+            //HISTORY.idHistory, in the case of card comment sync, is the action id. but it can also be actionId-actionResetId, where actionResetId is
+            //the action that caused a card reset and re-read of card history
             t.executeSql('CREATE TABLE IF NOT EXISTS HISTORY ( \
 							idHistory TEXT PRIMARY KEY  NOT NULL, \
 							date INT   NOT NULL, \
 							idBoard TEXT NOT NULL, \
-							idCard TEXT NOT NULL,			\
+							idCard TEXT NOT NULL, \
 							spent REAL  NOT NULL,\
 							est REAL  NOT NULL,\
 							user TEXT NOT NULL,\
@@ -1585,7 +1595,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 
         M.migration(4, function (t) {
             //bug in v2.2 caused bad row ids. fix them.
-            var strFixIds = "UPDATE HISTORY set idHistory='id'||replace(idHistory,'-','') WHERE bSynced=0";
+            var strFixIds = "UPDATE HISTORY set idHistory='id' || replace(idHistory,'-','') WHERE bSynced=0";
             t.executeSql(strFixIds, [], null,
                 function (t2, error) {
                     logPlusError(error.message);
@@ -1640,8 +1650,6 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff");
             t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserSpent");
             t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserEst");
-
-            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new ON CARDBALANCE(user ASC, diff ASC)'); //for updating rows on insert and verifications
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserSpent_new ON CARDBALANCE(user ASC, spent ASC)'); //for fast reports
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserEst_new ON CARDBALANCE(user ASC, est ASC)'); //for fast reports
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByDate ON CARDBALANCE(date DESC)'); //for fast reports
@@ -1679,6 +1687,8 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql('ALTER TABLE CARDS ADD COLUMN bArchived INT DEFAULT 0');
             t.executeSql('ALTER TABLE CARDS ADD COLUMN idLong TEXT DEFAULT NULL');
 
+            //NOTE: board dateSzLastTrello is always 1 ms behind the last action processed, so that we find idActionLast
+            //REVIEW zig: should be cleaned up so the regular date is stored, and when needed substract the ms
             t.executeSql('ALTER TABLE BOARDS ADD COLUMN dateSzLastTrello TEXT DEFAULT NULL');
             t.executeSql('ALTER TABLE BOARDS ADD COLUMN idActionLast TEXT DEFAULT NULL');
             t.executeSql('ALTER TABLE BOARDS ADD COLUMN bArchived INT DEFAULT 0');
@@ -1713,7 +1723,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             //card name change can affect [R] thus recalculate all etypes
             //also in very rare cases, plus missed a recurring state change leaving the card history with incorrect etypes. that was fixed so upgrade data.
             updateCardRecurringStatusInHistory(t);
-            t.executeSql("update HISTORY set idBoard=(select CARDS.idBoard from CARDS WHERE CARDS.idCard=HISTORY.idCard) WHERE HISTORY.idCard <> '" + ID_PLUSCOMMAND + "'");
+            t.executeSql("update HISTORY set idBoard=(select CARDS.idBoard from CARDS WHERE CARDS.idCard=HISTORY.idCard) WHERE HISTORY.idCard <> '" + ID_PLUSBOARDCOMMAND + "'");
         });
 
         M.migration(17, function (t) {
@@ -1811,11 +1821,32 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("update cards set idList='" + IDLIST_UNKNOWN + "' where idList LIKE '[%'"); //ditto
         });
 
+        M.migration(29, function (t) {
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN dateDue INT DEFAULT NULL');
+            //t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByDueDate ON CARDS(dateDue ASC) where dateDue IS NOT NULL');
+
+            t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff_new"); //improve index by excluding zero diff entries
+            //t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new2 ON CARDBALANCE(user ASC, diff ASC) where diff!=0'); //for updating rows on insert,reports and verifications
+            });
+
+        M.migration(30, function (t) {
+            t.executeSql("drop INDEX IF EXISTS idx_cardsByDueDate"); //to re-create
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByDueDate_new ON CARDS(dateDue ASC)'); //migration 29 used to create with "where" filter which turned to be unsupported on older linux
+            t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff_new2"); //ditto
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new3 ON CARDBALANCE(user ASC, diff ASC)'); //for updating rows on insert,reports and verifications
+        });
+
+        M.migration(31, function (t) {
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''href'' of undefined%'");
+        });
+
         M.doIt();
     }
 }
 
 function updateCardRecurringStatusInHistory(t) {
+    //see handleUpdateCardBalances for reference
+
     //used to set recurring cards to ETYPE_NONE, which makes reports on "new" versus "actual" not work correctly.
     var sqlUpdateEtype = "update history set eType=" +
     ETYPE_NEW + " where idCard in (select idCard from CARDS where CARDS.name LIKE '%[R]%') and history.eType <> " +
@@ -1850,7 +1881,7 @@ function updateCardRecurringStatusInHistory(t) {
 
     t.executeSql(sqlUpdateEtype, [], function (tx2, results) {
         var sqlUpdate2 = "update history set eType=" +
-            ETYPE_NEW + " where idHistory in (select min(idHistory) from history where (spent<>0 OR est<>0) and idCard in (select idCard from cards where name NOT LIKE '%[R]%') group by user,idCard)";
+            ETYPE_NEW + " where rowid in (select min(rowid) from history where (spent<>0 OR est<>0) and idCard in (select idCard from cards where name NOT LIKE '%[R]%') group by user,idCard)";
         tx2.executeSql(sqlUpdate2, [], function (tx3, results) { },
             function (tx3, error) {
                 logPlusError(error.message);

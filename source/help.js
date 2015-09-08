@@ -214,6 +214,36 @@ var Help = {
 	        g_bFirstTimeUse = false;
 	        helpWin.bStartTourBubbleOnClose = true;
 	    }
+
+	    if (true) {
+	        helpWin.para("<h3>Enable or disable Plus</h3>");
+	        
+	        helpWin.para('In the rare case you have issues with the display of trello pages:');
+	        var paraCheckDisable = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDisablePlus">Disable changing trello.com pages.</input>');
+	        var checkDisablePlus = paraCheckDisable.children('input:checkbox:first');
+	        var bAddedRefresh = false;
+	        if (isPlusDisplayDisabled())
+	            checkDisablePlus[0].checked = true;
+	        //.css("color", COLOR_ERROR);
+	        function setEDColor(check) {
+	            if (check.is(':checked'))
+	                paraCheckDisable.addClass("agile_color_warning");
+	            else
+	                paraCheckDisable.removeClass("agile_color_warning");
+	        }
+	        setEDColor(checkDisablePlus);
+	        checkDisablePlus.click(function () {
+	            var bValue = checkDisablePlus.is(':checked');
+	            localStorage[g_lsKeyDisablePlus] = (bValue?"true":"false"); //make this explicit even thout js would convert it
+	            if (!bAddedRefresh) {
+	                bAddedRefresh = true;
+	                paraCheckDisable.append($("<span> Refresh all trello tabs to take effect.</span>"));
+	            }
+	            setEDColor(checkDisablePlus);
+	        });
+	        helpWin.para('&nbsp');
+	    }
+
 	    if (helpWin.totalDbMessages > 0) {
 	        helpWin.para('Alert: Error log has entries. <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>.').css("color", COLOR_ERROR);
 	    }
@@ -261,10 +291,10 @@ var Help = {
 	        bInsertDonationAsSection = true;
 	    if (cDaysUsingPlus > 7) {
 	        helpWin.para('I need <b>your help</b> to keep improving Plus! There are many useful features pending:', divDonations);
-	        helpWin.para("&bull; Mobile view and drill-down of card S/E inside the iOS/Android app", divDonations);
-	        helpWin.para("&bull; Track unanswered comments sent or received", divDonations);
 	        helpWin.para("&bull; Card's time spent per list", divDonations);
-	        helpWin.para('&bull; Board flow-charts for task count or time per list over time and much more!', divDonations);
+	        helpWin.para("&bull; Mobile iOS/Android app features", divDonations);
+	        helpWin.para("&bull; Track unanswered card comments sent or received", divDonations);
+	        helpWin.para('&bull; Board flowcharts for task count or time per list over time and much more!', divDonations);
 	        helpWin.para('&nbsp;', divDonations);
 	    }
 	    else {
@@ -369,7 +399,7 @@ var Help = {
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync (by Card comments or Stealth)</h2></b>');
 	    helpWin.para('Select your team\'s sync method:');
 	    helpWin.para('Enable sync to use Reports and the Plus menu, even if you do not use S/E.');
 	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
@@ -574,7 +604,7 @@ var Help = {
 	            var bChanged = (JSON.stringify(g_optEnterSEByComment.rgKeywords).toLowerCase() != JSON.stringify(rgNew).toLowerCase());
 	            g_optEnterSEByComment.rgKeywords = rgNew;
 	            if (bShowSavedMessage)
-	                alert(bChanged ? "Saved. If your new keywords were used in the past, Reset Sync from preferences." : "Saved.");
+	                alert(bChanged ? "Saved. If your new keywords were used in the past, 'Reset Sync' from utilities." : "Saved.");
 	        });
 	    }
 
@@ -628,8 +658,8 @@ var Help = {
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices for S/E</h2></b>');
-	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Those will not be reflected in Plus until all "Reset sync" from Utilities.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;Instead use "modify" to make S/E changes.');
+	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
+	    helpWin.para('If you do modify or delete s/e card comments, see help inside the "modify" dialog about the card "^resetsync" command.');
 	    helpWin.para('&bull; To measure changed estimates, your team should always modify <b>R</b> to reflect actual remaining work. A card is done when S=E (R is zero)');
 	    helpWin.para('&bull; When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b>.');
 	    helpWin.para('&bull; Similarly if S goes over E, increase R so its not negative. The card S/E bar automatically pre-fills E to');
@@ -984,7 +1014,8 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
-	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted card S/E comments.');
+	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
+	    helpWin.para('If you only mofified a few card comments, read about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">card "^resetsync" command</A>.');
 	    var buttonReset = paraReset.children('input:button:first');
 	    buttonReset.click(function () {
 	        ResetPlus();

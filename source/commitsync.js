@@ -109,7 +109,8 @@ function commitCardSyncData(tx, alldata) {
 
         if (card.orig) {
             if (card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&            
-   				card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted && card.orig.idLong == card.idLong) {
+   				card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted &&
+                card.orig.dateDue==card.dateDue && card.orig.idLong == card.idLong) {
                 thisChanged = false;
                 if (card.orig.dateSzLastTrello == card.dateSzLastTrello)
                     continue;
@@ -117,8 +118,9 @@ function commitCardSyncData(tx, alldata) {
         }
         if (thisChanged)
             bChanged = true;
-        sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong) VALUES (?,?,?,?,?,?,?,?)";
-        tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted? 1 : 0, card.idLong], null,
+        //review zig: for performance, this should update when orig exists, using INSERT OR IGNORE, then UPDATE (unless it must be there because there is an orig)
+        sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong, dateDue) VALUES (?,?,?,?,?,?,?,?,?)";
+        tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue], null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -145,7 +147,7 @@ function commitCardSyncData(tx, alldata) {
 }
 
 function commitSESyncData(tx, alldata) {
-    var bChanges = alldata.commentsSE.length > 0;
+    var bChanges = alldata.rgCommentsSE.length > 0;
     var sql = "SELECT idMemberCreator,username, dateSzLastTrello FROM USERS";
     tx.executeSql(sql, [], function (tx2, results) {
         var i = 0;
@@ -172,7 +174,7 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
     //review zig ideally it should merge individual board sorted items without destruction or original orders in each array,
     //but im not sure if it would really make a difference as there is only dependency between cards not boards (currently)
     //and in any case the date to the millisecond would have to be identical to cause issues
-    alldata.commentsSE.sort(function (a, b) {
+    alldata.rgCommentsSE.sort(function (a, b) {
         return (a.date.localeCompare(b.date));
     });
 
@@ -181,12 +183,12 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
     //once sorted, process all users to update their data
     //hash idMemberCreator -> last memberCreator data. Useful to have a quick list of users without having to query HISTORY
     //review zig: doesnt handle well deleted users, only renamed
-    alldata.commentsSE.forEach(function (action) {
+    alldata.rgCommentsSE.forEach(function (action) {
         var mc = action.memberCreator; //may be undefined
         var mcOld = usersMap[action.idMemberCreator]; //idMemberCreator is always set
         var bOldIsFake = false;
         if (!mc)
-            return;
+            return; //review zig when can this happen?
         if (!mcOld) {
             //might be there already by name
             var idMemberFakeExisting=usersMapByName[mc.username];
@@ -204,7 +206,10 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
         }
     });
 
-    alldata.commentsSE.forEach(function (action) {
+    alldata.rgCommentsSE.forEach(function (action) {
+        if (action.ignore)
+            return; //can get here when there is a card reset command, and generates duplicate actions ignored here
+
         var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName);
         rowsAdd.forEach(function (rowCur) {
             rows.push(rowCur);
@@ -213,9 +218,9 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
     var bCommited = (rows.length > 0);
 
     //note: we dont directly insert into history. Instead put it on QUEUEHISTORY and insert later.
-    //the only reason to do it this way is because insertIntoDBWorker sometimes divides work in multiple transactions (see commands), and 
+    //the only reason to do it this way is because insertIntoDBWorker sometimes divides work in multiple transactions (see board commands), and 
     //websql does not support nested transactions. savepoints arent supported and cant be used either.
-    //also this makes it easier to reuse existing code that inserts history rows based on spreadsheet rows.
+    //also this made it easier to reuse existing code that inserts history rows based on spreadsheet rows (legacy sync).
     //the rows here will be inserted as soon as the containing transaction is done. Also we check for pending inserts
     //when the db is opened to handle cases like a shutdown in between transactions.
     rows.forEach(function (row) {
@@ -227,6 +232,28 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
 				});
     });
 
+    alldata.rgCardResetData.forEach(function (cardData) {
+        var sql = "UPDATE history set spent=0, est=0, eType=" + ETYPE_NONE + ", comment= '[original s/e: ' || spent || '/' || est || '] ' || comment  WHERE idCard=? and (spent<>0 OR est<>0)";
+        tx.executeSql(sql,[cardData.idCard], null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+
+        sql = "DELETE FROM CARDBALANCE WHERE idCard=?";
+        tx.executeSql(sql, [cardData.idCard], null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+
+        //card.dateSzLastTrello should not require updating since we only get card comments from before the last processed board date, thus should should
+        //never find a card with a date after the one already in processCardAction
+
+        //REVIEW ZIG: BOARDMARKERS are not reset if they came from these cards. this can be fixed by including idCard as a BOARDMARKERS column and delete those here
+        sql = "DELETE FROM BOARDMARKERS WHERE idCard=?";
+    });
+    
     for (idMemberCreator in usersMap) {
         var userCur = usersMap[idMemberCreator];
         if (userCur.bDelete) {
@@ -285,7 +312,7 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
             logPlusError("error: unexpected card comment from unknown board/card");
         return tableRet;
     }
-    var bPlusCommand = false;
+    var bPlusBoardCommand = false;
     if (!alldata.boards[idBoardShort]) {
         //review zig: this happens rarely. the card could have moved to a board that the user no longer has access, but if so the comments should have moved there too.
         //might be timing-related to trello db.
@@ -339,6 +366,26 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
 
         var s = 0;
         var e = 0;
+        comment = parseResults.comment;
+
+        if (parseResults.strCommand) {
+            function failCommand() {
+                pushErrorObj("bad command format");
+            }
+            //note before v3.2.13 board commands were allowed in comments when s/e = 0/0. This is no longer allowed for commands.
+            if (parseResults.strEstimate || parseResults.strSpent || parseResults.days || parseResults.rgUsers.length>0) {
+                failCommand();
+                return true; //continue
+            }
+            bPlusBoardCommand = (parseResults.strCommand.indexOf("markboard") == 1 || parseResults.strCommand.indexOf("unmarkboard") == 1);
+            if (bPlusBoardCommand || parseResults.strCommand.indexOf(PLUSCOMMAND_RESET) == 0) {
+                comment = "["+parseResults.strCommand + " command] " + comment; //we want to create a history row so users can see commands in reports
+            }
+            else {
+                failCommand();
+                return true; //continue
+            }
+        }
 
         if (parseResults.strSpent)
             s = parseFixedFloat(parseResults.strSpent,false);
@@ -346,28 +393,12 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         if (parseResults.strEstimate)
             e = parseFixedFloat(parseResults.strEstimate, false);
 
-
-
-        comment = parseResults.comment;
-        var commentLower = comment.toLowerCase();
-        if (commentLower.indexOf(PREFIX_PLUSCOMMAND) == 0) {
-            if (0 == s && 0 == e &&
-                  (commentLower.indexOf("markboard") == 1 || commentLower.indexOf("unmarkboard") == 1)) {
-                bPlusCommand = true;
-            }
-            else {
-                //attempted a plus command. dont fail with error, just insert a warning. might be a legitimate S/E entry
-                comment = "[command ignored] " + comment;
-            }
-        }
-
-
         var deltaDias = parseResults.days;
         var deltaParsed = 0;
         if (deltaDias) {
             deltaParsed = parseInt(deltaDias, 10) || 0;
             if (deltaParsed > 0 || deltaParsed < g_dDaysMinimum) { //sane limits
-                //note this is really not possible to enter here because the parser guarantees that deltaPasrsd will be negative
+                //note this is really not possible to enter here because the parser guarantees that deltaParsed will be negative
                 pushErrorObj("bad d");
                 return true; //continue
             }
@@ -410,10 +441,12 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
                 }
             }
             var idCardForRow = idCardShort;
-            if (bPlusCommand)
-                idCardForRow = ID_PLUSCOMMAND;
+            if (bPlusBoardCommand)
+                idCardForRow = ID_PLUSBOARDCOMMAND;
             var obj = makeHistoryRowObject(date, idCardForRow, idBoardShort, strBoard, strCard, userCur, s, e, commentPush, idForSsUse, keyword);
             obj.bError = false;
+            if (parseResults.strCommand)
+                obj.command = parseResults.strCommand.substring(1);
             if (idCardForRow != idCardShort)
                 obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time
             tableRet.push(obj);

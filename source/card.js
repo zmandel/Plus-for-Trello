@@ -892,12 +892,15 @@ function fillCardSEStats(tableStats,callback) {
                 var elemRptLink = containerStats.find(".agile_card_report_link");
                 var estimateBadge = containerStats.find(".agile_badge_estimate");
                 var spentBadge = containerStats.find(".agile_badge_spent");
+                var remainBadge = containerStats.find(".agile_badge_remaining");
                 if (response.status == STATUS_OK && (response.rows.length > 0 || isTourRunning())) {
                     containerStats.show();
                     if (elemRptLink.length == 0) {
                         estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront").attr('title', 'E sum\nall users');
-                        spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront agile_badge_cardfrontSpent").attr('title', 'S sum\nall users');
+                        spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront agile_badge_cardfrontFirst").attr('title', 'S sum\nall users');
+                        remainBadge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_cardfront").attr('title', 'R sum\nall users');
                         containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline no-print" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
+                        containerStats.prepend(remainBadge);
                         containerStats.prepend(estimateBadge);
                         containerStats.prepend(spentBadge);
                     }
@@ -905,35 +908,51 @@ function fillCardSEStats(tableStats,callback) {
                     //<span style="vertical-align: top;position: relative; top: -0.3em;font-size:0.7em">st</span>
                     var headTable = $("<thead>");
                     tableStats.append(headTable);
-                    addCardSERowData(headTable, {
+                    var dataRowHeader = {
                         user: 'By User',
                         spent: 'S <span style="font-size:0.85em">sum</span>',
-                        estOrig: '<span>E 1ˢᵗ</span>',
                         est: 'E <span style="font-size:0.85em">sum</span>',
-                        remain: 'R <span style="font-size:0.80em">(E-S)</span>',
+                        estOrig: '<span>1ˢᵗ</span>',
+                        remain: 'R',
                         idCard: idCard
-                    }, true);
-                    var bodyTable = $("<tbody>");
-                    tableStats.append(bodyTable);
-                    if (response.rows.length == 0) //tour is running
-                        addCardSERowData(bodyTable, {
-                            user: 'sample user',
-                            spent: '0', estOrig: '0',
-                            est: '0',
-                            remain: '0',
-                            bSample: true,
-                            idCard: idCard
-                        }, false);
+                    };
 
+                    var rowHeader = addCardSERowData(headTable, dataRowHeader, true);
+                    var bodyTable = $("<tbody>");
+                    bModifiedHeaderE = false;
                     var sTotalCard = 0;
                     var eTotalCard = 0;
+
+                    tableStats.append(bodyTable);
+
+                    function addDataRow(rowData) {
+                        sTotalCard += rowData.spent;
+                        eTotalCard += rowData.est;
+                        addCardSERowData(bodyTable, rowData, false);
+                        if (!bModifiedHeaderE && parseFixedFloat(rowData.estOrig) != parseFixedFloat(rowData.est)) {
+                            var elemHeaderE = rowHeader.find(".agile-card-now-estimate-header");
+                            elemHeaderE.html(dataRowHeader.est + " (" + dataRowHeader.estOrig + ")" + g_hackPaddingTableSorter);
+                            elemHeaderE.attr("title", "Estimate sum per user. (1st estimate in parenthesis)");
+                            bModifiedHeaderE = true;
+                        }
+                    }
+
+                    if (isTourRunning())
+                        addDataRow({ //ensure at least one row exists and it has est != estOrig
+                            user: 'sample user',
+                            spent: 6, estOrig: 11,
+                            est: 15,
+                            remain: 9,
+                            bSample: true,
+                            idCard: idCard
+                        });
+
                     var i = 0;
+
                     for (; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
-                        addCardSERowData(bodyTable, rowData, false);
-                        sTotalCard += rowData.spent;
-                        eTotalCard += rowData.est;
+                        addDataRow(rowData);
                         var mapCur = g_seCardCur[rowData.user];
                         if (!mapCur) {
                             mapCur = {
@@ -948,7 +967,7 @@ function fillCardSEStats(tableStats,callback) {
                     }
                     spentBadge.text(parseFixedFloat(sTotalCard));
                     estimateBadge.text(parseFixedFloat(eTotalCard));
-
+                    remainBadge.text(parseFixedFloat(eTotalCard-sTotalCard));
                 }
 
                 updateNoteR();
@@ -956,6 +975,15 @@ function fillCardSEStats(tableStats,callback) {
                     headers: {
                         0: {
                             sorter: 'links' //our custom sorter
+                        },
+                        1: {
+                            sorter: 'digit'
+                        },
+                        2: {
+                            sorter: 'digitWithParen' //our custom sorter
+                        },
+                        3: {
+                            sorter: 'digit'
                         }
                     }
                 });
@@ -989,8 +1017,8 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
 <input class="agile_mtse_note agile_placeholder_small" placeholder="type an optional note"></input> \
 <button id="agile_modify_SETotal">Modify</button> \
 <button id="agile_cancel_SETotal">Cancel</button> \
-<br><br><p class="agile_mtseMessage"></p> \
-<A style="float:right" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
+<br><br><p class="agile_mtseMessage agile_lightMessage"></p> \
+<span class="agile_lightMessage">To modify the 1st estimate, see help.</span> <A style="float:right" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
 </dialog>');
         $("body").append(divDialog);
         divDialog = $(".agile_dialog_editSETotal");
@@ -1168,20 +1196,23 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	var eVal = (typeof (rowData.est) == 'string' ? rowData.est : parseFixedFloat(rowData.est));
 	var rVal =  (typeof (rowData.remain) == 'string' ? rowData.remain : parseFixedFloat(eVal - sVal));
 	var s = $(td);
-	var eOrig = $(td).addClass("agile-card-first-estimate-header");
+	
 	var e = $(td).addClass("agile-card-now-estimate-header");
 	var r = $(td);
 	var linkMod = $(td).addClass("agile-card-seByUserModify");
+	
 	if (bHeader) {
-	    s.html(sVal+ g_hackPaddingTableSorter);
-	    eOrig.html(eOrigVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
-	    e.html(eVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
-	    r.html(rVal + g_hackPaddingTableSorter + g_hackPaddingTableSorter);
+	    u.attr("title", "Click on a user to view a detailed drilldown report");
+	    s.html(sVal + g_hackPaddingTableSorter).attr("title", "Spent sum per user");
+	    e.html(eVal + g_hackPaddingTableSorter).attr("title", "Estimate sum per user");
+	    r.html(rVal + g_hackPaddingTableSorter).attr("title", "Remaining (E minus S)");
 	}
 	else {
+	    var eValDisplay = eVal;
+	    if (eVal != eOrigVal)
+	        eValDisplay = eVal + " (" + eOrigVal + ")";
 	    s.text(sVal);
-	    eOrig.text(eOrigVal);
-	    e.text(eVal);
+	    e.text(eValDisplay);
 	    r.text(rVal);
 	    if (true) {
 	        var strAnchorMod = '<a class="agile_linkSoftColor" href="" target="_blank">modify</a>';
@@ -1189,7 +1220,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	        linkMod.children("a").click(function (e) {
 	            e.preventDefault();
 	            if (bSample) {
-	                alert("This is just a sample row and cannot be modified.");
+	                alert("This is just a sample row (shown only for the tour) and cannot be modified.");
 	                return;
 	            }
 	            showSETotalEdit(idCardCur, sVal, eVal, rowData.user);
@@ -1218,11 +1249,12 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	}
 	var dateLast = (rowData.date? new Date(rowData.date*1000) : new Date());
 	if (!bHeader)
-	    u.attr("title", "last S/E " + dateLast.toLocaleDateString() + "\nClick to drill-down");
-	row.append(u).append(s).append(eOrig).append(e).append(r);
+	    u.attr("title", "last S/E " + dateLast.toLocaleDateString() + "\nClick to drill-down" + (bSample?"\nThis is just a sample row for the tour. It wont show in reports.":""));
+	row.append(u).append(s).append(e).append(r);
 	if (!bHeader)
 	    row.append(linkMod);
 	tableStats.append(row);
+	return row;
 }
 
 

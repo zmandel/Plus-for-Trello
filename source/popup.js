@@ -142,14 +142,11 @@ function loadPopup() {
         $("#agile_boardSearch").focus(); //focus on mac for some reason doesnt work without timeout
     }, 150);
 
-	var urlReport = chrome.extension.getURL("report.html");
-	$("#reportLink").attr("href", urlReport + "?groupBy=idCardH&weekStartRecent=true");
-	$("#reportLinkByUser").css("cursor", "-webkit-zoom-in").attr("href", urlReport + "?orderBy=date&sinceSimple=w-4&archived=0&deleted=0&tab=1&popup=1");
 	var imgSync = $("#imgSync");
 
 	function setSyncIcon(bSync) {
 	    if (bSync) {
-	        imgSync.attr("src", chrome.extension.getURL("images/syncingNow.gif"));
+	        imgSync.attr("src", chrome.extension.getURL("images/syncingnow.gif"));
 	        imgSync.css("cursor", "default");
 	    }
 	    else {

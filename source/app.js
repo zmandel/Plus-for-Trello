@@ -186,22 +186,7 @@ $(function () {
 
             //http://tablesorter.com/docs/example-parsers.html
             //http://stackoverflow.com/a/2129479/2213940
-            if (true) {
-                $.tablesorter.addParser({
-                    // set a unique id 
-                    id: 'links',
-                    is: function (s) {
-                        // return false so this parser is not auto detected 
-                        return false;
-                    },
-                    format: function (s) {
-                        // format your data for normalization 
-                        return s.replace(new RegExp(/<.*?>/), "");
-                    },
-                    // set type, either numeric or text
-                    type: 'text'
-                });
-            }
+            addTableSorterParsers();
             loadOptions(function () {
                 entryPoint();
             });
@@ -279,7 +264,9 @@ function loadOptions(callback) {
 }
 
 function doAllUpdates() {
-	markForUpdate();
+    markForUpdate();
+    if (isPlusDisplayDisabled())
+        return;
 	addCardCommentHelp();
 }
 
