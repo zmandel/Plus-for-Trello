@@ -427,6 +427,8 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
             var commentPush = comment;
             if (iRowPush > 0)
                 idForSsUse = idForSs + "." + iRowPush;
+            if (action.idPostfix)
+                idForSsUse = idForSsUse + action.idPostfix;
             var userCur = rgUsersProcess[iRowPush].toLowerCase();
             if (userCur == g_strUserMeOption)
                 userCur = from; //allow @me shortcut (since trello wont autocomplete the current user)

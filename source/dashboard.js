@@ -505,6 +505,8 @@ function setChartData(rows, idBoard) {
 		loadTimeline(seriesTimeline);
 		g_chartUser = new google.visualization.BarChart(chartBottom[0]);
 		var chartLocal = g_chartUser;
+		g_chartUser.removeAction('drilldown'); //not sure if chart allows duplicate ids, so remove just in case
+		g_chartUser.removeAction('close-drilldown');
 		g_chartUser.setAction({
 			id: 'drilldown',				  // An id is mandatory for all actions.
 			text: 'Drill-down',	   // The text displayed in the tooltip.

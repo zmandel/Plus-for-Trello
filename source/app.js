@@ -80,7 +80,7 @@ function getIdBoardFromUrl(url) {
 
 var g_bErrorExtension = false;
 
-function showExtensionError(e) {
+function showExtensionUpgradedError(e) {
     if (g_bErrorExtension)
         return;
     g_bErrorExtension = true;
@@ -88,19 +88,19 @@ function showExtensionError(e) {
     if (e && e.message && !bIgnoreError(e.message))
         message = e.message;
 
-    var divDialog = $(".agile_dialog_ExtensionUpgraded");
+    var divDialog = $("#agile_dialog_ExtensionUpgraded");
 
     if (divDialog.length == 0) {
         divDialog = $('\
-<dialog class="agile_dialog_DefaultStyle agile_dialog_ExtensionUpgraded"> \
+<dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_ExtensionUpgraded"> \
 <h2>Chrome updated Plus for Trello</h2><br> \
 <p>Reload this page to use Plus. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
 <p id="agile_dialog_ExtensionUpgraded_message"></p> \
-<a href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
-<a title="Ignore to keep working on this page.\nSome Plus features may not work until you Reload." href="" class="button-link agile_dialog_ExtensionUpgraded_button" id="agile_dialog_ExtensionUpgraded_Ignore">Ignore</a> \
+<a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
+<a title="Ignore to keep working on this page.\nSome Plus features may not work until you Reload." href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_ExtensionUpgraded_Ignore">Ignore</a> \
 </dialog>');
         $("body").append(divDialog);
-        divDialog = $(".agile_dialog_ExtensionUpgraded");
+        divDialog = $("#agile_dialog_ExtensionUpgraded");
 
         var imgReload = $("<img>").attr("src", chrome.extension.getURL("images/reloadchrome.png")).addClass('agile_reload_ext_button_img');
         var reload = divDialog.find("#agile_dialog_ExtensionUpgraded_Refresh");
@@ -123,6 +123,34 @@ function showExtensionError(e) {
     setTimeout(function () {divDialog.addClass("agile_dialog_ExtensionUpgraded_animate");},200); //some dialog conflict prevents animation from working without timeout
 }
 
+
+function showFatalError(message) {
+    if (g_bErrorExtension)
+        return;
+    g_bErrorExtension = true;
+
+    var divDialog = $("#agile_dialog_FatalError");
+
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog id="agile_dialog_FatalError" class="agile_dialog_DefaultStyle agile_dialog_Postit"> \
+<h3>Plus for Trello error</h3>\
+<p id="agile_dialog_FatalError_message"></p> \
+<A id="agile_dialog_FatalError_ViewLog" href="" target="_blank">View error log</A> \
+<a style="float:right;" href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FatalError_Ignore">Ignore</a> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $("#agile_dialog_FatalError");
+        divDialog.find("#agile_dialog_FatalError_ViewLog").prop("href", chrome.extension.getURL("plusmessages.html"));
+        divDialog.find("#agile_dialog_FatalError_Ignore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            divDialog[0].close();
+        });
+    }
+    $("#agile_dialog_FatalError_message").text(message);
+    divDialog[0].show();
+}
+
 function testExtension(callback) {
     if (g_bErrorExtension)
         return;
@@ -139,7 +167,7 @@ function testExtension(callback) {
 				callback();
 		}, true); //true to rethrow exceptions
 	} catch (e) {
-		showExtensionError(e);
+	    showExtensionUpgradedError(e);
 	}
 }
 
@@ -231,14 +259,14 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
+    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
                              keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
-                                 
+                                 g_language = objSync[SYNCPROP_language] || "en";
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false);
                                  UNITS.current = objSync[keyUnits] || UNITS.current;

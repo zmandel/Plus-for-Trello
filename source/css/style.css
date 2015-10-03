@@ -40,7 +40,11 @@
     background: #DEEEDE !important;
 }
 
-.agile_dialog_ExtensionUpgraded {
+#agile_dialog_FatalError {
+    max-width: 20em !important;
+}
+
+.agile_dialog_Postit {
     position: fixed  !important;
     top: 0px  !important;
     left: 0px  !important;
@@ -49,6 +53,9 @@
     border-top-left-radius: 0px !important;
     background-color: #FFFFD8 !important;
     color: #4D4D4D !important;
+}
+
+.agile_dialog_Postit_ExtensionUpgraded {
     margin-top: -11em;
     -webkit-transition: all 0.3s ease-out;
     transition: all 0.3s ease-out;  
@@ -58,7 +65,7 @@
     margin-top: 0em !important;
 }
 
-.agile_dialog_ExtensionUpgraded_button {
+.agile_dialog_Postit_button {
     display: inline-table !important;
     padding-right:10px !important;
 }

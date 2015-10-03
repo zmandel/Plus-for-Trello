@@ -330,6 +330,7 @@ function clearAllStorage(callback) {
                     };
 
                     objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync)? true :  false;
+                    objSet[SYNCPROP_language] = g_language;
 
                     chrome.storage.sync.set(objSet,
                         function () {

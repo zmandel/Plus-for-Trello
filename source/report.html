@@ -82,17 +82,24 @@ If you do not need to pivot, using 'Year' will make the report a little faster."
                     </select>
                 </div>
                 <div title="
-Order resulting rows.
+Order resulting rows. Also click report headers to change order (SHIFT-click for multi-column).
 
-You can also click report headers to change order. SHIFT-click to sort by multiple columns.
+When the card has S/E rows, the row date is based on S/E rows.
+Otherwise its the date of the card's last create, move or rename.
 
-When the card has S/E rows, the row date is based on S/E rows. Otherwise it uses the date of the card's last create, move or rename.
-                     
-Order by 'R (non-zero)' is a special report to find remaining work quickly. Shows only rows with non-zero R.
-This report is meaningful when also selecting 'since: All dates' and group by card/list/board/user.
-It will hide the S/E columns unless grouped by Card-User. If you want to prevent this special behaviour order by something else, then click the R column to sort by it.
+Special orders:
+                                          
+'R (non-zero)'
+is a special 'Remaining' report. Shows only rows with non-zero R.
+This order makes sense when also filtering 'since: All dates' and grouping by card/list/board/user.
+It hides the S/E columns unless grouped by Card-User.
+To prevent that, order by something else then click the R column header.
 
-Order by Due date only shows cards with a due date, and only works when grouping by Card or Card-User." class="agile_report_filter agile_orderby_report_section">
+'Due date'
+only shows cards with a due date, and only works when grouping by Card or Card-User.
+
+'List position'
+orders first by board name (descending) then by list position in each Trello board." class="agile_report_filter agile_orderby_report_section">
                     <p class="agile_report_filter_label">Order by</p>
                     <select id="orderBy">
                         <option value="date">Date</option>
@@ -170,25 +177,25 @@ Filter by users that entered S/E on each card.
 Filtering by user will only show results that have S/E.
 
 To find NOT containing, start with !
-Supports AND/OR. See reports help.">
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">User</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="user" name="user" /><input type="submit" class="agile_hidden" />
                 </div>
                 <div class="agile_report_filter" title="To find NOT containing, start with !
-Supports AND/OR. See reports help.">
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Board</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="board" name="board" /><input type="submit" class="agile_hidden" />
                 </div>
                 <div class="agile_report_filter" title="To find NOT containing, start with !
 
 Example: !doing finds history on cards with lists not containing 'doing'
-Supports AND/OR. See reports help.">
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">List</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="list" name="list" /><input type="submit" class="agile_hidden" />
                 </div>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !
 
 Example: !#low finds cards without a '#low' hashtag.
-Supports AND/OR. See reports help.">
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
                 </form>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter"
@@ -196,7 +203,7 @@ Supports AND/OR. See reports help.">
 To find NOT containing, start with !
 
 Filtering by S/E note will only show results that have S/E.
-Supports AND/OR. See reports help.">
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Note</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="comment" name="comment" /><input type="submit" class="agile_hidden" />
                 </form>
 

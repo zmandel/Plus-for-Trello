@@ -450,8 +450,10 @@ function startOpenDB(config, user) {
 	g_dbOpened = false;
     openPlusDb(
 			function (response) {
-				if (response.status != STATUS_OK)
-					return;
+			    if (response.status != STATUS_OK) {
+			        showFatalError(response.status);
+			        return;
+			    }
 				g_cRowsHistoryLast = response.cRowsTotal;
 				g_dbOpened = true;
 				onDbOpened();
@@ -1696,11 +1698,11 @@ function finishSpentChartConfig(waiter, idElem, elem, data, posLegend, pxLeft, p
 	if (chartParams === undefined || chartParams.elemChart != elem[0] || !g_bShowHomePlusSections) {
 		chartNew = new google.visualization.BarChart(elem[0]);
 		google.visualization.events.addListener(chartNew, 'animationfinish', function (e) {
-			handleRemapLabels(chartParams);
+		    handleRemapLabels(g_chartsCache[idElem]);
 		});
 	}
 	else {
-	    chartNew = chartParams.chart;
+	    chartNew = chartParams.chart; //reuse chart
 	}
 	chartParams = { chart: chartNew, data: data, posLegend: posLegend, pxLeft: pxLeft, pxRight: pxRight };
 	g_chartsCache[idElem] = chartParams;
@@ -1708,10 +1710,13 @@ function finishSpentChartConfig(waiter, idElem, elem, data, posLegend, pxLeft, p
 	chartParams.data = data;
 	chartParams.posLegend = posLegend;
 	chartParams.pxLeft = pxLeft;
-	chartParams.pxRight = pxRight; //NOTE: not used. gcharts dont support 'right'
+	chartParams.pxRight = pxRight; //NOTE: not used. gcharts doesnt support 'right'
 	chartParams.mapRows = mapRows;
 	chartParams.elemChart = elem[0];
+	chartParams.chart.removeAction('drilldown'); //not sure if chart allows duplicate ids, so remove just in case
+	chartParams.chart.removeAction('close-drilldown');
 	if (drilldowns) {
+	    
 		chartParams.chart.setAction({
 			id: 'drilldown',				  // An id is mandatory for all actions.
 			text: 'Drill-down',	   // The text displayed in the tooltip.
@@ -1916,7 +1921,7 @@ function remapTextElements(value, postfix, svg, mapRows, mapDone) {
  * For this to work, you need to call this function BOTH from your chart.draw AND from 'animationfinish' chart event.
  **/
 function handleRemapLabels(chartParams) {
-	if (chartParams.mapRows) {
+    if (chartParams && chartParams.mapRows) {
 		var mapDone = {};
 		var svg = $(chartParams.elemChart).find("svg");
 		if (svg.length == 0)

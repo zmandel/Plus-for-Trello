@@ -19,7 +19,7 @@ function loadReport() {
         sendExtensionMessage({ method: "clearAllLogMessages" },
 			function (response) {
 			    if (response.status != STATUS_OK) {
-			        alert(response.status);
+			        showError(response.status);
 			        return;
 			    }
 			    configReport();
@@ -30,7 +30,7 @@ function loadReport() {
         sendExtensionMessage({ method: "writeLogToPlusSupport" },
             function (response) {
                 if (response.status != STATUS_OK) {
-                    alert(response.status);
+                    showError(response.status);
                     return;
                 }
                 $("#buttonSendToDev").prop('disabled', true);
@@ -40,6 +40,14 @@ function loadReport() {
 }
 
 function showError(err) {
+    try {
+        setBusy(false);
+    } catch (e)
+    {
+
+    }
+    //dont use any libraries here
+    document.getElementById("lastPageError").innerText = "Last page error: "+err; 
     alert("Plus for Trello:" + err);
 }
 

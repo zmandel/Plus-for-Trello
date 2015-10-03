@@ -26,10 +26,10 @@ function showTourBubble() {
     g_bNeedStartTourBubble = false;
     var step = {
         selector: ".agile_tour_link",
-        text: "Start<br>the Plus tour<br>from here anytime!",
+        text: "Start<br>the Plus tour<br>from here anytime!<br><br>Select your language in Plus help.",
         angle: 180,
         distance: 0,
-        size: 150
+        size: 200
     };
     showBubbleFromStep(step, true, true,0);
 }
@@ -37,6 +37,7 @@ function showTourBubble() {
 function handleHomeTour() {
     var flow = [
         {
+            id: 1,
             selector: ".agile-spent-icon-header",
             text: "Click <b>?</b> anytime for<br>complete help.<br><br>If you track <b>E</b>stimation changes or manage a team make sure to read all help",
             angle: 180,
@@ -45,6 +46,7 @@ function handleHomeTour() {
         },
 
         {
+            id: 2,
             selector: ".agile-spent-icon-header",
             text: "Use the arrows<br>here or on your<br>keyboard to<br>navigate this tour",
             angle: 180,
@@ -53,6 +55,7 @@ function handleHomeTour() {
         },
 
         {
+            id: 3,
             selector: "#urlUser",
             text: "<br>This report<br>shows your total daily <b>S</b>pent breakdown<br>",
             angle: 180,
@@ -60,6 +63,7 @@ function handleHomeTour() {
             size: 150
         },
          {
+             id: 4,
              selector: "#spentRecentWeeks",
              text: "<br>Change<br>the report view by clicking on the week<br>",
              angle: 180,
@@ -67,6 +71,7 @@ function handleHomeTour() {
              size: 150
          },
          {
+             id: 5,
              selector: "#toggleAll",
              text: "<br>Toggles More-Less<br><br>Click <b>Less</b> to hide old boards and cards.<br>Click <b>More</b> to show all.<br><br>Make sure Trello <b>card aging</b> is enabled for the board",
              angle: 180,
@@ -74,8 +79,9 @@ function handleHomeTour() {
              size: 200
          },
         {
-            selector: ".icon-lg.window-module-title-icon.icon-star +",
-            selectorAlt: ".icon-lg.window-module-title-icon.icon-member +", //if no stared boards, will be hidden
+            id: 6,
+            selector: ".board-list .starred .js-open-board",
+            selectorAlt: ".boards-page-board-section .js-open-board",
             text: "<br><br>Recently visited boards<br>show <b>S</b>pent and <b>E</b>stimate<br>from the <b>last time</b> you entered the board<br><br>",
             angle: 180-45,
             distance: 0,
@@ -83,6 +89,7 @@ function handleHomeTour() {
         },
 
         {
+            id: 7,
             selector: "#headerSEActivities",
             text: "This section shows <br>Spent charts, your recent S/E and cards with Remaining balance.<br><br>Click to show or hide.",
             angle: 90,
@@ -91,12 +98,13 @@ function handleHomeTour() {
         },
 
          {
+             id: 8,
              selector: ".classid_spent_week_users",
              text: "<br><br>Click on a chart title to zoom it full-window.<br><br>Click on any chart bar to drill-down.",
-             getText: function () {
+             addText: function () {
                  if (g_cRowsWeekByUser > 0)
-                     return this.text;
-                 return this.text + "<br>There is no data to chart this week yet.";
+                     return "";
+                 return "There is no data to chart this week yet.";
              },
              angle: 90,
              distance: 0,
@@ -104,6 +112,7 @@ function handleHomeTour() {
          },
 
           {
+              id: 9,
               selector: ".classid_spent_recent_cards",
               text: "<br>Your last ten<br>card S/E entries.<br><br>Click one to open<br>the card<br><br>",
               angle: 135, //considers case where there are no fav. boards
@@ -111,13 +120,15 @@ function handleHomeTour() {
               size: 150
           },
             {
+                id: 10,
                 selector: ".classid_spent_pending_cards",
-                text: "Cards with<br><b>S</b>pent not equal <b>E</b>stimate<br>show here.<br><br>Cards should not have S bigger than E, those  are painted pink",
+                text: "Cards with<br><b>S</b>pent not equal <b>E</b>stimate<br>show here.<br><br>Cards should not have S bigger than E, those are painted pink",
                 angle: 135, //considers case where there are no fav. boards
                 distance: 20,
                 size: 200
             },
             {
+                id: 11,
                 selector: ".js-boards-menu",
                 text: "<b>Go to a board</b><br>to continue the tour",
                 angle: 90+45,
@@ -141,6 +152,7 @@ function handleCardTour() {
     showSEBarContainer(true);
     var flow = [
     {
+        id: 1,
         selector: ".agile-spent-icon-header_cardwindow",
         text: "Help<br>is here too.<br><br>Use keyboard arrows<br>to navigate the tour.",
         angle: 180,
@@ -148,15 +160,17 @@ function handleCardTour() {
         size: 150
     },
 
-       {
-           selector: "#container_agile_checkRecurringCard",
-           text: "check 'Recurring'<br>so cards (like weekly meetings) will not have a '1ˢᵗ estimate' and wont inflate changed estimate reports.",
-           angle: 180,
-           distance: 0,
-           size: 200
-       },
+    {
+        id: 2,
+        selector: "#container_agile_checkRecurringCard",
+        text: "check 'Recurring'<br>so cards (like weekly meetings) will not have a '1ˢᵗ estimate' and wont inflate changed estimate reports.",
+        angle: 180,
+        distance: 0,
+        size: 200
+    },
 
     {
+        id: 3,
         selector: ".agile_hashtags_list",
         text: "Add #tags<br>to cards and later search them from reports.",
         angle: 180,
@@ -165,6 +179,7 @@ function handleCardTour() {
     },
 
     {
+        id: 4,
         selector: ".js-card-title",
         text: "You can also change the card title directly to manage #tags/recurring.",
         angle: 180,
@@ -173,6 +188,7 @@ function handleCardTour() {
     },
 
       {
+          id: 5,
           selector: ".agile-addSEButton",
           text: "To show the<br>card 'S/E bar'<br>when hidden<br>click here.",
           angle: 0,
@@ -181,6 +197,7 @@ function handleCardTour() {
       },
 
     {
+        id: 6,
         selector: ".agile-se-bar-entry",
         focus:".agile_days_box_input",
         text: "<b>card S/E bar</b><br> here you enter<br> <b>S</b>pent and <b>E</b>stimate rows.<br><br>Each <b>S/E row</b> entered shows as a card comment and in reports.",
@@ -189,6 +206,7 @@ function handleCardTour() {
         size: 200
     },
     {
+        id: 7,
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
         text: "<b>S</b>pent and <b>E</b>stimate<br>units default to 'hours'.<br>If you prefer minutes or days, change it from Preferences in Plus help before entering S/E.",
@@ -197,6 +215,7 @@ function handleCardTour() {
         size: 200
     },
       {
+          id: 8,
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
           text: "To track changed estimates, the first <b>S/E row</b><br>entered per user<br>needs an initial <b>E</b>stimate.",
@@ -205,6 +224,7 @@ function handleCardTour() {
           size: 200
       },
       {
+          id: 9,
           selector: ".agile-se-bar-entry",
           focus: ".agile_days_box_input",
           text: "That first S/E row<br>entered per user is<br>their <b>1ˢᵗ Estimate</b><br>and cannot be modified.<br><br>Useful to detect<br>and compare changed estimates using reports.<br>",
@@ -213,6 +233,7 @@ function handleCardTour() {
           size: 200
       },
     {
+        id: 10,
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
         text: "If you never want to track changed estimates tell Plus in Preferences to 'Allow negative <b>R</b>emaining'",
@@ -221,6 +242,7 @@ function handleCardTour() {
         size: 200
     },
     {
+        id: 11,
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
         text: "<b>Spend</b> units by<br>entering more 'S/E rows' with positive <b>S</b>pend and<br>empty <b>E</b>stimate.<br><br>",
@@ -230,6 +252,7 @@ function handleCardTour() {
     },
 
         {
+            id: 12,
             selector: ".agile-se-bar-entry",
             focus: ".agile_days_box_input",
             text: "You may<br>type both S and E<br>in the same row.<br><br>An empty cell means zero.",
@@ -239,6 +262,7 @@ function handleCardTour() {
         },
 
      {
+         id: 13,
          selector: ".agile-se-bar-entry",
          focus: ".agile_days_box_input",
          text: "<b>S and E<br>are cummulative</b>.<br><br>Their current sum per user is shown in the table above.<br><br>See the example in Plus help.",
@@ -247,6 +271,7 @@ function handleCardTour() {
          size: 200
      },
     {
+        id: 14,
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
         text: "The best practice is to<br>enter <b>S</b>pent until <b>R</b> is zero<br>(<b>S sum</b> equals <b>E sum</b>).",
@@ -255,6 +280,7 @@ function handleCardTour() {
         size: 200
     },
     {
+        id: 15,
         selector: ".agile-se-bar-entry",
         focus: ".agile_days_box_input",
         text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so <b>R</b><br>doesn't go negative.<br><br>The Plus bar defaults <b>E</b><br>automatically in that case.",
@@ -263,6 +289,7 @@ function handleCardTour() {
         size: 200
     },
         {
+            id: 16,
             selector: ".agile-se-bar-entry",
             focus: ".agile_days_box_input",
             text: "Likewise<br>if you finish a card and<br>still has <b>R</b>emaining,<br>reduce your Estimate<br>(enter negative <b>E</b>)<br>so <b>R</b> gets to zero.<br><br>",
@@ -271,6 +298,7 @@ function handleCardTour() {
             size: 200
         },
         {
+            id: 17,
             selector: ".agile-card-seByUserModify",
             text: "Its easier<br>to make those modifications from here so it does that math for you.",
             angle: 180,
@@ -278,6 +306,7 @@ function handleCardTour() {
             size: 200
         },
         {
+            id: 18,
             selector: ".agile-card-seByUserModify",
             text: "For example,<br>if the card is done but there is still <b>R</b>, just zero or empty <b>R</b> to reduce the estimate.",
             angle: 180,
@@ -286,14 +315,16 @@ function handleCardTour() {
         },
 
         {
+            id: 19,
             selector: ".agile-card-seByUserModify",
-            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not edit or delete the card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/faq.html' target='_blank'>oups too late</a>",
+            text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not edit or delete the card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand' target='_blank'>oups too late</a>",
             angle: 180,
             distance: 0,
             size: 200
         },
 
         {
+            id: 20,
             selector: "#plusCardCommentUsers",
             text: "To enter an <b>S/E row</b><br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one from another list.",
             angle: 180,
@@ -301,6 +332,7 @@ function handleCardTour() {
             size: 200
         },
      {
+         id: 21,
          selector: ".agile_days_box_input",
          text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago', or 'other' to pick from a calendar.",
          angle: 180,
@@ -308,6 +340,7 @@ function handleCardTour() {
          size: 200
      },
       {
+          id: 22,
           selector: ".agile_spent_box_input",
           text: "type <b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
           angle: 180,
@@ -315,6 +348,7 @@ function handleCardTour() {
           size: 200
       },
            {
+               id: 23,
                selector: ".agile_estimation_box_input",
                text: "type <b>Estimate</b><br><br>Leave blank<br>to enter only <b>S</b>pent<br><br>The first row entered will be the 1ˢᵗ estimate (<b>E 1ˢᵗ</b>) in the table above.",
                angle: 180,
@@ -323,6 +357,7 @@ function handleCardTour() {
            },
 
            {
+               id: 24,
                selector: ".agile_comment_box_input",
                text: "Type an<br>optional note here and press the Enter key or button.",
                angle: 180,
@@ -330,6 +365,7 @@ function handleCardTour() {
                size: 150
            },
                {
+                   id: 25,
                    selector: ".agile-se-bar-entry",
                    focus: ".agile_days_box_input",
                    text: "For advanced S/E entry see<br><a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>S/E comment format</a>.",
@@ -338,6 +374,7 @@ function handleCardTour() {
                    size: 200
                },
        {
+           id: 26,
            selector: ".agile_card_report_link",
            text: "Once there are<br>S/E rows entered, this report shows a breakdown<br>per user.<br><br>Click this to drill-down on the card.",
            angle: 180,
@@ -346,6 +383,7 @@ function handleCardTour() {
        },
 
        {
+           id: 27,
            selector: ".agile-card-statrow-data",
            text: "Users with positive <b>R</b><br>have remaining work.<br><br>Mouse-over the user<br>to see their last S/E date.<br><br>Click the user to drill-down.<br>",
            angle: 180,
@@ -353,6 +391,7 @@ function handleCardTour() {
            size: 200
        },
         {
+            id: 28,
             selector: ".agile-card-now-estimate-header",
             text: "<br><b>E Sum</b> is the current estimate per user.<br><br>Calculated as the sum of all E in S/E rows for the user.",
             angle: 180,
@@ -360,13 +399,15 @@ function handleCardTour() {
             size: 200
         },
        {
+           id: 29,
            selector: ".agile-card-now-estimate-header",
-           text: "<b>(E 1ˢᵗ)</b> shows when<br>the current estimate has been modified.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified.",
+           text: "<b>(E 1ˢᵗ)</b> shows (in<br>parenthesis) when<br>the current estimate has been modified.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified (except with <a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand' target='_blank'>resetsync</a>)",
            angle: 180,
            distance: 0,
            size: 200
        },
         {
+            id: 30,
             selector: ".agile-card-now-estimate-header",
             text: "1ˢᵗ estimates<br>appear also in reports<br>to compare at the board/user/date level.",
             angle: 180,
@@ -375,6 +416,7 @@ function handleCardTour() {
         },
     
        {
+           id: 31,
            selector: "#agile_timer",
            text: "<b>Card Timer</b><br><br>Start, Pause or Stop a timer.<br><br>",
            angle: (180 + 45),
@@ -384,6 +426,7 @@ function handleCardTour() {
        ,
 
         {
+            id: 32,
             selector: "#agile_timer",
             text: "<br>Once started,<br>the timer also shows in the Chrome Plus menu <br><br><a style='color:white;' href='https://www.youtube.com/watch?v=gbAZXtaRi5o' target='_blank'>can\'t see the Plus menu?</a><br>",
             angle: (180 + 45),
@@ -394,6 +437,7 @@ function handleCardTour() {
        ,
 
        {
+           id: 33,
            selector: "#agile_timer",
            text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you 'Enter' the s/e row.",
            angle: (180 + 45),
@@ -403,6 +447,7 @@ function handleCardTour() {
        ,
 
        {
+           id: 34,
            selector: ".agile_spent_box_input",
            text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/pausing the timer.",
            angle: 180-45,
@@ -411,6 +456,7 @@ function handleCardTour() {
        },
 
         {
+            id: 35,
             selector: ".agile_spent_box_input",
             text: "If you forgot<br>to start a timer, type here the Spent so far and start the timer<br>to start at that value.<br>",
             angle: 180 - 45,
@@ -419,6 +465,7 @@ function handleCardTour() {
         },
 
          {
+             id: 36,
              selector: ".agile_spent_box_input",
              text: "Also,<br>if you type Spent here once the timer is running, pausing the timer will add to it.",
              angle: 180 - 45,
@@ -427,6 +474,7 @@ function handleCardTour() {
          },
 
          {
+             id: 37,
              selector: "#plusCardCommentEnterButton",
              text: "Once a timer pre-fills Spent,<br>you need to Enter it.",
              angle: 180 - 45,
@@ -434,6 +482,7 @@ function handleCardTour() {
              size: 200
          },
         {
+            id: 38,
             selector: "#plusCardCommentEnterButton",
             text: "If you dont enter it,<br>Plus will remember your Draft row and remind you next time you open the card from the same computer.",
             angle: 180 - 45,
@@ -441,6 +490,7 @@ function handleCardTour() {
             size: 200
         },
     {
+        id: 39,
         selector: ".agile-spent-icon-header_cardwindow",
         text: "Read the<br>full help anytime.<br><br>Please <A href='http://www.plusfortrello.com/p/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
         angle: 180,
@@ -462,21 +512,24 @@ function handleBoardTour() {
 
         var flow = [
         {
+            id: 1,
             selector: ".agile_total_box.agile_spent_box",
-            text: "Total<br><b>S</b>pent, <b>E</b>stimate and <b>R</b>emaining.<br><br>Mouse-over<br>for <b>% complete.</b><br><br><p class=agile_bubble_helptext'>Only shows in boards with non-zero S/E</p>",
+            text: "Total<br><b>S</b>pent, <b>E</b>stimate and <b>R</b>emaining.<br><br>Mouse-over<br>for <b>% complete.</b><br><br>Only shows in boards with non-zero S/E",
             angle: 180+45,
             distance: 0,
             size: 200
         },
 
         {
+            id: 2,
             selector: ".agile_plus_filter_span",
-            text: "Check to<br>sum only filtered cards.<br><br><p class=agile_bubble_helptext'>Only shows<br>when you have filtered cards using the sidebar or 'Less'</p>",
+            text: "Check to<br>sum only filtered cards.<br><br>Only shows<br>when you have filtered cards using the sidebar or 'Less'",
             angle: 180 + 45,
             distance: 0,
             size: 200
         },
          {
+             id: 3,
              selector: ".agile_plus_report_link",
              text: "Board<br>Report",
              angle: 180 + 45,
@@ -484,6 +537,7 @@ function handleBoardTour() {
              size: 100
          },
           {
+              id: 4,
               selector: ".agile_plus_burndown_link",
               text: "Board<br>Burndown",
               angle: 180 + 45,
@@ -491,6 +545,7 @@ function handleBoardTour() {
               size: 100
           },
            {
+               id: 5,
                selector: ".agile_listboard_header",
                text: "<br>Card totals per list.<br><br>Mouse-over<br>to view <b>% complete</b> and <b>R</b><br><br><br>",
                angle: -(180+45),
@@ -498,6 +553,7 @@ function handleBoardTour() {
                size: 200
            },
            {
+               id: 6,
                selector: ".list-card-details .badges",
                text: "Total card S/E<br>by all team users.<br><br><b>Click on a card</b><br>to continue the tour<br><br>",
                angle: -(180 + 45),
@@ -527,9 +583,16 @@ function handleTourStart(bFromClick) {
         removeAllGrumbleBubbles();
     }
 
-    if (Help.isVisible())
-        sendDesktopNotification("Close Plus help to run the tour.", 5000);
-
+    if (Help.isVisible()) {
+        //retry as timing issues might cause this
+        setTimeout(function () {
+            if (Help.isVisible())
+                sendDesktopNotification("Close Plus help to run the tour.", 8000);
+            else
+                handleTourStart(bFromClick);
+        }, 2000); 
+        return;
+    }
     if (!g_bShowHomePlusSections) {
         var seHeader = $("#headerSEActivities");
         if (seHeader.length != 0)
@@ -576,13 +639,32 @@ function handleTourStart(bFromClick) {
     }, 0);
 }
 
+var g_bOutputTourFlow = false; //for developer
 
 function startTourFlow(flow, name, bPaused) {
+    //review zig translations https://docs.google.com/spreadsheets/d/1pB7XSAFM8MjE4HpxX7LQ4rrfrlCm9Yd9euvSsbd7sVY/edit
+    if (g_bOutputTourFlow) {
+        var log = "";
+        flow.forEach(function (step) {
+            var text = step.text;
+            if (text.indexOf('"') >= 0)
+                text = text.replace(/"/g, '""'); //escape any existing double quotes.
+            log = log + (log?"\r\n":"") + '"'+step.size+'"\t"'+ step.id + '"\t"' + text + '"';
+        });
+        console.log(log);
+    }
     bPaused = bPaused || false;
+
+    if (g_language != "en")
+        flow = translateTour(flow, name, g_language);
     if (g_tour.name != name) {
         g_tour.name = name;
         g_tour.flow = flow;
         g_tour.index = g_tour.mapFlowState[name] || 0;
+        if (g_tour.index >= g_tour.flow.length) {
+            //can happen if tour is paused, and language changed to one with less bubbles)
+            g_tour.index = g_tour.flow.length - 1;
+        }
     }
 
     if (!bPaused)
@@ -613,7 +695,10 @@ function showNextBubble(delta,bLast) {
 function showCurrentBubble(delta) {
     delta = delta || 1;
     assert(g_tour.flow.length > 0);
-    assert(g_tour.index < g_tour.flow.length);
+    if (g_tour.index >= g_tour.flow.length) {
+        //can happen if tour is paused, and language changed to one with less bubbles)
+        g_tour.index = g_tour.flow.length - 1;
+    }
     var step = g_tour.flow[g_tour.index];
     g_tour.mapFlowState[g_tour.name] = g_tour.index;
     showBubbleFromStep(step, g_tour.index == 0, g_tour.index == g_tour.flow.length - 1,delta);
@@ -630,8 +715,13 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
             showNextBubble(delta);
             return;
         }
-        var textStep = (step.getText ? step.getText() : step.text);
-        var text = '<span class="agile_ballonBody">' + textStep + '<div style="padding-top:1em">';
+        var textStep = step.text;
+        if (step.addText) {
+            var textNotify = step.addText();
+            if (textNotify)
+                sendDesktopNotification(textNotify,6000); //review zig: not translated
+        }
+        var text = '<span class="agile_ballonBody' + (step.bNoTranslate?' notranslate':'') + '">' + textStep + '<div style="padding-top:1em">';
         if (!bFirst)
             text = text + '<span title="Previous tip" style="display:inline-block" class="agile_bubbleArrow agile_bubbleArrowLeft agile_rotated">&#10140;</span>';
 
@@ -646,14 +736,11 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         var distance = (step.distance === undefined ? 30 : step.distance);
         var size = (step.size === undefined ? 50 : step.size);
         var elemTarget = (typeof (step.selector) == "string" ? $(step.selector) : step.selector);
-        if (elemTarget.length == 0) {
-            showNextBubble(delta);
-            return;
-        }
-        if (!(elemTarget.eq(0).is(":visible")) && step.selectorAlt)
+
+        if (step.selectorAlt && (elemTarget.length == 0 || !(elemTarget.eq(0).is(":visible"))))
             elemTarget = $(step.selectorAlt);
-        
-        if (elemTarget.length == 0 || !(elemTarget.eq(0).is(":visible"))) {
+
+        if (elemTarget.length == 0) {
             showNextBubble(delta);
             return;
         }

@@ -327,7 +327,7 @@ function fillComboKeywords(comboKeywords,rg, kwSelected) {
     }
 }
 
-function fillComboUsers(comboUsers, userSelected) {
+function fillComboUsers(comboUsers, userSelected, idCard, nameBoard) {
     var sql = "select username from USERS order by username";
     var userMe = getCurrentTrelloUser();
     var user = g_strUserMeOption;
@@ -344,18 +344,36 @@ function fillComboUsers(comboUsers, userSelected) {
 
 		    }
 		    if (response.status == STATUS_OK) {
+		        var mapUsers = {};
 		        for (var i = 0; i < response.rows.length; i++) {
 		            user = response.rows[i].username;
+		            mapUsers[user] = true;
 		            if (user == g_valUserExtra)
 		                g_valUserExtra = null;
 		            if (user == userMe)
 		                continue;
 		            add(user);
 		        }
-		    }
-		    if (g_valUserExtra)
-		        add(g_valUserExtra);
-		    add(g_strUserOtherOption);
+
+		        FindIdBoardFromBoardName(nameBoard, idCard, function (idBoardFound) {
+		            if (!idBoardFound)
+		                return;
+                    
+		            getTrelloBoardMembers(idBoardFound, 1000*60*2, function (members) {
+		                for (var i = 0; i < members.length; i++) {
+		                    var member = members[i].member;
+		                    if (!member || !member.username || mapUsers[member.username] || member.username == userMe)
+		                        continue;
+		                    add(member.username);
+		                }
+		                if (g_valUserExtra)
+		                    add(g_valUserExtra);
+		                add(g_strUserOtherOption);
+		            });
+
+
+		        });
+        }
 		});
 }
 
@@ -412,7 +430,7 @@ function showSEBarContainer(bDontRemember) {
         g_bShowSEBar = true;
 }
 
-function createCardSEInput(parentSEInput, idCardCur) {
+function createCardSEInput(parentSEInput, idCardCur, board) {
     assert(idCardCur);
 	var bHasSpentBackend = isBackendMode();
 	g_seCardCur = {}; //reset totals
@@ -431,7 +449,7 @@ function createCardSEInput(parentSEInput, idCardCur) {
 
 	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_users_box_input"));
 	comboUsers.attr("title", "Click to select the user for this new S/E row.");
-	fillComboUsers(comboUsers);
+	fillComboUsers(comboUsers, "", idCardCur, board);
 	comboUsers.change(function () {
 	    updateNoteR();
 	    var combo = $(this);
@@ -450,11 +468,12 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	        
 	        if (userNew)
 	            g_valUserExtra = userNew;
-	        fillComboUsers(combo, userNew);
+	        board = getCurrentBoard(); //refresh
+	        fillComboUsers(combo, userNew, idCardCur, board);
 	        if (userNew && userNew.toLowerCase().indexOf("global")!=0) { //global user is proposed in faq. dont confuse those users.
 	            if (idCardCur != getIdCardFromUrl(document.URL))
 	                return; //shouldnt happen and no biggie if does
-	            var board = getCurrentBoard();
+	            board = getCurrentBoard();
 	            if (!board)
 	                return; //shouldnt happen and no biggie if does
 	            FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
@@ -708,34 +727,54 @@ function createCardSEInput(parentSEInput, idCardCur) {
 	            set(comboKeyword,g_currentCardSEData.keyword, true);
 	        updateNoteR();
 	        if (bFocus) {
-	            $("#plusCardCommentEnterButton").addClass("agile_box_input_hilite");
-	            var strWhen = getTimeDifferenceAsString(g_currentCardSEData.msTime, true);
-	            sendDesktopNotification("This card has a draft s/e row from " + strWhen + ".\nEnter it or clear s/e/note.", 8000);
+	            if (g_currentCardSEData.s != 0 || g_currentCardSEData.e != 0) {
+	                if (!g_timerStatus || !g_timerStatus.bRunning || g_timerStatus.idCard != idCardCur) {
+	                    $("#plusCardCommentEnterButton").addClass("agile_box_input_hilite");
+	                    var strWhen = getTimeDifferenceAsString(g_currentCardSEData.msTime, true);
+	                    sendDesktopNotification("This card has a draft s/e row from " + strWhen + ".\nEnter it or clear s/e/note.", 8000);
+	                }
+	            }
+	                
 	            showSEBarContainer();
 	        }
 	    });
 	});
 }
 
+var g_cacheBoardMembers = {};
+function getTrelloBoardMembers(idShortBoard, msCacheMax, callback) { //callback only on success
+    var cached = g_cacheBoardMembers[idShortBoard];
+    var msNow = Date.now();
+    if (cached && msNow - cached.ms < msCacheMax) {
+        callback(cached.members);
+        return;
+    }
+
+    sendExtensionMessage({ method: "getTrelloBoardData", tokenTrello: null, idBoard: idShortBoard, fields: "memberships&memberships_member=true&memberships_member_fields=username" },
+        function (response) {
+            if (response.status != STATUS_OK || !response.board) {
+                sendDesktopNotification("Error while checking board memberships. " + response.status, 5000);
+                return;
+            }
+            var members = response.board.memberships;
+            if (!members)
+                return;
+            g_cacheBoardMembers[idShortBoard] = { ms: msNow, members: members };
+            callback(members);
+        });
+}
+
 function verifyBoardMember(userLowercase, idShortBoard, callbackNotFound) {
     assert(callbackNotFound);
-    sendExtensionMessage({ method: "getTrelloBoardData", tokenTrello: null, idBoard: idShortBoard, fields: "memberships&memberships_member=true&memberships_member_fields=username" },
-            function (response) {
-                if (response.status != STATUS_OK || !response.board) {
-                    sendDesktopNotification("Error while verifying board membership. "+response.status, 8000);
-                    return;
-                }
-                var members = response.board.memberships;
-                if (!members)
-                    return;
-                for (var i = 0; i < members.length; i++) {
-                    var member = members[i].member;
-                    if (member && member.username && member.username.toLowerCase() == userLowercase)
-                        break; //found
-                }
-                if (i == members.length)
-                    callbackNotFound();
-            });
+    getTrelloBoardMembers(idShortBoard, 0, function (members) {
+        for (var i = 0; i < members.length; i++) {
+            var member = members[i].member;
+            if (member && member.username && member.username.toLowerCase() == userLowercase)
+                break; //found
+        }
+        if (i == members.length)
+            callbackNotFound();
+    });
 }
 
 function getSEDate(callback) {
@@ -1342,7 +1381,7 @@ Click for more.");
 				div.append(createRecurringCheck()).append(createHashtagsList());
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
-				createCardSEInput(elemParent, idCardCur);
+				createCardSEInput(elemParent, idCardCur, board);
 				break;
 			}
 		}
@@ -1801,10 +1840,10 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     var sUse = parseFixedFloat(sCalc);
                     if (sUse != 0) {
                         showSEBarContainer();
-                        addSEFieldValues(sCalc, "");
+                        addSEFieldValues(sCalc);
                     }
                     else {
-                        sendDesktopNotification("Ellapsed time too small (under 0.01). Timer ignored\n.", 10000);
+                        sendDesktopNotification("Ellapsed time too small (under 0.01 "+UNITS.getLongFormat()+"). Timer ignored\n.", 10000);
                     }
                     findNextActiveTimer();
                 });
@@ -1826,10 +1865,10 @@ var g_sTimerLastAdd = 0; //used for improving timer precision (because of roundi
 
 /* addSEFieldValues
  *
- * s,e: float
- * will add given S/E to existing values in the controls
+ * s: float
+ * will add to existing s in field
  **/
-function addSEFieldValues(s, comment) {
+function addSEFieldValues(s) {
 	var elemSpent = $("#plusCardCommentSpent");
 	var elemEst = $("#plusCardCommentEstimate");
 	var sCur = parseSEInput(elemSpent,false,true);
@@ -1846,7 +1885,6 @@ function addSEFieldValues(s, comment) {
 	$("#plusCardCommentDays").val(g_strNowOption);
 	elemSpent.val(s);
 	updateEOnSChange();
-	$("#plusCardCommentComment").val(comment);
 	var elemEnter = $("#plusCardCommentEnterButton");
 	var classBlink = "agile_box_input_hilite";
 	elemEnter.focus().addClass(classBlink);

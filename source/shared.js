@@ -17,6 +17,7 @@ var g_optAlwaysShowSpentChromeIcon = OPT_SHOWSPENTINICON_NORMAL; //review zig th
 var g_bDontShowTimerPopups = false;
 var g_bIncreaseLogging = false;
 var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
+var g_language = "en";
 
 function addTableSorterParsers() {
     $.tablesorter.addParser({
@@ -102,6 +103,7 @@ var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
 var SYNCPROP_bShowedFeatureSEButton = "bShowedFeatureSEButton";
 var SYNCPROP_bStealthSEMode = "bStealthSEMode";
+var SYNCPROP_language = "language";
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
@@ -193,6 +195,7 @@ var UNITS = {
     days: "d",
     current: "h", //current units, hours by default
     getLongFormat: function (u) {
+        u = u || this.current;
         if (u == this.minutes)
             return "minutes";
 
@@ -302,9 +305,13 @@ function loadSharedOptions(callback) {
 
     assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([keyServiceUrl, SYNCPROP_bStealthSEMode, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([keyServiceUrl, SYNCPROP_bStealthSEMode, SYNCPROP_language, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
+                                 if (chrome.runtime.lastError) {
+                                     alert(chrome.runtime.lastError.message);
+                                     return;
+                                 }
                                  g_strServiceUrl = objSync[keyServiceUrl]; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
                                  if (g_strServiceUrl === undefined || g_strServiceUrl == null)
                                      g_strServiceUrl = ""; //means simple trello. (do the same as in content script)
@@ -317,7 +324,12 @@ function loadSharedOptions(callback) {
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && g_strServiceUrl && !g_bDisableSync) ? true : false;
+                                 g_language = objSync[SYNCPROP_language] || "en";
                                  chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
+                                     if (chrome.runtime.lastError) {
+                                         alert(chrome.runtime.lastError.message);
+                                         return;
+                                     }
                                      g_userTrelloBackground = (obj[PROP_TRELLOUSER] || null);
                                      callback();
                                  });
@@ -949,7 +961,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	          }
 	      }
 	      if (selected.length > 0 && bAdded)
-	          $(".agile_selection_totals").html("&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
+	          $(".agile_selection_totals").html((g_bPopupMode ? "<br />" : "") + "&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
 	      else
 	          $(".agile_selection_totals").empty();
 	  }, false);

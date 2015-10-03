@@ -19,6 +19,7 @@
 /// <reference path="buttons.js" />
 /// <reference path="card.js" />
 /// <reference path="dashboard.js" />
+/// <reference path="translations.js" />
 
 //https://msdn.microsoft.com/en-us/library/bb385682.aspx
 

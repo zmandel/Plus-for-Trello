@@ -946,6 +946,7 @@ function bUpdateAlldataList(lists, list, idBoard, dateList) {
 function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAccess, sendResponseParam) {
     var bProcessCommentSE = g_optEnterSEByComment.IsEnabled();
     var rgKeywords = [];
+    var mapHandledCardCommand = {};
     var bFirstSync = ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true");
     if (bProcessCommentSE)
         rgKeywords = cloneObject(g_optEnterSEByComment.rgKeywords); //prevent issues if object changes during sync
@@ -1283,7 +1284,6 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
 
         function processCommentSEAction() {
             var comment = actionCur.data.text.toLowerCase();
-            var mapHandledCardCommand = {};
             rgKeywords.every(function (keyword) {
                 keyword = keyword.trim().toLowerCase() + " ";
                 var iStart = comment.indexOf(keyword);
@@ -1301,11 +1301,12 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                                 var idCardPush = actionCur.data.card.shortLink;
                                 var idBoardCur = actionCur.idBoardSrc;
                                 var boardLoop = alldata.boards[idBoardCur];
-                                if (idCardPush && boardLoop) //really should assert as it was set (if needed) by addShortLinkToCard
+                                if (idCardPush && boardLoop) { //really should assert as it was set (if needed) by addShortLinkToCard
                                     assert(boardLoop.dateSzBefore);
-                                if (!mapHandledCardCommand[idCardPush]) {
-                                    alldata.rgCardResetData.push({ idCard: idCardPush, idBoard: idBoardCur, dateSzBefore: boardLoop.dateSzBefore, idActionReset: actionCur.id });
-                                    mapHandledCardCommand[idCardPush] = true;
+                                    if (!mapHandledCardCommand[idCardPush]) {
+                                        alldata.rgCardResetData.push({ idCard: idCardPush, idBoard: idBoardCur, dateSzBefore: boardLoop.dateSzBefore, idActionReset: actionCur.id });
+                                        mapHandledCardCommand[idCardPush] = true;
+                                    }
                                 }
                             }
                         }
@@ -1418,8 +1419,9 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
                 if (response.items && response.items.length > 0) {
                     response.items.forEach(function (item) {
                         //when reseting a card, we will zero s/e of entered items (not delete them) thus we must use
-                        //a different action id.
-                        item.id = item.id + "~" + cardData.idActionReset; //use ~ as - is reserved in makeHistoryRowObject
+                        //a different action id by adding a postfix
+                        assert(cardData.idActionReset);
+                        item.idPostfix = "~" + cardData.idActionReset; //use ~ as - is reserved in makeHistoryRowObject
                         alldata.rgCommentsSE.push(item); 
                     });
 
@@ -2127,7 +2129,7 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                         }
                     }
                     else if (xhr.status == 404) {
-                        objRet.status = "user not found. If you renamed your trello user, please go to trello.com\n"+errFromXhr(xhr);
+                        objRet.status = "user not found."+errFromXhr(xhr);
                     }
                     else {
                         objRet.status = errFromXhr(xhr);
@@ -2135,8 +2137,10 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error: getBoardsLastInfoWorker");
+                    //review zig: sometimes trello returns 400 (bad request) on this with no apparent reason as the request string
+                    //is always the same for all users.
+                    //if (xhr.status == 400)
+                    //    logPlusError("trello sync error: getBoardsLastInfoWorker");
                     callback(objRet);
                 }
             }

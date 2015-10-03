@@ -20,7 +20,7 @@ function testResetVersion() {
     alert("changing sql db version.");
     var db = g_db;
     var versionCur = parseInt(db.version,10) || 0;
-    db.changeVersion(versionCur, 19);
+    db.changeVersion(versionCur, 31);
 }
 
 function notifyTruncatedSyncState(msgErr) {
@@ -34,7 +34,7 @@ function notifyTruncatedSyncState(msgErr) {
     }, 300);
 }
 
-//thanks to http://blog.maxaller.name/2010/03/html5-web-sql-database-intro-to-versioning-and-migrations/
+//based on http://blog.maxaller.name/2010/03/html5-web-sql-database-intro-to-versioning-and-migrations/
 function Migrator(db, sendResponse) {
 	var migrations = [];
 	this.migration = function (number, func) {
@@ -45,7 +45,10 @@ function Migrator(db, sendResponse) {
 			db.changeVersion(db.version, String(number), function (t) {
 				migrations[number](t);
 			}, function (err) {
-			    var strErr = "error: " + err.message;
+			    var strErr = "error in doMigration to version " + number;
+			    if (err.message && err.message.indexOf("callback did not return false") < 0) //this one is not interesting and will clutter user error msg
+			        strErr = strErr + ": " + err.message;
+
 			    if (console.error) console.error(strErr);
 			    sendResponse({ status: strErr });
 			    return true; //stop
@@ -481,6 +484,7 @@ function appendRowToSpreadsheet(row, idSsUser, idUserSheetTrello, sendResponse) 
 }
 
 function appendLogToPublicSpreadsheet(message, sendResponse) {
+    assert(false); //no longer used
 	var atom = makeMessageAtom(message);
 	var url = "https://spreadsheets.google.com/feeds/list/" + "xxxxxxx" + "/" + gid_to_wid(0) + "/private/full";
 	onAuthorized(url, {}, function (response) {
@@ -1838,6 +1842,85 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 
         M.migration(31, function (t) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%property ''href'' of undefined%'");
+        });
+
+        M.migration(32, function (t) {
+            //for future consistency, normalize rare-case ids that could have been generated a few days before this code
+            t.executeSql("select rowid,idHistory from HISTORY where idHistory like '%~%.%'", [],
+                   function (tx2, results) {
+                       if (!results || !results.rows || results.rows.length == 0)
+                           return;
+                       for (var i = 0; i < results.rows.length; i++) {
+                           var row = results.rows.item(i);
+                           var partsHist = row.idHistory.split("~");
+                           if (partsHist.length != 2) //should always happens
+                               return;
+                           var partsRight = partsHist[1].split(".");
+                           if (partsRight.length != 2) //should always happens
+                               return;
+                           var idHistoryNew = partsHist[0] + "." + partsRight[1] + "~" + partsRight[0];
+                           tx2.executeSql("update HISTORY set idHistory=? where rowid=?",
+                                                   [idHistoryNew, row.rowid],
+                               function (tx3, results) {
+                               },
+                               function (tx3, error) {
+                                   logPlusError(error.message + ": upgrading to 32 - loop");
+                                   return true; //stop
+                               });
+                       }
+                   },
+                   function (tx2, error) {
+                       logPlusError(error.message + ": upgrading to 32");
+                       return true; //stop
+                   });
+        });
+
+        M.migration(33, function (t) {
+            //fix rare corruption in case a card has more than one reset sync and both are synced together in the same batch
+            var mapCards = {};
+            t.executeSql("select H.rowid,H.idHistory,H.idCard,H.spent,H.est,H.user,C.name as nameCard from HISTORY H JOIN CARDS C ON H.idCard=C.idCard where H.idHistory like '%~%' and (H.spent!=0 or H.est!=0) order by H.rowid DESC", [],
+                   function (tx2, results) {
+                       if (!results || !results.rows || results.rows.length == 0)
+                           return;
+                       var map = null;
+                       for (var i = 0; i < results.rows.length; i++) {
+                           var row = results.rows.item(i);
+                           var partsHist = row.idHistory.split("~");
+                           if (partsHist.length != 2) //should always happens
+                               return;
+                           var idTrelloCommentCommand = partsHist[1].split(".")[0]; //could be in the form of idHist~idHistCommand.number
+                           map=mapCards[row.idCard];
+                           if (!map) {
+                               map={idCommand:idTrelloCommentCommand,nameCard:row.nameCard, bModified:false};
+                               mapCards[row.idCard] = map;
+                           }
+                           if (map.idCommand == idTrelloCommentCommand)
+                               continue;
+                           map.bModified = true;
+                           //, eType=" + ETYPE_NONE + ", comment= '[original s/e: ' || spent || '/' || est || '] ' || comment  
+                           tx2.executeSql("UPDATE history set spent=0, est=0 , eType=" + ETYPE_NONE + ", comment= '[corrected row. original s/e: ' || spent || '/' || est || '] ' || comment where rowid = ?", [row.rowid]);
+                           tx2.executeSql("UPDATE CARDBALANCE SET spent=spent-?, est=est-?, diff=diff-? WHERE idCard=? AND user=?",
+                               [row.spent, row.est, parseFixedFloat(row.est - row.spent), row.idCard, row.user]);
+                       }
+
+                       //fix eTypes as the patch above could have messed 1st estimate etype
+                       for (var idCardCur in mapCards) {
+                           if (!mapCards[idCardCur].bModified)
+                               continue;
+                           if (mapCards[idCardCur].nameCard.indexOf("[R]") >= 0)
+                               handleMakeRecurring(tx2, idCardCur);
+                           else
+                               handleMakeNonRecurring(tx2, idCardCur);
+                       }
+                   },
+                   function (tx2, error) {
+                       logPlusError(error.message + ": upgrading to 33");
+                       return true; //stop
+                   });
+        });
+
+        M.migration(34, function (t) {
+            t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%getBoardsLastInfoWorker%'");
         });
 
         M.doIt();

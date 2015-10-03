@@ -200,7 +200,7 @@ var Help = {
 	    }, 8000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A href="#agile_help_languages">Language</A>&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular so I can keep improving it.">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular!.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/+PlusfortrelloNews/posts" rel="publisher" target="_blank"> \
@@ -214,6 +214,46 @@ var Help = {
 	        g_bFirstTimeUse = false;
 	        helpWin.bStartTourBubbleOnClose = true;
 	    }
+
+	    helpWin.para('<b><h3>Language</h3></b>');
+	    var pComboLang = helpWin.para('<select style="width:auto"></select>');
+	    var comboLang = pComboLang.children('select');
+	    comboLang.append($(new Option("English", "en")));
+	    comboLang.append($(new Option("Russian", "ru")));
+	    comboLang.append($(new Option("French", "fr")));
+	    comboLang.append($(new Option("Other", "")));
+	    
+	    var paraLangOtherDetails = helpWin.raw('<p>Currently only the Plus Tour is translated.<br>\
+Plus is compatible with <A target="_blank" href="https://chrome.google.com/webstore/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb" >Google Translate Chrome extension</a> and\
+ <A href="https://support.google.com/chrome/answer/173424" target="_blank">Chrome right-click translation</A>.<br>\
+<A href="http://www.plusfortrello.com/p/help-us-translate-plus-to-your-language.html" target="_blank">Help translate or improve the tour</A> for your language!');
+	    helpWin.para('&nbsp');
+
+	    function onComboLangChange() {
+	        var pair = {};
+	        var valNew = comboLang.val();
+	        if (valNew != "en") {
+	            paraLangOtherDetails.show();
+	        }
+	        else
+	            paraLangOtherDetails.hide();
+
+	        if (valNew == "")
+	            return; //dont save the fake "other" selection. just there so user sees the help text below when lang is not english
+	        pair[SYNCPROP_language] = valNew;
+	        chrome.storage.sync.set(pair, function () {
+	            if (chrome.runtime.lastError) {
+	                alert(chrome.runtime.lastError.message);
+	                comboLang.val(g_language);
+	                return;
+	            }
+	            g_language = comboLang.val();
+	        });
+	    }
+
+	    comboLang.val(g_language);
+	    onComboLangChange();
+	    comboLang.change(function () { onComboLangChange();});
 
 	    if (true) {
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
@@ -309,7 +349,7 @@ var Help = {
 
 	    if (!bInsertDonationAsSection) {
 	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://www.plusfortrello.com/p/donations.html" target="_blank">Donate or view all donations</A>. Over 2 years of constant improvement.</input>').css("marginBottom", 0).children('input:checkbox:first');
+					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://www.plusfortrello.com/p/donations.html" target="_blank">Donate or view all donations</A>.</input>').css("marginBottom", 0).children('input:checkbox:first');
 	        if (g_bUserDonated) {
 	            checkDonated[0].checked = true;
 	            divDonations.hide();
@@ -1075,10 +1115,6 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_languages">Other languages</h2></b>');
-	    helpWin.para('Plus is compatible with the <A target="_blank" href="https://chrome.google.com/webstore/detail/google-translate/aapbdbdomjkkjkaonfhkkikfgjllcleb" >Google Translate Chrome extension</a> and Chrome right-click translation.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
 	    helpWin.para('&nbsp');

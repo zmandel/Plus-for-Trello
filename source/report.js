@@ -1898,7 +1898,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 
     //sort
     //note: propDateString might not be in rows at this point (is here only if there was grouping)
-	if (ret.length > 0 && propertySort.length > 0 && propertySort != "date") {
+	if (ret.length > 0 && propertySort.length > 0 && (propertySort != "date" || propertyGroup.length>0)) {
 		var bString = typeof(ret[0][propertySort])=="string";
 		var bRemain = (propertySort == "remain");
 		var bPosList = (propertySort == "posList");
@@ -1953,15 +1953,35 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	    header.push({ name: "Keyword" + strAppendHeaders });
 
 	var bRPopup = (bOrderR && g_bPopupMode);
-	var bShowDate = (!bRPopup || groupBy.indexOf("date") >= 0);
+	var bGroupedByDate = (groupBy.indexOf("date") >= 0);
+	var bShowDate = (!bRPopup || bGroupedByDate);
 	if (bShowDate)
 	    header.push({ name: "Date" + (bGroupedByDate ? "" : strAppendHeaders) });
 
 	var bCardGrouping = (groupBy.toLowerCase().indexOf("card") >= 0);
+	var bShowBoard = (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || groupBy.indexOf("idCardH") >= 0);
+	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
+
+	var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
+	var bPushedCard = false;
+
+	function pushCardHeader() {
+	    header.push({ name: "Card" });
+	    pushSpecialLinkHeader();
+	}
+
 	if (bCardGrouping)
 	    header.push({ name: "Due date" }); //without strAppendHeaders
-	if (bShowDate)
+
+	var bShowWeek = (bShowDate && (bGroupedByDate || !g_bPopupMode));
+	if (bShowWeek)
 	    header.push({ name: "Week" + strAppendHeaders });
+
+	if (bShowCard && bCardGrouping && !bPushedCard) {
+	    pushCardHeader();
+	    bPushedCard = true;
+	}
+
 	var bGroupByCardOrNone = (groupBy == "" || bCardGrouping);
 	var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
 	var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
@@ -1970,20 +1990,18 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	var bShowUser=(groupBy=="" || groupBy.toLowerCase().indexOf("user")>=0);
 	if (bShowUser)
 		header.push({ name: "User" });
-	
-	var bShowBoard=(groupBy=="" || groupBy.indexOf("idBoardH")>=0 || groupBy.indexOf("idCardH")>=0);
+
 	if (bShowBoard) {
 	    header.push({ name: "Board" });
 	    pushSpecialLinkHeader();
 	}
-	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
 
-	var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
 	if (bShowList)
 	    header.push({ name: "List" });
-	if (bShowCard) {
-	    header.push({ name: "Card" });
-	    pushSpecialLinkHeader();
+
+	if (bShowCard && !bPushedCard) {
+	    pushCardHeader();
+	    bPushedCard = true;
 	}
 
 	var bShowSE = true;
@@ -2017,6 +2035,7 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 
 	var dateNowCache = new Date();
 	function callbackRowData(row) {
+	    bPushedCard = false;
 	    if (row.rowid && row.rowid > g_rowidLastSyncRemember) //review zig: hacky way so we dont loop the array twice. would be nice if this was outside of view
 	        g_rowidLastSyncRemember = row.rowid;
 	    var rgRet = [];
@@ -2041,8 +2060,24 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	        rgRet.push({ name: dateDueTimeString, bNoTruncate: true });
 	    }
 
-	    if (bShowDate)
+	    function pushCardRow() {
+	        var urlCard = null;
+	        if (row.idCardH.indexOf("https://") == 0)
+	            urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
+	        else
+	            urlCard = "https://trello.com/c/" + row.idCardH;
+
+	        rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + (bNoTruncate ? row.nameCard : strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
+	    }
+
+	    if (bShowWeek) //week
 	        rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
+
+	    if (bShowCard && bCardGrouping && !bPushedCard) { //card
+	        pushCardRow();
+	        bPushedCard = true;
+	    }
+
 		if (bShowMonth)
 		    rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
 		if (bShowUser)
@@ -2059,15 +2094,11 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 		        strListUse = strTruncate(strListUse, g_cchTruncateShort);
 		    rgRet.push({ name: strListUse, bNoTruncate: true });
 		}
-		if (bShowCard) {
-			var urlCard = null;
-			if (row.idCardH.indexOf("https://") == 0)
-				urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
-			else
-				urlCard = "https://trello.com/c/" + row.idCardH;
-
-			rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + (bNoTruncate?row.nameCard:strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
+		if (bShowCard && !bPushedCard) {
+		    pushCardRow();
+		    bPushedCard = true;
 		}
+
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
 		if (bShowSE) {
@@ -2116,7 +2147,7 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 		        delta = "";
 		        postFix = "today";
 		    }
-		    rgRet.title = rgRet.title + "\n" + makeDateCustomString(dateRow, true) + " (" + getCurrentWeekNum(dateRow) + ") " + delta + postFix;
+		    rgRet.title = rgRet.title + "\n" + makeDateCustomString(dateRow, true) + "\n" + getCurrentWeekNum(dateRow) + " " + delta + postFix;
 		}
 		return rgRet;
 	}

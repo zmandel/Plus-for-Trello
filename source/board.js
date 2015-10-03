@@ -186,19 +186,26 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                     cloneTitleTag.addClass('agile_clone_title');
                     originalTitleTag.after(cloneTitleTag);
                 } else {
-                    cloneTitleTag = originalTitleSiblings.eq(0);
+                    cloneTitleTag = $(originalTitleSiblings[0]);
                 }
 
                 var cleanTitle = se.titleNoSE;
                 if (bRecurring)
                     cleanTitle = cleanTitle.replace(/\[R\]/g, "");
                 
+                var ctlContents = cloneTitleTag.contents();
+                var ctlUpdate = null;
 
-                var ctlUpdate = cloneTitleTag[0];
-                if (ctlUpdate !== undefined)
-                    ctlUpdate.text = cleanTitle;
-                else {
-                    var test = 1; //for breakpoint
+                if (ctlContents && ctlContents.length>=2) {
+                    ctlUpdate = ctlContents[1];
+                    if (ctlUpdate && ctlUpdate.textContent != cleanTitle)
+                        ctlUpdate.textContent = cleanTitle;
+                }
+
+                if (!ctlUpdate) { //trello might have changed their page. try with a regular <A> without children
+                    ctlUpdate = cloneTitleTag[0];
+                    if (ctlUpdate !== undefined && ctlUpdate.text != cleanTitle)
+                        ctlUpdate.text = cleanTitle;
                 }
             }
 
@@ -255,9 +262,9 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 if (elRecurring.length == 0) {
                     var imgRecurring = $("<img class='agile_image_recurring_back'>").attr("src", chrome.extension.getURL("images/recurring.png"));
                     imgRecurring.attr("title", "Recurring card");
-                    var spanRecurring = $("<span>").addClass("agile_recurring");
-                    spanRecurring.append(imgRecurring);
-                    badges.append(spanRecurring);
+                    elRecurring = $("<span>").addClass("agile_recurring").hide();
+                    elRecurring.append(imgRecurring);
+                    badges.append(elRecurring);
                 }
 
                 if (bRecurring)

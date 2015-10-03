@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
 function showError(strError) {
 	logPlusError(strError);
 	var progress = document.getElementById("progress");
-	progress.innerText = strError;
+	progress.innerHTML = strError + "<br><A href='plusmessages.html' target='_blank'>Plus error log</A>";
 	progress.style.display = "block";
 }
 
