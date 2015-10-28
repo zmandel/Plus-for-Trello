@@ -1,75 +1,76 @@
 ﻿{
-    "name": "Plus for Trello (time track, reports, scrum)",
-    "short_name": "Plus for Trello",
-    "version": "3.4.0",
-    "manifest_version": 2,
-    "description": "Reports, Timers, hashtags, offline support, burn-downs, spent vs estimate by card/list/board/user/team, history and more!",
-    "icons": {
-        "16": "images/icon16.png",
-        "48": "images/icon48.png",
-        "128": "images/icon128.png"
-    },
-    "offline_enabled": true,
-    "background": {
-        "page": "background.html"
-    },
+  "name": "__MSG_extName__",
+  "short_name": "Plus for Trello",
+  "version": "3.4.5",
+  "manifest_version": 2,
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "offline_enabled": true,
+  "background": {
+    "page": "background.html"
+  },
 
-    "homepage_url": "http://www.plusfortrello.com",
-    "oauth2": {
-        "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
-        "scopes": [
-            "https://spreadsheets.google.com/feeds",
-			"https://www.googleapis.com/auth/drive.file"
-        ]
-    },
+  "homepage_url": "http://www.plusfortrello.com",
+  "oauth2": {
+    "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
+    "scopes": [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive.file"
+    ]
+  },
 
-    "browser_action": {
-        "default_icon": {
-            "19": "images/icon19.png"
-        },
-        "default_title": "Plus for Trello",
-        "default_popup": "popup.html"
+  "browser_action": {
+    "default_icon": {
+      "19": "images/icon19.png"
     },
+    "default_title": "Plus for Trello",
+    "default_popup": "popup.html"
+  },
 
-    "content_scripts": [
-        {
-            "matches": [ "https://trello.com/*" ],
-            "js": [
-                "libs/jquery.min.js",
-                "libs/jquery-ui.custom.min.js",
-                "libs/jquery.cookie.js",
-                "libs/jquery.zoomooz.js",
-                "libs/jsapi.js",
-                "libs/formatchart.js",
-                "libs/jquery.grumble.js",
-                "libs/dialog-polyfill.js",
-                "libs/jquery.tablesorter.js",
-                "shared.js",
-                "app.js",
-                "card.js",
-                "labels.js",
-                "labels.js",
-                "language.js",
-                "help.js",
-                "buttons.js",
-                "plus.js",
-                "plusconfig.js",
-                "board.js",
-                "tour.js",
-                "translations.js"
-            ],
-            "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css" ],
-            "run_at": "document_start"
-        }
-    ],
-	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
-    "web_accessible_resources": [
-        "images/*.png",
-        "images/*.gif",
-        "*.html",
-        "manifest.json",
-        "css/images/*.gif"
-    ],
-    "optional_permissions": [ "webRequest", "https://spreadsheets.google.com/", "http://www.plusfortrello.com/"],
-	"permissions": ["clipboardWrite", "identity", "storage","unlimitedStorage","notifications","https://trello.com/", "webRequest", "https://trello.com/1/*", "https://www.googleapis.com/"]
+  "content_scripts": [
+    {
+      "matches": [ "https://trello.com/*" ],
+      "js": [
+        "libs/jquery.min.js",
+        "libs/jquery-ui.custom.min.js",
+        "libs/jquery.cookie.js",
+        "libs/jquery.zoomooz.js",
+        "libs/jsapi.js",
+        "libs/formatchart.js",
+        "libs/jquery.grumble.js",
+        "libs/dialog-polyfill.js",
+        "libs/jquery.tablesorter.js",
+        "shared.js",
+        "app.js",
+        "card.js",
+        "labels.js",
+        "labels.js",
+        "language.js",
+        "help.js",
+        "buttons.js",
+        "plus.js",
+        "plusconfig.js",
+        "board.js",
+        "tour.js",
+        "translations.js"
+      ],
+      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css" ],
+      "run_at": "document_start"
+    }
+  ],
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "web_accessible_resources": [
+    "images/*.png",
+    "images/*.gif",
+    "*.html",
+    "manifest.json",
+    "css/images/*.gif"
+  ],
+  "optional_permissions": [ "webRequest", "https://spreadsheets.google.com/", "http://www.plusfortrello.com/" ],
+  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "https://trello.com/", "webRequest", "https://trello.com/1/*", "https://www.googleapis.com/" ]
 }

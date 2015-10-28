@@ -2,6 +2,8 @@
 
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
+var SQLQUERY_PREFIX_CARDDATA = "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted ";
+var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
 
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
@@ -742,8 +744,8 @@ function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus, bAsync
         earlyFinish();
         return;
     }
-
-    var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where (idCard=? OR idLong=?)", values: [idShortCard, idLongCard] };
+                        
+    var request = { sql: SQLQUERY_PREFIX_CARDDATA+"FROM CARDS where (idCard=? OR idLong=?)", values: [idShortCard, idLongCard] };
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK) {
@@ -774,7 +776,7 @@ function populateDataCardFromDb(cardsNotFound, alldata, card, sendStatus, bAsync
 
 
 function getThisListFromDb(alldata, idList, onOk, sendError) {
-    var request = { sql: "select idBoard, name, dateSzLastTrello, idList, bArchived, pos FROM LISTS where idList=?", values: [idList] };
+    var request = { sql: SQLQUERY_PREFIX_LISTDATA+"FROM LISTS where idList=?", values: [idList] };
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK) {
@@ -993,7 +995,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
 
             //complete missing list pos. Can be a big list for existing users just getting this new feature (2015-07-25) as
             //the actions only update lists participating in the action
-            var request = { sql: "select idBoard, name, dateSzLastTrello, idList, bArchived, pos FROM LISTS where pos is NULL AND  idList!='" + IDLIST_UNKNOWN + "' AND  idBoard!='" + IDBOARD_UNKNOWN + "'", values: [] };
+            var request = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where pos is NULL AND  idList!='" + IDLIST_UNKNOWN + "' AND  idBoard!='" + IDBOARD_UNKNOWN + "'", values: [] };
             handleGetReport(request,
                 function (responseReport) {
                     if (responseReport.status != STATUS_OK) {
@@ -1022,7 +1024,8 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             //also skip those with dateSzLastTrello not null. that can happen on a non-deleted card that was on the db but now the user doenst have permission.
             //those are set to a non-null dateSzLastTrello so that we dont keep permanently trying to complete them here.
             //this list is unfortunately big on the very first sync, most items are skipped
-            var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList='" + IDLIST_UNKNOWN + "' AND bArchived=0 AND dateSzLastTrello IS NULL", values: [] };
+                                
+            var request = { sql: SQLQUERY_PREFIX_CARDDATA+"FROM CARDS where idList='" + IDLIST_UNKNOWN + "' AND bArchived=0 AND dateSzLastTrello IS NULL", values: [] };
             handleGetReport(request,
                 function (responseReport) {
                     if (responseReport.status != STATUS_OK) {
@@ -1169,7 +1172,8 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             var idList = actionCur.data.list.id;
             var listCur = alldata.lists[idList];
             assert(listCur); //done in processListAction
-            var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS where idList=?", values: [idList] };
+                                
+            var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where idList=?", values: [idList] };
             handleGetReport(request,
                 function (responseReport) {
                     if (responseReport.status != STATUS_OK) {
@@ -1859,17 +1863,33 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
     function worker() {
         var boardsProcess = [];
         var mapBoards = {};
+        var mapBecameNonMemberBoard = {};
         boardsReport.forEach(function (board) {
             board.orig = cloneObject(board); //keep original values for comparison
+            //verDeepSync notes:
+            //when a user regains membership to a board that he used to be a member, we want to fix all cards and 
+            //history with "unknown board/list" by doing a "deep sync". For this, we want to set verDeepSync = VERDEEPSYNC.NOTMEMBER if the user is not a member,
+            //so that when regaining membership, verDeepSync will change and cause a deep sync.
+            
+            assert(VERDEEPSYNC.NOTMEMBER < VERDEEPSYNC.MINVALID);
+            if (board.verDeepSync != VERDEEPSYNC.NOTMEMBER)
+                mapBecameNonMemberBoard[board.idBoard] = true; //assume true until later
+            board.bProcessActions = false;
+            board.bPushed = false;
             mapBoards[board.idBoard]=board;
         });
 
+        var boardDb = null;
         boardsTrello.forEach(function (board) {
             if (!board.actions || board.actions.length == 0)
                 return;
             statusProcess.hasBoardAccess[board.shortLink] = true;
-            var boardDb = mapBoards[board.shortLink];
-            if (!boardDb) {
+            boardDb = mapBoards[board.shortLink];
+
+            if (boardDb) {
+                mapBecameNonMemberBoard[board.shortLink] = false;
+            }
+           else {
                 boardDb = {
                     idBoard : board.shortLink,
                     name : board.name,
@@ -1878,12 +1898,13 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 					dateSzLastTrello : null,
 					idActionLast: null,
 					bArchived: 0,
-					verDeepSync:0 //0 is always smaller and will cause a deep sync
+					verDeepSync: VERDEEPSYNC.MINVALID //always smaller than current. will cause a deep sync
                 };
             }
             assert(boardDb.idBoard == board.shortLink);
             var actionLast = board.actions[0];
             boardDb.bProcessActions = true;
+
             if (boardDb.dateSzLastTrello && actionLast.date < boardDb.dateSzLastTrello) {
                 //when cards are deleted or moved, their history will be moved out of the board so the last action date could be smaller.
                 boardDb.bProcessActions = false;
@@ -1893,7 +1914,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
             if (bSameLastAction)
                 boardDb.bProcessActions = false;
 
-            if (boardDb.verDeepSync < g_verDeepSyncCur || !bSameLastAction) {
+            if (boardDb.verDeepSync < VERDEEPSYNC.CURRENT || !bSameLastAction) {
                 var dateLastAction = new Date(actionLast.date);
                 dateLastAction.setTime(dateLastAction.getTime() + 1);
                 assert(board.name);
@@ -1901,15 +1922,59 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                 boardDb.bArchived = board.closed || false;
                 boardDb.idLong = board.id;
                 boardDb.dateSzBefore = dateLastAction.toISOString();
+                boardDb.bPushed = true;
+
+                if (boardDb.verDeepSync == VERDEEPSYNC.NOTMEMBER)
+                    boardDb.verDeepSync = VERDEEPSYNC.MINVALID; //restore as its no longer not member. this causes deep sync
                 boardsProcess.push(boardDb);
             }
         });
 
+        for (var idBoardShort in mapBecameNonMemberBoard) {
+            if (mapBecameNonMemberBoard[idBoardShort]) {
+                boardDb = mapBoards[idBoardShort];
+                assert(boardDb);
+                assert(!boardDb.bPushed);
+                boardDb.bPushed = true;
+                boardDb.bArchived = true; //pretend archived. when user gains membership again, it will get fixed
+                assert(!boardDb.bProcessActions);
+                boardDb.verDeepSync = VERDEEPSYNC.NOTMEMBER; //forces deep sync when user regains membership
+                boardsProcess.push(boardDb); //just to update version+archived
+            }
+        }
         statusProcess.boards = boardsProcess;
-        startAllBoardActionsCalls();
+
+        var requestCardsUnknown = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where idBoard=?", values: [IDBOARD_UNKNOWN] };
+        handleGetReport(requestCardsUnknown,
+            function (responseReport) {
+                if (responseReport.status != STATUS_OK) {
+                    sendResponse(responseReport);
+                    return;
+                }
+                var cards = responseReport.rows || [];
+                var mapCardsUnknownBoard = {};
+                cards.forEach(function (card) {
+                    mapCardsUnknownBoard[card.idCard] = card;
+                });
+
+                var requestListsUnknown = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=? AND idList<>?", values: [IDBOARD_UNKNOWN, IDLIST_UNKNOWN] };
+                handleGetReport(requestListsUnknown,
+                    function (responseReport) {
+                        if (responseReport.status != STATUS_OK) {
+                            sendResponse(responseReport);
+                            return;
+                        }
+                        var lists = responseReport.rows || [];
+                        var mapListsUnknownBoard = {};
+                        lists.forEach(function (list) {
+                            mapListsUnknownBoard[list.idList] = list;
+                        });
+                        startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard);
+                    });
+            });
     }
 
-    function startAllBoardActionsCalls() {
+    function startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard) {
         var cGotActions = 0;
         g_syncStatus.setStage("Getting board history", statusProcess.boards.length);
         if (statusProcess.boards.length==0) //not really necessary but it happens very often so short-circuit earlier
@@ -1968,36 +2033,48 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                 if (status == STATUS_OK) {
                     var idBoard = board.idBoard;
                     
-                    if (board.verDeepSync < g_verDeepSyncCur) {
+                    if (board.verDeepSync >= VERDEEPSYNC.MINVALID && board.verDeepSync < VERDEEPSYNC.CURRENT) {
                         bContinueProcessItem = false;
                         //get all board lists in db, so we can have an "orig"
-                        var request = { sql: "select idBoard, name, dateSzLastTrello, idList, bArchived, pos FROM LISTS where idBoard=?", values: [idBoard] };
+                        var request = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=?", values: [idBoard] };
                         handleGetReport(request,
                             function (responseReport) {
                                 if (responseReport.status != STATUS_OK) {
                                     postProcessItem(responseReport.status, board, iitem);
                                     return;
                                 }
-                                responseReport.rows.forEach(function (row) {
+
+                                function populateAllDataList(row) {
                                     var listDb = cloneObject(row); //to modify it
                                     assert(listDb.idList);
                                     listDb.orig = cloneObject(listDb); //keep original values for comparison
                                     alldata.lists[listDb.idList] = listDb;
+                                }
+
+                                responseReport.rows.forEach(function (row) {
+                                    populateAllDataList(row);
                                 });
 
                                 //get all board cards in db, so we can have an "orig"
-                                var request = { sql: "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted FROM CARDS WHERE idBoard=?", values: [idBoard] };
+                                                    
+                                var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS WHERE idBoard=?", values: [idBoard] };
                                 handleGetReport(request,
                                     function (responseReport) {
                                         if (responseReport.status != STATUS_OK) {
                                             postProcessItem(responseReport.status, board, iitem);
                                             return;
                                         }
-                                        responseReport.rows.forEach(function (row) {
+
+                                        
+                                        function populateAllDataCard(row) {
                                             var cardDb = cloneObject(row); //to modify it later
                                             alldata.cardsByLong[cardDb.idLong] = cardDb.idCard;
                                             cardDb.orig = cloneObject(cardDb); //keep original values for comparison
                                             alldata.cards[cardDb.idCard] = cardDb;
+                                        }
+
+                                        responseReport.rows.forEach(function (row) {
+                                            populateAllDataCard(row);
                                         });
 
                                         //trello returns null dateLastActivity sometimes. use a default a little before now, so in case local clock is a little off, it wont save a future date.
@@ -2010,16 +2087,24 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 
                                                 lists.forEach(function (list) {
                                                     assert(list.id);
+                                                    var listUnknownBoard = mapListsUnknownBoard[list.id];
+                                                    if (listUnknownBoard) 
+                                                        populateAllDataList(listUnknownBoard);
+                                                    
                                                     bUpdateAlldataList(alldata.lists, list, idBoard, dateLast);
                                                 });
 
                                                 cards.forEach(function (card) {
                                                     assert(card.id);
                                                     assert(card.shortLink);
-                                                    alldata.cardsByLong[card.id] = card.shortLink;
+                                                    var cardUnknownBoard = mapCardsUnknownBoard[card.shortLink];
+                                                    if (cardUnknownBoard)
+                                                        populateAllDataCard(cardUnknownBoard);
+                                                    else
+                                                        alldata.cardsByLong[card.id] = card.shortLink;
                                                     bUpdateAlldataCard(null, alldata.cards, card, idBoard, card.dateLastActivity || szdateNowDefault);
                                                 });
-                                                board.verDeepSync = g_verDeepSyncCur;
+                                                board.verDeepSync = VERDEEPSYNC.CURRENT;
                                             }
                                             postProcessItem(data.status, board, iitem);
                                         });

@@ -656,7 +656,7 @@ function selectElementContents(el) {
 			setTimeout(function () {
 			    removeSelection();
 			    sendDesktopNotification("Copied to the clipboard.\nPaste anywhere like excel or email.");
-			}, 100); //timeout is only for user visual cue 
+			}, 100); //delay is for user visuals only
 		});
 	}
 }

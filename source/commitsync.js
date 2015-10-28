@@ -14,6 +14,9 @@ function commitBoardSyncData(tx, alldata) {
 
         var thisChanged = true;
 
+        if (!board.name)
+            board.name = STR_UNKNOWN_BOARD; //cover cases of Trello corruption
+
         assert(board.dateSzLastTrelloNew || !board.dateSzLastTrello);
         assert(board.idActionLastNew || !board.idActionLast);
 
@@ -55,7 +58,8 @@ function commitListSyncData(tx, alldata) {
     for (idList in alldata.lists) {
         var thisChanged = true;
         var list = alldata.lists[idList];
-        assert(list.name);
+        if (!list.name)
+            list.name = STR_UNKNOWN_LIST; //this can happen on corrupted trello lists (happened to one customer I remote-debugged)
         assert(idList != IDLIST_UNKNOWN);
         assert(list.idBoard); //can be unknown. eg. moved to a board outside of Plus
         assert(list.idBoard == IDBOARD_UNKNOWN || list.dateSzLastTrello);
@@ -105,6 +109,10 @@ function commitCardSyncData(tx, alldata) {
 
         assert(card.idBoard);
         assert(card.idList);
+
+        if (!card.name)
+            card.name = STR_UNKNOWN_CARD; //cover trello corruption
+
         var name = parseSE(card.name, true, g_bAcceptSFT).titleNoSE;
 
         if (card.orig) {

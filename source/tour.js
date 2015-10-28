@@ -73,7 +73,7 @@ function handleHomeTour() {
          {
              id: 5,
              selector: "#toggleAll",
-             text: "<br>Toggles More-Less<br><br>Click <b>Less</b> to hide old boards and cards.<br>Click <b>More</b> to show all.<br><br>Make sure Trello <b>card aging</b> is enabled for the board",
+             text: "<br>Toggles More-Less<br><br>Click <b>Less</b> to hide old boards and cards.<br>Click <b>More</b> to show all.<br><br>Make sure <b><a style='color:white;' href='http://help.trello.com/article/820-card-aging' target='_blank'>Trello card aging</a></b> is enabled for the board",
              angle: 180,
              distance: 0,
              size: 200

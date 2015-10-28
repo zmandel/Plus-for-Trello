@@ -120,7 +120,7 @@ function handleRawSync(sendResponseParam) {
     chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
         var userTrello = (obj[PROP_TRELLOUSER] || null);
         if (userTrello == null) {
-            sendResponse({ status: "error" });
+            sendResponse({ status: "error: no user yet. Enter a trello.com page first." });
             return;
         }
             
@@ -651,19 +651,16 @@ function updatePlusIconWorker(bTooltipOnly) {
             return (syncStatus.length ==0 || (msNow-dateLastStatus>1000*60*20)); //pretend there wasnt a sync error if its old (over 20 min)
         }
 
-        bErrorSync = false;
-
-        if (bTooltipOnly) {
-            bErrorSync= !setTooltipSyncStatus();
-            if (bErrorSync)
-                bTooltipOnly = false;
-        }
-
+        var bErrorSync = !setTooltipSyncStatus();
         var ctx = null;
         var canvas = null;
         var dxCanvas = 0;
         var dyCanvas = 0;
         var rotation = g_rotation;
+
+        if (bTooltipOnly && bErrorSync)
+            bTooltipOnly = false;
+
         if (!bTooltipOnly) {
             var img = document.getElementById("imgPlusMenu");
             img.setAttribute("width", "19");
@@ -679,11 +676,16 @@ function updatePlusIconWorker(bTooltipOnly) {
                 dyCanvas = Math.ceil(canvas.height / 2);
                 ctx.translate(dxCanvas, dyCanvas);
             }
-            ctx.rotate(2 * Math.PI * ease(rotation));
+            //review zig if (rotation != 0)  ctx.rotate(2 * Math.PI * ease(rotation));
+            if (img.complete) { //check if image was already loaded by the browser
+                img.onload = null; //anyone waiting should be cancelled as they have stale data
+                callbackPaint();
+            } else {
+                img.onload = callbackPaint;
+            }
         }
-        
 
-        var callback = function () {
+        function callbackPaint() {
             ctx.drawImage(img, -dxCanvas, -dyCanvas);
             if (rotation != 0) {
                 ctx.translate(-dxCanvas, -dyCanvas);
@@ -695,8 +697,6 @@ function updatePlusIconWorker(bTooltipOnly) {
             var colorOffline = "#BBBBBB";
             var colorBackground = "#FFFFFF";
             var colorCircleStroke = '#000000';
-
-            bErrorSync = !setTooltipSyncStatus();
 
             if (bErrorSync)
                 colorBackground = colorErrorSync;
@@ -764,14 +764,6 @@ function updatePlusIconWorker(bTooltipOnly) {
             }
 
             chrome.browserAction.setIcon({ imageData: ctx.getImageData(0, 0, 19, 19) });
-        };
-
-        if (!bTooltipOnly) {
-            if (img.complete) { //check if image was already loaded by the browser
-                callback();
-            } else {
-                img.onload = callback;
-            }
         }
     });
 }
@@ -989,20 +981,26 @@ If you instead want to disable timer popups do so from Plus preferences.");
 });
 
 function handleCopyClipboard(html, sendResponse) {
-	if (window.getSelection && document.createRange) {
-		var elemReplace = document.getElementById("selectionPlaceholder");
-		elemReplace.innerHTML = html;
-		var sel = window.getSelection();
-		var range = document.createRange();
-		range.selectNodeContents(elemReplace);
-		sel.removeAllRanges();
-		sel.addRange(range);
-		document.execCommand("Copy");
-		elemReplace.innerHTML = ""; //blank it when done
-		sendResponse({ status: STATUS_OK });
-		return;
-	}
-	sendResponse({ status: "cant copy to clipboard." });
+    if (window.getSelection && document.createRange) {
+        var elemReplace = document.getElementById("selectionPlaceholder");
+        elemReplace.innerHTML = html;
+        var sel = window.getSelection();
+        var range = document.createRange();
+        range.selectNodeContents(elemReplace);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        document.execCommand("Copy");
+        setTimeout(function () {
+            //blank it when done. Delay is to attempt fix on a user that says rows at the end dont get copied,
+            //which maybe happens because "copy" could be running in parallel and replacing the html could hurt it.
+            elemReplace.innerHTML = "";
+        }, 3000);
+
+        sendResponse({ status: STATUS_OK });
+    }
+    else {
+        sendResponse({ status: "Cannot copy to clipboard." });
+    }
 }
 
 function doShowTimerWindow(idCard) {

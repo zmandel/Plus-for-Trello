@@ -3,10 +3,17 @@
 var g_db = null;
 var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
+var STR_UNKNOWN_CARD = "Unknown card";
+
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
-var g_verDeepSyncCur = 2; //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync.
 
+//ver 3: 3.4.4
+var VERDEEPSYNC = {
+    CURRENT: 3,  //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync. must be >0
+    MINVALID: 0,
+    NOTMEMBER: -1 //hackinsh way to keep a special board state when user is no longer a member of the board. needed to distinguish from zero in first-sync case with existing db data
+};
 function isDbOpened() {
     if (typeof (g_db) == "undefined") //in case its called from a global object
         return false;
@@ -212,7 +219,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
 
     if (g_cReadSyncLock < 0) {
         logPlusError("error: g_cReadSyncLock<0");
-        sendResponseParam({ status: "error." });
+        sendResponseParam({ status: "error (see error log in Plus help)" });
         return;
     }
 
@@ -727,7 +734,7 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 	    //note on rowCard.dateSzLastTrello: when sync is enabled but the card hasnt been updated from trello sync yet,
 	    //go ahead and update the card based on this history row. even if we dont do it here, it will be done eventually by trello sync when
 	    //it processes the card's history (and sets dateSzLastTrello). but doing it here gets the change faster to the user.  
-		if ((!g_bEnableTrelloSync || rowCard.dateSzLastTrello == null || rowCard.dateSzLastTrello == dateEarliestTrello) && (bCardRenamed || bCardMoved)) {
+		if ((bCardRenamed || bCardMoved) && (!g_bEnableTrelloSync || rowCard.dateSzLastTrello == null || rowCard.dateSzLastTrello == dateEarliestTrello)) {
 		    if (bCardRenamed)
 		        handleRecurringChange(tx2, row.idCard, rowCard.name, row.strCard);
 		    rowCard.idBoard = row.idBoard;
@@ -1817,7 +1824,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         M.migration(27, function (t) {
             t.executeSql('ALTER TABLE LISTS ADD COLUMN pos REAL DEFAULT NULL');
             t.executeSql("update LISTS set pos = -1 where idList= '" + IDLIST_UNKNOWN + "' OR idBoard='" + IDBOARD_UNKNOWN + "'");
-            t.executeSql('ALTER TABLE BOARDS ADD COLUMN verDeepSync INT DEFAULT 0');
+            t.executeSql('ALTER TABLE BOARDS ADD COLUMN verDeepSync INT DEFAULT ' + VERDEEPSYNC.MINVALID);
         });
 
         M.migration(28, function (t) {

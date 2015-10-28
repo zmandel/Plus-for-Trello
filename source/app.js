@@ -11,7 +11,7 @@ var g_boardName = null;
 var g_bUpdatingGlobalSums= null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
 
-function getSpentSpecialUser() {
+function getSpentSpecialUser() { //review zig: unused
 	//review zig: wrap g_configData futher as it can be null
 	if (g_configData)
 		return g_configData.spentSpecialUser;
@@ -55,27 +55,23 @@ function insertCardTimer(containerBar) {
 	}
 }
 
+function getXFromUrl(url, prefix) {
+    if (url.indexOf(prefix) != 0)
+        return null;
+
+    var remainUrl = url.slice(prefix.length);
+    var iNextSlash = remainUrl.indexOf("/");
+    if (iNextSlash >= 0)
+        remainUrl = remainUrl.slice(0, iNextSlash);
+    return remainUrl;
+}
 
 function getIdCardFromUrl(url) {
-	var strSearch = "https://trello.com/c/";
-	if (url.indexOf(strSearch) != 0)
-		return null;
-
-	var remainUrl = url.slice(strSearch.length);
-	var iNextSlash = remainUrl.indexOf("/");
-	if (iNextSlash>=0)
-	    remainUrl = remainUrl.slice(0, iNextSlash);
-	return remainUrl;
+    return getXFromUrl(url, "https://trello.com/c/");
 }
 
 function getIdBoardFromUrl(url) {
-	var strSearch = "https://trello.com/b/";
-	if (url.indexOf(strSearch) != 0)
-		return null;
-
-	var remainUrl = url.slice(strSearch.length);
-	remainUrl = remainUrl.slice(0, remainUrl.indexOf("/"));
-	return remainUrl;
+    return getXFromUrl(url, "https://trello.com/b/");
 }
 
 var g_bErrorExtension = false;

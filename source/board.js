@@ -126,7 +126,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 if (g_bChangeCardColor)
                     LabelsManager.update($(card));
 
-                var nodeTitle = originalTitleTag.contents().filter(function () { //this method covers cases when trello changes the html
+                var nodeTitle = originalTitleTag.contents().filter(function () { //this method tries to cover cases when trello changes their html
                     return this.nodeType == 3;
                 });
                 if (nodeTitle && nodeTitle.length > 0)
@@ -158,7 +158,8 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                     se.estimate = 0;
                     se.spent = 0;
                 }
-
+                else if (se.spent != 0 || se.estimate != 0)
+                    bSEFromTitle = true;
                 estimation = se.estimate;
                 totalEstimationFiltered += updateTotals ? estimation : 0;
                 totalEstimation += estimation;
@@ -213,6 +214,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 return;
             var idCardCur=getIdCardFromUrl(originalTitleTag[0].href);
             var bRecurring = false;
+            var bSEFromTitle = false;
             updateSE();
 
             //
@@ -220,6 +222,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             //
             var badges = $(card).children('.list-card-details').eq(0).children('div.badges');
             var bNoBadges = (spent == 0 && estimation == 0);
+            var szClassSEFromTitle="agile_seFromTitle";
 
             if (bNoBadges && bTourRunning && k == 0)
                 bNoBadges = false;
@@ -236,8 +239,13 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 if (bNoBadges)
                     estimateBadge.remove();
             }
-            if (!bNoBadges)
+            if (!bNoBadges) {
                 estimateBadge.contents().last()[0].textContent = estimation;
+                if (bSEFromTitle)
+                    estimateBadge.addClass(szClassSEFromTitle);
+                else
+                    estimateBadge.removeClass(szClassSEFromTitle);
+            }
 
             // Spent
             var spentBadge = badges.children('div.' + BadgeFactory.spentBadgeClass());
@@ -252,8 +260,13 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 if (bNoBadges)
                     spentBadge.remove();
             }
-            if (!bNoBadges)
+            if (!bNoBadges) {
                 spentBadge.contents().last()[0].textContent = spent;
+                if (bSEFromTitle)
+                    spentBadge.addClass(szClassSEFromTitle);
+                else
+                    spentBadge.removeClass(szClassSEFromTitle);
+            }
 
             //Recurring
             if (true) {

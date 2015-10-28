@@ -219,8 +219,10 @@ var Help = {
 	    var pComboLang = helpWin.para('<select style="width:auto"></select>');
 	    var comboLang = pComboLang.children('select');
 	    comboLang.append($(new Option("English", "en")));
-	    comboLang.append($(new Option("Russian", "ru")));
-	    comboLang.append($(new Option("French", "fr")));
+	    comboLang.append($(new Option("Dutch - Nederlands", "nl")));
+	    comboLang.append($(new Option("French - Français", "fr")));
+	    comboLang.append($(new Option("Russian - Русский", "ru")));
+	    comboLang.append($(new Option("Spanish - Español", "es")));
 	    comboLang.append($(new Option("Other", "")));
 	    
 	    var paraLangOtherDetails = helpWin.raw('<p>Currently only the Plus Tour is translated.<br>\
@@ -790,7 +792,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
-	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu of from any board.');
+	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
 	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
 	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to send to the clipboard. Paste on a spreadsheet or email.');
 	    helpWin.para('&bull; Drill-down on any chart bar or pivot cell to get a detailed report.');
@@ -803,11 +805,12 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
 	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
-	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/810-enabling-power-ups">Enable the Card Aging power-up</A> on each board to hide cards.');
+	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">Only for "Scrum for Trello" extension users</h2></b>');
+	    helpWin.para('Plus can read S/E from the card title. When it does, the S/E boxes in the card back are gray (instead of white).');
 	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-notes-for-users-of.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -835,6 +838,61 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                    UNITS.current = valCombo;
 	                    updateTimerChromeIcon();
 	                }
+	            });
+	        });
+	    }
+
+	    //option to change week start day
+	    if (true) {
+	        //<select id="spentRecentWeeks" />')
+	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>');
+	        var comboDowStart = $('<select style="width:auto">');
+	        pComboDow.append(comboDowStart);
+	        //comboDowStart.append($(new Option("saturday", "6"))); //dom: saturday not ready. many edge cases not handled.
+	        comboDowStart.append($(new Option("sunday", "0")));
+	        comboDowStart.append($(new Option("monday", "1")));
+	        comboDowStart.val(DowMapper.getDowStart());
+	        pComboDow.append($('<span>. Change it anytime. All users should have the same setting or numbering will be off.</span>'));
+	        var statusDow = $("<b></b>").hide();
+	        pComboDow.append(statusDow);
+	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
+	        comboDowStart.change(function () {
+	            var pair = {};
+	            comboDowStart.attr('disabled', 'disabled');
+	            var valComboDow = parseInt(comboDowStart.val(), 10) || 0;
+	            var bError = true;
+	            var strError = "";
+	            pair["dowStart"] = valComboDow;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError !== undefined) {
+	                    strError = " Error. Not saved.";
+
+	                    comboDowStart.val(DowMapper.getDowStart()); //reset
+	                } else {
+	                    strError = " Saved... ";
+	                    bError = false;
+	                }
+	                statusDow.text(strError);
+	                statusDow.show();
+	                if (bError) {
+	                    comboDowStart.removeAttr('disabled');
+	                    return;
+	                }
+	                openPlusDb(
+                        //re-open the db right away. This doesnt refresh everything but at least it triggers conversion asap.
+                        //note that if conversion fails for any reason, it will be done at the next openPlusDb from the content script
+                        function (response) {
+                            if (response.status != STATUS_OK)
+                                strError += response.status;
+                            else {
+                                var userCur = getCurrentTrelloUser();
+                                var configCur = g_configData;
+                                doWeeklyReport(configCur, userCur, true, false);
+                                strError += "Database upgraded OK.";
+                            }
+                            statusDow.text(strError);
+                            comboDowStart.removeAttr('disabled');
+                        }, { dowStart: valComboDow });
 	            });
 	        });
 	    }
@@ -895,62 +953,6 @@ Background sync every 10 minutes while Chrome is open even if Trello is not open
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bSyncOutsideTrello = bValue;
 	                checkSyncOutsideTrello[0].checked = g_bSyncOutsideTrello;
-	            });
-	        });
-	    }
-
-
-	    //option to change week start day
-	    if (true) {
-	        //<select id="spentRecentWeeks" />')
-	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>');
-	        var comboDowStart = $('<select style="width:auto">');
-	        pComboDow.append(comboDowStart);
-	        //comboDowStart.append($(new Option("saturday", "6"))); //dom: saturday not ready. many edge cases not handled.
-	        comboDowStart.append($(new Option("sunday", "0")));
-	        comboDowStart.append($(new Option("monday", "1")));
-	        comboDowStart.val(DowMapper.getDowStart());
-	        pComboDow.append($('<span>. You can change it anytime. All users should have the same setting.</span>'));
-	        var statusDow = $("<b></b>").hide();
-	        pComboDow.append(statusDow);
-	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
-	        comboDowStart.change(function () {
-	            var pair = {};
-	            comboDowStart.attr('disabled', 'disabled');
-	            var valComboDow = parseInt(comboDowStart.val(), 10) || 0;
-	            var bError = true;
-	            var strError = "";
-	            pair["dowStart"] = valComboDow;
-	            chrome.storage.sync.set(pair, function () {
-	                if (chrome.runtime.lastError !== undefined) {
-	                    strError = " Error. Not saved.";
-
-	                    comboDowStart.val(DowMapper.getDowStart()); //reset
-	                } else {
-	                    strError = " Saved... ";
-	                    bError = false;
-	                }
-	                statusDow.text(strError);
-	                statusDow.show();
-	                if (bError) {
-	                    comboDowStart.removeAttr('disabled');
-	                    return;
-	                }
-	                openPlusDb(
-                        //re-open the db right away. This doesnt refresh everything but at least it triggers conversion asap.
-                        //note that if conversion fails for any reason, it will be done at the next openPlusDb from the content script
-                        function (response) {
-                            if (response.status != STATUS_OK)
-                                strError += response.status;
-                            else {
-                                var userCur = getCurrentTrelloUser();
-                                var configCur = g_configData;
-                                doWeeklyReport(configCur, userCur, true, false);
-                                strError += "Database upgraded OK.";
-                            }
-                            statusDow.text(strError);
-                            comboDowStart.removeAttr('disabled');
-                        }, { dowStart: valComboDow });
 	            });
 	        });
 	    }

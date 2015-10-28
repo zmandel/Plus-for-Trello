@@ -782,7 +782,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
 	if (weekCur != getCurrentWeekNum(dateToday))
 		sToday = null; //means we are not tracking "today" because the week selection is not the current week.
 
-	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc";
+	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,B.idBoard, H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc";
 	var values = [weekCur];
 	g_cRowsWeekByUser = 0;
 	getSQLReport(sql, values,
@@ -1633,8 +1633,15 @@ function getHtmlDrillDownTooltip(rows, bReverse, colExclude) {
 		rgRet.push({ name: makeDateCustomString(date,true), bNoTruncate: true });
 		if (colExclude!="User")
 			rgRet.push({ name: row.user, bNoTruncate: false });
-		if (colExclude != "Board")
-			rgRet.push({ name: row.nameBoard, bNoTruncate: false });
+		if (colExclude != "Board") {
+		    if (row.idBoard) {
+		        var urlBoard = "https://trello.com/b/" + row.idBoard;
+		        rgRet.push({ name: "<A href='" + urlBoard + "'>" + strTruncate(row.nameBoard) + "</A>", bNoTruncate: true }); //no target makes it so trello loads it quickly and the drilldown stays up
+		    }
+		    else {
+		        rgRet.push({ name: row.nameBoard, bNoTruncate: false });
+		    }
+		}
 		var urlCard = null;
 		if (row.idCard.indexOf("https://") == 0)
 			urlCard = row.idCard; //old-style card URLs. Could be on old historical data from a previous Spent version
@@ -1841,11 +1848,11 @@ function drawSpentWeekChart(chartParams) {
 			useFormatFromData: false,
 			formatOptions: {
 				source: "inline",
-				suffix: "h"
+				suffix: UNITS.current
 			},
 			slantedText: false,
 			minValue: null,
-			format: "0.##'h'",
+			format: "0.##'"+UNITS.current+"'",
 			viewWindow: {
 				max: null,
 				min: null

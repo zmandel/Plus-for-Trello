@@ -80,6 +80,10 @@
     margin-right:.3em;
 }
 
+.agile_seFromTitle {
+    background-color: lightgray !important;
+}
+
 .agile_modify_total_se_input {
     width:5.5em !important;
     background-color:white !important;
@@ -469,7 +473,7 @@ padding-left:4px;
 	border: 0px !important;
 	border-spacing: 0px !important;
 	font-family: "Helvetica Neue",Arial,Helvetica,sans-serif !important;
-	font-size: 14px !important;
+	font-size: 10.5pt !important;
     width: 100% !important;
 }
 
@@ -700,7 +704,7 @@ td.agile_cell_drilldown a:hover {
 
 .agile_table_pivot {
     border:1px solid #D1D7DD;
-    font-size: 14px;
+    font-size: 10.5pt;
 }
 
 th.agile_drill_th {
