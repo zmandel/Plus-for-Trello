@@ -216,17 +216,62 @@ function selectTabUI(iTab, href) {
 	return iTab;
 }
 
-function findMatchingBoards(term, autoResponse) {
+function findMatchingTeams(term, autoResponse) {
     if (term == "*")
         term = "";
-    var sql = "SELECT name FROM boards";
-    var sqlPost=" ORDER BY LOWER(name) ASC";
+    var sql = "SELECT name FROM teams";
+    var sqlPost = " ORDER BY LOWER(name) ASC";
     var paramsSql = [];
 
     if (term != "") {
         sql = sql + " where name LIKE ?";
         paramsSql.push("%" + term + "%");
     }
+    getSQLReport(sql + sqlPost, paramsSql, function (response) {
+        var rows = response.rows;
+        if (response.status != STATUS_OK || !rows) {
+            autoResponse([]);
+            return;
+        }
+
+        var ret = new Array(rows.length);
+
+        for (var i = 0; i < rows.length; i++) {
+            ret[i] = rows[i].name;
+        }
+
+        autoResponse(ret);
+    });
+}
+
+function findMatchingBoards(term, autoResponse) {
+    if (term == "*")
+        term = "";
+    var nameTeam = $("#team").val().trim();
+    var cWhere = 0;
+    var sql = "SELECT B.name FROM boards B";
+    var sqlPost=" ORDER BY LOWER(B.name) ASC";
+    var paramsSql = [];
+
+    if (nameTeam != "") {
+        sql = sql + " LEFT OUTER JOIN TEAMS T ON B.idTeam=T.idTeam where T.name LIKE ?";
+        paramsSql.push("%" + nameTeam + "%");
+        cWhere++;
+    }
+
+    if (term != "") {
+        if (cWhere == 0) {
+            sql = sql + " WHERE";
+        }
+        else {
+            sql = sql + " AND";
+        }
+        cWhere++;
+        sql = sql + " B.name LIKE ?";
+        paramsSql.push("%" + term + "%");
+    }
+
+
     getSQLReport(sql + sqlPost, paramsSql, function (response) {
         var rows = response.rows;
         if (response.status != STATUS_OK || !rows) {
@@ -425,6 +470,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	    $("#groupBy").parent().hide();
 	    $("#pivotBy").parent().hide();
 	    $("#orderBy").parent().hide();
+	    $("#team").parent().hide();
 	    $("#board").parent().hide();
 	    $("body").css("margin-top", "0px");
 	    $("#report_top_section").css("margin-bottom", "0px");
@@ -434,6 +480,7 @@ document.addEventListener('DOMContentLoaded', function () {
 	loadTabs($("#tabs"));
 
 	if (g_bPopupMode) {
+	    $("#team").parent().hide();
 	    $("#archived").parent().hide();
 	    $("#deleted").parent().hide();
 	    $("#eType").parent().hide();
@@ -507,6 +554,14 @@ document.addEventListener('DOMContentLoaded', function () {
 	                $(this).autocomplete("search", specialAll);
 	        });
 	    }
+
+	    addFocusHandler($("#team").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingTeams(request.term, response);
+	        }
+	    }));
 
 	    addFocusHandler($("#board").autocomplete({
 	        delay: 0,
@@ -920,7 +975,7 @@ function loadReport(params) {
 
 	var elems = {
 	    keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
-	    monthStart: "", monthEnd: "", user: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "0", deleted: "0",
+	    monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "0", deleted: "0",
 	    idBoard: (g_bBuildSqlMode?"":"showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide"
 	};
 	for (var iobj in elems) {
@@ -1198,6 +1253,7 @@ function buildSql(elems) {
 	    sql += buildSqlParam("monthStart",  elems, "",  "month",        ">=", state);
 	    sql += buildSqlParam("monthEnd",    elems, "",  "month",        "<=", state, "9999-99");
 	    sql += buildSqlParam("user",        elems, pre, "user",         "LIKE", state);
+	    sql += buildSqlParam("team",        elems, "",  "nameTeam",     "LIKE", state);
 	    sql += buildSqlParam("board",       elems, "",  "nameBoard",    "LIKE", state); //note LIKE allows and/or
 	    sql += buildSqlParam("list",        elems, "",  "nameList",     "LIKE", state);
 	    sql += buildSqlParam("card",        elems, "",  "nameCard",     "LIKE", state);
@@ -1221,12 +1277,13 @@ function buildSql(elems) {
     var bByROpt=false;
 	var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
-                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
+                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM HISTORY as H \
                 JOIN CARDS as C on H.idCard=C.idCard \
                 JOIN LISTS as L on C.idList=L.idList \
-                JOIN BOARDS B on H.idBoard=B.idBoard";
+                JOIN BOARDS B on H.idBoard=B.idBoard \
+                LEFT OUTER JOIN TEAMS T on B.idTeam=T.idTeam";
 
 	var bOrderByR = (elems["orderBy"] == "remain"); //this special-case filters out zero R. special-case it to speed it up
 	var bAllDates = (elems["sinceSimple"] == "");
@@ -1244,7 +1301,7 @@ function buildSql(elems) {
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
 	if (groupByLower != "" &&
-        (groupByLower.indexOf("card") >= 0 || (groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0)) &&
+        (groupByLower.indexOf("card") >= 0 || (groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0 && groupByLower.indexOf("keyword") < 0)) &&
         !elems["weekStart"] && !elems["weekEnd"] && !bOrderByR) {
 	    assert(!g_bBuildSqlMode);
 
@@ -1253,11 +1310,12 @@ function buildSql(elems) {
                 select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
                 0 as estFirst, \
                 case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
-                L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
+                T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
-                JOIN BOARDS B on C.idBoard=B.idBoard";
+                JOIN BOARDS B on C.idBoard=B.idBoard \
+                LEFT OUTER JOIN TEAMS T on B.idTeam=T.idTeam";
         //rebuild filters again because table names are different
 	    state.cFilters = 0;
 	    sql += buildAllParams(state, false);
@@ -1961,6 +2019,7 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	var bCardGrouping = (groupBy.toLowerCase().indexOf("card") >= 0);
 	var bShowBoard = (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || groupBy.indexOf("idCardH") >= 0);
 	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
+	var bShowTeam = (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
 
 	var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
 	var bPushedCard = false;
@@ -1990,6 +2049,11 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	var bShowUser=(groupBy=="" || groupBy.toLowerCase().indexOf("user")>=0);
 	if (bShowUser)
 		header.push({ name: "User" });
+
+	if (bShowTeam) {
+	    header.push({ name: "Team" });
+	    pushSpecialLinkHeader();
+	}
 
 	if (bShowBoard) {
 	    header.push({ name: "Board" });
@@ -2082,6 +2146,12 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 		    rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
 		if (bShowUser)
 			rgRet.push({ name: row.user, bNoTruncate: bNoTruncate });
+
+		if (bShowTeam) {
+		    var urlTeam = "https://trello.com/" + (row.nameTeamShort || "");
+		    var nameTeam = row.nameTeam || ""; //for rows without team
+		    rgRet.push({ name: "<A title='Go to Trello team' target='_blank' href='" + urlTeam + "'>" + (bNoTruncate ? nameTeam : strTruncate(nameTeam)) + "</A>", bNoTruncate: true });
+		}
 
 		if (bShowBoard) {
 			var urlBoard = "https://trello.com/b/" + row.idBoardH;

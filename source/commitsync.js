@@ -3,6 +3,48 @@
 var g_prefixCustomUserId = "customUser:";
 var g_deletedUserIdPrefix = "deleted"; //prefix for user id and user (when making up a username on deleted users)
 
+function commitTeamSyncData(tx, alldata) {
+    var idTeam = null;
+    var sql = "";
+    var bChanged = false;
+    for (idTeam in alldata.teams) {
+        var team = alldata.teams[idTeam];
+        if (team.idTeam == IDTEAM_UNKNOWN)
+            continue;
+
+        var thisChanged = true;
+
+        if (!team.name)
+            team.name = STR_UNKNOWN_TEAM; //cover cases of Trello corruption
+
+        if (team.orig) {
+            if (team.orig.name == team.name && team.orig.nameShort == team.nameShort) {
+                thisChanged = false;
+                if (team.orig.dateSzLastTrello == team.dateSzLastTrello)
+                    continue;
+            }
+        }
+
+        if (thisChanged)
+            bChanged = true;
+        if (!team.orig) {
+            //could use this for both cases, but maybe sqlite optimizes for update
+            sql = "INSERT OR REPLACE INTO TEAMS (name, nameShort, dateSzLastTrello, idTeam) VALUES (?,?,?,?)";
+        }
+        else {
+            sql = "UPDATE TEAMS SET name=?, nameShort=?, dateSzLastTrello=? WHERE idTeam=?";
+        }
+        tx.executeSql(sql, [team.name, team.nameShort, team.dateSzLastTrello, team.idTeam],
+                null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+    }
+    return bChanged;
+}
+
+
 function commitBoardSyncData(tx, alldata) {
     var idBoard = null;
     var sql = "";
@@ -21,7 +63,7 @@ function commitBoardSyncData(tx, alldata) {
         assert(board.idActionLastNew || !board.idActionLast);
 
         if (board.orig) {
-            if (board.orig.name == board.name && board.orig.bArchived == board.bArchived &&
+            if (board.orig.idTeam == board.idTeam && board.orig.name == board.name && board.orig.bArchived == board.bArchived &&
                 board.orig.idLong == board.idLong && board.orig.idBoard == board.idBoard && board.orig.verDeepSync == board.verDeepSync) {
                 thisChanged = false;
                 if (board.orig.dateSzLastTrello == board.dateSzLastTrello && board.orig.idActionLast == board.idActionLast)
@@ -35,13 +77,14 @@ function commitBoardSyncData(tx, alldata) {
             assert(!board.orig);
             //could use this for both cases, but maybe sqlite optimizes for update
             //using "replace" as the board could have been alreadt created during sync (by user entering S/E into a card)
-            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, verDeepSync, idBoard) VALUES (?,?,?, ?,?,?,?)";
+            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, verDeepSync, idTeam, idBoard) VALUES (?,?,?,?,?,?,?,?)";
         }
         else {
             assert(board.orig);
-            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=?,verDeepSync=? WHERE idBoard=?";
+            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=?,verDeepSync=?, idTeam=? WHERE idBoard=?";
         }
-        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.verDeepSync || 0, board.idBoard], null,
+        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.verDeepSync || 0, board.idTeam || null, board.idBoard],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -82,7 +125,8 @@ function commitListSyncData(tx, alldata) {
             bChanged = true;
 
         sql = "INSERT OR REPLACE INTO LISTS (idList, name, idBoard, dateSzLastTrello, bArchived, pos) VALUES (?,?,?, ?,?,?)";
-        tx.executeSql(sql, [idList, list.name, list.idBoard, list.dateSzLastTrello, list.bArchived || list.bDeleted ? 1 : 0, list.pos || null], null,
+        tx.executeSql(sql, [idList, list.name, list.idBoard, list.dateSzLastTrello, list.bArchived || list.bDeleted ? 1 : 0, list.pos || null],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -113,7 +157,7 @@ function commitCardSyncData(tx, alldata) {
         if (!card.name)
             card.name = STR_UNKNOWN_CARD; //cover trello corruption
 
-        var name = parseSE(card.name, true, g_bAcceptSFT).titleNoSE;
+        var name = parseSE(card.name, true).titleNoSE;
 
         if (card.orig) {
             if (card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&            
@@ -128,7 +172,8 @@ function commitCardSyncData(tx, alldata) {
             bChanged = true;
         //review zig: for performance, this should update when orig exists, using INSERT OR IGNORE, then UPDATE (unless it must be there because there is an orig)
         sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong, dateDue) VALUES (?,?,?,?,?,?,?,?,?)";
-        tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue], null,
+        tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -138,7 +183,8 @@ function commitCardSyncData(tx, alldata) {
             if (card.orig.idBoard != card.idBoard) {
                 //card moved
                 sql = "UPDATE HISTORY SET idBoard=? WHERE idCard=?";
-                tx.executeSql(sql, [card.idBoard, idCard], null,
+                tx.executeSql(sql, [card.idBoard, idCard],
+                    null,
                     function (tx2, error) {
                         logPlusError(error.message);
                         return true; //stop
@@ -233,7 +279,8 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
     //when the db is opened to handle cases like a shutdown in between transactions.
     rows.forEach(function (row) {
         var sql = "INSERT INTO QUEUEHISTORY (obj) VALUES (?)";
-        tx.executeSql(sql, [JSON.stringify(row)], null,
+        tx.executeSql(sql, [JSON.stringify(row)],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -242,14 +289,16 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
 
     alldata.rgCardResetData.forEach(function (cardData) {
         var sql = "UPDATE history set spent=0, est=0, eType=" + ETYPE_NONE + ", comment= '[original s/e: ' || spent || '/' || est || '] ' || comment  WHERE idCard=? and (spent<>0 OR est<>0)";
-        tx.executeSql(sql,[cardData.idCard], null,
+        tx.executeSql(sql, [cardData.idCard],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
 				});
 
         sql = "DELETE FROM CARDBALANCE WHERE idCard=?";
-        tx.executeSql(sql, [cardData.idCard], null,
+        tx.executeSql(sql, [cardData.idCard],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -266,7 +315,8 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
         var userCur = usersMap[idMemberCreator];
         if (userCur.bDelete) {
             tx.executeSql("DELETE FROM USERS WHERE idMemberCreator=?",
-            [idMemberCreator], null,
+            [idMemberCreator],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop
@@ -277,7 +327,8 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
         if (!userCur.bEdited)
             continue;
         tx.executeSql("INSERT OR REPLACE INTO USERS (idMemberCreator,username, dateSzLastTrello) VALUES (?,?,?)",
-            [idMemberCreator, userCur.username, userCur.dateSzLastTrello], null,
+            [idMemberCreator, userCur.username, userCur.dateSzLastTrello],
+                null,
 				function (tx2, error) {
 				    logPlusError(error.message);
 				    return true; //stop

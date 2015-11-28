@@ -214,7 +214,8 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     //CARDBALANCE and BOARDMARKER tables are reset for the cards, and are re-generated.
 
     var alldata = {
-        boards: {}, //hash by shortLink. (name, dateSzLastTrello, idActionLast, bArchived) note dateSzLastTrello is 1ms behind (see note in sql)
+        teams: {}, //hash by idTeam (name, dateSzLastTrello, nameShort)
+        boards: {}, //hash by shortLink. (name, dateSzLastTrello, idActionLast, bArchived, idTeam ...) **NOTE** dateSzLastTrello is 1ms behind (see note in sql)
         lists: {},  //hash by idLong. (name, idBoard, dateSzLastTrello, bArchived, pos)
         cards: {},  //hash by shortLink. (name, idBoard, dateSzLastTrello, idList, bArchived, listCards[] (idList,dateSzIn,dateSzOut,userIn,userOut) )
         cardsByLong: {}, //hash idLong -> shortLink.
@@ -230,21 +231,32 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     startSyncProcess();
 
     function startSyncProcess() {
-        var request = { sql: "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
+        var request = { sql: "select idTeam, name, dateSzLastTrello, nameShort FROM TEAMS where idTeam<>?", values: [IDTEAM_UNKNOWN] };
         handleGetReport(request,
             function (responseReport) {
                 if (responseReport.status != STATUS_OK) {
                     sendResponse(responseReport);
                     return;
                 }
-                boardsReport = cloneObject(responseReport.rows || []); //clone so rows can be modified.
-                worker();
-            });
+                responseReport.rows.forEach(function (row) {
+                    assert(row.idTeam);
+                    var teamCur = cloneObject(row); //to modify it
+                    teamCur.orig = cloneObject(teamCur); //keep original values for comparison
+                    alldata.teams[row.idTeam] = teamCur;
+                });
 
-        function worker() {
-            assert(boardsReport);
-            getBoardsLastInfo(tokenTrello, callbackBoardsLastInfo);
-        }
+                var request = { sql: "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync, idTeam FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
+                handleGetReport(request,
+                    function (responseReport) {
+                        if (responseReport.status != STATUS_OK) {
+                            sendResponse(responseReport);
+                            return;
+                        }
+                        boardsReport = cloneObject(responseReport.rows || []); //clone so rows can be modified.
+                        assert(boardsReport);
+                        getBoardsLastInfo(tokenTrello, callbackBoardsLastInfo);
+                    });
+            });
     }
 
     function callbackBoardsLastInfo(responseBoardsLastInfo) {
@@ -272,12 +284,12 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
                 timeout: 30000
             });
         }
+        populateTeams(alldata.teams, boardsTrello);
         getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process);
         }
     
     function sendResponse(response) {
         if (response.status == STATUS_OK) {
-		//review zig: this should be assert. got it once and couldnt find cause (related to breakpoints set but didnt want to block entire sync process for this)
             if (g_syncStatus.cTotalStages != g_syncStatus.stageNum)
                 logPlusError("Finished with stageNum != cTotalStages " + g_syncStatus.stageNum + "/" + g_syncStatus.cTotalStages + ":"+JSON.stringify(g_syncStatus.rgStepHistory));
         }
@@ -305,6 +317,34 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
         }
     }
 }
+
+function populateTeams(teamsDb, boardsTrello) {
+    boardsTrello.forEach(function (board) {
+        var team = board.organization;
+        var bChanged = false;
+        if (!team)
+            return;
+        var teamDb = teamsDb[team.id];
+        var teamNew = {
+            idTeam: team.id,
+            name: team.displayName,
+            dateSzLastTrello: board.dateLastActivity,
+            nameShort: team.name || ""
+        };
+
+        if (!teamDb) {
+            teamsDb[team.id] = teamNew;
+        }
+        else {
+            if (teamDb.dateSzLastTrello < teamNew.dateSzLastTrello)
+                teamDb.dateSzLastTrello = teamNew.dateSzLastTrello;
+            //dateSzLastTrello comes from the board, not the team. so update name and nameShort which is always fresh data
+            teamDb.name = teamNew.name;
+            teamDb.nameShort = teamNew.nameShort;
+        }
+    });
+}
+
 
 function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, sendResponse) {
     handleShowDesktopNotification({
@@ -345,7 +385,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
                         return;
                     }
 
-                    var nameNew = parseSE(cardData.card.name, true, g_bAcceptSFT).titleNoSE;
+                    var nameNew = parseSE(cardData.card.name, true).titleNoSE;
                     if (cardData.card.name != nameNew) {
                         var shortLinkSaved = cardData.card.shortLink;
                         var nameOld = cardData.card.name;
@@ -828,9 +868,11 @@ function commitTrelloChanges(alldata, sendResponse) {
             saveAsFile(alldata.boards, "alldata.boards-" + cBoardsTotal + ".json");
     }
 
+    //review zig: if no board actions, most of the time we do the transaction unnecesarily, but it complicated to detect beforehand if the commits will have no effect
     g_db.transaction(processBulkChanges, errorTransaction, okTransaction);
 
     function processBulkChanges(tx) {
+        bMadeChanges = commitTeamSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitBoardSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitListSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitCardSyncData(tx, alldata) || bMadeChanges;
@@ -1477,12 +1519,7 @@ function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
                     }
                 } else {
                     //boards cant be deleted, but leave it here for future possibility. REVIEW zig: board delete case isnt handled in sync
-                    var bDeleted = (xhr.status == 404);
-                    if (xhr.status == 401 || bDeleted) { //no permission to the board, or board deleted already
-                        objRet.hasPermission = false;
-                        objRet.status = STATUS_OK;
-                        if (bDeleted)
-                            objRet.bDeleted = true;
+                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board, or board deleted already
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
@@ -1503,8 +1540,6 @@ function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error. idBoard: " + idBoard);
                     callback(objRet);
                 }
             }
@@ -1541,10 +1576,7 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    var bDeleted = (xhr.status == 404);
-                    if (xhr.status == 401 || bDeleted) { //no permission to the list 
-                        objRet.hasPermission = false;
-                        objRet.status = STATUS_OK;
+                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the list 
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
@@ -1565,8 +1597,6 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error. idList: " + idList);
                     callback(objRet);
                 }
             }
@@ -1606,12 +1636,7 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    var bDeleted = (xhr.status == 404);
-                    if (xhr.status == 401 || bDeleted) { //no permission to the board, or card deleted already
-                        objRet.hasPermission = false;
-                        objRet.status = STATUS_OK;
-                        if (bDeleted)
-                            objRet.bDeleted = true;
+                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board, or card deleted already
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -1632,8 +1657,6 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error. idCardLong: " + idCardLong);
                     callback(objRet);
                 }
             }
@@ -1702,9 +1725,7 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (xhr.status == 401) { //no permission to the card
-                        objRet.hasPermission = false;
-                        objRet.status = STATUS_OK;
+                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the card
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -1725,8 +1746,6 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error. idCard: " + idCard);
                     callback(objRet);
                 }
             }
@@ -1808,9 +1827,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (xhr.status == 401) { //no permission to the board
-                        objRet.hasPermission = false;
-                        objRet.status = STATUS_OK;
+                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -1831,8 +1848,6 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                 }
 
                 if (!bReturned) {
-                    if (xhr.status == 400)
-                        logPlusError("trello sync error. idBoard: " + idBoard);
                     callback(objRet);
                 }
             }
@@ -1883,6 +1898,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
         boardsTrello.forEach(function (board) {
             if (!board.actions || board.actions.length == 0)
                 return;
+            var idTeamNew = board.idOrganization || null;
+
             statusProcess.hasBoardAccess[board.shortLink] = true;
             boardDb = mapBoards[board.shortLink];
 
@@ -1898,7 +1915,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 					dateSzLastTrello : null,
 					idActionLast: null,
 					bArchived: 0,
-					verDeepSync: VERDEEPSYNC.MINVALID //always smaller than current. will cause a deep sync
+					verDeepSync: VERDEEPSYNC.MINVALID, //always smaller than current. will cause a deep sync
+					idTeam: idTeamNew
                 };
             }
             assert(boardDb.idBoard == board.shortLink);
@@ -1914,7 +1932,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
             if (bSameLastAction)
                 boardDb.bProcessActions = false;
 
-            if (boardDb.verDeepSync < VERDEEPSYNC.CURRENT || !bSameLastAction) {
+            if (boardDb.verDeepSync < VERDEEPSYNC.CURRENT || !bSameLastAction || boardDb.idTeam != idTeamNew) {
                 var dateLastAction = new Date(actionLast.date);
                 dateLastAction.setTime(dateLastAction.getTime() + 1);
                 assert(board.name);
@@ -1922,6 +1940,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                 boardDb.bArchived = board.closed || false;
                 boardDb.idLong = board.id;
                 boardDb.dateSzBefore = dateLastAction.toISOString();
+                boardDb.idTeam = idTeamNew; //can be null
                 boardDb.bPushed = true;
 
                 if (boardDb.verDeepSync == VERDEEPSYNC.NOTMEMBER)
@@ -2177,7 +2196,7 @@ function getBoardsLastInfo(tokenTrello, callback) {
 
 function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
     //https://trello.com/docs/api/member/index.html
-    var url = "https://trello.com/1/members/me/boards?fields=name,closed,shortLink&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date&action_memberCreator=false";
+    var url = "https://trello.com/1/members/me/boards?organization=true&organization_fields=displayName,name&fields=idOrganization,name,closed,shortLink,dateLastActivity&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date&action_memberCreator=false";
 	var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {
@@ -2213,19 +2232,12 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                             objRet.status = errFromXhr(xhr);
                         }
                     }
-                    else if (xhr.status == 404) {
-                        objRet.status = "user not found."+errFromXhr(xhr);
-                    }
                     else {
                         objRet.status = errFromXhr(xhr);
                     }
                 }
 
                 if (!bReturned) {
-                    //review zig: sometimes trello returns 400 (bad request) on this with no apparent reason as the request string
-                    //is always the same for all users.
-                    //if (xhr.status == 400)
-                    //    logPlusError("trello sync error: getBoardsLastInfoWorker");
                     callback(objRet);
                 }
             }

@@ -1,6 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
 
 var g_db = null;
+var STR_UNKNOWN_TEAM = "Unknown team";
 var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var STR_UNKNOWN_CARD = "Unknown card";
@@ -764,7 +765,8 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 		    }
 		} else if (bVerifyBoardIsCardsBoard && bCardMoved) {
 		    //correct the history row to have the db card's idBoard
-		    tx2.executeSql("UPDATE HISTORY SET idBoard=? WHERE idHistory=?", [rowCard.idBoard, row.idHistory], null,
+		    tx2.executeSql("UPDATE HISTORY SET idBoard=? WHERE idHistory=?", [rowCard.idBoard, row.idHistory],
+                    null,
                     function (tx3, error) {
                         logPlusError(error.message);
                         return true; //stop
@@ -831,7 +833,8 @@ function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
 	);
 
 	strExecute = "UPDATE CARDBALANCE SET spent=spent+?, est=est+?, diff=diff+?, date=max(date,?) WHERE idCard=? AND user=?";
-	tx.executeSql(strExecute, [row.spent, row.est, parseFixedFloat(row.est - row.spent), row.date, row.idCard, row.user], null,
+	tx.executeSql(strExecute, [row.spent, row.est, parseFixedFloat(row.est - row.spent), row.date, row.idCard, row.user],
+        null,
 		function (tx3, error) {
 			logPlusError(error.message);
 			return true; //stop
@@ -886,7 +889,8 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	        //in case board is new.
 	        var strExecute = "INSERT OR IGNORE INTO BOARDS (idBoard, name) \
 				VALUES (?, ?)";
-	        tx.executeSql(strExecute, [row.idBoard, row.strBoard], null,
+	        tx.executeSql(strExecute, [row.idBoard, row.strBoard],
+                null,
                 function (tx2, error) {
                     logPlusError(error.message);
                     return true; //stop
@@ -894,7 +898,8 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 
 	        if (!g_bEnableTrelloSync) { //otherwise handled by trello sync.
 	            strExecute = "UPDATE BOARDS set name=? where idBoard=?";
-	            tx.executeSql(strExecute, [row.strBoard, row.idBoard], null,
+	            tx.executeSql(strExecute, [row.strBoard, row.idBoard],
+                    null,
                     function (tx2, error) {
                         logPlusError(error.message);
                         return true; //stop
@@ -1008,7 +1013,8 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 			    iRowQueueDeleteMost = rowLoop.iRow;
 		}
 		if (iRowQueueDeleteMost >= 0) {
-		    tx.executeSql("DELETE FROM QUEUEHISTORY WHERE iRow <= ?", [iRowQueueDeleteMost], null,
+		    tx.executeSql("DELETE FROM QUEUEHISTORY WHERE iRow <= ?", [iRowQueueDeleteMost],
+                null,
                 function (tx2, error) {
                     logPlusError(error.message);
                     return true; //stop
@@ -1281,6 +1287,7 @@ function handleDeleteDB(request, sendResponseParam) {
 		t.executeSql('DROP TABLE IF EXISTS LISTS');
 		t.executeSql('DROP TABLE IF EXISTS CARDS');
 		t.executeSql('DROP TABLE IF EXISTS BOARDS');
+		t.executeSql('DROP TABLE IF EXISTS TEAMS');
 		t.executeSql('DROP TABLE IF EXISTS GLOBALS');
 		t.executeSql('DROP TABLE IF EXISTS USERS'); //review zig: used to keep the non-custom in 2.12.1 but I removed as it could cause problems if somehow users table is not created
 	}, function (err) {
@@ -1930,6 +1937,22 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql("DELETE FROM LOGMESSAGES where message LIKE '%getBoardsLastInfoWorker%'");
         });
 
+        M.migration(35, function (t) {
+            //idTeam is the old idOrganization in Trello
+            t.executeSql('CREATE TABLE IF NOT EXISTS TEAMS ( \
+							idTeam TEXT PRIMARY KEY NOT NULL, \
+							name TEXT NOT NULL, \
+                            nameShort TEXT NOT NULL, \
+                            dateSzLastTrello TEXT NOT NULL \
+							)');
+
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_teamsByName ON TEAMS(name ASC)');
+            t.executeSql("INSERT OR REPLACE INTO TEAMS (idTeam, name, nameShort, dateSzLastTrello) VALUES (?,?,?,?)",
+                [IDTEAM_UNKNOWN, STR_UNKNOWN_TEAM, "", earliest_trello_date()]);
+
+            t.executeSql("ALTER TABLE BOARDS ADD COLUMN idTeam TEXT DEFAULT '" + IDTEAM_UNKNOWN + "'"); //idTeam can also be null for boards without team
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardsByIdTeam ON BOARDS(idTeam ASC)');
+        });
         M.doIt();
     }
 }

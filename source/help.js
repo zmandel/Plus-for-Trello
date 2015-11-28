@@ -35,7 +35,6 @@ var Help = {
 	hasLegacyRows: false,
 	bDontShowAgainSyncWarn: false,
     bStartTourBubbleOnClose: false,
-    bAcceptSFT: false,
     bStartSyncOnClose: false,
     isVisible: function () {
         return ($('#agile_help_container').size() > 0 || this.m_bShowing);
@@ -78,8 +77,6 @@ var Help = {
 													    var value = obj[keySyncWarn];
 													    if (value !== undefined)
 													        thisObj.bDontShowAgainSyncWarn = value;
-
-													    thisObj.bAcceptSFT = g_bAcceptSFT;
 
 													    sendExtensionMessage({ method: "getTotalDBMessages" },
 																function (response) {
@@ -221,6 +218,7 @@ var Help = {
 	    comboLang.append($(new Option("English", "en")));
 	    comboLang.append($(new Option("Dutch - Nederlands", "nl")));
 	    comboLang.append($(new Option("French - Français", "fr")));
+	    comboLang.append($(new Option("Portuguese - Português", "pt")));
 	    comboLang.append($(new Option("Russian - Русский", "ru")));
 	    comboLang.append($(new Option("Spanish - Español", "es")));
 	    comboLang.append($(new Option("Other", "")));
@@ -441,7 +439,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync (by Card comments or Stealth)</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync (by Card comment keywords or Stealth)</h2></b>');
 	    helpWin.para('Select your team\'s sync method:');
 	    helpWin.para('Enable sync to use Reports and the Plus menu, even if you do not use S/E.');
 	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
@@ -458,7 +456,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    var bDisplayedLegacyNote = false;
 	    if (helpWin.hasLegacyRows) {
-	        helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
+	        helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
 	        bDisplayedLegacyNote = true;
 	    }
 	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally but do not close it until sync finishes.");
@@ -518,8 +516,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
 	    if (!bDisplayedLegacyNote)
-	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
-	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://plusfortrello.blogspot.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
+	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
+	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
 	    helpWin.para('Disadvantages: Requires chrome sign-in, no multiple keywords, no board-based permissions, no mobile app support.', divCur);
 	    helpWin.para('Advantages: Permission is based on using the same spreadsheet url, regardless of board membership. Also, card titles are renamed to include total S/E thus you can see total card S/E from mobile or other browsers.', divCur);
 	    helpWin.para('S/E is not synced from card comments, only from the spreadsheet even thou it does add a card S/E comment.', divCur);
@@ -811,7 +809,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">Only for "Scrum for Trello" extension users</h2></b>');
 	    helpWin.para('Plus can read S/E from the card title. When it does, the S/E boxes in the card back are gray (instead of white).');
-	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2014/12/plus-for-trello-notes-for-users-of.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -897,9 +895,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        });
 	    }
 
-	    if (bSpentBackendCase) {
-	        helpWin.para('&bull; Spent backend users cannot allow negative Remaining or import from Scrum for Trello');
-	    } else {
+	    if (true) {
 	        var checkIgnoreZeroEst = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedIgnoreZeroEstimates" \
 >Allow negative <b>R</b>emaining (or never use Estimates). Cards with negative Remaining will not appear in \"Remaining balance cards\"\
 . You will lose ability to measure remaining effort and "E" will not autocomplete as you type "S".</input>').children('input:checkbox:first');
@@ -957,7 +953,7 @@ Background sync every 10 minutes while Chrome is open even if Trello is not open
 	        });
 	    }
 
-	    //option to not warn on parallel timers
+	    //option to not warn on multiple active timers
 	    if (true) {
 	        var checkDontWarnParallelTimers = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontWarnParallelTimers">\
 Do not warn when starting multiple timers in parallel.</input>').children('input:checkbox:first');
@@ -1034,9 +1030,33 @@ Set the card background based on its first label color.</input>').children('inpu
 	        });
 	    }
 
+	    helpWin.para("<br>The next two settings let Plus read S/E from card titles, for board templates and those migrating from other tools.");
+	    helpWin.para("Plus uses card title S/E only when the card has no S/E rows entered.");
+	    helpWin.para("All users should have the same setting. S/E entered this way will only appear in the board, not in reports or burndowns.");
+	    helpWin.para("<A target='_blank' href='http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html'>See more about S/E in card titles.</A>");
+	    //checkAcceptPFTLegacy
+	    if (true) {
+	        var checkAcceptPFTLegacy = helpWin.raw('<span style="vertical-align:middle;margin-bottom:0px;"><input style="vertical-align:middle;margin-bottom:0px;" type="checkbox"  value="checkAcceptPFTLegacy">\
+Accept the "(S/E) title" format in card titles.</input></span><br>').children('input:checkbox:first');
+	        if (g_bAcceptPFTLegacy)
+	            checkAcceptPFTLegacy[0].checked = true;
+
+	        checkAcceptPFTLegacy.click(function () {
+	            var bValue = checkAcceptPFTLegacy.is(':checked');
+	            var pair = {};
+	            pair["bAcceptPFTLegacy"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bAcceptPFTLegacy = bValue;
+	                checkAcceptPFTLegacy[0].checked = g_bAcceptPFTLegacy;
+	            });
+	        });
+	    }
+
+        //checkAcceptScrumForTrello
 	    if (true) {
 	        var checkAcceptScrumForTrello = helpWin.raw('<span style="vertical-align:middle;margin-bottom:0px;"><input style="vertical-align:middle;margin-bottom:0px;" type="checkbox"  value="checkedAcceptSFT">\
-Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All users should have the same setting.</input></span>').children('input:checkbox:first');
+Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [Spent]</i>.</input></span>').children('input:checkbox:first');
 	        if (g_bAcceptSFT)
 	            checkAcceptScrumForTrello[0].checked = true;
 
@@ -1052,6 +1072,52 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 	        });
 	    }
 
+	    helpWin.para('&nbsp');
+
+	    //ignore these users in the users dropdown
+	    if (true) {
+	        var paraExcludeUsers = helpWin.para('Exclude these users from the card bar. Separate users with comma:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="500"/>&nbsp;<input type="button" value="Save list"/>');
+	        var inputExcludeUsers = paraExcludeUsers.children('input:text:first');
+	        var buttonSaveExcludeUsers = paraExcludeUsers.children('input:button:first');
+
+	        function putExcludedUsersInUi(rg) {
+	            var str = "";
+	            rg.forEach(function (item) {
+	                if (str.length == 0)
+	                    str = item;
+	                else
+	                    str = str + ", " + item;
+	            });
+	            inputExcludeUsers.val(str);
+
+	        }
+
+	        putExcludedUsersInUi(g_rgExcludedUsers);
+	        buttonSaveExcludeUsers.click(function () {
+	            doSaveExcludeUsers(true);
+
+	            function doSaveExcludeUsers(bShowSavedMessage) {
+	                var rg = inputExcludeUsers.val().split(",");
+	                var rgNew = [];
+	                rg.forEach(function (item) {
+	                    var k = item.trim().toLowerCase();
+	                    if (k)
+	                        rgNew.push(k); //skip blanks etc
+	                });
+
+	                putExcludedUsersInUi(rgNew);
+	                chrome.storage.sync.set({ 'rgExcludedUsers': JSON.stringify(rgNew) }, function () {
+	                    if (chrome.runtime.lastError !== undefined) {
+	                        alert(chrome.runtime.lastError.message);
+	                        return;
+	                    }
+	                    g_rgExcludedUsers = rgNew;
+	                    if (bShowSavedMessage)
+	                        alert("Saved.");
+	                });
+	            }
+	        });
+	    }
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -1094,12 +1160,12 @@ Accept the "Scrum for Trello" format: <i>(Estimate) card title [Spent]</i>. All 
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy and security</h2></b>');
-	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://plusfortrello.blogspot.com/2014/02/plus-for-trello-security-notes.html">More</A>.');
+	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_licences">Open-source licences</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://plusfortrello.blogspot.com/2015/02/plus-for-trello-licences.html">View all licences</A>.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/licences.html">View all licences</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 	    

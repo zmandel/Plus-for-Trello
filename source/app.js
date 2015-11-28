@@ -10,6 +10,7 @@ var remainingTotal=null;
 var g_boardName = null;
 var g_bUpdatingGlobalSums= null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
+var g_rgExcludedUsers = []; //users exluded from the S/E bar
 
 function getSpentSpecialUser() { //review zig: unused
 	//review zig: wrap g_configData futher as it can be null
@@ -230,6 +231,7 @@ function loadOptions(callback) {
     var keyAllowNegativeRemaining = "bIgnoreZeroECards";
     var keyDontWarnParallelTimers = "bDontWarnParallelTimers";
     var keyAcceptSFT = "bAcceptSFT";
+    var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
     var keyAlreadyDonated = "bUserSaysDonated";
     var keyHidePendingCards = "bHidePendingCards";
     var keyDowStart = "dowStart";
@@ -240,6 +242,7 @@ function loadOptions(callback) {
     var keybEnableTrelloSync = "bEnableTrelloSync";
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
     var keyrgKeywordsforSECardComment = "rgKWFCC";
+    var keyrgExcludedUsers = "rgExcludedUsers";
     var keyUnits = "units";
     var keyCheckedTrelloSyncEnable = "bCheckedTrelloSyncEnable";
     var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
@@ -255,8 +258,9 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits, keyrgKeywordsforSECardComment, keyrgKeywordsforSECardComment, keyAcceptSFT,
-                             keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
+    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+                             keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT,
+                             keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
@@ -270,6 +274,8 @@ function loadOptions(callback) {
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_bCheckedTrelloSyncEnable = objSync[keyCheckedTrelloSyncEnable] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
+
+                                 g_rgExcludedUsers = JSON.parse(objSync[keyrgExcludedUsers] || "[]");
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
@@ -277,6 +283,11 @@ function loadOptions(callback) {
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
+
+                                 g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
+                                 if (g_bAcceptPFTLegacy === undefined)
+                                     g_bAcceptPFTLegacy = true; //defaults to true to not break legacy users
+                                 
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;

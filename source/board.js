@@ -148,7 +148,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                     return;
                 }
 
-                var se = parseSE(title, false, g_bAcceptSFT);
+                var se = parseSE(title, false);
                 var seFromDb = mapIdCardToSE[idCardCur];
 
                 if (seFromDb) {
@@ -524,7 +524,7 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
                 elemDetect.text("");
                 $(".big-message p").text("");
                 linkReset = $("<button id='plusEmergencyReset'>click to perform a Plus emergency 'Reset'</button>");
-                $(".big-message").append(linkReset);
+                $("#content").append(linkReset);
                 linkReset = $("#plusEmergencyReset");
                 linkReset.click(function (e) {
                     linkReset.prop('disabled', true);

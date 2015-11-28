@@ -55,9 +55,11 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                     <select id="groupBy">
                         <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
                         <option value="user">User</option>
-                        <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by their board.\nColumns like 'date' use the newest row in each board.">Board</option>
-                        <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by each unique board&list combination in use.">Board-List</option>
-                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by their board&user combination.\n'user' and 'date' groups are only for 'S/E rows'.">Board-User</option>
+                        <option value="idTeamH" title="Groups resulting cards and 'S/E rows' by team.\nColumns like 'date' use the newest row in each team.">Team</option>
+                        <option value="idTeamH-user" title="Groups resulting cards and 'S/E rows' by team & user.\nColumns like 'date' use the newest row in each team.">Team-User</option>
+                        <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by board.\nColumns like 'date' use the newest row in each board.">Board</option>
+                        <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by unique board & list combination.">Board-List</option>
+                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' and 'date' groups are only for 'S/E rows'.">Board-User</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user">Card-User</option>
                         <option value="dateString">Date</option>
@@ -67,6 +69,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="keyword">Keyword</option>
                         <option value="user-keyword">User-Keyword</option>
                         <option value="idBoardH-keyword">Board-Keyword</option>
+                        <option value="idTeamH-keyword">Team-Keyword</option>
                     </select>
                 </div>
                 <div title="
@@ -90,10 +93,11 @@ Otherwise its the date of the card's last create, move or rename.
 Special orders:
                                           
 'R (non-zero)'
-is a special 'Remaining' report. Shows only rows with non-zero R.
-This order makes sense when also filtering 'since: All dates' and grouping by card/list/board/user.
-It hides the S/E columns unless grouped by Card-User.
-To prevent that, order by something else then click the R column header.
+Special 'Remaining' report. Shows only rows with non-zero R.
+This order makes sense with filter 'since: All dates' and group by card,list,board,team or user.
+To show S/E columns, group by Card-User.
+
+To sort by R without this special behavior, order by something else, query, then click the R column header.
 
 'Due date'
 only shows cards with a due date, and only works when grouping by Card or Card-User.
@@ -181,11 +185,19 @@ Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">User</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="user" name="user" /><input type="submit" class="agile_hidden" />
                 </div>
+
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Team</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="team" name="team" /><input type="submit" class="agile_hidden" />
+                </div>
+
                 <div class="agile_report_filter" title="To find NOT containing, start with !
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Board</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="board" name="board" /><input type="submit" class="agile_hidden" />
                 </div>
+
                 <div class="agile_report_filter" title="To find NOT containing, start with !
 
 Example: !doing finds history on cards with lists not containing 'doing'
@@ -225,8 +237,8 @@ Supports multiple AND/OR. See reports help top-right.">
                     </select>
                 </div>
 
-                <div style="display:none" class="agile_report_filter" title="Leave blank to show all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink"><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
-                <div style="display:none" class="agile_report_filter" title="Leave blank to show all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink"><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink"><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink"><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="Show only rows after this row number.
 Leave blank to display all.">
                     <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />

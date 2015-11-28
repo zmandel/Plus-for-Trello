@@ -337,6 +337,8 @@ function fillComboUsers(comboUsers, userSelected, idCard, nameBoard) {
 		function (response) {
 		    var map = {};
 		    function add(user) {
+		        if (g_rgExcludedUsers.indexOf(user)>=0)
+		            return;
 		        var opt = new Option(user, user);
 		        if (user == userSelected)
 		            opt.selected = true;
@@ -731,7 +733,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	                if (!g_timerStatus || !g_timerStatus.bRunning || g_timerStatus.idCard != idCardCur) {
 	                    $("#plusCardCommentEnterButton").addClass("agile_box_input_hilite");
 	                    var strWhen = getTimeDifferenceAsString(g_currentCardSEData.msTime, true);
-	                    sendDesktopNotification("This card has a draft s/e row from " + strWhen + ".\nEnter it or clear s/e/note.", 8000);
+	                    sendDesktopNotification("Card has a draft s/e row (" + strWhen + ")\n• Click 'Enter', or\n• Click the timer to unpause it, or\n• Clear the bar to forget it.", 15000);
 	                }
 	            }
 	                
@@ -1980,7 +1982,7 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	if (elem.length == 0)
 	    return; //trello html broke.
 	titleCur = elem.text();
-	var se = parseSE(titleCur, true, g_bAcceptSFT);
+	var se = parseSE(titleCur, true);
 	cleanTitle = se.titleNoSE;
 
 	var titleCardNew = null;
@@ -2086,12 +2088,7 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    var bDeleted = (xhr.status == 404 || xhr.status == 400); //400 shouldnt really happen. old plus data from spreadsheets has this in cw360 because it was added manually to ss
-                    if (xhr.status == 401 || xhr.status == 403 || bDeleted) { //no permission or deleted
-                        objRet.hasPermission = false;
-                        objRet.status = "error: permission error or deleted";
-                        if (bDeleted)
-                            objRet.bDeleted = true;
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;

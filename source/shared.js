@@ -1,5 +1,6 @@
 ﻿/// <reference path="intellisense.js" />
 
+var IDTEAM_UNKNOWN = "//"; //reserved idTeam. note that idTeam can also be null for boards without team
 var IDBOARD_UNKNOWN = "//"; //board shortLink/idLong reserved for unknown boards. saved into db. for cases where user does not have permission for a board (for example when moving a card there)
 var IDLIST_UNKNOWN = "//"; //list idLong. deals with missing idList in convertToCardFromCheckItem board action. saved to db
 var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
@@ -18,6 +19,31 @@ var g_bDontShowTimerPopups = false;
 var g_bIncreaseLogging = false;
 var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
 var g_language = "en";
+
+
+function bHandledDeletedOrNoAccess(status, objRet, statusRetCustom) {
+    var bDeleted = bStatusXhrDeleted(status);
+    if (bStatusXhrNoAccess(status) || bDeleted) {
+        if (typeof (statusRetCustom) == "undefined")
+            statusRetCustom = STATUS_OK;
+        objRet.hasPermission = false;
+        objRet.status = statusRetCustom;
+        if (bDeleted)
+            objRet.bDeleted = true;
+        return true;
+    }
+    return false;
+}
+
+function bStatusXhrNoAccess(status) {
+    if (status == 400 || status == 401 || status == 403)
+        return true;
+    return false;
+}
+
+function bStatusXhrDeleted(status) {
+    return (status == 404);
+}
 
 function addTableSorterParsers() {
     $.tablesorter.addParser({
@@ -83,6 +109,8 @@ var g_callbackOnAssert = null;
 var g_bDebuggingInfo = false;
 
 var g_bAcceptSFT = false;
+var g_bAcceptPFTLegacy = true;
+
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
 var ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
@@ -295,6 +323,7 @@ var DowMapper = {
 function loadSharedOptions(callback) {
 
     var keyAcceptSFT = "bAcceptSFT";
+    var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
     var keybEnableTrelloSync = "bEnableTrelloSync";
     var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
@@ -320,6 +349,11 @@ function loadSharedOptions(callback) {
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  g_bAcceptSFT = objSync[keyAcceptSFT] || false;
+
+                                 g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
+                                 if (g_bAcceptPFTLegacy === undefined)
+                                     g_bAcceptPFTLegacy = true; //defaults to true to not break legacy users
+
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
                                  g_optEnterSEByComment.loadFromStrings(objSync[keybEnterSEByCardComments], objSync[keyrgKeywordsforSECardComment]);
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
@@ -558,6 +592,7 @@ function bIgnoreError(str) {
 // bAddStackTrace: defaults to true.
 //
 function logPlusError(str, bAddStackTrace) {
+    str = str || ""; //handle possible undefined
     if (bIgnoreError(str))
         return;
     g_bIncreaseLogging = true;
@@ -584,7 +619,8 @@ function logPlusError(str, bAddStackTrace) {
 	        if (typeof document != "undefined" && typeof PLUS_BACKGROUND_CALLER == "undefined")
 	            console.dir(document.body);
 	        //hi to me
-	        alert(str);
+	        if (str && str.indexOf("sendMessageImpl") < 0) //sendMessageImpl detects if the extension was updated thus port object breaks
+	            alert(str);
 	    }
 	}
 
@@ -1525,7 +1561,8 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
 * se.estimate : float 
 *
 */
-function parseSE(title, bKeepHashTags, bAcceptSFT) {
+function parseSE(title, bKeepHashTags) {
+    var bAcceptSFT = g_bAcceptSFT;
     var se = { bParsed: false, bSFTFormat: false };
 
     if (bAcceptSFT)
@@ -1538,7 +1575,7 @@ function parseSE(title, bKeepHashTags, bAcceptSFT) {
         var rgResults = patt.exec(title);
 
         //review zig: when is rgResults null? one user had this but never sent the offending card title
-        if (rgResults == null || rgResults[2] === undefined || rgResults[3] === undefined) {
+        if (!g_bAcceptPFTLegacy || rgResults == null || rgResults[2] === undefined || rgResults[3] === undefined) {
             se.spent = 0;
             se.estimate = 0;
             se.titleNoSE = title.trim();
@@ -1630,12 +1667,7 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    var bDeleted = (xhr.status == 404 || xhr.status == 400); //400 shouldnt really happen. old plus data from spreadsheets has this in cw360 because it was added manually to ss
-                    if (xhr.status == 401 || xhr.status == 403 || bDeleted) { //no permission or deleted
-                        objRet.hasPermission = false;
-                        objRet.status = "error: permission error or deleted";
-                        if (bDeleted)
-                            objRet.bDeleted = true;
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
