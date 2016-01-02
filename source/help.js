@@ -645,6 +645,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            var bChanged = (JSON.stringify(g_optEnterSEByComment.rgKeywords).toLowerCase() != JSON.stringify(rgNew).toLowerCase());
 	            g_optEnterSEByComment.rgKeywords = rgNew;
 	            getKeywordsViewList(); //trigger refresh
+	            refreshCardTableStats();
 	            if (bShowSavedMessage)
 	                alert(bChanged ? "Saved. If your new keywords were used in the past, 'Reset Sync' from utilities." : "Saved.");
 	        });

@@ -150,12 +150,15 @@ function validateSEKey(evt) {
 }
 
 var g_seCardCur = null; //null means not yet initialized review zig cleanup into a class
-function getSeCurForUser(user) { //note returns null when not loaded yet
+function getSeCurForUser(user,keyword) { //note returns null when not loaded yet
     assert(user);
     if (!g_seCardCur)
         return null;
-    var map = g_seCardCur[user] || { s: 0, e: 0 };
-            return map;
+    var retZero = { s: 0, e: 0 };
+    var map = g_seCardCur[user] || retZero;
+    if (!keyword)
+        return map;
+    return (map[keyword] || retZero);
     }
 
 function updateEOnSChange(cRetry) {
@@ -164,7 +167,7 @@ function updateEOnSChange(cRetry) {
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
     var comboUsers = $("#plusCardCommentUsers");
-    //var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
+    var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
 
     setTimeout(function () {
         var valS = spinS.val() || "";
@@ -186,11 +189,11 @@ function updateEOnSChange(cRetry) {
             var userCur = getUserFromCombo(comboUsers);
             if (!userCur)
                 return; //timing related. card window could be gone thus no combo
-            var mapSeCur = getSeCurForUser(userCur);
-			//var keyword = comboKeywords.val();
-            
+            var keyword = comboKeywords.val(); //can be empty
+            var mapSeCur = getSeCurForUser(userCur, keyword);
             if (!mapSeCur)
                 return; //shouldt happen
+
             var sNew = mapSeCur.s + parseSEInput(spinS, false, true);
             var floatDiff = sNew - mapSeCur.e; //compare with original e
             if (floatDiff <= 0)
@@ -222,7 +225,7 @@ function updateNoteR() {
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
     var userElem = $("#plusCardCommentUsers");
-    //var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
+    var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
 
     if (comment.length == 0 || spinS.length == 0 || spinE.length == 0 || userElem.length==0)
         return;
@@ -230,8 +233,8 @@ function updateNoteR() {
     var userCur = getUserFromCombo(userElem);
     if (!userCur)
         return; //user not loaded yet
-	//var keyword = comboKeywords.val();
-    var mapSe = getSeCurForUser(userCur);
+	var keyword = comboKeywords.val();
+	var mapSe = getSeCurForUser(userCur, keyword);
     if (mapSe == null)
         return; // table not loaded yet. this will be called when table loads
 
@@ -621,6 +624,9 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        comboKeyword.attr("title", "Click to pick a different keyword for this new S/E row.");
 	        fillComboKeywords(comboKeyword, rgkeywords, null);
 	        row.append($('<td />').addClass("agile_tablecellItem").append($("<div>").addClass("agile_keywordsComboContainer").append(comboKeyword)));
+	        comboKeyword.change(function () {
+	            updateNoteR();
+	        });
 	    }
 	}
 	
@@ -661,7 +667,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 			if (!userCur)
 			    return; //shouldnt happen but for safety
 
-			var mapSe = getSeCurForUser(userCur);
+			var mapSe = getSeCurForUser(userCur,keyword);
 			assert(mapSe); //we checked g_seCardCur above so it should exist
 			var sTotal = parseFixedFloat(mapSe.s + s);
 			var eTotal = parseFixedFloat(mapSe.e + e);
@@ -948,13 +954,13 @@ function fillCardSEStats(tableStats,callback) {
 		return; //ignore
 
     getInitialCardBalances(idCard, function (mapEstOrig) {
-        var sql = "select CB.idCard, CB.user, CB.spent, CB.est, CB.date \
+        var sql = "select '' as keyword, CB.idCard, CB.user, CB.spent, CB.est, CB.date \
 				FROM CARDBALANCE AS CB \
 				WHERE CB.idCard=? \
 				ORDER BY CB.date DESC";
         var values = [idCard];
 
-        if (false && g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length>1) {
+        if (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length>1) {
             sql = "select H.keyword, H.idCard, H.user, SUM(H.spent) as spent, SUM(H.est) as est, MAX(H.date) as date FROM HISTORY AS H WHERE H.idCard=? \
             group by user,keyword \
             order by date DESC";
@@ -1024,24 +1030,50 @@ function fillCardSEStats(tableStats,callback) {
                             idCard: idCard
                         });
 
-                    var i = 0;
+                    var rgReportRows = [];
+                    var i;
 
-                    for (; i < response.rows.length; i++) {
+                    for (i=0; i < response.rows.length; i++) {
                         var rowData = response.rows[i];
                         rowData.estOrig = mapEstOrig[rowData.user] || 0;
-                        addDataRow(rowData);
                         var mapCur = g_seCardCur[rowData.user];
                         if (!mapCur) {
                             mapCur = {
                                 s: rowData.spent,
-                                e: rowData.est
+                                e: rowData.est,
+                                dateLast: rowData.date, //take advantage of order by date DESC in query above
+                                rowData:rowData
                             };
                             g_seCardCur[rowData.user] = mapCur;
+                            rgReportRows.push(mapCur);
                         } else {
                             mapCur.s = mapCur.s + rowData.spent;
                             mapCur.e = mapCur.e + rowData.est;
                         }
+                        var keyword=rowData.keyword;
+                        if (keyword) {
+                            mapKW = mapCur[keyword];
+                            if (!mapKW) {
+                                mapKW = {
+                                    s: rowData.spent,
+                                    e: rowData.est
+                                };
+                                mapCur[keyword] = mapKW;
+                            } else {
+                                mapKW.s = mapKW.s + rowData.spent;
+                                mapKW.e = mapKW.e + rowData.est;
+                            }
+                        }
                     }
+
+                    for (i = 0; i < rgReportRows.length; i++) {
+                        var dCur = cloneObject(rgReportRows[i].rowData);
+                        //review: hacking rowData as an easy way to reuse previous code. Needs rework inside addDataRow
+                        dCur.spent = rgReportRows[i].s;
+                        dCur.est = rgReportRows[i].e;
+                        addDataRow(dCur);
+                    }
+
                     spentBadge.text(parseFixedFloat(sTotalCard));
                     estimateBadge.text(parseFixedFloat(eTotalCard));
                     remainBadge.text(parseFixedFloat(eTotalCard-sTotalCard));
@@ -1070,7 +1102,7 @@ function fillCardSEStats(tableStats,callback) {
     });
 }
 
-function showSETotalEdit(idCardCur, sVal, eVal, user) {
+function showSETotalEdit(idCardCur, user) {
     var divDialog = $(".agile_dialog_editSETotal");
     if (divDialog.length==0) {
         divDialog = $('\
@@ -1136,7 +1168,7 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
     }
     else {
         var idCard = getIdCardFromUrl(document.URL);
-        elemKwLink.attr("href", chrome.extension.getURL("report.html?idCard=" + encodeURIComponent(idCard)+"&groupBy=keyword&orderBy=date&user=" + user + "&deleted=0"));
+        elemKwLink.attr("href", chrome.extension.getURL("report.html?idCard=" + encodeURIComponent(idCard) + "&orderBy=keyword&user=" + user+"&sortList=%5B%5B%22Keyword%22%2C0%5D%2C%5B%22Date%22%2C1%5D%5D"));
     }
     
     var elemTitle = divDialog.find(".agile_mtse_title");
@@ -1148,22 +1180,35 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
     }
 
     var elemS = divDialog.find(".agile_mtse_s");
-    setSEVal(elemS,sVal);
-
-    var elemE=divDialog.find(".agile_mtse_e");
-    setSEVal(elemE,eVal);
-
-    var sOrig = sVal;
-    var eOrig = eVal;
-    var sOrigNum = parseFixedFloat(sOrig);
-    var eOrigNum = parseFixedFloat(eOrig);
+    var elemE = divDialog.find(".agile_mtse_e");
     var elemMessage = divDialog.find(".agile_mtseMessage");
     var elemNote = divDialog.find(".agile_mtse_note");
     var strMessageInitial = "Once you modify totals Plus will enter a new S/E row with the needed difference.";
     var elemR = divDialog.find(".agile_mtse_r");
-    elemMessage.text(strMessageInitial);
-    elemNote.val("");
-    elemR.val(parseFixedFloat(eOrigNum - sOrigNum));
+
+    var sOrig = null;
+    var eOrig = null;
+    var sOrigNum = null;
+    var eOrigNum = null;
+
+    initValues();
+
+    function initValues() {
+        var seDataDisplay = getSeCurForUser(user, bHideComboKeyword ? null : comboKeyword.val());
+        var sVal = seDataDisplay.s;
+        var eVal = seDataDisplay.e;
+        setSEVal(elemS,sVal);
+        setSEVal(elemE,eVal);
+
+        sOrig = sVal;
+        eOrig = eVal;
+        sOrigNum = parseFixedFloat(sOrig);
+        eOrigNum = parseFixedFloat(eOrig);
+
+        elemMessage.text(strMessageInitial);
+        elemNote.val("");
+        elemR.val(parseFixedFloat(eOrigNum - sOrigNum));
+    }
 
     function updateEFromR() {
         var sNew = elemS.val().trim();
@@ -1209,6 +1254,10 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
             kw = comboKeyword.val();
         return { s: sDiff, e: eDiff, keyword:kw };
     }
+
+    comboKeyword.off("change.plusForTrello").on("change.plusForTrello", function (e) {
+        initValues();
+    });
 
     divDialog.find("#agile_modify_SETotal").off("click.plusForTrello").on("click.plusForTrello", function (e) {
 
@@ -1301,7 +1350,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	                alert("This is just a sample row (shown only for the tour) and cannot be modified.");
 	                return;
 	            }
-	            showSETotalEdit(idCardCur, sVal, eVal, rowData.user);
+	            showSETotalEdit(idCardCur, rowData.user);
 	        });
 	    }
 	}
@@ -1370,7 +1419,6 @@ function addCardCommentHelp() {
 
 	//create S/E bar if not there yet
 	if ($("." + g_inputSEClass).length == 0) {
-		$(".edits-warning").css("background", "yellow").attr('title', 'Plus: Make sure to enter this unsaved edit if it was made by Plus.');
 		var board = getCurrentBoard();
 		if (board == null)
 		    return; //wait til later
