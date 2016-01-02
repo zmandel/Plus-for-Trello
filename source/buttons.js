@@ -177,7 +177,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 				});
 				icon.attr("src", chrome.extension.getURL(pathImgRecent));
 				icon.attr("title", titleTipBase);
-				window.open('https://plus.google.com/+PlusfortrelloNews/posts', '_blank');
+				window.open('https://plus.google.com/collection/khxOc', '_blank');
 			});
 		} else {
 			spanIcon = icon.parent();

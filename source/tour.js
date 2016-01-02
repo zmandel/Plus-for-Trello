@@ -324,6 +324,15 @@ function handleCardTour() {
         },
 
         {
+            id: 40,
+            selector: ".agile-card-seByUserModify",
+            text: "<br>Read:<br><br><a style='color:white;' href='http://www.plusfortrello.com/p/s-e-entry-methods.html' target='_blank'>Which S/E entry method to use?</a><br><br>",
+            angle: 180,
+            distance: 0,
+            size: 200
+        },
+
+        {
             id: 20,
             selector: "#plusCardCommentUsers",
             text: "To enter an <b>S/E row</b><br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one from another list.",
@@ -498,6 +507,7 @@ function handleCardTour() {
         size: 150,
         bEndTour:true
     }
+    // id: 40 taken already above
     ];
 
     startTourFlow(flow, "card", true);
@@ -527,6 +537,14 @@ function handleBoardTour() {
             angle: 180 + 45,
             distance: 0,
             size: 200
+        },
+        {
+            id: 7,
+            selector: "#agile_globalkeywordlist",
+            text: "<br><a style='color:white;' href='http://www.plusfortrello.com/p/board-dimensions.html' target='_blank'>Board Dimensions</a><br><br>",
+            angle: 180 + 45,
+            distance: 0,
+            size: 150
         },
          {
              id: 3,
@@ -560,6 +578,7 @@ function handleBoardTour() {
                distance: 0,
                size: 200
            }
+           //id:7 taken
 
         ];
         updateCards(boardCur, null, true); //show hiddden fields

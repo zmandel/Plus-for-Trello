@@ -309,7 +309,19 @@ function listAllBoards() {
 	            var elemCur = mapBoards[row.idBoard];
 	            if (!elemCur)
 	                continue;
-	            elemCur.se.text(parseFixedFloat(row.spent) + " / " + parseFixedFloat(row.est));
+	            var spentDisplay;
+	            var estDisplay;
+
+	            if (spentDisplay < 10)
+	                spentDisplay = row.spent;
+	            else
+	                spentDisplay = Math.round(row.spent);
+
+	            if (estDisplay < 10)
+	                estDisplay = row.est;
+	            else
+	                estDisplay = Math.round(row.est);
+	            elemCur.se.text(parseFixedFloat(spentDisplay) + " / " + parseFixedFloat(estDisplay));
 	            if (row.spent >= 0 && row.est > 0)
 	                elemCur.div.attr("title", elemCur.div.attr("title") + "\n" + Math.round(row.spent * 100 / row.est) + "% complete");
 	        }

@@ -149,6 +149,12 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 }
 
                 var se = parseSE(title, false);
+              
+                if (g_dimension == VAL_COMBOVIEWKW_KWONLY) {
+                    se.estimate = 0;
+                    se.spent = 0;
+                }
+
                 var seFromDb = mapIdCardToSE[idCardCur];
 
                 if (seFromDb) {
@@ -425,7 +431,10 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
     setupBurnDown(bShowHeaderStuff, bHasHiddenCard || bTourRunning);
     var bSetTimeout = false;
     if (g_globalTotalSpent != null && (g_globalTotalSpent != globalTotalSpent || g_globalTotalEstimation != globalTotalEstimation)) {
-        bSetTimeout = true;
+        if (g_bSkipUpdateSsLinks)
+            g_bSkipUpdateSsLinks = false;
+        else
+            bSetTimeout = true;
     }
     g_globalTotalSpent = globalTotalSpent;
     g_globalTotalEstimation = globalTotalEstimation;
@@ -454,7 +463,6 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 }
 
 function updateWorker(bShowBoardTotals) {
-    updateNewTrelloFlag();
     HelpButton.display();
     InfoBoxManager.update();
 
@@ -576,7 +584,22 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
             if (true) {
                 var sql = "select CB.idCard, SUM(CB.spent) as sumSpent, SUM(CB.est) as sumEst FROM CARDBALANCE AS CB join CARDS AS C ON CB.idCard=C.idCard WHERE C.idBoard=? \
                             group by CB.idCard";
-                getSQLReport(sql, [idBoard],
+                params = [idBoard];
+                var dimension = g_dimension;
+                if (dimension != VAL_COMBOVIEWKW_ALL && dimension != VAL_COMBOVIEWKW_KWONLY) {
+                    if (dimension == VAL_COMBOVIEWKW_CARDTITLES) {
+                        callupdateCardsWorker();
+                        return;
+                    }
+
+                    assert(dimension.length > 0); //assume the string is a keyword to filter
+                    //a little more expensive report based on HISTORY
+					sql = "select H.idCard, SUM(H.spent) as sumSpent, SUM(H.est) as sumEst FROM HISTORY AS H WHERE H.idBoard=? AND H.keyword=? \
+                            group by H.idCard";
+					params = [idBoard, dimension];
+                }
+
+                getSQLReport(sql, params,
                     function (response) {
                         response.rows.forEach(function (row) {
                             mapIdCardToSE[row.idCard] = { s: row.sumSpent, e: row.sumEst };
@@ -766,13 +789,15 @@ var InfoBoxManager = {
         if (remainingTotal.parent()[0] === boardHeader[0]) //optimize
             return;
 
+        //migrate elements to new parent
+
         remainingTotal.hide();
         estimationTotal.hide();
         spentTotal.hide();
+        g_bheader.hide();
         boardHeader.append(remainingTotal);
         boardHeader.append(estimationTotal);
         boardHeader.append(spentTotal);
-
 
         var burndownLink = $(".agile_plus_burndown_link");
         if (burndownLink.length != 0)
@@ -781,6 +806,10 @@ var InfoBoxManager = {
         var reportLink = $(".agile_plus_report_link");
         if (reportLink.length != 0)
             boardHeader.append(reportLink);
+        
+        var viewKW = g_bheader.comboSEView;
+        if (viewKW && viewKW.length != 0)
+            boardHeader.append(viewKW);
 
         var spanFilter = $(".agile_plus_filter_span");
         if (spanFilter.length != 0)

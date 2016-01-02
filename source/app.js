@@ -4,9 +4,20 @@ var UPDATE_STEP = 1000;
 var ESTIMATION = 'estimation';
 var SPENT = 'spent';
 var REMAINING = 'remaining';
+
+var g_bheader = {
+    //review: move spentTotal etc here
+    comboSEView: null,
+    hide: function () {
+        if (this.comboSEView)
+            this.comboSEView.hide();
+    }
+};
+
 var spentTotal = null;
 var estimationTotal = null;
-var remainingTotal=null;
+var remainingTotal = null;
+
 var g_boardName = null;
 var g_bUpdatingGlobalSums= null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
@@ -258,7 +269,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
@@ -266,6 +277,7 @@ function loadOptions(callback) {
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
+                                 g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
                                  g_language = objSync[SYNCPROP_language] || "en";
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false);
@@ -329,12 +341,6 @@ function markForUpdate() {
 
 
 var g_bForceUpdate = false;
-
-
-function updateNewTrelloFlag() {
-	//review zig: getCurrentBoard also updates. unify. not sure if this always gets called before getCurrentBoard. since old will go away is not worth it.
-	g_bNewTrello = true;
-}
 
 function update(bShowBoardTotals) {
     updateWorker(bShowBoardTotals);

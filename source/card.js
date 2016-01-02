@@ -155,8 +155,8 @@ function getSeCurForUser(user) { //note returns null when not loaded yet
     if (!g_seCardCur)
         return null;
     var map = g_seCardCur[user] || { s: 0, e: 0 };
-    return map;
-}
+            return map;
+    }
 
 function updateEOnSChange(cRetry) {
     cRetry = cRetry || 0;
@@ -164,6 +164,7 @@ function updateEOnSChange(cRetry) {
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
     var comboUsers = $("#plusCardCommentUsers");
+    //var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
 
     setTimeout(function () {
         var valS = spinS.val() || "";
@@ -186,6 +187,8 @@ function updateEOnSChange(cRetry) {
             if (!userCur)
                 return; //timing related. card window could be gone thus no combo
             var mapSeCur = getSeCurForUser(userCur);
+			//var keyword = comboKeywords.val();
+            
             if (!mapSeCur)
                 return; //shouldt happen
             var sNew = mapSeCur.s + parseSEInput(spinS, false, true);
@@ -219,12 +222,15 @@ function updateNoteR() {
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
     var userElem = $("#plusCardCommentUsers");
+    //var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
+
     if (comment.length == 0 || spinS.length == 0 || spinE.length == 0 || userElem.length==0)
         return;
 
     var userCur = getUserFromCombo(userElem);
     if (!userCur)
         return; //user not loaded yet
+	//var keyword = comboKeywords.val();
     var mapSe = getSeCurForUser(userCur);
     if (mapSe == null)
         return; // table not loaded yet. this will be called when table loads
@@ -313,12 +319,35 @@ function isRecurringCard() {
     return bRecurring;
 }
 
-function fillComboKeywords(comboKeywords,rg, kwSelected) {
-    function add(str, kwSelected) {
-        var optAdd = new Option(str, str);
-        comboKeywords.append($(optAdd));
-        if (str == kwSelected)
-            optAdd.selected = true;
+function fillComboKeywords(comboKeywords, rg, kwSelected, classItem) {
+
+    function add(elem, kwSelected) {
+        var str;
+        var val;
+        var title = "";
+        var disabled=false;
+        if (typeof (elem) == "string") {
+            str = elem;
+            val = elem;
+        }
+        else {
+            str=elem.str;
+            val = elem.val;
+            title = elem.title;
+            disabled = elem.disabled || false;
+        }
+
+        var item = new Option(str, val);
+        if (val == kwSelected)
+            item.selected = true;
+        var elemOption = $(item);
+        if (classItem)
+            elemOption.addClass(classItem);
+        if (title)
+            elemOption.attr("title", title);
+        if (disabled)
+            item.disabled = true;
+        comboKeywords.append(elemOption);
     }
 
     comboKeywords.empty();
@@ -460,7 +489,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        return;
 	    var userNew="";
 	    function promptNewUser() {
-	        userNew = prompt("Enter the Trello username.\nThat member will see s/e only if is a board member.", userNew);
+	        userNew = prompt("Enter the Trello username.\nThat member will see s/e only if is a board member.\n\nTo hide users from the s/e bar, see Plus Preferences.", userNew);
 	        if (userNew)
 	            userNew = userNew.trim().toLowerCase();
 	        if (userNew && userNew.indexOf("@") == 0)
@@ -631,7 +660,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 			if (!userCur)
 			    return; //shouldnt happen but for safety
-			
+
 			var mapSe = getSeCurForUser(userCur);
 			assert(mapSe); //we checked g_seCardCur above so it should exist
 			var sTotal = parseFixedFloat(mapSe.s + s);
@@ -924,6 +953,13 @@ function fillCardSEStats(tableStats,callback) {
 				WHERE CB.idCard=? \
 				ORDER BY CB.date DESC";
         var values = [idCard];
+
+        if (false && g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length>1) {
+            sql = "select H.keyword, H.idCard, H.user, SUM(H.spent) as spent, SUM(H.est) as est, MAX(H.date) as date FROM HISTORY AS H WHERE H.idCard=? \
+            group by user,keyword \
+            order by date DESC";
+        }
+
         getSQLReport(sql, values,
             function (response) {
                 tableStats.empty();
@@ -1059,7 +1095,8 @@ function showSETotalEdit(idCardCur, sVal, eVal, user) {
 <button id="agile_modify_SETotal">Modify</button> \
 <button id="agile_cancel_SETotal">Cancel</button> \
 <br><br><p class="agile_mtseMessage agile_lightMessage"></p> \
-<span class="agile_lightMessage">To modify the 1st estimate, see help.</span> <A style="float:right" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
+<br>\
+<span class="agile_lightMessage">Use "Modify" or use the "S/E bar" ?<br>Modify a 1st estimate ? See help <b>→</b></span> <A style="float:right" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
 </dialog>');
         $("body").append(divDialog);
         divDialog = $(".agile_dialog_editSETotal");
@@ -2002,7 +2039,7 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	            titleCardNew = "(" + spent + "/" + estimation + ") " + cleanTitle;
 	    } else {
 	        commentEnter = comment;
-	        if (cleanTitle != titleCur) {
+	        if (false && cleanTitle != titleCur) { //disable this until a better way is implemented
 	            titleCardNew = cleanTitle;
 	            commentEnter = commentEnter + " [plus removed " + parseFixedFloat(se.spent) + "/" + parseFixedFloat(se.estimate) + " from title]";
 	        }
@@ -2089,6 +2126,7 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
                     }
                 } else {
                     if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted
+                        null; //avoid lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;

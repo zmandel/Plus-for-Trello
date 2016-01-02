@@ -269,9 +269,9 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
         var bFirstSync = (boardsTrello.length > 0 && ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true"));
         if (bFirstSync) {
             animateFlip();
-            doAnim(1000);
-            doAnim(2000);
-            doAnim(3000);
+            for (var iAnim = 1; iAnim < 10; iAnim++)
+                doAnim(1000 * iAnim);
+            
             function doAnim(ms) {
                 setTimeout(function () {
                     if (g_syncStatus.bSyncing)
@@ -328,7 +328,7 @@ function populateTeams(teamsDb, boardsTrello) {
         var teamNew = {
             idTeam: team.id,
             name: team.displayName,
-            dateSzLastTrello: board.dateLastActivity,
+            dateSzLastTrello: board.dateLastActivity || earliest_trello_date(), //board.dateLastActivity is null sometimes
             nameShort: team.name || ""
         };
 
@@ -1519,7 +1519,8 @@ function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
                     }
                 } else {
                     //boards cant be deleted, but leave it here for future possibility. REVIEW zig: board delete case isnt handled in sync
-                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board, or board deleted already
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or board deleted already
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
@@ -1576,7 +1577,8 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the list 
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the list
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
@@ -1636,7 +1638,8 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board, or card deleted already
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or card deleted already
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -1725,7 +1728,8 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the card
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the card
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -1758,7 +1762,7 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
 
 
 function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, strDateAfter, actionsSkip, callback, waitRetry) {
-    //https://trello.com/docs/api/board/index.html#get-1-boards-board-id-actions
+    //https://developers.trello.com/advanced-reference/board#get-1-boards-board-id-actions
     //the API gets actions from newest to oldest always
     //closed==archived
     //"copyBoard" sucede cuando se copia un board, no empezara con "createBoard".
@@ -1827,7 +1831,8 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status,objRet)) { //no permission to the board
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota. 
                         var waitNew = (waitRetry || 500) * 2;
@@ -2195,7 +2200,7 @@ function getBoardsLastInfo(tokenTrello, callback) {
 
 
 function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
-    //https://trello.com/docs/api/member/index.html
+    //https://developers.trello.com/advanced-reference/member#get-1-members-idmember-or-username-boards
     var url = "https://trello.com/1/members/me/boards?organization=true&organization_fields=displayName,name&fields=idOrganization,name,closed,shortLink,dateLastActivity&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date&action_memberCreator=false";
 	var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future

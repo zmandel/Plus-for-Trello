@@ -200,7 +200,7 @@ var Help = {
 	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular!.">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
-			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/+PlusfortrelloNews/posts" rel="publisher" target="_blank"> \
+			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/collection/khxOc" rel="publisher" target="_blank"> \
 <img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://twitter.com/PlusForTrello" rel="publisher" target="_blank"> \
 <img src="https://abs.twimg.com/favicons/favicon.ico" alt="Follow on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
@@ -436,6 +436,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp;&nbsp;&nbsp;For example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
 	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
 	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
+	    helpWin.para('<b>More:</b> <A target="_blank" href="http://www.plusfortrello.com/p/s-e-entry-methods.html">Which S/E entry method should you use?</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -479,7 +480,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Enter S/E from mobile or other browsers as a card comment. Users can view all S/E of their joined boards.',divCur);
 	    if (g_strServiceUrl)
 	        helpWin.para('Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.', divCur);
-	    var txtSEByCardComments ='Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate multiple keywords with comma.';
+	    var txtSEByCardComments = 'Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> with comma.';
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
 	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
@@ -643,6 +644,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            }
 	            var bChanged = (JSON.stringify(g_optEnterSEByComment.rgKeywords).toLowerCase() != JSON.stringify(rgNew).toLowerCase());
 	            g_optEnterSEByComment.rgKeywords = rgNew;
+	            getKeywordsViewList(); //trigger refresh
 	            if (bShowSavedMessage)
 	                alert(bChanged ? "Saved. If your new keywords were used in the past, 'Reset Sync' from utilities." : "Saved.");
 	        });
@@ -789,6 +791,13 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_help_dimensions">Dimensions</h2></b>');
+	    helpWin.para('View board S/E by different dimensions.');
+	    helpWin.para('Useful when using <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> or "card title S/E" (Scrum for Trello and such).');
+	    helpWin.para('<img width="300" src="' + chrome.extension.getURL("images/dimensions.png") + '"/>');
+	    helpWin.para('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More "dimensions" help</A>.');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
 	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
 	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
@@ -807,8 +816,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_scrumNote">Only for "Scrum for Trello" extension users</h2></b>');
-	    helpWin.para('Plus can read S/E from the card title. When it does, the S/E boxes in the card back are gray (instead of white).');
+	    helpWin.para('<b><h2 id="agile_help_scrumNote">For "Scrum for Trello" extension users</h2></b>');
+	    helpWin.para('Plus can read S/E from card titles. If so, the S/E boxes in the card back are gray instead of white.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -842,7 +851,6 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    //option to change week start day
 	    if (true) {
-	        //<select id="spentRecentWeeks" />')
 	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>');
 	        var comboDowStart = $('<select style="width:auto">');
 	        pComboDow.append(comboDowStart);
@@ -1049,6 +1057,7 @@ Accept the "(S/E) title" format in card titles.</input></span><br>').children('i
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bAcceptPFTLegacy = bValue;
 	                checkAcceptPFTLegacy[0].checked = g_bAcceptPFTLegacy;
+	                getKeywordsViewList(); //refresh
 	            });
 	        });
 	    }
@@ -1068,6 +1077,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bAcceptSFT = bValue;
 	                checkAcceptScrumForTrello[0].checked = g_bAcceptSFT;
+	                getKeywordsViewList(); //refresh
 	            });
 	        });
 	    }
@@ -1123,14 +1133,14 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
 	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
-	    helpWin.para('If you only mofified a few card comments, read about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">card "^resetsync" command</A>.');
+	    helpWin.para('If you only mofified a few card comments, read about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand" target="_blank">card "^resetsync" command</A>.');
 	    var buttonReset = paraReset.children('input:button:first');
 	    buttonReset.click(function () {
 	        ResetPlus();
 	    });
 
 	    if (g_optEnterSEByComment.IsEnabled() || IsStealthMode()) {
-	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello: <input type="button" value="Rename cards with S/E history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/> These are useful if you switch sync methods.');
+	        var paraRenameCards = helpWin.para('&bull; Remove S/E from card titles in Trello. Useful if you switch from the Legacy sync method:<br><input type="button" value="Rename cards with S/E history"/>&nbsp;&nbsp;&nbsp;<input type="button" value="Rename all cards"/>');
 	        var buttonRenameCardsWithSE = paraRenameCards.children('input:button:first');
 	        var buttonRenameCardsAll = paraRenameCards.children('input:button:last');
 	        function handleButtonRename(bOnlyCardsWithHistory) {

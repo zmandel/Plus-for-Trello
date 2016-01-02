@@ -2005,13 +2005,12 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	}
 
 	var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
-	var bGroupedByDate = (groupBy.toLowerCase().indexOf("datestring") >= 0);
+	var bGroupedByDate = (groupBy.indexOf("date") >= 0);
 	var bShowKeyword = g_bShowKeywordFilter;
 	if (bShowKeyword)
 	    header.push({ name: "Keyword" + strAppendHeaders });
 
 	var bRPopup = (bOrderR && g_bPopupMode);
-	var bGroupedByDate = (groupBy.indexOf("date") >= 0);
 	var bShowDate = (!bRPopup || bGroupedByDate);
 	if (bShowDate)
 	    header.push({ name: "Date" + (bGroupedByDate ? "" : strAppendHeaders) });

@@ -12,7 +12,22 @@ var DELAY_FIRST_SYNC = 2000;
 var g_cRetryingSync = 0;
 var g_cRowsWeekByUser = 0; //gets set after making the chart. Used by the tour
 var g_bShowHomePlusSections = true;
+var g_bSkipUpdateSsLinks = false; //used by dimensions dropdown to hack arround legacy way to start sync
 
+//board dimensions combo
+//sync see SYNCPROP_BOARD_DIMENSION
+var VAL_COMBOVIEWKW_PREFIX = "~#^*()-"; //use weird value as cheap way to avoid collision with keywords
+var VAL_COMBOVIEWKW_ALL = VAL_COMBOVIEWKW_PREFIX + "all";
+var VAL_COMBOVIEWKW_KWONLY = VAL_COMBOVIEWKW_PREFIX + "kwonly";
+var VAL_COMBOVIEWKW_CARDTITLES = VAL_COMBOVIEWKW_PREFIX + "cardtitles";
+var VAL_COMBOVIEWKW_HELP = VAL_COMBOVIEWKW_PREFIX + "help";
+var VAL_COMBOVIEWKW_REPORTKW = VAL_COMBOVIEWKW_PREFIX + "reportkw";
+var VAL_COMBOVIEWKW_HEADER = VAL_COMBOVIEWKW_PREFIX + "header";
+var VAL_COMBOVIEWKW_SEP = VAL_COMBOVIEWKW_PREFIX + "sep";
+
+//for sync performance, we keep the preference as a single string
+//it can be one of the special values above, or a keyword string
+var g_dimension = VAL_COMBOVIEWKW_ALL;
 //review zig: this was the easy way to prevent charts from rendering until their container is attached to the dom.
 //  in the home page case, we dont attach the plus 2x2 table until all its cells have loaded, so that its full height
 //  is known, thus preventing page jumps as its height grows until all 4 cells are loaded.
@@ -256,8 +271,9 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 		urlUserElem = $('<span id="urlUser"></span>').css("margin-left", "0px").css("margin-right", "2px");
 		urlUserElem.addClass('agile_urlUser');
 		urlUserElem.appendTo(b);
-		if (!isPlusDisplayDisabled())
-		    getRecentWeeksList(urlUserElem).appendTo(b);
+		if (!isPlusDisplayDisabled()) {
+		    getRecentWeeksList().appendTo(b);
+		}
 	}
 
 	if (!isPlusDisplayDisabled())
@@ -937,8 +953,8 @@ function getSQLReport(sql, values, callback) {
 }
 
 
-function getRecentWeeksList(elemUser) {
-	var combo = $('<select id="spentRecentWeeks" />').addClass("agile_weeks_combo");//.css('margin-left','5px');
+function getRecentWeeksList() {
+    var combo = $('<select id="spentRecentWeeks" />').addClass("agile_weeks_combo agile_boldfont");
 	combo.css('cursor', 'pointer');
 	combo.attr("title","click to change the week being viewed.");
 	var date = new Date();
@@ -976,9 +992,89 @@ function getRecentWeeksList(elemUser) {
 	return combo;
 }
 
+function getKeywordsViewList() {
+    var combo = $("#agile_globalkeywordlist");
+
+    if (combo.length == 0 && g_bheader.comboSEView)
+        combo = g_bheader.comboSEView;
+
+    if (combo.length == 0) {
+        combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo"); //review: rename agile_weeks_combo to generic
+        combo.css('cursor', 'pointer');
+        combo.attr("title", "click to change the S/E view");
+    }
+    combo.empty();
+    var rgItems = [];
+    var bMultipleKeywords = false;
+    var bUseKeywords = g_optEnterSEByComment.IsEnabled();
+    if (bUseKeywords) {
+        rgItems = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
+        bMultipleKeywords = (rgItems.length>1);
+    }
+
+    if (g_bAcceptSFT || g_bAcceptPFTLegacy) {
+        if (bUseKeywords)
+            rgItems.push({ str: "Keywords only", val: VAL_COMBOVIEWKW_KWONLY, title: "S/E only from keywords (exclude card title s/e)" });
+        rgItems.push({ str: "Title S/E", val: VAL_COMBOVIEWKW_CARDTITLES, title: "S/E only from card titles" });
+    }
+
+    if (rgItems.length >= 1) {
+        rgItems.unshift({ str: "➖ Board Dimensions ➖", val: VAL_COMBOVIEWKW_HEADER, disabled: true });
+        rgItems.push({ str: "All S/E", val: VAL_COMBOVIEWKW_ALL });
+        rgItems.push({ str: "───────────────", val: VAL_COMBOVIEWKW_SEP, disabled: true });
+        if (bMultipleKeywords)
+            rgItems.push({ str: "↗ Report by keyword", val: VAL_COMBOVIEWKW_REPORTKW });
+        rgItems.push({ str: "↗ Dimensions help", val: VAL_COMBOVIEWKW_HELP });
+        fillComboKeywords(combo, rgItems, g_dimension, "agile_weeks_combo_element");
+        if (combo.val() != g_dimension) { //keyword no longer in use, default to all
+            combo.val(VAL_COMBOVIEWKW_ALL);
+            doComboChange();
+        }
+    } else {
+        combo.hide();
+    }
+
+    combo.change(doComboChange);
+
+    function doComboChange() {
+        combo.attr("title", "");
+        var val = combo.val();
+        if (val == VAL_COMBOVIEWKW_HELP || val == VAL_COMBOVIEWKW_REPORTKW) {
+            combo.val(g_dimension);
+            if (val == VAL_COMBOVIEWKW_REPORTKW) {
+                var idBoardCur = getIdBoardFromUrl(document.URL);
+                if (idBoardCur) {
+                    var url = chrome.extension.getURL("report.html") + "?groupBy=keyword&orderBy=date&sortList=%5B%5B%22Keyword%22%2C0%5D%5D&idBoard=" + encodeURIComponent(idBoardCur);
+                    window.open(url, '_blank');
+                }
+            }
+            else if (val == VAL_COMBOVIEWKW_HELP) {
+                window.open("http://www.plusfortrello.com/p/board-dimensions.html", '_blank');
+            }
+            return true;
+        } else {
+            var pair = {};
+            pair[SYNCPROP_BOARD_DIMENSION] = val;
+            chrome.storage.sync.set(pair, function () {
+                if (chrome.runtime.lastError) {
+                    alert(chrome.runtime.lastError.message);
+                    combo.val(g_dimension);
+                    return;
+                }
+                g_dimension = val;
+                g_bForceUpdate = true;
+                g_bSkipUpdateSsLinks = true; //due to legacy hehaviour, changing S/E totals in board would cause a sync
+                update(true);
+            });
+        }
+        return true;
+    }
+
+    return combo;
+}
 
 function getAllUsersList() {
-	var combo = $('<select id="spentAllUsers" />').addClass("agile_users_combo");//.css('margin-left','5px');
+	var combo = $('<select id="spentAllUsers" />').addClass("agile_users_combo");
 	chrome.storage.local.get("allUsersSpent", function (obj) {
 		var users = obj["allUsersSpent"];
 		combo.css('cursor', 'pointer');
@@ -1143,6 +1239,11 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	} else {
 		reportLink.show();
 	    burndownLink.hide();
+	}
+
+	if (!g_bheader.comboSEView) {
+	    g_bheader.comboSEView = getKeywordsViewList();
+	    g_bheader.comboSEView.insertAfter(reportLink);
 	}
 
 	if (bShowSumFilter)

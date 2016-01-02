@@ -132,6 +132,7 @@ var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" 
 var SYNCPROP_bShowedFeatureSEButton = "bShowedFeatureSEButton";
 var SYNCPROP_bStealthSEMode = "bStealthSEMode";
 var SYNCPROP_language = "language";
+var SYNCPROP_BOARD_DIMENSION = "board_dimension";
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
@@ -1668,6 +1669,7 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
                     }
                 } else {
                     if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted
+                        null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;

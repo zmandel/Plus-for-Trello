@@ -378,12 +378,28 @@ function loadTimeline(series) {
     var crosshair = createCrosshair(plot);
     g_tl.crosshair = crosshair;
     var pointer = new Plottable.Interactions.Click();
+    var keyboard = new Plottable.Interactions.Key();
+    var entityLast = null;
+
+    function selectPoint(direction) {
+        //entityLast
+    }
+
+    //left arrow
+    keyboard.onKeyPress(37, function (keyCode) {
+        selectPoint(-1);
+    });
+    //right arrow
+    keyboard.onKeyPress(38, function (keyCode) {
+        selectPoint(1);
+    });
     pointer.onClick(function (p) {
         var nearestEntity = plot.entityNearest(p);
         if (!nearestEntity || nearestEntity.datum == null) {
             return;
         }
         crosshair.drawAt(nearestEntity.position);
+        entityLast = nearestEntity;
         var datum = nearestEntity.datum;
         if (!datum)
             return; //for future
@@ -393,6 +409,7 @@ function loadTimeline(series) {
     });
     
     pointer.attachTo(plot);
+    keyboard.attachTo(plot);
 }
 
 

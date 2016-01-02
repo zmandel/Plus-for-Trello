@@ -17,6 +17,13 @@
  min-width:620px !important;
 }
 
+#agile_globalkeywordlist {
+   float:right !important;
+   margin-right:5px !important;
+   margin-top:6px !important;
+   width:8em !important;
+}
+
 .agile_unselectable {
     -webkit-touch-callout: none;
     -webkit-user-select: none;  
@@ -977,13 +984,13 @@ table#tableMarkers td {
     margin:5px;
     height:30px;
     border: none;
-    background-color: #E6EFF4;
+    background-color: #E1EFF7;
     border-radius: 3px;
     cursor: pointer;
     padding:8px;
     padding-top:5px;
     vertical-align:middle;
-    color:#393939;
+    color:#444444;
 }
 
 .agile_board_dashboardItem_Card {
@@ -999,11 +1006,11 @@ table#tableMarkers td {
 }
 
 .agile_board_dashboardItem:hover {
-    background-color: #CFE0EA;
+    background-color: #C7E1F1;
 }
 
 .agile_board_dashboardItem:focus {
-    background-color: #CFE0EA;
+    background-color: #C7E1F1;
 }
 
 .agile_board_dashboardItem img {
@@ -1149,7 +1156,8 @@ table#tableMarkers td {
 }
 
 .agile_weeks_combo_element {
-    background-color: #5188A8 !important;
+    color:black !important;
+    direction: ltr !important;
 }
 
 .agile_users_combo_element_disabled {
@@ -1218,24 +1226,28 @@ table#tableMarkers td {
     -webkit-transform: rotate(-180deg)  !important;
 }
 
+.agile_boldfont {
+        font-weight:bold !important;
+}
+
 .agile_weeks_combo {
+    direction: rtl !important;
 	text-decoration: none !important;
 	padding: 0px !important;
 	color: #f3f3f3 !important;
 	vertical-align: top !important;
 	font-size: 12px !important;
-    font-weight:bold !important;
-	text-align: right !important;
 	margin-top: 4px !important;
 	margin-bottom: 0px !important;
 	margin-right: 0px !important;
     padding-right: 0px !important;
 	background: rgba(255,255,255,0) !important;
-	width: 6em;
+    margin-top:4px !important;
+    width:auto;
 	height: 20px;
 	display: inline !important;
 	-webkit-appearance: none;
-	border-width: 1px !important;
+    border-width: 1px !important;
     border-radius: 3px !important;
     border-color: rgba(255,255,255,0) !important;
 }
