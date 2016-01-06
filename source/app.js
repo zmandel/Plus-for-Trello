@@ -219,7 +219,7 @@ $(function () {
         background-color: rgba(0, 0, 0, 0.8); \
         }</pre>';
             $("body").append($(preDialog));
-
+            //$(document).tooltip(); //review this breaks when closing a window with ESC, tooltip stays up and its hard to clean up
             //http://tablesorter.com/docs/example-parsers.html
             //http://stackoverflow.com/a/2129479/2213940
             addTableSorterParsers();

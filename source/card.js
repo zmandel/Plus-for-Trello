@@ -1374,9 +1374,70 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 		    r.addClass("agile_remaining_background");
 		}
 	}
-	var dateLast = (rowData.date? new Date(rowData.date*1000) : new Date());
-	if (!bHeader)
-	    u.attr("title", "last S/E " + dateLast.toLocaleDateString() + "\nClick to drill-down" + (bSample?"\nThis is just a sample row for the tour. It wont show in reports.":""));
+	var dateLast = (rowData.date ? new Date(rowData.date * 1000) : new Date());
+
+	if (!bHeader) {
+	    if (bSample) {
+	        u.attr("title", "This is just a sample row for the tour.\nReal S/E rows will display a report for each row here.");
+	    }
+	    else {
+	        //DOM war to trick title to show during mousemove
+	        //fought this after losing the battle using jquery tooltip/qtip2 as both require worse
+	        //hacks to show during mousemove and to destroy when pressing ESC on a card front while tooltip shows.
+	        //all because I wanted to be lazy and not do a proper tooltip <dialog> but hey, I know how to trick native tooltips now
+	        var msdateCalc = 0;
+	        var bRecurse = false;
+
+	        u.on("mousemove", function (e) {
+	            if (bRecurse) {
+	                bRecurse = false;
+	                return false;
+	            }
+
+	            var msdateNow = Date.now();
+				//prevent lots of reports while use moves the mouse over link
+	            //also prevents running this flow while the report is being calculated, thus possibly breaking the hack
+				if (msdateNow - msdateCalc<3000)
+	                return false;
+
+	            msdateCalc = msdateNow;
+	            var maxRows = 10;
+	            var maxNote = 50;
+	            var sql = "select H.keyword, H.spent, H.est, H.date, H.week, h.comment FROM HISTORY AS H WHERE H.idCard=? and user=? order by date DESC LIMIT "+(maxRows+1);
+	            var values = [idCardCur, rowData.user];
+	            
+	            getSQLReport(sql, values, function (response) {
+	                var strTitle = "";
+	                var bMultipleKeywords = g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1;
+	                for (var i = 0; i < response.rows.length; i++) {
+	                    if (i >= maxRows) {
+	                        strTitle += "\nShowing only last "+maxRows+" s/e rows.";
+	                        break;
+	                    }
+	                    var row = response.rows[i];
+	                    var date = makeDateCustomString(new Date(row.date * 1000));
+	                    var se = parseFixedFloat(row.spent) + "/" + parseFixedFloat(row.est);
+	                    var str = (bMultipleKeywords ? row.keyword + " \t" : "");
+	                    var note = strTruncate(row.comment, maxNote);
+	                    str += (date + "    ");
+	                    str += (row.week + "    ");
+	                    str += se;
+                        if (note)
+	                        str += (" \t"+note);
+	                    if (strTitle == "")
+	                        strTitle = str;
+                        else
+	                    	strTitle += ("\n" + str);
+	                }
+	                strTitle += "\nClick user to drill-down";
+	                u.attr("title", strTitle);
+	                bRecurse = true;
+	                u.trigger("mousemove"); //trick dom to show the title we just set
+	            });
+	            return true; //handled so return true
+	        });
+	    }
+	}
 	row.append(u).append(s).append(e).append(r);
 	if (!bHeader)
 	    row.append(linkMod);
