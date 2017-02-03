@@ -19,7 +19,7 @@ We plan to eventually move to typescript. Keep in mind that:
 
 1. This was my first nontrivial javascript chrome extension (2012) and I was just learning javascript then.
 
-1.5. Dont worry, I come from a strong C++ background and "big software company" standards for coding, testing and reviewing. I also know how to plan list numbering well.
+1.5. Dont worry, I come from a strong C++ background and "big software company" standards for coding, testing and reviewing. Im also an expert in markdown list numbering.
 
 2. As a point to really learn javascript, sometimes I did not use libraries or advanced time-saving features. Or maybe Chrome didnt support it back then.
 
