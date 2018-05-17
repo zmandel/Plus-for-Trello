@@ -11,6 +11,7 @@
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
+    <script type="text/javascript" src="libs/svgpng.js"></script>
     <script type="text/javascript" src="libs/d3.min.js"></script>
     <script type="text/javascript" src="libs/plottable.min.js"></script>
     <script type="text/javascript" src="shared.js"></script>
@@ -18,7 +19,6 @@
 </head>
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
     <div id="divMain" style="margin:0;padding:0;display:none;">
-        <iframe id="remember" name="remember" class="agile_hidden" src="about:blank"></iframe>
         <div class="agile_toplevel_report_container">
             <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
                 <div style="width:100%" id="agile_title_header_report">
@@ -144,32 +144,32 @@ Otherwise it uses the date of the card's last create, move or rename." class="ag
                     </select>
                 </div>
                 <div class="agile_report_filter_group" id="groupDateAdvanced">
-                    <form title="Valid formats:
+                    <div title="Valid formats:
 2014
 2014-W12
 
-Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+Using a week filter only shows results that have S/E." class="agile_report_filter">
                         <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
-                    </form>
-                    <form title="Valid formats:
+                    </div>
+                    <div title="Valid formats:
 2014
 2014-W15
 
-Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+Using a week filter only shows results that have S/E." class="agile_report_filter">
                         <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
-                    </form>
-                    <form title="Valid formats:
+                    </div>
+                    <div title="Valid formats:
 2014  (year)
 2014-02  (month)
-2014-02-09 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+2014-02-09 (full date)"  class="agile_report_filter">
                         <p class="agile_report_filter_label">Date start</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
-                    </form>
-                    <form title="Valid formats:
+                    </div>
+                    <div title="Valid formats:
 2014  (year)
 2014-07  (month)
-2014-07-03 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
+2014-07-03 (full date)"  class="agile_report_filter">
                         <p class="agile_report_filter_label">Date end</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
-                    </form>
+                    </div>
                 </div>
                 <div class="agile_report_filter" title="Filter by users that entered S/E on each card.
 Filtering by user will only show results that have S/E.
@@ -198,12 +198,12 @@ Example: !doing finds history on cards with lists not containing 'doing'
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">List</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="list" name="list" /><input type="submit" class="agile_hidden" />
                 </div>
-                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="To find NOT containing, start with !
+                <div class="agile_report_filter" title="To find NOT containing, start with !
 
 Example: !#low finds cards without a '#low' hashtag.
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
-                </form>
+                </div>
                 <div style="display:none" class="agile_report_filter" title="Filter by card labels.
 
 To find NOT containing, start with !
@@ -219,13 +219,13 @@ See reports help top-right.">
                     <p class="agile_report_filter_label">Label</p>
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="label" name="label" /><input type="submit" class="agile_hidden" />
                 </div>
-                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter"
+                <div class="agile_report_filter"
                       title="To find NOT containing, start with !
 
 Filtering by S/E note will only show results that have S/E.
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Note</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="comment" name="comment" /><input type="submit" class="agile_hidden" />
-                </form>
+                </div>
 
                 <div style="display:none"  class="agile_report_filter" title="Filter by archived card, list or board.">
                     <p class="agile_report_filter_label">Archived</p>
@@ -247,10 +247,10 @@ Supports multiple AND/OR. See reports help top-right.">
 
                 <div style="display:none" class="agile_report_filter" title="Leave blank for all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink"><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
                 <div style="display:none" class="agile_report_filter" title="Leave blank for all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink"><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
-                <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter" title="Show only rows after this row number.
+                <div class="agile_report_filter" title="Show only rows after this row number.
 Leave blank to display all.">
                     <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />
-                </form>
+                </div>
                 <div class="agile_report_filter" title="Filter by estimate type.
 
 All: No E. type filter.
@@ -348,7 +348,15 @@ E 1st: rows with a first estimate
                     </div>
                     <div class="agile_report_container_byBoard agile_report_containerScroll" style="overflow: auto;"></div>
                 </div>
-                <div id="tabs-3" style="display:none;padding:6px;height:10em;" class="agile_report_tab">Plus charts are coming soon. Chart S/E/R across grouped rows!</div>
+                <div id="tabs-3" style="display:none;padding-left:6px;padding-right:6px;padding-top:6px;margin-bottom:1em;" class="agile_report_tab">
+                    <div style="height:2em;">
+                        <img class="agile_drilldown_select"/>
+                    </div>
+                    <div id="chartMessage" style="margin-bottom:1em;"></div>
+                    <div class="agile_report_containerScroll" style="overflow: auto;">
+                      <svg id="chart" style="display: block;"></svg>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

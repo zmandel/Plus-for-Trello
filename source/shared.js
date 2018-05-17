@@ -14,6 +14,7 @@ var PREFIX_COMMAND_SE_COMMENT = "[^";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
+var g_cchTruncateChartLabel = 38;
 var g_regexpHashtags = /#([\S-]+)/g;
 var g_colorTrelloBlack = "#4D4D4D";
 
@@ -751,7 +752,7 @@ function getSQLReportShared(sql, values, okCallback, errorCallback) {
 
 
 function selectElementContents(el) {
-	if (window.getSelection && document.createRange) {
+    if (window.getSelection && document.createRange) {
 		//select it just for visual purposes. Extension background will do the actual copy
 		var sel = window.getSelection();
 		var range = document.createRange();

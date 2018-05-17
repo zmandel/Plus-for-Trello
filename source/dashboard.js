@@ -1,4 +1,4 @@
-﻿/// <reference path="intellisense.js" />
+﻿ /// <reference path="intellisense.js" />
 
 var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_marginLabelChart = 35;
@@ -269,6 +269,14 @@ function loadTimeline(series) {
     var series3 = new Plottable.Dataset(series.remain, { name: "Remain" });
     var seriesAnnotation = new Plottable.Dataset(series.annotation, { name: "Annotation" });
 
+    var bandPlotS = new Plottable.Plots.Area();
+    bandPlotS.addDataset(series1);
+    bandPlotS.x(function (d) { return d.x; }, xScale).
+        y(function (d) { return d.y; }, yScale).
+        attr("fill", "#ffcdd2").
+        attr("stroke-width", 0);
+
+
     var plot = new Plottable.Plots.Line(xScale, yScale);
     plot.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
     plot.attr("stroke", function (d, i, dataset) { return d.stroke; });
@@ -369,7 +377,7 @@ function loadTimeline(series) {
     g_tl.chartBottom = miniChart;
     g_tl.xAxisBottom = sparklineXAxis;
     g_tl.container = new Plottable.Components.Table([ //ALERT: resize code assumes table positions
-      [yAxis, new Plottable.Components.Group([plot, plotAnnotations,gridline]),legend],
+      [yAxis, new Plottable.Components.Group([bandPlotS, plot, plotAnnotations, gridline]), legend],
       [null, xAxis],
       [null, miniChart],
       [null, sparklineXAxis]

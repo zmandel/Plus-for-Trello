@@ -32,6 +32,10 @@ padding-left:1em !important;
 list-style-type:disc !important;
 }
 
+.chartReportStyle * {
+    font-size:12px !important;
+}
+
 .agile_color_warning {
  color:red !important;
 }

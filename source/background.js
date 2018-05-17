@@ -1066,7 +1066,7 @@ If you instead want to disable timer popups do so from Plus preferences.");
 function handleCopyClipboard(html, sendResponse) {
     if (window.getSelection && document.createRange) {
         var elemReplace = document.getElementById("selectionPlaceholder");
-        elemReplace.innerHTML = html;
+            elemReplace.innerHTML = html;
         var sel = window.getSelection();
         var range = document.createRange();
         range.selectNodeContents(elemReplace);
@@ -1076,7 +1076,7 @@ function handleCopyClipboard(html, sendResponse) {
         setTimeout(function () {
             //blank it when done. Delay is to attempt fix on a user that says rows at the end dont get copied,
             //which maybe happens because "copy" could be running in parallel and replacing the html could hurt it.
-            elemReplace.innerHTML = "";
+                elemReplace.innerHTML = "";
         }, 3000);
 
         sendResponse({ status: STATUS_OK });
