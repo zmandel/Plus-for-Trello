@@ -2060,8 +2060,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                     statusProcess.boards.forEach(function (board) {
                                         //search only on boards that were modified and that will not undergo deep sync later
                                         if (board.idLong && !board.methodProcess.deep) {
-                                            assert(board.methodProcess.needLabels || board.methodProcess.needSearch);
-                                            idBoardsSearch.push(board.idLong);
+                                            if (board.methodProcess.needLabels || board.methodProcess.needSearch) //else, came from mapBecameNonMemberBoard
+                                                idBoardsSearch.push(board.idLong);
                                         }
                                     });
 
@@ -2588,10 +2588,14 @@ function matchCommentParts(text,date, bRecurringCard) {
 
 function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitRetry) {
     //https://developers.trello.com/advanced-reference/search
+
+    //warning: card_fields must be the same as the fields we get in card actions, see bUpdateAlldataCard for relevant fields. Otherwise a search
+    //calling on bUpdateAlldataCard could update dateSzLastTrello to a newer date and moot action change updates, as the action will have a slightly smaller date
+        
     var url = "https://trello.com/1/search?query=edited:" + cDaysDelta +
         "&modelTypes=cards&cards_limit=" +
         cCardsLimit +
-        "&card_fields=dateLastActivity,labels,shortLink,idBoard,idShort" +  //warning: idBoard is trello long idBoard
+        "&card_fields=closed,due,idList,name,dateLastActivity,labels,shortLink,idBoard,idShort" +  //warning: idBoard is trello long idBoard
         "&idBoards=" + idBoardsSearch.join();
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future

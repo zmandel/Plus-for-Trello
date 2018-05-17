@@ -1225,11 +1225,11 @@ function showSETotalEdit(idCardCur, user) {
         if (bUpdateR) {
             var valNew = parseFixedFloat(eOrigNum + data.e - sOrigNum - data.s);
             if (valNew != elemR.val()) {
-                elemR.val(valNew);
-                hiliteOnce(elemR);
+                    elemR.val(valNew);
+                    hiliteOnce(elemR);
+                }
             }
         }
-    }
 
     function getSEData(bSilent) {
         var sNew = elemS.val().trim();

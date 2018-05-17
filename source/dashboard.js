@@ -122,6 +122,7 @@ function loadBurndown() {
 
 	var headerFilter = $("#headerFilter");
 	var containerFilter = $("#filtersContainer");
+
 	headerFilter.click(function () {
 	    handleSectionSlide(containerFilter, $("#report_filter_section"));
 	});
