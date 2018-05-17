@@ -2033,11 +2033,19 @@ function saveDataChart(rows, urlParams, options) {
     const bShowR = (bAllDates && !bDateGroups);
     var bHasNegativeR = false;
     var bHasNegatives = false;
+    const bSingleBoard = (urlParams["idBoard"].length > 0);
+    var bExcludeBoardNameFromLabels = false;
+
     for (var iRow = 0; iRow < rows.length; iRow++) {
         var yField = "";
         var rowCur = rows[iRow];
         for (iProp = 0; iProp < pGroups.length; iProp++) {
-            var val = (iProp>0 ? "\n" : "") + (rowCur[pGroups[iProp]] || "");
+            var propNameLoop = pGroups[iProp];
+            if (bSingleBoard && propNameLoop == "nameBoard") {
+                bExcludeBoardNameFromLabels = true;
+                continue;
+            }
+            var val = (yField.length>0 ? "\n" : "") + (rowCur[propNameLoop] || "");
 
             if (val)
                 yField += val;
@@ -2046,6 +2054,7 @@ function saveDataChart(rows, urlParams, options) {
         //the first part, if not empty, contains a unique string made from the prependIds
         var prepend = "";
         var bPushDomain = false;
+
         for (iProp = 0; iProp < prependIds.length; iProp++) {
             prepend = prepend + "+" + (rowCur[prependIds[iProp]] || "");
         }
@@ -2097,7 +2106,7 @@ function saveDataChart(rows, urlParams, options) {
         bShowR: bShowR,
         bRemain: bRemain,
         bHasNegatives: bHasNegatives,
-        cPartsGroup: pGroups.length,
+        cPartsGroupFinal: pGroups.length-(bExcludeBoardNameFromLabels?1:0),
         params: urlParams
     };
     
@@ -2227,7 +2236,7 @@ function chartSER() {
       [null, common.xAxis]
     ]);
 
-    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50+(g_dataChart.cPartsGroup<3?0:20*(g_dataChart.cPartsGroup-2))));
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
 }
 
@@ -2275,7 +2284,7 @@ function charte1vse() {
     ]);
 
 
-    elemChart.attr('height', (g_dataChart.domain.length + 3) * 1.3*(50 + (g_dataChart.cPartsGroup < 3 ? 0 : 20 * (g_dataChart.cPartsGroup - 2))));
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * 1.3 * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
 }
 
@@ -2339,7 +2348,7 @@ function charteChange() {
       [null, common.xAxis]
     ]);
 
-    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroup < 3 ? 0 : 20 * (g_dataChart.cPartsGroup - 2))));
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
 }
 
@@ -2385,7 +2394,7 @@ function chartCountCards() {
       [null, common.xAxis]
     ]);
 
-    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroup < 3 ? 0 : 15 * (g_dataChart.cPartsGroup - 2))));
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 15 * (g_dataChart.cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
 }
 
