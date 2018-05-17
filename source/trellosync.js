@@ -1913,6 +1913,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
             alldata.dateLastLabelsSyncStrOrig = responseGlobal.rows[0].dateLastLabelsSync;
             alldata.dateLastLabelsSyncStrNew = dateNow.toISOString();
             var msdateLastLabelsSync = dateLastLabelsSync.getTime();
+            msdateLastLabelsSync = Math.max(0, msdateLastLabelsSync - g_msDelayTrelloSearch*2); //pretend is a little before, to cover for overlap with eventually consistent search in trello
+            //must include at least the past g_msDelayTrelloSearch because of eventual search consistency. *2 for safety
             var cDaysDelta = ((msDateNow - msdateLastLabelsSync) / 1000 / 60 / 60 / 24);
             assert(cDaysDelta >= 0);
             cDaysDelta = Math.ceil(cDaysDelta); //trello api handles minimum of 1 'edited' search
@@ -1954,7 +1956,6 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 
 
                 var boardDb = null;
-                var msStartDetectLabels = Date.now() - g_msDelayTrelloSearch;
                 boardsTrello.forEach(function (board) {
                     boardDb = mapBoards[board.shortLink];
                     //trello returns null dateLastActivity sometimes.
@@ -2016,7 +2017,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                     }
                     else {
                         var msdateLastActivity = new Date(boardDb.dateLastActivity).getTime();
-                        if (msdateLastActivity > msStartDetectLabels) {
+                        //note: msdateLastLabelsSync already has substracted the search delay
+                        if (msdateLastActivity > msdateLastLabelsSync) {
                             if (alldata.bForceDeepSyncOnRecentBoards)
                                 boardDb.verDeepSync = VERDEEPSYNC.MINVALID; //force deep later
                             else
@@ -2032,6 +2034,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                         boardDb.idLong = board.id;
                         boardDb.idTeam = idTeamNew; //can be null
                         boardDb.bPushed = true;
+                        assert(boardDb.methodProcess);
+
                         if (boardDb.bProcessActions) {
                             var dateLastAction = new Date(actionLast.date);
                             dateLastAction.setTime(dateLastAction.getTime() + 1);
@@ -2054,6 +2058,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                         boardDb = mapBoards[idBoardShort];
                         assert(boardDb);
                         assert(!boardDb.bPushed);
+                        assert(!boardDb.methodProcess);
+                        boardDb.methodProcess = { deep: false, needLabels: false, needSearch: false };
                         boardDb.bPushed = true;
                         boardDb.bArchived = true; //pretend archived. when user gains membership again, it will get fixed
                         assert(!boardDb.bProcessActions);

@@ -1417,6 +1417,7 @@ var g_analytics = {
         }
     },
     hit: function (params, msDelay) {
+        //return;
         if (this.bDisableAnalytics)
             return;
         msDelay = msDelay || 1000;
