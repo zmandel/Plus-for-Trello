@@ -552,14 +552,18 @@ function setupNotifications() {
     });
 }
 
-function updateURLStackCount() {
+function updateURLPart(part) {
     var params = getUrlParams();
-    var val = $("#stackCount").val();
-    if (params["stackCount"] != val) {
-        params["stackCount"] = val;
+    var elem = $("#" + part);
+    var val = elem.val();
+    if (typeof (elem[0].checked) != "undefined")
+        val = (elem[0].checked ? "true" : "");
+    if (params[part] != val) {
+        params[part] = val;
         updateUrlState(params);
     }
 }
+
 
 var g_mapNameFieldToInternal = {
     team: "idTeamH",
@@ -712,8 +716,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         $("#stackCount").change(function () {
+            updateURLPart("stackCount");
             chartCountCards();
-            updateURLStackCount();
+            
+        });
+
+        $("#checkNoColorsChartCount").change(function () {
+            updateURLPart("checkNoColorsChartCount");
+            if (g_dataChart)
+                g_dataChart.params["checkNoColorsChartCount"] = ($("#checkNoColorsChartCount")[0].checked==true?"true":"");
+            chartCountCards();
+
         });
 
         function addFocusHandler(elem) {
@@ -1183,7 +1196,7 @@ function loadReport(params) {
     g_bShowKeywordFilter = (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1);
 
     var elems = {
-        stackCount:"", chartView: g_chartViews.ser, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
+        stackCount: "", checkNoColorsChartCount: "false", chartView: g_chartViews.ser, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: (g_bBuildSqlMode ? "" : "showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false"
@@ -1609,7 +1622,7 @@ function buildSql(elems) {
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
     if (groupByLower != "" &&
-        !elems["weekStart"] && !elems["weekEnd"] && !bOrderByR) {
+        !elems["weekStart"] && !elems["weekEnd"] && !elems["user"]  && !bOrderByR) {
         assert(!g_bBuildSqlMode);
         bHasUnion = true;
         //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
@@ -1652,6 +1665,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (elems["checkNoCharts"] == "false")
         elems["checkNoCharts"] = ""; //ditto
 
+    if (elems["checkNoColorsChartCount"] == "false")
+        elems["checkNoColorsChartCount"] = ""; //ditto
+    
     if (elems["checkNoLabelColors"] == "false")
         elems["checkNoLabelColors"] = ""; //ditto like eType
 
@@ -2081,8 +2097,8 @@ function saveDataChart(rows, urlParams, options) {
 
         if (pCur.indexOf("date") == 0)
             bDateGroups = true;
-        //use prepend ids to cover cases where two labels are identical (like two cards with the same title)
-        //Thus, all labels are prepended with the ids where they came from.
+        //use prepend ids to cover cases where two domain parts are identical (like two cards with the same title)
+        //Thus, all parts are prepended with the ids where they came from.
         if (bId)
             prependIds.push(pCur);
         if (bStop)
@@ -2112,7 +2128,8 @@ function saveDataChart(rows, urlParams, options) {
             var val = (yField.length > 0 ? g_yFieldSeparator : "") + (rowCur[propNameLoop] || "-");
             yField += val;
         }
-        //All labels will always contain two parts, separated by REPORTCHART_LABEL_PREPENDSEP
+		//NOTE: code uses "dlabel" (data label) to distinguish from trello labels.
+        //All dlabels will always contain two parts, separated by REPORTCHART_DLABEL_PREPENDSEP
         //the first part, if not empty, contains a unique string made from the prependIds
         var prepend = "";
         var bPushDomain = false;
@@ -2121,7 +2138,7 @@ function saveDataChart(rows, urlParams, options) {
             prepend = prepend + "+" + (rowCur[prependIds[iProp]] || "");
         }
 
-        yField = prepend + REPORTCHART_LABEL_PREPENDSEP+yField;
+        yField = prepend + REPORTCHART_DLABEL_PREPENDSEP+yField;
         
         if (bSingleBoard && strNameBoardSingle.length == 0)
             strNameBoardSingle = rowCur.nameBoard;
@@ -2189,7 +2206,7 @@ function saveDataChart(rows, urlParams, options) {
     return;
 }
 
-const REPORTCHART_LABEL_PREPENDSEP = "|"; //cant be / as unknown ids contain that
+const REPORTCHART_DLABEL_PREPENDSEP = "|"; //cant be / as unknown ids contain that
 function bCancelFromAlertLargeSize(bDownloading) {
     const MAX_BARS = 200;
     if (g_dataLength > MAX_BARS) {
@@ -2207,10 +2224,16 @@ var g_lastChartFilled = "";
 function fillChart() {
     var typeChart = $("#chartView").val();
     var elemStack = $("#stackCount");
-    if (typeChart == g_chartViews.cardcount)
+    var elemSpancheckNoColorsChartCount = $("#spancheckNoColorsChartCount");
+    if (typeChart == g_chartViews.cardcount) {
         elemStack.show();
-    else
+        elemSpancheckNoColorsChartCount.show();
+    }
+    else {
+        elemSpancheckNoColorsChartCount.hide();
         elemStack.hide();
+    }
+
     if (!g_dataChart)
         return;
 
@@ -2234,27 +2257,27 @@ function fillChart() {
         charteChange();
 }
 
-const LABELPART_SKIP = " ";
+const DLABELPART_SKIP = " ";
 
-function labelRealFromLabelEncoded(label) {
-    var iSlash = label.indexOf(REPORTCHART_LABEL_PREPENDSEP); //skip prependIds
-    var labelReal = label.substring(iSlash + 1);
-    var parts = labelReal.split(g_yFieldSeparator);
-    var labelDisplay = "";
+function dlabelRealFromEncoded(dlabel) {
+    var iSlash = dlabel.indexOf(REPORTCHART_DLABEL_PREPENDSEP); //skip prependIds
+    var dlabelReal = dlabel.substring(iSlash + 1);
+    var parts = dlabelReal.split(g_yFieldSeparator);
+    var dlabelDisplay = "";
     for (var iPart = 0; iPart < parts.length; iPart++) {
         var valPart = parts[iPart];
-        if (valPart == LABELPART_SKIP)
+        if (valPart == DLABELPART_SKIP)
             continue;
         if (iPart > 0)
-            labelDisplay += g_yFieldSeparator;
-        labelDisplay += strTruncate(parts[iPart] || "-", g_cchTruncateChartLabel);
+            dlabelDisplay += g_yFieldSeparator;
+        dlabelDisplay += strTruncate(parts[iPart] || "-", g_cchTruncateChartDlabel);
     }
-    return labelDisplay;
+    return dlabelDisplay;
 }
 
-function getCommonChartParts(dataChart, domain, colorsForScale, labelTexts, labelTextsDomainColorScale) {
+function getCommonChartParts(dataChart, domain, colorsForScale, legendTexts) {
     var ret = {};
-    ret.colorScale = new Plottable.Scales.Color().domain(labelTextsDomainColorScale);
+    ret.colorScale = new Plottable.Scales.Color().domain(legendTexts);
     if (colorsForScale)
         ret.colorScale.range(colorsForScale);
     ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("top");
@@ -2262,8 +2285,8 @@ function getCommonChartParts(dataChart, domain, colorsForScale, labelTexts, labe
     ret.xScale = new Plottable.Scales.Linear();
     ret.xAxis = new Plottable.Axes.Numeric(ret.xScale, "bottom");
 
-    ret.yAxis = new Plottable.Axes.Category(ret.yScale, "left").formatter(function (label) {
-        return labelRealFromLabelEncoded(label);
+    ret.yAxis = new Plottable.Axes.Category(ret.yScale, "left").formatter(function (text) {
+        return dlabelRealFromEncoded(text);
     });
 
     return ret;
@@ -2288,7 +2311,7 @@ function prependChartTitle(table, dataChart) {
     if (dataChart.domain.length == 1) {
         if (strTitle)
             strTitle += "\n";
-        strTitle += labelRealFromLabelEncoded(dataChart.domain[0]);
+        strTitle += dlabelRealFromEncoded(dataChart.domain[0]);
     }
 
     if (strTitle)
@@ -2324,13 +2347,13 @@ function chartSER() {
         return;
 
     var colors = ["#D25656"];
-    var labelTexts = ["Spent"];
+    var legendTexts = ["Spent"];
     if (g_dataChart.bShowR) {
         colors.push("#519B51");
-        labelTexts.push("Remain");
+        legendTexts.push("Remain");
     }
     var common = getCommonChartParts(g_dataChart, g_dataChart.domain, g_dataChart.bRemain ? [colors[1]] : colors
-        , labelTexts, g_dataChart.bRemain ? [labelTexts[1]] : labelTexts);
+        , g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
 
     var datasets = {
         ds: new Plottable.Dataset(g_dataChart.dataS),
@@ -2383,9 +2406,9 @@ function charte1vse() {
 
     addChartEstWarning(elemChartMessage);
     var colors = ["#A5D6A7", "#43A047"];
-    var labelTexts = ["E 1st", "E current"];
+    var legendTexts = ["E 1st", "E current"];
 
-    var common = getCommonChartParts(g_dataChart, g_dataChart.domain, colors, labelTexts, labelTexts);
+    var common = getCommonChartParts(g_dataChart, g_dataChart.domain, colors, legendTexts);
     common.yScale.innerPadding(0).outerPadding(0);
     var datasets = {
         de1: new Plottable.Dataset(g_dataChart.dataEFirst),
@@ -2440,9 +2463,9 @@ function charteChange() {
     addChartEstWarning(elemChartMessage);
 
     var colors = ["#607D8B", "#f44336", "#4CAF50"];
-    var labelTexts = ["E 1st", "Increased E", "Reduced E"];
+    var legendTexts = ["E 1st", "Increased E", "Reduced E"];
 
-    var common = getCommonChartParts(g_dataChart, g_dataChart.domain, colors, labelTexts, labelTexts);
+    var common = getCommonChartParts(g_dataChart, g_dataChart.domain, colors, legendTexts);
     
     var dPlus = [];
     var dMinus = [];
@@ -2475,8 +2498,8 @@ function charteChange() {
         attr("fill", function (d, i, dataset) {
             return (dataset == datasets.d0 ? colors[0] : (dataset == datasets.d1? colors[1]:colors[2]));
         }).labelFormatter(
-            function (label) {
-                return "" + label; //review put + on the red boxes labels. cant differenciate so far from other boxes`
+            function (text) {
+                return "" + text; //review put + on the red boxes labels. cant differenciate so far from other boxes`
             });;
 
     var table = [
@@ -2494,7 +2517,8 @@ function charteChange() {
 function chartCountCards() {
     var elemChart = getCleanChartElem();
     var stackBy = $("#stackCount").val();
-
+    var bNoColors = (g_dataChart.params["checkNoColorsChartCount"] == "true");
+    
     var elemChartMessage = $("#chartMessage");
     var textMessage = "";
 
@@ -2505,8 +2529,13 @@ function chartCountCards() {
     if (textMessage.length>0)
         return;
 
-    var colors = ["#026AA7"];
-    var labelTexts = [];
+    var colors = [ "#026AA7"];
+    if (bNoColors) {
+        colors = ["#DDDDDD", // "-"
+            "#FFFFFF"];       //the rest
+    }
+    var legendTexts = [];
+    legendTextsInfo = [{ text: "-", i: 0 }]; //review zig hipri force sort to top
     var iGroupStack=-1; //none
     if (stackBy) {
         var pGroups = g_dataChart.params["groupBy"].split("-");
@@ -2514,7 +2543,7 @@ function chartCountCards() {
         if (iGroupStack < 0) {
             sendDesktopNotification("To use this stacking, first query a report using a 'Group by' containing your stacking.",10000);
             $("#stackCount").val("");
-            updateURLStackCount();
+            updateURLPart("stackCount");
         } else if (g_dataChart.iPartGroupExclude>=0 && g_dataChart.iPartGroupExclude < iGroupStack)
             iGroupStack--;
     }
@@ -2522,61 +2551,59 @@ function chartCountCards() {
     var dataCountCards = g_dataChart.dataCountCards;
     var cPartsGroupFinal = g_dataChart.cPartsGroupFinal;
     var domain = g_dataChart.domain;
-    var mapDomainToIColor = {};
-    var rgIcolorToGroupName = ["-"]; //0 is none
+    var mapLegendToIColor = {};
+    
     var iColor = 1; //0 is for no hashtag
     if (iGroupStack >= 0) {
         //transform the domain and datasets
 
-        //http://stackoverflow.com/a/4382138/2213940
-        colors = ["#00538A", // Strong Blue, only for "no hashtag
-                "#803E75", // Strong Purple
-                "#FF6800", // Vivid Orange
-                "#A6BDD7", // Very Light Blue
-                "#C10020", // Vivid Red
-                "#CEA262", // Grayish Yellow
-                "#817066", // Medium Gray
-                // The following don't work well for people with defective color vision
-                "#FFB300", // Vivid Yellow
-                "#007D34", // Vivid Green
-                "#F6768E", // Strong Purplish Pink
-                "#FF7A5C", // Strong Yellowish Pink
-                "#53377A", // Strong Violet
-                "#FF8E00", // Vivid Orange Yellow
-                "#B32851", // Strong Purplish Red
-                "#F4C800", // Vivid Greenish Yellow
-                "#7F180D", // Strong Reddish Brown
-                "#93AA00", // Vivid Yellowish Green
-                "#593315", // Deep Yellowish Brown
-                "#F13A13", // Vivid Reddish Orange
-                "#232C16" // Dark Olive Green
-        ];
+        if (!bNoColors) {
+            //http://stackoverflow.com/a/4382138/2213940
+            colors = ["#000000", //Black, only for empty property "-"
+                    "#FF6800", // Vivid Orange
+                    "#803E75", // Strong Purple
+                    "#A6BDD7", // Very Light Blue
+                    "#00538A", // Strong Blue
+                    "#C10020", // Vivid Red
+                    "#CEA262", // Grayish Yellow
+                    "#817066", // Medium Gray
+                    // The following don't work well for people with defective color vision
+                    "#FFB300", // Vivid Yellow
+                    "#007D34", // Vivid Green
+                    "#F6768E", // Strong Purplish Pink
+                    "#FF7A5C", // Strong Yellowish Pink
+                    "#53377A", // Strong Violet
+                    "#FF8E00", // Vivid Orange Yellow
+                    "#B32851", // Strong Purplish Red
+                    "#F4C800", // Vivid Greenish Yellow
+                    "#7F180D", // Strong Reddish Brown
+                    "#93AA00", // Vivid Yellowish Green
+                    "#593315", // Deep Yellowish Brown
+                    "#F13A13", // Vivid Reddish Orange
+                    "#232C16" // Dark Olive Green
+            ];
+        }
         cPartsGroupFinal--;
         var mapDomainNew = {};
-        var mapLabelsNew = {};
+        var mapDlabelsNew = {};
         var domainNew = [];
-        labelTexts = ["-"];
-        const lenghtColorsOrig = colors.length;
-        domain.forEach(function (label) {
-            var iSlash = label.indexOf(REPORTCHART_LABEL_PREPENDSEP);
-            var prepend=label.substring(0,iSlash+1); //include REPORTCHART_LABEL_PREPENDSEP
-            var labelReal = label.substring(iSlash + 1);
-            var parts = labelReal.split(g_yFieldSeparator);
+        const lengthColorsOrig = colors.length;
+        domain.forEach(function (dlabel) {
+            var iSlash = dlabel.indexOf(REPORTCHART_DLABEL_PREPENDSEP);
+            var prepend = dlabel.substring(0, iSlash + 1); //include REPORTCHART_DLABEL_PREPENDSEP
+            var dlabelReal = dlabel.substring(iSlash + 1);
+            var parts = dlabelReal.split(g_yFieldSeparator);
             if (iGroupStack < parts.length) {
                 var partNew=parts[iGroupStack];
-                parts[iGroupStack]=LABELPART_SKIP;
-                if (!mapLabelsNew[partNew]) {
-                    mapLabelsNew[partNew] = true;
+                parts[iGroupStack]=DLABELPART_SKIP;
+                if (!mapDlabelsNew[partNew.toLowerCase()]) {
+                    mapDlabelsNew[partNew.toLowerCase()] = true;
                     
-                    if (partNew == "-")
-                        mapDomainToIColor[partNew] = 0;
-                    else {
-                        labelTexts.push(partNew);
-                        mapDomainToIColor[partNew] = iColor;
-                        rgIcolorToGroupName.push(partNew);
+                    if (partNew != "-") {
+                        legendTextsInfo.push({ text: partNew, i: iColor });
                         iColor++;
                         if (iColor >= colors.length)
-                            colors.push(colors[iColor % lenghtColorsOrig]);
+                            colors.push(colors[(iColor % (lengthColorsOrig-1))+1]);
                     }
                 }
             } else {
@@ -2590,44 +2617,65 @@ function chartCountCards() {
 
         });
 
-        if (false) {
-            labelTexts.sort(function (a, b) {
-                return a.toLowerCase().localeCompare(b.toLowerCase());
-            });
+        legendTextsInfo.sort(function (a, b) {
+            var at = a.text;
+            var bt = b.text;
+            const legendEmpty = "-";
+            if (at != bt) {
+                //force sort
+                if (at == legendEmpty)
+                    return -1;
+                if (bt == legendEmpty)
+                    return 1;
+            }
+            return at.toLowerCase().localeCompare(bt.toLowerCase());
+        });
+
+        for (var iSet = 0; iSet < legendTextsInfo.length; iSet++) {
+            var textSet=legendTextsInfo[iSet].text;
+            legendTexts.push(textSet);
+            mapLegendToIColor[textSet.toLowerCase()] = iSet;
         }
         domain = domainNew;
     }
 
-    var common = getCommonChartParts(g_dataChart, domain, colors, labelTexts, labelTexts);
+    var common = getCommonChartParts(g_dataChart, domain, colors, legendTexts);
+    if (bNoColors)
+        common.legend = null;
     common.xScale.tickGenerator(Plottable.Scales.TickGenerators.integerTickGenerator());
     
     var datasets = {};
-
     for (var iDS = 0; iDS < dataCountCards.length; iDS++) {
         var itemCur=dataCountCards[iDS];
-        var label = itemCur.y;
+        var dlabel = itemCur.y;
         //{ x: rowCur.countCards, y: yField };
-        var iSlash = label.indexOf(REPORTCHART_LABEL_PREPENDSEP);
-        var prepend = label.substring(0, iSlash + 1); //include REPORTCHART_LABEL_PREPENDSEP
-        var labelReal = label.substring(iSlash + 1);
-        var parts = labelReal.split(g_yFieldSeparator);
-        if (iGroupStack < parts.length) {
-            var partNew = parts[iGroupStack];
-            parts[iGroupStack] = LABELPART_SKIP;
-            if (!datasets[partNew])
-                datasets[partNew] = [];
-
-            datasets[partNew].push({ x: itemCur.x, y: prepend + parts.join(g_yFieldSeparator), iColor: mapDomainToIColor[partNew]});
-        } else {
-            console.log("Unexpected parts on iGroupStack");
+        var iSlash = dlabel.indexOf(REPORTCHART_DLABEL_PREPENDSEP);
+        var prepend = dlabel.substring(0, iSlash + 1); //include REPORTCHART_DLABEL_PREPENDSEP
+        var dlabelReal = dlabel.substring(iSlash + 1);
+        var parts = dlabelReal.split(g_yFieldSeparator);
+        var partNew = "-"; //index when no stacking
+        if (iGroupStack >= 0) {
+            if (iGroupStack < parts.length) {
+                partNew = parts[iGroupStack];
+                parts[iGroupStack] = DLABELPART_SKIP;
+            }  else {
+                console.log("Unexpected parts on iGroupStack");
+            }
         }
+        assert(partNew);
+        if (!datasets[partNew])
+            datasets[partNew] = [];
+        
+        datasets[partNew].push({ x: itemCur.x, y: prepend + parts.join(g_yFieldSeparator), iColor: mapLegendToIColor[partNew.toLowerCase()] });
     }
 
     var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
         labelsEnabled(true).addClass("chartReportStyle");
 
-    for (var iSet in datasets) {
-        chart.addDataset(new Plottable.Dataset(datasets[iSet]));
+    for (iSet = 0; iSet < legendTextsInfo.length; iSet++) {
+        var dsAdd = datasets[legendTextsInfo[iSet].text];
+        if (dsAdd)
+            chart.addDataset(new Plottable.Dataset(dsAdd));
     }
     if (!g_bPopupMode)
         chart.animated(true);
@@ -2635,7 +2683,10 @@ function chartCountCards() {
     chart.x(function (d) { return d.x; }, common.xScale).
         y(function (d) { return d.y; }, common.yScale).
         attr("fill", function (d) {
-            return colors[(d.iColor || 0) % colors.length];
+            var iColor = d.iColor || 0;
+            if (bNoColors && iColor > 0)
+                return colors[1];
+            return colors[iColor % colors.length];
         });
 
 
@@ -2656,11 +2707,11 @@ function chartCountCards() {
 
     prependChartTitle(table, g_dataChart);
     g_chartContainer = new Plottable.Components.Table(table);
-
+    if (bNoColors)
+        chart.attr("stroke", "black");
     elemChart.attr('height', (domain.length + 3) * (50 + (cPartsGroupFinal < 3 ? 0 : 15 * (cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
     if (iGroupStack >= 0) {
-
         var elemTooltip = $("#tooltipChart");
         // Setup Interaction.Pointer
         var pointer = new Plottable.Interactions.Pointer(); //review: unknown why the interaction is lost after switching to another chart and back here
@@ -2672,7 +2723,10 @@ function chartCountCards() {
                 if (closest.datum != null) {
                     elemTooltip.css("left", p.x + elemChart.offset().left + common.yAxis._width + 20);
                     elemTooltip.css("top", closest.position.y + elemChart.offset().top);
-                    elemTooltip.html(escapeHtml(rgIcolorToGroupName[closest.datum.iColor || 0]) + "<br \>" + closest.datum.x);
+                    var iColor = 0;
+                    if (typeof (closest.datum.iColor) !== "undefined")
+                        iColor = closest.datum.iColor;
+                    elemTooltip.html(escapeHtml(legendTexts[iColor]) + "<br \>" + closest.datum.x);
                     elemTooltip.show();
                     bHide = false;
                 }

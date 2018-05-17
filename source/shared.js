@@ -14,7 +14,7 @@ var PREFIX_COMMAND_SE_COMMENT = "[^";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
-var g_cchTruncateChartLabel = 35;
+var g_cchTruncateChartDlabel = 35;
 var g_regexpHashtags = /#([\S-]+)/g;
 var g_colorTrelloBlack = "#4D4D4D";
 
