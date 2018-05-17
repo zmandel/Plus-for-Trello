@@ -118,7 +118,7 @@ function showExtensionUpgradedError(e) {
     if (divDialog.length == 0) {
         //focus on h2 so it doesnt go to the first link
         divDialog = $('\
-<dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_ExtensionUpgraded">\
+<dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim">\
 <h2 tabindex="1" style="outline: none;">Chrome updated Plus for Trello</h2><br> \
 <p>Reload this page to use Plus. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
 <p id="agile_dialog_ExtensionUpgraded_message"></p> \
@@ -140,13 +140,13 @@ function showExtensionUpgradedError(e) {
 
         divDialog.find("#agile_dialog_ExtensionUpgraded_Ignore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault(); //link click would navigate otherwise
-            divDialog.removeClass("agile_dialog_ExtensionUpgraded_animate");
+            divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
             setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
         });
     }
     $("#agile_dialog_ExtensionUpgraded_message").text(message);
     showModlessDialog(divDialog[0]);
-    setTimeout(function () { divDialog.addClass("agile_dialog_ExtensionUpgraded_animate"); }, 200); //some dialog conflict prevents animation from working without timeout
+    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 
 
@@ -263,6 +263,7 @@ function loadOptions(callback) {
     var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
     var keyAlreadyDonated = "bUserSaysDonated";
     var keyHidePendingCards = "bHidePendingCards";
+    var keyHideLessMore = "bHideLessMore";
     var keyDowStart = "dowStart";
     var keyMsStartPlusUsage = "msStartPlusUsage";
     var keySyncOutsideTrello = "bSyncOutsideTrello";
@@ -289,7 +290,7 @@ function loadOptions(callback) {
 
     //get options from sync
     chrome.storage.sync.get([SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
-                             keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT,
+                             keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
@@ -311,9 +312,13 @@ function loadOptions(callback) {
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
+                                 g_bHideLessMore = objSync[keyHideLessMore] || false;
+
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
                                  DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT);
-                                 g_bAcceptSFT = objSync[keyAcceptSFT] || false;
+                                 g_bAcceptSFT = objSync[keyAcceptSFT];
+                                 if (g_bAcceptSFT === undefined)
+                                     g_bAcceptSFT = true;
 
                                  g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
                                  if (g_bAcceptPFTLegacy === undefined)

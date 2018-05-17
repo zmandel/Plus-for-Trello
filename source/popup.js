@@ -205,7 +205,7 @@ function listAllBoards() {
 	    var rows = response.rows;
 
 	    if (rows === undefined || rows.length == 0) {
-	        status.text("No boards or cards yet.");
+	        status.text("No boards or cards until sync.");
 	        status.show();
 	        return;
 	    }

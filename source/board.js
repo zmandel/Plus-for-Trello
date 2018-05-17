@@ -340,8 +340,10 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             //if we dont do this, the bottom of the list (with the 'add card' link) goes too low.
             //we use estimation height because is the one already visible.
             divSE.prepend(spentBox);
-            var linkCreateCard = $("<a href='#' title='Add a card...'>").addClass("js-open-card-composer agile-open-card-composer").text("+"); //js-open-card-composer makes it open the trello box
-            listCur.append(linkCreateCard);
+            if (false) { //trello live list name edit now captures all clicks, tried a little to workarround it without success so bye +
+                var linkCreateCard = $("<a href='#' title='Add a card...'>").addClass("js-open-card-composer agile-open-card-composer").text("+"); //js-open-card-composer makes it open the trello box
+                listCur.append(linkCreateCard);
+            }
             listCur.append(divSE); //not h2.after(divSE) because that would cause the "subscribed to list" icon to drop below
 
         } else {
@@ -475,11 +477,43 @@ function updateWorker(bShowBoardTotals) {
     var boardCur = getCurrentBoard();
     var bOnBoardPageWithoutcard = (getIdBoardFromUrl(document.URL) != null);
     //note: when a card is up we want to avoid reparsing the board, user is typing etc
+    var idCardFromURL = getIdCardFromUrl(document.URL);
+    if (idCardFromURL)
+        recalcChecklistTotals();
+
     if (boardCur != null && (g_bForceUpdate || bOnBoardPageWithoutcard)) {
+        var sftElem = $("#scrumSettingsLink");
+        if (sftElem.length > 0)
+            showSFTDialog();
         updateCards(boardCur, null, bShowBoardTotals);
     }
     g_bNeedsUpdate = false;
     g_bForceUpdate = false;
+}
+
+function showSFTDialog() {
+    var divDialog = $("#agile_dialog_SFTWarning");
+
+    if (divDialog.length > 0)
+        return; //show at most once per page cold load
+
+    //focus on h2 so it doesnt go to the first link
+    divDialog = $('\
+<dialog id="agile_dialog_SFTWarning" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim" style="opacity:0.96;">\
+<h2 tabindex="1" style="outline: none;">Plus Warning</h2>\
+<br><p>Scrum for Trello cannot run together with Plus for Trello.\
+<br />Read <A href="https://support.google.com/chrome_webstore/answer/2664769" target="_blank">how to turn <b>off</b></A> one of the extensions.</p> \
+<a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_SFTWarning_OK">OK</a> <A style="float:right;margin-top:0.5em;" target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read more</A>.\
+</dialog>');
+    $("body").append(divDialog);
+
+    divDialog.find("#agile_dialog_SFTWarning_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        e.preventDefault(); //link click would navigate otherwise
+        divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+        setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
+    });
+    showModlessDialog(divDialog[0]);
+    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 
 var g_strLastBoardNameIdSaved = null;

@@ -1493,6 +1493,48 @@ function parseSEInput(ctl, bHiliteError, bExact) {
     return retVal;
 }
 
+function recalcChecklistTotals() {
+    var checks = $(".checklist-item-details-text");
+    var s = 0;
+    var e = 0;
+    
+    checks.each(function (i,elem) {
+        var se = parseSE(elem.textContent, true);
+        if (se.bParsed) {
+            s = s + se.spent;
+            e = e + se.estimate;
+        }
+    });
+    var seChecks = $(".agile_se_checks");
+    //add-comment-section
+    s = parseFixedFloat(s);
+    e = parseFixedFloat(e);
+    if (s == 0 && e == 0) {
+        seChecks.hide();
+        return;
+    }
+
+    var elemAfter=$(".add-comment-section");
+    if (elemAfter.length==0)
+        return;
+
+    if (seChecks.length == 0) {
+        seChecks = $("<div style='cursor:default;margin-left:1em;' class='agile_se_checks' title='This S/E is not included in card totals. It is shown only as an aid.'>");
+        seChecks.insertBefore(elemAfter);
+        seChecks = $(".agile_se_checks");
+    }
+    seChecks.text("Checklists total: ");
+    var estimateBadge = seChecks.children(".agile_badge_estimate");
+    var spentBadge = seChecks.children(".agile_badge_spent");
+    if (estimateBadge.length==0) {
+        estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront");
+        spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront");
+        seChecks.append(spentBadge).append(estimateBadge);
+    }
+    estimateBadge.text(e);
+    spentBadge.text(s);
+    seChecks.show();
+}
 
 function addCardCommentHelp() {
 	if (!g_bReadGlobalConfig)

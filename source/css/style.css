@@ -92,13 +92,13 @@ list-style-type:disc !important;
     color: #4D4D4D !important;
 }
 
-.agile_dialog_Postit_ExtensionUpgraded {
+.agile_dialog_Postit_Anim {
     margin-top: -11em;
     -webkit-transition: all 0.3s ease-out;
     transition: all 0.3s ease-out;  
 }
 
-.agile_dialog_ExtensionUpgraded_animate {
+.agile_dialog_Postit_Anim_ShiftToShow {
     margin-top: 0em !important;
 }
 

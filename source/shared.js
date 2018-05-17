@@ -145,7 +145,7 @@ var CMAX_THREADS = 4;
 var g_callbackOnAssert = null;
 var g_bDebuggingInfo = false;
 
-var g_bAcceptSFT = false;
+var g_bAcceptSFT = true;
 var g_bAcceptPFTLegacy = true;
 
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
@@ -387,7 +387,9 @@ function loadSharedOptions(callback) {
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
-                                 g_bAcceptSFT = objSync[keyAcceptSFT] || false;
+                                 g_bAcceptSFT = objSync[keyAcceptSFT];
+                                 if (g_bAcceptSFT === undefined)
+                                     g_bAcceptSFT = true;
 
                                  g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
                                  if (g_bAcceptPFTLegacy === undefined)

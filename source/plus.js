@@ -138,7 +138,7 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
 <li><p align="justify">plusfortrello.com: So our help pages can talk with the extension to better help you.</p></li>\
 </ul>\
 <br>\
-* We won\'t ask for payment right now. Plus will remind you after May 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
+* We won\'t ask for payment right now. Plus will remind you after June 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
 <br>\
 <button id="agile_dialog_showAprovePro_OK">Approve</button>&nbsp;\
 <button id="agile_dialog_showAprovePro_Cancel">Cancel</button>\
@@ -615,6 +615,7 @@ var g_bAllowNegativeRemaining = false;
 var g_bDontWarnParallelTimers = false;
 var g_bUserDonated = false;
 var g_bHidePendingCards = false;
+var g_bHideLessMore = false;
 var g_msStartPlusUsage = null; //ms of date when plus started being used. will be null until user enters the first row
 var g_bSyncOutsideTrello = false; //allow sync outside trello
 var g_bChangeCardColor = false; //change card background color based on its first label
@@ -2179,9 +2180,12 @@ function doShowAgedCards(bShow) {
 		elems.addClass("hide");
 }
 
-var g_bShowAllItems = false;  //show all items, or recent only (cards and boards)
+var g_bShowAllItems = true;  //show all items, or recent only (cards and boards)
 
 function checkCreateRecentFilter(header) {
+    if (g_bHideLessMore)
+        return;
+
 	var elemFilter = header.find($("#toggleAll"));
 	if (elemFilter.length > 0)
 		return;

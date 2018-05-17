@@ -866,6 +866,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
 	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
+	    helpWin.para("&bull; Hide this feature from Preferences.");
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -876,7 +877,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
-	    helpWin.para('Reload this and other Chrome Trello tabs after changing preferences.');
+	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
 	    if (true) { //units
 	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
@@ -991,6 +992,31 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bHidePendingCards = bValue;
 	                checkHidePending[0].checked = g_bHidePendingCards;
+	            });
+	        });
+	    }
+
+	    //option to hide "Less - More" feature
+	    if (true) {
+	        var checkHideLessMore = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedHideLessMore">\
+Hide "Less - More" at the top of Trello pages.</input>').children('input:checkbox:first');
+	        if (g_bHideLessMore)
+	            checkHideLessMore[0].checked = true;
+
+	        checkHideLessMore.click(function () {
+	            var bValue = checkHideLessMore.is(':checked');
+	            var pair = {};
+	            pair["bHideLessMore"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bHideLessMore = bValue;
+	                checkHideLessMore[0].checked = g_bHideLessMore;
+	                if (g_bHideLessMore) {
+	                    chrome.storage.sync.set({ 'bShowAllItems': true }, function () {
+	                        if (chrome.runtime.lastError === undefined)
+	                            g_bShowAllItems = true;
+	                    });
+	                }
 	            });
 	        });
 	    }

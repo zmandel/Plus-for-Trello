@@ -780,7 +780,7 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
         }
 
         elemTarget = elemTarget.eq(0);
-        //hipri zig fix keyboard arrow on board last two steps, cause lists page to scroll horizontally
+        //REVIEW zig: fix keyboard arrow on board last two steps, cause lists page to scroll horizontally
         //use focus as a way to force scrolling, certain special windows like Cards scroll in a custom way and body scrolling doesnt work.
         var elemFocus = elemTarget;
         if (step.focus)

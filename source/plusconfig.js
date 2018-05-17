@@ -317,6 +317,7 @@ function clearAllStorage(callback) {
                         'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
                         'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
                         'bHidePendingCards': g_bHidePendingCards,
+                        'bHideLessMore': g_bHideLessMore,
                         'dowStart': DowMapper.getDowStart(),
                         'msStartPlusUsage': g_msStartPlusUsage,
                         'bSyncOutsideTrello': g_bSyncOutsideTrello,
