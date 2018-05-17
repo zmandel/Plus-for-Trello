@@ -1582,6 +1582,7 @@ function buildSql(elems) {
     //note: the query itself doesnt group because we later do need the entire history to fill the pivot tabs.
     var groupByLower = (elems["groupBy"] || "").toLowerCase();
     var bByROpt = false;
+    var bHasUnion = false;
     var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
                 H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, H.eType as eType, \
@@ -1608,10 +1609,10 @@ function buildSql(elems) {
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
     if (groupByLower != "" &&
-        groupByLower.indexOf("keyword") < 0 && groupByLower.indexOf("user") < 0 &&
         !elems["weekStart"] && !elems["weekEnd"] && !bOrderByR) {
         assert(!g_bBuildSqlMode);
-
+        bHasUnion = true;
+        //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
         //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
         sql += " UNION ALL \
                 select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
@@ -1629,9 +1630,9 @@ function buildSql(elems) {
     }
 
 
-    sql += " order by date " + (g_bBuildSqlMode ? "ASC" : "DESC");
+    sql += " order by date " + (g_bBuildSqlMode ? "ASC" : "DESC"); //REVIEW: by date is needed for g_bBuildSqlMode, but otherwise why?
 
-    return { sql: sql, values: state.values, bByROpt: bByROpt };
+    return { sql: sql, values: state.values, bByROpt: bByROpt, bHasUnion: bHasUnion };
 }
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
@@ -1730,11 +1731,45 @@ function resetQueryButton(btn) {
     btn.text("Query");
 }
 
+function markDuplicateCardRows(rows) {
+    var mapIdCards = {};
+    const cLength = rows.length;
+    var row;
+    for (var i = 0; i < cLength; i++) {
+        row = rows[i];
+        assert(row.idCardH);
+        if (row.rowid !== -1) {
+            if (!mapIdCards[row.idCardH])
+                mapIdCards[row.idCardH] = {};
+            mapIdCards[row.idCardH].bSE = true;
+        } else {
+            if (!mapIdCards[row.idCardH])
+                mapIdCards[row.idCardH] = {};
+            assert(mapIdCards[row.idCardH].i === undefined);
+            mapIdCards[row.idCardH].i = i;
+        }
+    }
+
+    //looping on cards is faster than looping all rows.
+    //REVIEW see comment where the SQL UNION is made. we could avoid this 2nd pass with two separate queries, but might not be worth it
+    var item;
+    for (idCard in mapIdCards) {
+        item = mapIdCards[idCard];
+        if (item.bSE && item.i !== undefined)
+            rows[item.i].bDup=true;
+    }
+}
+
 function setReportData(rowsOrig, options, urlParams, sqlQuery) {
     var rowsGrouped = rowsOrig;
     var groupBy = urlParams["groupBy"];
     var orderBy = urlParams["orderBy"];
     var bCountCards = options.bCountCards;
+
+    if (sqlQuery.bHasUnion) {
+        assert(groupBy.length > 0);
+        markDuplicateCardRows(rowsOrig);
+    }
 
     if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
         rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
@@ -2984,23 +3019,16 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
         var i = 0;
         var map = {};
         var mapCardsPerGroup = {};
-        var cMax = rowsOrig.length;
+        const cMax = rowsOrig.length;
         var pGroups = propertyGroup.split("-");
         var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
         var propDateTimeString = "dtString";
-        var bGroupByCardUser = (propertyGroup == "idCardH-user"); //in this case, we want to remove rows without user when another s/e row with the same card exists in the result
-        var mapCardsHandled = {}; //only used for bGroupByCardUser
         var row = null;
         for (; i < cMax; i++) {
             row = rowsOrig[i];
 
-            if (bGroupByCardUser && row.idCardH) {
-                if (row.user && !mapCardsHandled[row.idCardH])
-                    mapCardsHandled[row.idCardH] = true;
-
-                if (!row.user && mapCardsHandled[row.idCardH])
-                    continue; //filter row out
-            }
+            if (row.bDup)
+                continue;
 
             if (row.date !== undefined && (row[propDateString] === undefined || row[propDateTimeString] === undefined)) {
                 var dateRow = new Date(row.date * 1000); //db is in seconds
@@ -3075,14 +3103,6 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
 
 
         for (i in map) {
-            row = map[i];
-            if (bGroupByCardUser && row.idCardH) {
-                if (row.user && !mapCardsHandled[row.idCardH])
-                    mapCardsHandled[row.idCardH] = true;
-
-                if (!row.user && mapCardsHandled[row.idCardH])
-                    continue; //filter duplicate row out
-            }
             ret.push(map[i]);
         }
     } else {
