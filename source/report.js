@@ -1580,7 +1580,7 @@ function buildSql(elems) {
     //note: currently week/month isnt stored in cards table thus we cant filter by these.
     //can be fixed but its an uncommon use of filters where user also wants to include cards without s/e
     if (groupByLower != "" &&
-        (groupByLower.indexOf("card") >= 0 || (groupByLower.indexOf("date") < 0 && groupByLower.indexOf("user") < 0 && groupByLower.indexOf("keyword") < 0)) &&
+        groupByLower.indexOf("keyword") < 0 &&
         !elems["weekStart"] && !elems["weekEnd"] && !bOrderByR) {
         assert(!g_bBuildSqlMode);
 
