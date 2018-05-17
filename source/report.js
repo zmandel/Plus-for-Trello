@@ -6,6 +6,7 @@ var g_iTabCur = null; //invalid initially
 var ITAB_REPORT = 0;
 var ITAB_BYUSER = 1;
 var ITAB_BYBOARD = 2;
+var ITAB_CHART = 3;
 var g_colorDefaultOver="#B9FFA9";
 var g_colorDefaultUnder = "#FFD5BD";
 var g_bShowKeywordFilter = false;

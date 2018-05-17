@@ -6,10 +6,13 @@
     <link href="css/tablesorter.css" rel="stylesheet" type="text/css">
     <link href="css/tooltip.css" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
+    <link href="css/plottable.css" rel="stylesheet" type="text/css">
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
+    <script type="text/javascript" src="libs/d3.min.js"></script>
+    <script type="text/javascript" src="libs/plottable.min.js"></script>
     <script type="text/javascript" src="shared.js"></script>
     <script type="text/javascript" src="report.js"></script>
 </head>
@@ -34,8 +37,7 @@
                     <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
 
-                <div style="display:none" class="agile_report_filter" title="
-Filter by Plus keywords.
+                <div style="display:none" class="agile_report_filter" title="Filter by Plus keywords.
 
 To find NOT containing, start with !
 Supports multiple AND/OR. See reports help top-right.">
@@ -43,8 +45,7 @@ Supports multiple AND/OR. See reports help top-right.">
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="keyword" name="keyword" /><input type="submit" class="agile_hidden" />
                 </div>
 
-                <div title="
-Group resulting rows to the level of detail you need.
+                <div title="Group resulting rows to the level of detail you need.
 Each resulting row will show the sum of its grouped S/E rows.
 
 Grouping only affects the Report tab.
@@ -72,8 +73,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="idTeamH-keyword">Team-Keyword</option>
                     </select>
                 </div>
-                <div title="
-Pick a pivot to change the columns in the 'Spent by ...' tabs.
+                <div title="Pick a pivot to change the columns in the 'Spent by ...' tabs.
 
 If you do not need to pivot, using 'Year' will make the report a little faster." class="agile_report_filter">
                     <p class="agile_report_filter_label">Pivot by</p>
@@ -84,8 +84,7 @@ If you do not need to pivot, using 'Year' will make the report a little faster."
                         <option value="day">Day</option>
                     </select>
                 </div>
-                <div title="
-Order resulting rows. Also click report headers to change order (SHIFT-click for multi-column).
+                <div title="Order resulting rows. Also click report headers to change order (SHIFT-click for multi-column).
 
 When the card has S/E rows, the row date is based on S/E rows.
 Otherwise its the date of the card's last create, move or rename.
@@ -145,39 +144,34 @@ Otherwise it uses the date of the card's last create, move or rename." class="ag
                     </select>
                 </div>
                 <div class="agile_report_filter_group" id="groupDateAdvanced">
-                    <form title="
-Valid formats:
+                    <form title="Valid formats:
 2014
 2014-W12
 
 Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="
-Valid formats:
+                    <form title="Valid formats:
 2014
 2014-W15
 
 Using a week filter only shows results that have S/E." target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="
-Valid formats:
+                    <form title="Valid formats:
 2014  (year)
 2014-02  (month)
 2014-02-09 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Date start</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
                     </form>
-                    <form title="
-Valid formats:
+                    <form title="Valid formats:
 2014  (year)
 2014-07  (month)
 2014-07-03 (full date)" target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter">
                         <p class="agile_report_filter_label">Date end</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
                     </form>
                 </div>
-                <div class="agile_report_filter" title="
-Filter by users that entered S/E on each card.
+                <div class="agile_report_filter" title="Filter by users that entered S/E on each card.
 Filtering by user will only show results that have S/E.
 
 To find NOT containing, start with !
@@ -210,8 +204,7 @@ Example: !#low finds cards without a '#low' hashtag.
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
                 </form>
-                <div style="display:none" class="agile_report_filter" title="
-Filter by card labels.
+                <div style="display:none" class="agile_report_filter" title="Filter by card labels.
 
 To find NOT containing, start with !
 Partially supports AND/OR:
@@ -227,8 +220,7 @@ See reports help top-right.">
                     <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="label" name="label" /><input type="submit" class="agile_hidden" />
                 </div>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter"
-                      title="
-To find NOT containing, start with !
+                      title="To find NOT containing, start with !
 
 Filtering by S/E note will only show results that have S/E.
 Supports multiple AND/OR. See reports help top-right.">
@@ -313,6 +305,9 @@ E 1st: rows with a first estimate
                             <td class="agile_tab_rest">
                                 <a href="#tabs-2" class="agile_report_tabselector">Spent By Board</a>
                             </td>
+                            <td class="agile_tab_rest">
+                                <a href="#tabs-3" class="agile_report_tabselector">Chart</a>
+                            </td>
                             <td style="width:100%" class="agile_tab_dummyLast"></td>
                         </tr>
                     </table>
@@ -353,6 +348,7 @@ E 1st: rows with a first estimate
                     </div>
                     <div class="agile_report_container_byBoard agile_report_containerScroll" style="overflow: auto;"></div>
                 </div>
+                <div id="tabs-3" style="display:none;padding:6px;height:10em;" class="agile_report_tab">Plus charts are coming soon. Chart S/E/R across grouped rows!</div>
             </div>
         </div>
     </div>

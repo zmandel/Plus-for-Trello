@@ -98,6 +98,10 @@ list-style-type:disc !important;
     transition: all 0.3s ease-out;  
 }
 
+.agile_dialog_Postit_Anim_SFT {
+    margin-top: -16em;
+}
+
 .agile_dialog_Postit_Anim_ShiftToShow {
     margin-top: 0em !important;
 }

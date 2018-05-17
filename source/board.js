@@ -492,29 +492,42 @@ function updateWorker(bShowBoardTotals) {
 }
 
 function showSFTDialog() {
-    var divDialog = $("#agile_dialog_SFTWarning");
+    var PROP_SFTDontWarnAgain="bSFTDontWarnAgain";
+    chrome.storage.sync.get([PROP_SFTDontWarnAgain], function (obj) {
+        if (chrome.runtime.lastError == undefined && obj && obj[PROP_SFTDontWarnAgain])
+            return;
+        var divDialog = $("#agile_dialog_SFTWarning");
 
-    if (divDialog.length > 0)
-        return; //show at most once per page cold load
+        if (divDialog.length > 0)
+            return; //show at most once per page cold load
 
-    //focus on h2 so it doesnt go to the first link
-    divDialog = $('\
-<dialog id="agile_dialog_SFTWarning" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim" style="opacity:0.96;">\
+        //focus on h2 so it doesnt go to the first link
+        divDialog = $('\
+<dialog id="agile_dialog_SFTWarning" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim agile_dialog_Postit_Anim_SFT" style="opacity:0.96;">\
 <h2 tabindex="1" style="outline: none;">Plus Warning</h2>\
-<br><p>Scrum for Trello cannot run together with Plus for Trello.\
+<br><p>Scrum for Trello may not run well with Plus for Trello<br />as both modify the same page elements (like S/E).\
 <br />Read <A href="https://support.google.com/chrome_webstore/answer/2664769" target="_blank">how to turn <b>off</b></A> one of the extensions.</p> \
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_SFTWarning_OK">OK</a> <A style="float:right;margin-top:0.5em;" target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read more</A>.\
+<br /><input style="vertical-align:middle;margin-bottom:0px;"  type="checkbox"  id="agile_check_SFTDontWarnAgain"><label style="display: inline-block;font-weight:500;"  for="agile_check_SFTDontWarnAgain">Dont show me again.</label></input>\
 </dialog>');
-    $("body").append(divDialog);
+        $("body").append(divDialog);
 
-    divDialog.find("#agile_dialog_SFTWarning_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
-        e.preventDefault(); //link click would navigate otherwise
-        divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
-        setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
+        divDialog.find("#agile_dialog_SFTWarning_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+
+            var check = $("#agile_check_SFTDontWarnAgain");
+            var bChecked = check[0].checked;
+            var pairSFTWarn = {};
+            pairSFTWarn[PROP_SFTDontWarnAgain] = bChecked;
+            chrome.storage.sync.set(pairSFTWarn);
+            setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
+        });
+        showModlessDialog(divDialog[0]);
+        setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
     });
-    showModlessDialog(divDialog[0]);
-    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
+
 
 var g_strLastBoardNameIdSaved = null;
 
