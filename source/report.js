@@ -115,7 +115,8 @@ var g_namedParams = { //review move all here
     namedReport: "named" //popup inline reports use this
 };
 
-var NR_POPUP_REMAIN = "_remain"; //used in html
+var NR_POPUP_REMAIN = "_remain"; //used in report and html
+var NR_HOME_REMAIN = "_remainHome"; //in plus home
 var g_cSyncSleep = 0;  //for controlling sync abuse
 var g_bIgnoreEnter = false; //review zig
 var FILTER_DATE_ADVANCED = "advanced";
@@ -124,7 +125,7 @@ var g_bAddParamSetLastRowViewedToQuery = false;
 var g_rowidLastSyncRemember = -1;
 var g_bBuildSqlMode = false;
 var g_sortListNamed = null; //when not null, this array specifies the sort list by column name
-
+var g_orderByWhenSortList = null; //stores the last "order by" at the moment we generated g_sortListNamed
 var PIVOT_BY = {
     year: "year",
     month: "month",
@@ -172,6 +173,8 @@ function updateNamedReport(url) {
 function updateUrlState(params) {
     if (g_namedReport)
         params[g_namedParams.namedReport] = g_namedReport;
+    if (g_sortListNamed)
+        params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed); //preserve sortist HIPRI only if sort didnt change?
     var url = buildUrlFromParams(params);
     window.history.replaceState('data', '', url);
     updateNamedReport(url);
@@ -656,7 +659,7 @@ document.addEventListener('DOMContentLoaded', function () {
     addTableSorterParsers();
     //any params that do not have a UI counterpart will be stripped later, so get them here and set a few global states
     var params = getUrlParams();
-    var bDisableSortInPopup = false;
+    var bDisableSort = false;
     var namedReport = params[g_namedParams.namedReport];
     var bNeedReplaceState = false;
     g_bPopupMode = (params["popup"] == "1"); //this one wins over saved one
@@ -675,8 +678,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         }
 
-        if (g_namedReport == NR_POPUP_REMAIN) {
-            bDisableSortInPopup = true;
+        if (g_namedReport == NR_POPUP_REMAIN || g_namedReport == NR_HOME_REMAIN) {
+            bDisableSort = true;
             params["orderBy"] = "remain"; //force. we disable it so user could get stuck if someone the combo changes (in theory shouldnt change thou)
             bNeedReplaceState = true;
         }
@@ -706,15 +709,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
     loadTabs($("#tabs"));
 
+    if (bDisableSort)
+        $("#orderBy").prop('disabled', true);
+
     if (g_bPopupMode) {
         $("#team").parent().hide();
         $("#archived").parent().hide();
         $("#deleted").parent().hide();
         $("#eType").parent().hide();
 
-        if (bDisableSortInPopup)
-            $("#orderBy").prop('disabled', true);
-        else if (g_bPopupMode) {
+        if (g_bPopupMode && !bDisableSort) {
             $("#orderBy option[value*='remain']").remove();
         }
 
@@ -1284,6 +1288,7 @@ function loadReport(params) {
     var szSortListParam = params[g_namedParams.sortListNamed];
     if (szSortListParam) {
         g_sortListNamed = JSON.parse(szSortListParam);
+        g_orderByWhenSortList = params["orderBy"];
     }
     else {
         g_sortListNamed = null;
@@ -1899,6 +1904,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         if (g_bAddParamSetLastRowViewedToQuery) {
             elems["setLastRowViewed"] = "true";
         }
+
+        if (g_orderByWhenSortList && g_orderByWhenSortList != elems["orderBy"] && g_sortListNamed)
+            g_sortListNamed = null;
         updateUrlState(elems);
     }
 
@@ -3631,10 +3639,18 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     const partsGroup = groupBy.split("-");
     var bCountCards = options.bCountCards;
     var bNoTruncate = options.bNoTruncate;
+    var headersSpecialTemp = {};
     function pushSpecialLinkHeader() {
         assert(header.length > 0);
-        headersSpecial[header.length - 1] = {
+        headersSpecialTemp[header.length - 1] = {
             sorter: 'links'
+        };
+    }
+
+    function pushSpecialDueDateHeader() {
+        assert(header.length > 0);
+        headersSpecialTemp[header.length - 1] = {
+            sorter: 'dateDue'
         };
     }
 
@@ -3722,8 +3738,10 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     }
 
     var bShowDueDate = bCustomColumns? includeCol("dateDue") : bCardGrouping;
-    if (bShowDueDate)
+    if (bShowDueDate) {
         pushHeader("Due date", "dateDue");
+        pushSpecialDueDateHeader();
+    }
 
     var bShowWeek = bCustomColumns ? includeCol("week") : (bShowDate && (bGroupedByDate || !g_bPopupMode));
     if (bShowWeek)
@@ -3832,6 +3850,20 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         }
         header = headerSorted;
     }
+
+    for (var propICol in headersSpecialTemp) {
+        var iPosCol;
+        
+        if (bCustomColumns) {
+            assert(propICol < rgColumnPositions.length);
+            iPosCol = rgColumnPositions[propICol];
+        } else {
+            iPosCol = propICol;
+        }
+
+        headersSpecial[iPosCol] = headersSpecialTemp[propICol];
+    }
+
     
     function callbackRowData(row) {
         bPushedCard = false;

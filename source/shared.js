@@ -134,6 +134,23 @@ function addTableSorterParsers() {
         type: 'numeric'
     });
 
+    
+    $.tablesorter.addParser({
+        id: 'dateDue',
+        is: function (s) {
+            // return false so this parser is not auto detected 
+            return false;
+        },
+        format: function (s) {
+            // format your data for normalization
+            if (s.length > 2) //hackish: empty dates show as a spasish char. this detects it.
+                return s;
+            return "3000-01-01 00:00";
+        },
+        // set type, either numeric or text
+        type: 'text'
+    });
+
 }
 
 function isTestVersion() {

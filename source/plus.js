@@ -1725,6 +1725,9 @@ function handleLoadRecent(combo, data, user) {
 	    if (id) {
 	        if (id == VAL_COMBO_OPENREPORT) {
 	            var params = "?chartView=s&groupBy=idCardH&orderBy=date&sinceSimple=w-4&user=" + user + "&archived=0&deleted=0";
+	            if (g_bProVersion)
+	                params += "&customColumns=card%2Cboard%2CdateDue%2CnameList%2Clabels%2Cs%2Ce%2Cnote%2CdateString";
+	            params += "&named=_recentHome&useStoredNamed=true";
 	            window.open(chrome.extension.getURL("report.html") + params, "_blank");
 	        } else {
 	            //must use timeout because this event arrives before the keydown event above
@@ -1792,7 +1795,11 @@ function handleLoadPending(combo, data, user) {
 	    combo.val("");
 	    if (id) {
 	        if (id == VAL_COMBO_OPENREPORT) {
-	            var params="?chartView=r&groupBy=idCardH&orderBy=remain&user="+user+"&archived=0&deleted=0&sortList=%5B%5B%22Date%22%2C1%5D%5D";
+	            var params="?chartView=r&groupBy=idCardH&orderBy=remain&user="+user+"&archived=0&deleted=0";
+	            if (g_bProVersion)
+	                params += "&customColumns=r%2Ccard%2Cboard%2Clabels%2CdateDue%2CdateString";
+	            params += "&sortList=%5B%5B%22Due%20date%22%2C0%5D%2C%5B%22Date%22%2C1%5D%5D";
+	            params += "&named=_remainHome&useStoredNamed=true";
 	            window.open(chrome.extension.getURL("report.html")+params, "_blank");
 	        } else {
 	            //must use timeout because this event arrives before the keydown event above
