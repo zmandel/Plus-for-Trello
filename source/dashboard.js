@@ -10,7 +10,7 @@ var g_chartUser = null;
 var g_dataUser = null;
 var g_userTrello = null;
 var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations: null, pointer: null };
-
+var g_bUniqueBoard = false;
 var g_TimelineColors = ["#D25656", "#6F83AD", g_colorRemaining, "black"]; //red, blue, green (spent, estimate, remaining, annotation)
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -129,6 +129,7 @@ function configBoardBurndownData(idBoard, elems) {
                         try {
                             setChartData(rows, idBoard, elems);
                             var bUniqueBoard = !!elems["idBoard"];
+                            g_bUniqueBoard = bUniqueBoard;
                             if (bUniqueBoard) {
                                 if (rows && rows.length>0)
                                     updateTitle(rows[0].nameBoard);
@@ -551,7 +552,7 @@ function loadTimeline(series) {
     pointer.onClick(function (p) {
         var event = window.event;
 
-        if (event && event.ctrlKey) {
+        if (event && (event.ctrlKey || event.shiftKey)) {
             projectionLine.drawAt(p);
             return;
         }
@@ -853,19 +854,28 @@ function setChartData(rows, idBoard, params) {
 
 function getHtmlBurndownTooltipByUser(rowsParam, bReverse, colExclude, selection) {
     
-    var header = [{ name: "Date Last" }, { name: "Card" }, { name: "S" }, { name: "E" }, { name: "R" }];
+    var header = [{ name: "Date Last" }, { name: "Board", bBoard:true }, { name: "Card" }, { name: "S" }, { name: "E" }, { name: "R" }];
+    var bUniqueBoard = g_bUniqueBoard;
+    assert(header[1].bBoard);
+    if (bUniqueBoard)
+        header.splice(1, 1);
     var bRemain = (selection && selection.col === 2);
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
 		rgRet.push({ name: makeDateCustomString(date,true), bNoTruncate: true });
 
+		if (!bUniqueBoard) {
+		    var urlBoard = "https://trello.com/b/" + row.idBoardH;
+		    rgRet.push({ name: "<A target='_blank' href='" + urlBoard + "'>" + escapeHtml(strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
+		}
+		
 		var urlCard = null;
 		if (row.idCardH.indexOf("https://") == 0)
 			urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
 		else
 			urlCard = "https://trello.com/c/" + row.idCardH;
-		rgRet.push({ name: "<A target='_blank' href='" + urlCard + "'>" + strTruncate(row.nameCard) + "</A>", bNoTruncate: true });
+		rgRet.push({ name: "<A target='_blank' href='" + urlCard + "'>" + escapeHtml(strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
 		var rPush = parseFixedFloat(row.est - row.spent);
