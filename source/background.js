@@ -993,6 +993,7 @@ If you instead want to disable timer popups do so from Plus preferences.");
             handleInsertHistoryRowFromUI(request, sendResponse);
         }
         else if (request.method == "queueRenameAllCards") {
+            g_rgUndoCardRename = null; //exlusive
             localStorage["renameCardsPendingData"] = JSON.stringify({ pending: true, bOnlyCardsWithHistory: request.bOnlyCardsWithHistory });
             sendResponse({ status: STATUS_OK });
         }
@@ -1054,6 +1055,35 @@ If you instead want to disable timer popups do so from Plus preferences.");
         }
         else if (request.method == "copyToClipboard") {
             handleCopyClipboard(request.html, sendResponse);
+        }
+        else if (request.method == "undoRenameCards") {
+            localStorage.removeItem("renameCardsPendingData"); //exclusive
+            //getting the input here likely allows a larger text buffer and/or more efficient than sending through message
+            var text = window.prompt("Paste the text from the rename backup file (dont worry about the '...' at the end after pasting)");
+            var obj = null;
+            var totalCards = 0;
+            var status = STATUS_OK;
+
+            if (text) {
+                try {
+                    obj = JSON.parse(text);
+                } catch (e) {
+
+                }
+            }
+            if (text && (obj == null || !obj.cards || obj.cards.length != obj.totalCards)) {
+                status="Invalid JSON text format.";
+            } else if (!text || obj.totalCards <= 0)
+                status = "No cards to process.";
+            else {
+                totalCards = obj.totalCards;
+            }
+            if (obj)
+                g_rgUndoCardRename = obj.cards;
+            else
+                g_rgUndoCardRename = null;
+            sendResponse({ status: status, totalCards: totalCards });
+
         }
         else
             sendResponse({});
@@ -1281,6 +1311,11 @@ function handleCheckChromeStoreToken(sendResponse) {
         sendResponse({ status: "Please sign-in to Chrome." });
         return;
     }
+
+    handleShowDesktopNotification({
+        notification: "Please wait a few seconds for additional permission screens the first time you enable Pro.",
+        timeout: 10000
+    });
 
     chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
         if (token) {

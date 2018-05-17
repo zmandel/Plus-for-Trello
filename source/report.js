@@ -22,6 +22,13 @@ var g_namedReport = null; //stores named report from initial url param
 var g_excludedColumns = {};
 var g_bAllowNegativeRemaining = false;
 
+const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
+    ser: "ser",
+    e1vse : "e1vse",
+    echange: "echange",
+    cardcount: "cardcount"
+};
+
 var g_colours = { //thanks http://stackoverflow.com/a/1573141/2213940
     "aliceblue": "#f0f8ff", "antiquewhite": "#faebd7", "aqua": "#00ffff", "aquamarine": "#7fffd4", "azure": "#f0ffff",
     "beige": "#f5f5dc", "bisque": "#ffe4c4", "black": "#000000", "blanchedalmond": "#ffebcd", "blue": "#0000ff", "blueviolet": "#8a2be2", "brown": "#a52a2a", "burlywood": "#deb887",
@@ -675,6 +682,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         });
 
+        $("#chartView").change(function () {
+            fillChart();
+            var typeChart = $("#chartView").val();
+            var params = getUrlParams();
+            if (params["chartView"] != typeChart) {
+                params["chartView"] = typeChart;
+                updateUrlState(params);
+            }
+        });
         function addFocusHandler(elem) {
             var specialAll = "*"; //wasted time getting .autocomplete to work on "" so this hack worksarround it
             elem.off("focus.plusForTrello").on("focus.plusForTrello", function () {
@@ -779,8 +795,12 @@ function configChartTab() {
         copyWindow.attr("src", chrome.extension.getURL("images/copy.png"));
         copyWindow.attr("title", "Click to download as a PNG image.");
         copyWindow.off().click(function () {
+            if (bCancelFromAlertLargeSize(true))
+                return;
             var elemChart = $("#chart");
-            saveSvgAsPng(elemChart[0], "chart.png", { scale: window.devicePixelRatio || 1 });
+            var nameChart = window.prompt("Name for the PNG file:", "chart");
+            if (nameChart)
+                saveSvgAsPng(elemChart[0], nameChart.trim()+".png", { scale: window.devicePixelRatio || 1 });
         });
     }
 }
@@ -1138,9 +1158,9 @@ function loadReport(params) {
     g_bShowKeywordFilter = (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1);
 
     var elems = {
-        keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
+        chartView: g_chartViews.ser, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
-        idBoard: (g_bBuildSqlMode ? "" : "showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide",
+        idBoard: (g_bBuildSqlMode ? "" : "showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false"
     };
 
@@ -1163,11 +1183,22 @@ function loadReport(params) {
             hiliteOnce(elemCur);
     }
 
+    var elemChartMessage = $("#chartMessage");
+    elemChartMessage.text(""); //reset
+
+    if (params["checkNoCharts"] == "true") {
+        elemChartMessage.text("To view charts, uncheck 'No Charts' from reports Options and query again.");
+    } else if (!params["groupBy"]) {
+        elemChartMessage.text("To view a chart, make a report that is grouped by other than 'S/E rows'.");
+    }
+
+
     if (g_bShowLabelsFilter) {
         editLabels.parent().show();
     }
     else {
         editLabels.parent().hide();
+        $("#groupBy option[value*='label']").remove();
     }
 
     if (g_bShowKeywordFilter)
@@ -1589,6 +1620,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (elems["checkNoCrop"] == "false")
         elems["checkNoCrop"] = ""; //ditto like eType
 
+    if (elems["checkNoCharts"] == "false")
+        elems["checkNoCharts"] = ""; //ditto
+
     if (elems["checkNoLabelColors"] == "false")
         elems["checkNoLabelColors"] = ""; //ditto like eType
 
@@ -1641,12 +1675,14 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 					    }
 					    var rows = response.rows;
 					    try {
+					        var groupBy = elems["groupBy"];
 					        var options = {
 					            bNoTruncate: elems["checkNoCrop"] == "true",
 					            bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
 					            bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
 					            bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
-					            bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true"
+					            bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
+					            bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH")<0)
 					        };
 
 					        setReportData(rows, options, elems, sqlQuery);
@@ -1670,9 +1706,10 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
     var rowsGrouped = rowsOrig;
     var groupBy = urlParams["groupBy"];
     var orderBy = urlParams["orderBy"];
+    var bCountCards = options.bCountCards;
 
     if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
-        rowsGrouped = groupRows(rowsOrig, groupBy, orderBy);
+        rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
 
     var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0); //review zig: dup elsewhere
     var mapIdCards = {};
@@ -1834,7 +1871,7 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
         var btn = $("#buttonFilter");
         resetQueryButton(btn);
         fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, options.bNoTruncate);
-        saveDataChart(rowsGrouped, urlParams);
+        saveDataChart(rowsGrouped, urlParams, options);
         selectTab(g_iTabCur); //select again to adjust height
         if (g_bNeedSetLastRowViewed) {
             g_bNeedSetLastRowViewed = false;
@@ -1935,20 +1972,20 @@ function setLastViewedRow() {
 }
 
 var g_chartContainer = null;
-var g_dataChart = null;
+var g_dataChart = null; //gets nulled after making the chart
+var g_dataLength = 0; //this one wont get nulled
 
-function saveDataChart(rows, urlParams) {
+function saveDataChart(rows, urlParams, options) {
+    //remove any possible previous leftover
     g_chartContainer = null;
     g_dataChart = null;
+    g_dataLength = 0;
     const groupBy = urlParams["groupBy"];
     const bAllDates = (urlParams["sinceSimple"] == "");
     const bHasIdBoardFilter = (!!urlParams["idBoard"]);
     const bRemain = (urlParams["orderBy"] == "remain");
-    var elemMessage = $("#chartMessage");
-    elemMessage.text(""); //reset
 
-    if (!groupBy) {
-        elemMessage.text("To view a chart, make a report that is grouped by other than 'S/E rows'.");
+    if (!groupBy || urlParams["checkNoCharts"] == "true") {
         return;
     }
     
@@ -1989,7 +2026,10 @@ function saveDataChart(rows, urlParams) {
 
     var dataS = [];
     var dataR = [];
+    var dataE = [];
+    var dataEFirst = [];
     var domain = [];
+    var dataCountCards = [];
     const bShowR = (bAllDates && !bDateGroups);
     var bHasNegativeR = false;
     var bHasNegatives = false;
@@ -2005,12 +2045,18 @@ function saveDataChart(rows, urlParams) {
         //All labels will always contain two parts, separated by REPORTCHART_LABEL_PREPENDSEP
         //the first part, if not empty, contains a unique string made from the prependIds
         var prepend = "";
+        var bPushDomain = false;
         for (iProp = 0; iProp < prependIds.length; iProp++) {
             prepend = prepend + "+" + (rowCur[prependIds[iProp]] || "");
         }
         prepend += REPORTCHART_LABEL_PREPENDSEP;
         yField = prepend + yField;
         
+        if (options.bCountCards) {
+            dataCountCards.push({ x: rowCur.countCards, y: yField });
+            bPushDomain = true;
+        }
+
         if (bRemain || (rowCur.spent != 0 || (bShowR && rowCur.est != 0))) {
             if (!bRemain && rowCur.spent != 0) {
                 dataS.push({ x: parseFixedFloat(rowCur.spent), y: yField });
@@ -2027,35 +2073,121 @@ function saveDataChart(rows, urlParams) {
                     dataR.push({ x: rCalc, y: yField });
                 }
             }
-            domain.push(yField);
+            bPushDomain = true;
         }
+
+        if (rowCur.est != 0 || rowCur.estFirst != 0) {
+            //push always together even if some are zero, as later elements must correspond in both sets
+            dataE.push({ x: parseFixedFloat(rowCur.est), y: yField });
+            dataEFirst.push({ x: parseFixedFloat(rowCur.estFirst), y: yField });
+            bPushDomain = true;
+        }
+
+        if (bPushDomain)
+            domain.push(yField);
     }
+
     g_dataChart = {
         dataS: dataS,
         dataR: dataR,
+        dataCountCards: dataCountCards,
+        dataE: dataE,
+        dataEFirst: dataEFirst,
         domain: domain,
         bShowR: bShowR,
         bRemain: bRemain,
-        bHasNegatives: bHasNegatives
+        bHasNegatives: bHasNegatives,
+        cPartsGroup: pGroups.length,
+        params: urlParams
     };
     
-    if (!bRemain) {
-        if (dataS.length == 0)
-            textMessage += " There is no Spent/Estimate to chart.";
-    } else {
-        if (dataR.length == 0)
-            textMessage += " There is no Remain to chart.";
-    }
-    elemMessage.text(textMessage);
+    g_dataLength = Math.max(g_dataChart.dataS.length,
+                            g_dataChart.dataR.length,
+                            g_dataChart.dataCountCards.length,
+                            g_dataChart.dataE.length,
+                            g_dataChart.dataEFirst.length);
+
     return;
 }
 
 const REPORTCHART_LABEL_PREPENDSEP = "|"; //cant be / as unknown ids contain that
+function bCancelFromAlertLargeSize(bDownloading) {
+    const MAX_BARS = 200;
+    if (g_dataLength > MAX_BARS) {
+        var strAlert = "The charts will have " + g_dataLength + " bars.";
+        if (bDownloading)
+            strAlert += "\n" + "Converting a large chart to PDF may fail.";
+        strAlert += "\nAre you sure?";
+        if (!confirm(strAlert))
+            return true; //cancel
+    }
+    return false; //dont cancel
+}
+
+var g_lastChartFilled = "";
 function fillChart() {
     if (!g_dataChart)
         return;
 
-    if (g_chartContainer)
+    var typeChart = $("#chartView").val();
+    if (g_lastChartFilled == typeChart)
+        return;
+
+    if (bCancelFromAlertLargeSize(false))
+        return;
+
+    g_lastChartFilled = typeChart;
+    
+    if (typeChart == g_chartViews.ser)
+        chartSER();
+    else if (typeChart == g_chartViews.cardcount)
+        chartCountCards();
+    else if (typeChart == g_chartViews.e1vse)
+        charte1vse();
+    else if (typeChart == g_chartViews.echange)
+        charteChange();
+}
+
+function getCommonChartParts(dataChart, colors, colorsForScale, labelTexts, labelTextsDomainColorScale) {
+    var ret = {};
+    ret.colorScale = new Plottable.Scales.Color().range(colorsForScale).domain(labelTextsDomainColorScale);
+    ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("center");
+    ret.yScale = new Plottable.Scales.Category().domain(dataChart.domain);
+    ret.xScale = new Plottable.Scales.Linear();
+    ret.xAxis = new Plottable.Axes.Numeric(ret.xScale, "bottom");
+
+    ret.yAxis = new Plottable.Axes.Category(ret.yScale, "left").formatter(function (label) {
+        var iSlash = label.indexOf(REPORTCHART_LABEL_PREPENDSEP); //skip prependIds
+        var labelReal = label.substring(iSlash + 1);
+        var parts = labelReal.split("\n");
+        var labelDisplay = "";
+        for (var iPart = 0; iPart < parts.length; iPart++) {
+            if (iPart > 0)
+                labelDisplay += "\n";
+            labelDisplay += strTruncate(parts[iPart] || "-", g_cchTruncateChartLabel);
+        }
+        return labelDisplay;
+    });
+
+    return ret;
+}
+
+function chartSER() {
+    var elemChart = $("#chart");
+    elemChart.empty();
+
+    var elemChartMessage = $("#chartMessage");
+    var textMessage = "";
+
+    if (!g_dataChart.bRemain) {
+        if (g_dataChart.dataS.length == 0)
+            textMessage += "There is no Spent/Estimate to chart.";
+    } else {
+        if (g_dataChart.dataR.length == 0)
+            textMessage += " There is no Remain to chart.";
+    }
+    elemChartMessage.text(textMessage);
+    if (textMessage.length>0)
         return;
 
     var colors = ["#D25656"];
@@ -2064,25 +2196,8 @@ function fillChart() {
         colors.push("#519B51");
         labelTexts.push("Remain");
     }
-    var colorScale = new Plottable.Scales.Color().range(g_dataChart.bRemain ? [colors[1]] : colors).
-        domain(g_dataChart.bRemain ? [labelTexts[1]] : labelTexts);
-    var legend = new Plottable.Components.Legend(colorScale).xAlignment("center").yAlignment("center");
-    var yScale = new Plottable.Scales.Category().domain(g_dataChart.domain);
-    var xScale = new Plottable.Scales.Linear();
-
-    var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
-    var yAxis = new Plottable.Axes.Category(yScale, "left").formatter(function (label) {
-        var iSlash = label.indexOf(REPORTCHART_LABEL_PREPENDSEP); //skip prependIds
-        var labelReal = label.substring(iSlash + 1);
-        var parts = labelReal.split("\n");
-        var labelDisplay = "";
-        for (var iPart = 0; iPart < parts.length; iPart++) {
-            if (iPart > 0)
-                labelDisplay += "\n";
-            labelDisplay += strTruncate(parts[iPart]||"-", g_cchTruncateChartLabel);
-        }
-        return labelDisplay;
-    });
+    var common = getCommonChartParts(g_dataChart, colors, g_dataChart.bRemain ? [colors[1]] : colors
+        , labelTexts, g_dataChart.bRemain ? [labelTexts[1]] : labelTexts);
 
     var datasets = {
         ds: new Plottable.Dataset(g_dataChart.dataS),
@@ -2100,20 +2215,178 @@ function fillChart() {
     if (g_dataChart.bShowR)
         chart.addDataset(datasets.dr);
 
-    chart.x(function (d) { return d.x; }, xScale).
-        y(function (d) { return d.y; }, yScale).
+    chart.x(function (d) { return d.x; }, common.xScale).
+        y(function (d) { return d.y; }, common.yScale).
         attr("fill", function (d, i, dataset) {
-          return (dataset == datasets.ds ? colors[0] : colors[1]);
-      });
+            return (dataset == datasets.ds ? colors[0] : colors[1]);
+        });
 
     g_chartContainer = new Plottable.Components.Table([
-      [null, legend],
-      [yAxis, chart],
-      [null, xAxis]
+      [null, common.legend],
+      [common.yAxis, chart],
+      [null, common.xAxis]
     ]);
-    $("#chart").attr('height', (g_dataChart.domain.length + 3) * 40);
+
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50+(g_dataChart.cPartsGroup<3?0:20*(g_dataChart.cPartsGroup-2))));
     g_chartContainer.renderTo("#chart");
-    g_dataChart = null; //remove cached data
+}
+
+
+function charte1vse() {
+    var elemChart = $("#chart");
+    elemChart.empty();
+
+    var elemChartMessage = $("#chartMessage");
+    var textMessage = "";
+
+    if (g_dataChart.dataE.length==0) {
+        textMessage += "There are no estimates to chart.";
+    }
+    elemChartMessage.text(textMessage);
+    if (textMessage.length>0)
+        return;
+    var colors = ["#A5D6A7", "#43A047"];
+    var labelTexts = ["E 1st", "E current"];
+
+    var common = getCommonChartParts(g_dataChart, colors, colors, labelTexts, labelTexts);
+    common.yScale.innerPadding(0).outerPadding(0);
+    var datasets = {
+        de1: new Plottable.Dataset(g_dataChart.dataEFirst),
+        de2: new Plottable.Dataset(g_dataChart.dataE)
+    };
+
+    var chart = new Plottable.Plots.ClusteredBar(Plottable.Plots.ClusteredBar.ORIENTATION_HORIZONTAL).
+        addDataset(datasets.de1).addDataset(datasets.de2).labelsEnabled(true).addClass("chartReportStyle");
+
+    if (!g_bPopupMode)
+        chart.animated(true);
+
+    chart.x(function (d) { return d.x; }, common.xScale).
+        y(function (d) { return d.y; }, common.yScale).
+        attr("fill", function (d, i, dataset) {
+            return (dataset == datasets.de1 ? colors[0] : colors[1]);
+        });
+
+
+    g_chartContainer = new Plottable.Components.Table([
+      [null, common.legend],
+      [common.yAxis, chart],
+      [null, common.xAxis]
+    ]);
+
+
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * 1.3*(50 + (g_dataChart.cPartsGroup < 3 ? 0 : 20 * (g_dataChart.cPartsGroup - 2))));
+    g_chartContainer.renderTo("#chart");
+}
+
+function charteChange() {
+    var elemChart = $("#chart");
+    elemChart.empty();
+
+    var elemChartMessage = $("#chartMessage");
+    var textMessage = "";
+
+    if (g_dataChart.dataE.length == 0) {
+        textMessage += "There are no estimates to chart.";
+    }
+    elemChartMessage.text(textMessage);
+    if (textMessage.length>0)
+        return;
+
+    var colors = ["#607D8B", "#f44336", "#4CAF50"];
+    var labelTexts = ["E 1st", "Increased E", "Reduced E"];
+
+    var common = getCommonChartParts(g_dataChart, colors, colors, labelTexts, labelTexts);
+    
+    var dPlus = [];
+    var dMinus = [];
+    var dE1 = g_dataChart.dataEFirst;
+    var dE2 = g_dataChart.dataE;
+    var delta = 0;
+    assert(dE1.length == dE2.length);
+    for (var ids = 0; ids < dE1.length; ids++) {
+        delta = dE2[ids].x - dE1[ids].x;
+        if (delta>0)
+            dPlus.push({ x: "+" + parseFixedFloat(delta), y: dE1[ids].y }); //trick: add + so it gets displayed with "+", but will still get interpreted correctly
+        if (delta < 0)
+            dMinus.push({ x: parseFixedFloat(delta), y: dE1[ids].y });
+    }
+    var datasets = {
+        d0: new Plottable.Dataset(g_dataChart.dataEFirst),
+        d1: new Plottable.Dataset(dPlus),
+        d2: new Plottable.Dataset(dMinus)
+    };
+
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
+        addDataset(datasets.d0).addDataset(datasets.d1).addDataset(datasets.d2).labelsEnabled(true)
+        .addClass("chartReportStyle");
+
+    if (!g_bPopupMode)
+        chart.animated(true);
+
+    chart.x(function (d) { return d.x; }, common.xScale).
+        y(function (d) { return d.y; }, common.yScale).
+        attr("fill", function (d, i, dataset) {
+            return (dataset == datasets.d0 ? colors[0] : (dataset == datasets.d1? colors[1]:colors[2]));
+        }).labelFormatter(
+            function (label) {
+                return "" + label; //review put + on the red boxes labels. cant differenciate so far from other boxes`
+            });;
+
+    g_chartContainer = new Plottable.Components.Table([
+      [null, common.legend],
+      [common.yAxis, chart],
+      [null, common.xAxis]
+    ]);
+
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroup < 3 ? 0 : 20 * (g_dataChart.cPartsGroup - 2))));
+    g_chartContainer.renderTo("#chart");
+}
+
+function chartCountCards() {
+    var elemChart = $("#chart");
+    elemChart.empty();
+
+    var elemChartMessage = $("#chartMessage");
+    var textMessage = "";
+
+    if (g_dataChart.dataCountCards.length == 0)
+        textMessage += "There are no counts to chart. Make sure to group by other than Card or 'S/E rows'.";
+    
+    elemChartMessage.text(textMessage);
+    if (textMessage.length>0)
+        return;
+
+    var colors = ["#026AA7"];
+    var labelTexts = ["Card count"];
+
+    var common = getCommonChartParts(g_dataChart, colors, colors, labelTexts, labelTexts);
+    common.xScale.tickGenerator(Plottable.Scales.TickGenerators.integerTickGenerator());
+    
+    var datasets = {
+        dc: new Plottable.Dataset(g_dataChart.dataCountCards)
+    };
+
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
+        addDataset(datasets.dc).labelsEnabled(true).addClass("chartReportStyle");
+
+    if (!g_bPopupMode)
+        chart.animated(true);
+
+    chart.x(function (d) { return d.x; }, common.xScale).
+        y(function (d) { return d.y; }, common.yScale).
+        attr("fill", function (d, i, dataset) {
+            return (colors[0]);
+        });
+
+    g_chartContainer = new Plottable.Components.Table([
+      [null, common.legend],
+      [common.yAxis, chart],
+      [null, common.xAxis]
+    ]);
+
+    elemChart.attr('height', (g_dataChart.domain.length + 3) * (50 + (g_dataChart.cPartsGroup < 3 ? 0 : 15 * (g_dataChart.cPartsGroup - 2))));
+    g_chartContainer.renderTo("#chart");
 }
 
 function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) {
@@ -2438,14 +2711,14 @@ function calculateTables(rows, pivotBy) {
 }
 
 
-function groupRows(rowsOrig, propertyGroup, propertySort) {
+function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
 
     var ret = [];
-
     //group
     if (propertyGroup.length > 0) {
         var i = 0;
         var map = {};
+        var mapCardsPerGroup = {};
         var cMax = rowsOrig.length;
         var pGroups = propertyGroup.split("-");
         var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
@@ -2473,8 +2746,27 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
             var key = "";
             var iProp = 0;
 
-            for (; iProp < pGroups.length; iProp++)
-                key = key + "/" + row[pGroups[iProp]];
+            for (; iProp < pGroups.length; iProp++) {
+                var propname = pGroups[iProp];
+                var valCur = "";
+                if (propname == "hashtagFirst") {
+                    var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
+                    if (rgHash.length > 0)
+                        valCur = rgHash[0];
+                    else
+                        valCur = "";
+                    row.hashtagFirst = valCur; //NOTE we modify the row here
+
+                } else if (propname == "idLabelFirst") { //review implement
+                    if (row[propname])
+                        valCur = row[propname]; //2nd pass
+                    else
+                        valCur = row["idCardH"]; //1st pass review missing
+                } else {
+                    valCur = row[propname];
+                }
+                key = key + "/" + String(valCur).toLowerCase();
+            }
             var group = map[key];
             if (group === undefined)
                 group = cloneObject(row);
@@ -2486,12 +2778,14 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
                     var eFirstSave = group.estFirst;
                     var rowidSave = group.rowid;
                     var dateDueSave = group.dateDue;
+                    var countCardsSave = group.countCards;
                     group = cloneObject(row); //re-clone so rows with s/e always take precedence over card-only rows.
                     group.spent = sSave;
                     group.est = eSave;
                     group.estFirst = eFirstSave;
                     group.rowid = rowidSave;
                     group.dateDue = dateDueSave;
+                    group.countCards = countCardsSave;
                 }
                 group.spent += row.spent;
                 group.est += row.est;
@@ -2502,6 +2796,16 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
                 }
             }
             map[key] = group;
+            if (bCountCards) {
+                if (!mapCardsPerGroup[key]) {
+                    group.countCards = 0;
+                    mapCardsPerGroup[key] = {};
+                }
+                if (!mapCardsPerGroup[key][row.idCardH]) {
+                    mapCardsPerGroup[key][row.idCardH] = true;
+                    group.countCards++;
+                }
+            }
         }
 
 
@@ -2562,6 +2866,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
     var bOrderR = (orderBy == "remain");
     var header = [];
+    var bCountCards = options.bCountCards;
     var bNoTruncate = options.bNoTruncate;
     function pushSpecialLinkHeader() {
         assert(header.length > 0);
@@ -2589,7 +2894,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
     var bShowLabels = bShowCard && g_bShowLabelsFilter;
     var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
     var bPushedCard = false;
-
+    var bShowHashtag = (groupBy.indexOf("hashtagFirst") >= 0);
     function pushCardHeader() {
         if (options.bOutputCardShortLink)
             header.push({ name: "Card shortLink" });
@@ -2612,6 +2917,8 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
         bPushedCard = true;
     }
 
+    if (bCountCards)
+        header.push({ name: "Card count"});
     var bGroupByCardOrNone = (groupBy == "" || bCardGrouping);
     var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
     var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
@@ -2635,6 +2942,10 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
 
     if (bShowList)
         header.push({ name: "List" });
+
+    if (bShowHashtag) {
+        header.push({ name: "Hashtag" });
+    }
 
     if (bShowCard && !bPushedCard) {
         pushCardHeader();
@@ -2725,6 +3036,9 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
             bPushedCard = true;
         }
 
+        if (bCountCards)
+            rgRet.push({ name: String(row.countCards || 0), bNoTruncate: true });
+
         if (bShowMonth)
             rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
         if (bShowUser)
@@ -2749,6 +3063,12 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
                 strListUse = strTruncate(strListUse, g_cchTruncateShort);
             rgRet.push({ name: escapeHtml(strListUse), bNoTruncate: true });
         }
+
+
+        if (bShowHashtag) {
+            rgRet.push({ name: escapeHtml(row.hashtagFirst), bNoTruncate: bNoTruncate });
+        }
+
         if (bShowCard && !bPushedCard) {
             pushCardRow();
             bPushedCard = true;

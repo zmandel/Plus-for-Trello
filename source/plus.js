@@ -112,33 +112,35 @@ function showApproveProTrialDialog(callback) {
 <dialog class="agile_dialog_showAprovePro agile_dialog_DefaultStyle"> \
 <h2  tabindex="1" id="agile_dialog_showAprovePro_Top" style="outline: none;" align="center">Plus for Trello - "Pro" version</h2>\
 <p align="justify">\
-Good news! we have new "Pro" paid features!<br>\
-Can\'t pay? No problem! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them along with the "Pro" features.<\p>\
+<h3>Which features are "Pro"?</h3>\
+<ul class="agile_help_Pro_ul"></li>\
+<li>Labels in reports and burn-downs.</li>\
+<li>More report export options.</li>\
+<li>Some of our <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">future features</a> will also we "Pro".\
+</ul>\
+<\p>\
 <br>\
 <h3>Why?</h3>\
 <p align="justify">\
 We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 50K daily users and 180+ updates since 2013! Writing great software takes a lot of effort, talent and knowledge.<br>\
-We have never sacrificed quality but without charging we can only go so fast.\
+We have never sacrificed quality but without charging we can only go so fast.<br />\
+<br \>Can\'t pay Pro? No problem Bro! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them.<\p>\
 <\p>\
-<br>\
-<h3>Which features are "Pro"?</h3>\
-<p align="justify">\
-Besides our newly-added <b>labels support</b> in reports, Chrome Plus menu, burn-downs and offline, we have many <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">pending features</a> like "Ping" and "Time in lists" charts which we will add over time.\
-<\p>\
-<br>\
+<br \>\
 <h3>How to enable "Pro"?</h3>\
+<p id="agile-scrolldown-alert-pro" style="display:none;"><b>Scroll down to see the Approval buttons.</b></p>\
 <p align="justify">\
 By Pressing "Approve", you accept to purchase later this year the "Pro" licence for $9.⁹⁹ yearly per user through the Chrome store (*). Until then, "Pro" features will run as free trial.<br>\
 You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement</A>.<br>\
 <\p>\
-<br>Once you approve, Chrome will also ask your approval for:\
+<br>Once you click "Approve", Plus also asks your approval for:\
 <ul class="agile_help_Pro_ul">\
 <li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store: To verify your "Pro" licence once free trial is over.</p></li>\
 <li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and help us shape the future of Plus. Our mobile app already does this.</p></li>\
 <li><p align="justify">plusfortrello.com: So our help pages can talk with the extension to better help you.</p></li>\
 </ul>\
 <br>\
-* We won\'t ask for payment right now. Plus will remind you after June 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
+* We won\'t ask for payment information right now. Plus will remind you after June 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
 <br>\
 <button id="agile_dialog_showAprovePro_OK">Approve</button>&nbsp;\
 <button id="agile_dialog_showAprovePro_Cancel">Cancel</button>\
@@ -147,6 +149,8 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
 </dialog>');
         $("body").append(divDialog);
         divDialog = $(".agile_dialog_showAprovePro");
+    } else {
+        $("#agile-scrolldown-alert-pro").hide(); //possible leftover
     }
 
     function doFinish(bOK) {
@@ -163,6 +167,10 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
     });
 
     showModalDialog(divDialog[0]);
+    setTimeout(function () {
+        if (!elementInViewport($("#agile_dialog_showAprovePro_OK")[0]))
+            $("#agile-scrolldown-alert-pro").slideDown();
+    }, 200);
 }
 
 
@@ -307,7 +315,7 @@ function getCurrentTrelloUser() {
 	        pairUser[PROP_TRELLOUSER] = userElem;
 	        chrome.storage.local.set(pairUser, function () {
 	            if (chrome.runtime.lastError != undefined)
-	                alert("Plus for Trello:" + chrome.runtime.lastError);
+	                alert("Plus for Trello:" + chrome.runtime.lastError.message);
 	        });
 	    }
 	});
@@ -393,7 +401,7 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 	        pairTrelloSync["bEnableTrelloSync"] = true;
 	        chrome.storage.sync.set(pairTrelloSync, function () {
 	            if (chrome.runtime.lastError != undefined)
-	                alert("Plus for Trello:" + chrome.runtime.lastError);
+	                alert("Plus for Trello:" + chrome.runtime.lastError.message);
                 else
 	                g_bEnableTrelloSync = true; //note: this is a safe place to init this global. be careful if init code changes.
 	            part2();

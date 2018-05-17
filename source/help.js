@@ -197,13 +197,15 @@ var Help = {
 	    }, 8000);
 
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars!\nHelp make Plus more popular!.">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars and help spread the word!">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/collection/khxOc" rel="publisher" target="_blank"> \
-<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" alt="Plus for Trello Google+ page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
+<img src="https://ssl.gstatic.com/images/icons/gplus-16.png" title="Follow the official news page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://twitter.com/PlusForTrello" rel="publisher" target="_blank"> \
-<img src="https://abs.twimg.com/favicons/favicon.ico" alt="Follow on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
+<img src="https://abs.twimg.com/favicons/favicon.ico" title="Follow us on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
+<a class="agile_link_noUnderlineNever" href="https://www.linkedin.com/in/zigmandel" rel="publisher" target="_blank"> \
+<img src="https://www.linkedin.com/favicon.ico" title="Connect at LinkedIn" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
@@ -386,8 +388,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2>Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    helpWin.para('<b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more "Pro" <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">features soon!</a>.');
-
+	    var textEnablePro = '<b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more!';
+	    if (!g_bProVersion)
+	        textEnablePro += '<br />Check for more details.';
+	    helpWin.para(textEnablePro);
 	    checkEnablePro[0].checked = g_bProVersion;
 
 	    checkEnablePro.click(function () {
@@ -1211,8 +1215,8 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
-	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/> Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
-	    helpWin.para('If you only mofified a few card comments, read about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand" target="_blank">card "^resetsync" command</A>.');
+	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/><br />Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
+	    helpWin.para('If you only mofified a few card comments, read about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand" target="_blank">card "^resetsync" command</A>.<br /><br />');
 	    var buttonReset = paraReset.children('input:button:first');
 	    buttonReset.click(function () {
 	        ResetPlus();
@@ -1231,23 +1235,42 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	        }
 
 	        buttonRenameCardsWithSE.click(function () {
-	            if (!confirm('Are you sure you want to rename all cards with existing S/E rows?\nThey will be permanently renamed in Trello without undo.'))
+	            if (!confirm('Are you sure you want to rename all cards with existing S/E rows?\nThey will be permanently renamed in Trello.'))
 	                return;
 	            handleButtonRename(true);
 	        });
 
 	        buttonRenameCardsAll.click(function () {
-	            if (!confirm('Are you sure you want to rename all cards, even those without S/E history rows?\nThey will be permanently renamed in Trello without undo.'))
+	            if (!confirm('Are you sure you want to rename all cards, even those without S/E history rows?\nThey will be permanently renamed in Trello.'))
 	                return;
 	            handleButtonRename(false);
 	        });
+
+	        var paraUndoRenameCards = helpWin.para('<br />&bull; Undo a "Remove S/E from card titles" command using the created backup file from the "Rename" buttons above.<br /><input type="button" value="Undo Rename cards"/>');
+	        var buttonUndoRenameCards = paraUndoRenameCards.children('input:button:first');
+	        buttonUndoRenameCards.click(function () {
+	            sendExtensionMessage({ method: "undoRenameCards"},
+                                    function (response) {
+                                        if (response.status == STATUS_OK) {
+                                            if (response.totalCards != 0) {
+                                                alert("Undo of " + response.totalCards + " card titles will happen during the next sync\nafter you close help.\nHover the Chrome Plus icon (top-right) to see sync progress.");
+                                                helpWin.bStartSyncOnClose = true;
+                                            }
+                                            else
+                                                alert("No cards to process.");
+                                        } else {
+                                            alert(response.status);
+                                        }
+                                    });
+	        });
+
 	    }
 	    else {
 	        helpWin.para('Removal of S/E from card titles is only allowed in "Trello card comments" or "stealth" sync mode.');
 	    }
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('&bull; When using "card comments sync", you may find all boards that you are not a member from the "Sync" section above.');
+	    helpWin.para('&bull; Find all boards that you are not a member in the "Sync" section above (only if using the "card comments" sync mode)');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

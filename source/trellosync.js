@@ -9,7 +9,15 @@ var SQLQUERY_PREFIX_LABELDATA = "select idLabel,name, idBoardShort, color ";
 var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
 var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
 
-//REVIEW zig: idCardShort is a bad name, its really shortLink, and NOT idShort
+/* array of cards where card = {
+        status: "OK", //ignore it
+        shortLink: "H8gGOqNk",
+        nameOld: "(4) bb [5]",
+        nameNew: "bb"
+    }; */
+var g_rgUndoCardRename = null;
+
+//REVIEW zig: idCardShort is a bad name, its really shortLink, and NOT idShort.
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
 }
@@ -49,6 +57,7 @@ var g_syncStatus = {
             this.stageNum = 0;
             this.bSyncing = false;
             this.bExtraRenameStep = false;
+            this.rgUndoCardRename = null;
             this.cTotalStages = TOTAL_SYNC_STAGES;
         }
         else {
@@ -74,6 +83,7 @@ var g_syncStatus = {
             this.msLast = msNow;
             this.cTotalStages = TOTAL_SYNC_STAGES;
             this.bExtraRenameStep = false;
+            this.rgUndoCardRename = null;
             var strOptionrenameCardsPendingData = localStorage["renameCardsPendingData"];
             if (strOptionrenameCardsPendingData) {
                 localStorage.removeItem("renameCardsPendingData"); //remove right away, so in case the following code gets stuck in a loop, we wont continue attempting rename
@@ -85,6 +95,11 @@ var g_syncStatus = {
                     if (typeof (this.bOnlyRenameCardsWithHistory) == "undefined")
                         this.bOnlyRenameCardsWithHistory = true; //safer
                 }
+            } else if (g_rgUndoCardRename) {
+                this.cTotalStages++;
+                this.bExtraRenameStep = true;
+                this.rgUndoCardRename = g_rgUndoCardRename;
+                g_rgUndoCardRename = null;
             }
         }
         
@@ -325,7 +340,10 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
 
             function processAllCardsRename(response) {
                 if (response.status == STATUS_OK && g_syncStatus.bExtraRenameStep) {
-                    processAllCardsNameCleanup(tokenTrello, g_syncStatus.bOnlyRenameCardsWithHistory, sendResponse);
+                    if (g_syncStatus.rgUndoCardRename)
+                        processUndoAllCardsNameCleanup(tokenTrello, g_syncStatus.rgUndoCardRename, sendResponse);
+                    else
+                        processAllCardsNameCleanup(tokenTrello, g_syncStatus.bOnlyRenameCardsWithHistory, sendResponse);
                 }
                 else
                     sendResponse(response);
@@ -365,6 +383,72 @@ function populateTeams(teamsDb, boardsTrello) {
 }
 
 
+function processUndoAllCardsNameCleanup(tokenTrello, rgUndoCardRename, sendResponse) {
+    handleShowDesktopNotification({
+        notification: "Starting to UNDO card title renames.\nWatch progress by hovering the Chrome Plus icon.",
+        timeout: 15000
+    });
+    var rgErrorRenamedCards = [];
+    g_syncStatus.setStage("Undoing card renames.", rgUndoCardRename.length);
+    processThreadedItemsSync(tokenTrello, rgUndoCardRename, null, onProcessItem, onFinishedAll);
+
+    /* a card contains: cardSample = {
+        status: "OK", //ignore it
+        shortLink: "H8gGOqNk",
+        nameOld: "(4) bb [5]",
+        nameNew: "bb"
+    }; */
+
+    function onProcessItem(tokenTrello, card, iitem, postProcessItem) {
+
+        function callPost(status) {
+            postProcessItem(status, card, iitem);
+        }
+
+        if (!card.status || card.status != STATUS_OK) {
+            rgErrorRenamedCards.push("Ignoring card with previous failed rename or missing status. shortLink: " + (card.shortLink || "missing too!"));
+            callPost(STATUS_OK);
+            return;
+        }
+
+        var shortLink = card.shortLink;
+        if (!shortLink || !card.nameOld) {
+            rgErrorRenamedCards.push("Ignoring card with missing shortLink/nameOld");
+            callPost(STATUS_OK);
+            return;
+        }
+
+        renameCard(tokenTrello, shortLink, card.nameOld, function (cardData) {
+            if (cardData.status != STATUS_OK)
+                rgErrorRenamedCards.push("Error during card rename. shortLink: " + shortLink + ". " + cardData.status);
+            else {
+                if (!cardData.hasPermission) {
+                    rgErrorRenamedCards.push("No permission to rename card. shortLink: " + shortLink);
+                    cardData.status = STATUS_OK;
+                }
+            }
+
+            callPost(cardData.status);
+        }, STATUS_OK); //STATUS_OK means a failure from lack of permission will still be OK (with hasPemission=false)
+    }
+
+    function onFinishedAll(status) {
+        if (rgErrorRenamedCards.length > 0) {
+            saveAsFile(rgErrorRenamedCards.join("\r\n"), "error log - plus for trello undo renamed cards.txt", true);
+            handleShowDesktopNotification({
+                notification: "Finished undo operation of " + rgUndoCardRename.length + " cards with errors (see downloaded file).",
+                timeout: 20000
+            });
+        } else {
+            handleShowDesktopNotification({
+                notification: "Finished undo operation of " + rgUndoCardRename.length + " cards OK.",
+                timeout: 20000
+            });
+        }
+        sendResponse({ status: status });
+    }
+}
+
 function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, sendResponse) {
     handleShowDesktopNotification({
         notification: "Starting to cleanup S/E from card titles.\nWatch progress by hovering the Chrome Plus icon.",
@@ -385,6 +469,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
             }
             g_syncStatus.setStage("Removing S/E from card titles", responseReport.rows.length);
             var rgRenamedCards = [];
+            var rgErrorsRename = [];
             processThreadedItemsSync(tokenTrello, responseReport.rows, null, onProcessItem, onFinishedAll);
 
             function onProcessItem(tokenTrello, card, iitem, postProcessItem) {
@@ -394,15 +479,18 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
                 }
 
                 function callbackCard(cardData) {
-                    if (!cardData.hasPermission) {
-                        callPost(STATUS_OK);
-                        return;
-                    }
-
                     if (cardData.status != STATUS_OK) {
                         callPost(cardData.status);
                         return;
                     }
+
+                    if (!cardData.hasPermission) {
+                        rgErrorsRename.push("No permission to get card with shortLink: " + card.idCard);
+                        callPost(STATUS_OK);
+                        return;
+                    }
+
+
 
                     var nameNew = parseSE(cardData.card.name, true).titleNoSE;
                     if (cardData.card.name != nameNew) {
@@ -410,11 +498,12 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
                         var nameOld = cardData.card.name;
                         renameCard(tokenTrello, shortLinkSaved, nameNew, function (cardData) {
                             rgRenamedCards.push({ status: cardData.status, shortLink: shortLinkSaved, nameOld: nameOld, nameNew: nameNew });
-                            if (!cardData.hasPermission)
+                            if (cardData.status == STATUS_OK && !cardData.hasPermission) {
+                                rgErrorsRename.push("No permission to rename card with shortLink: " + shortLinkSaved);
                                 cardData.status = STATUS_OK;
-                            
+                            }
                             callPost(cardData.status);
-                        });
+                        }, STATUS_OK); //STATUS_OK means a failure from lack of permission will still be OK (with hasPemission=false)
                     }
                     else
                         callPost(STATUS_OK);
@@ -424,9 +513,17 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
             }
 
             function onFinishedAll(status) {
+                if (rgErrorsRename.length > 0)
+                    saveAsFile(rgErrorsRename.join("\r\n"), "error log - plus for trello renamed cards.txt", true, true);
                 saveAsFile({ totalCards: rgRenamedCards.length, cards: rgRenamedCards }, "plus for trello renamed cards json.txt", true);
+
+                var strNotify;
+                if (rgErrorsRename.length==0)
+                    strNotify = "Finished renaming " + rgRenamedCards.length + " cards.\nAs a backup, all renamed cards are in the file just downloaded.";
+                else
+                    strNotify = "Finished renaming with errors (see downloaded errors file)." + rgRenamedCards.length + " cards.\nAs a backup, all renamed cards are in the file just downloaded.";
                 handleShowDesktopNotification({
-                    notification: "Finished renaming "+rgRenamedCards.length+" cards.\nAs a backup, all renamed cards are in the file just downloaded.",
+                    notification: strNotify,
                     timeout: 20000
                 });
                 sendResponse({ status: status });

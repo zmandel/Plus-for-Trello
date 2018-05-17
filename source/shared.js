@@ -51,6 +51,8 @@ function replaceString(string, regex, replace) {
 }
 
 function escapeHtml(string) {
+    if (!string)
+        return "";
     return replaceString(string, /[&<>"'\/]/g, function (s) {
         return g_entityMap[s];
     });
@@ -117,11 +119,13 @@ function isTestVersion() {
     return (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf");
 }
 
-function getHashtagsFromTitle(title) {
+function getHashtagsFromTitle(title, bFirstOnly) {
     var hashtags = [];
     var result = g_regexpHashtags.exec(title);
     while (result != null) {
         hashtags.push(result[1]);
+        if (bFirstOnly)
+            break;
         result = g_regexpHashtags.exec(title);
     }
 
@@ -596,7 +600,7 @@ function sendExtensionMessage(obj, responseParam, bRethrow) {
 	                return; //safer to not respond
 
 	            if (chrome.runtime.lastError) //could happen on error connecting to the extension. that case response can even be undefined https://developer.chrome.com/extensions/runtime#method-sendMessage
-	                throw new Error(chrome.runtime.lastError);
+	                throw new Error(chrome.runtime.lastError.message);
 
 			    if (responseParam)
 			        responseParam(response);
@@ -1498,8 +1502,10 @@ function removeTimerForCard(idCardParsed) {
         if (rgPropsRemove.length == 0)
             return;
         chrome.storage.sync.remove(rgPropsRemove, function () {
-            if (chrome.runtime.lastError !== undefined)
+            if (chrome.runtime.lastError !== undefined) {
+                sendDesktopNotification("Error while removing the timer: " + chrome.runtime.lastError.message);
                 return;
+            }
             updateTimerChromeIcon();
             if (bDeleteActive)
                 findNextActiveTimer();
@@ -1806,7 +1812,12 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
 }
 
 
-function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
+//renameCard
+//leave statusNoAccessCustom undefined to return error status.
+//set statusNoAccessCustom to STATUS_OK so it returns OK on those cases (with card.hasPermission=false) if undefined.
+function renameCard(tokenTrello, idCard, title, callback, statusNoAccessCustom, waitRetry) {
+    if (!statusNoAccessCustom)
+        statusNoAccessCustom = "error: permission error or deleted";
     //https://trello.com/docs/api/card/index.html
     var url = "https://trello.com/1/cards/" + idCard + "/name?value=" + encodeURIComponent(title) + "&token=";
     url = url + tokenTrello; //trello requires the extra token besides the cookie to prevent accidental errors from extensions
@@ -1831,7 +1842,7 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet, statusNoAccessCustom)) { //no permission or deleted
                         null; //happy lint
                     }
                     else if (xhr.status == 429) { //too many request, reached quota.
@@ -1839,7 +1850,7 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
                         if (waitNew < 8000) {
                             bReturned = true;
                             setTimeout(function () {
-                                renameCard(token, idCard, title, callback, waitNew);
+                                renameCard(token, idCard, title, callback, statusNoAccessCustom, waitNew);
                             }, waitNew);
                         }
                         else {
@@ -1927,4 +1938,23 @@ function getTimeDifferenceAsString(msDateParam) {
         strRet = strRet + "ago";
     }
     return strRet;
+}
+
+function elementInViewport(el) { //thanks to http://stackoverflow.com/a/125106/2213940
+    var top = el.offsetTop;
+    var left = el.offsetLeft;
+    var width = el.offsetWidth;
+    var height = el.offsetHeight;
+
+    while (el.offsetParent) {
+        el = el.offsetParent;
+        top += el.offsetTop;
+        left += el.offsetLeft;
+    }
+
+    return (
+      top >= window.pageYOffset &&
+      left >= window.pageXOffset &&
+      (top + height) <= (window.pageYOffset + window.innerHeight) &&
+      (left + width) <= (window.pageXOffset + window.innerWidth));
 }

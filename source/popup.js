@@ -416,7 +416,7 @@ function fillCardResults(divResults, val, bSearchComments, chSplit, cSearchCur) 
 			if (bSearchComments)
 				titleUse = row.nameCard + "\nNote: " + row.comment + "\nOn: " + date;
 			else
-			    titleUse = row.nameCard + "\nLast S/E " + date;
+			    titleUse = row.nameCard + "\nLast S/E on: " + date;
 
 			item.attr("title", titleUse);
 			setPopupClickHandler(item, "https://trello.com/c/" + row.idCard);

@@ -60,9 +60,12 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="idTeamH-user" title="Groups resulting cards and 'S/E rows' by team & user.\nColumns like 'date' use the newest row in each team.">Team-User</option>
                         <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by board.\nColumns like 'date' use the newest row in each board.">Board</option>
                         <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by unique board & list combination.">Board-List</option>
-                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' and 'date' groups are only for 'S/E rows'.">Board-User</option>
+                        <option value="idBoardH-nameList-hashtagFirst" title="Groups by board, list & first #tag in the card">Board-List-Hashtag</option>
+                        <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag</option>
+                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' groups are only for 'S/E rows'.">Board-User</option>
+                        <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
-                        <option value="idCardH-user">Card-User</option>
+                        <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
                         <option value="dateString">Date</option>
                         <option value="dateString-user">Date-User</option>
                         <option value="dateString-idBoardH">Date-Board</option>
@@ -245,8 +248,8 @@ Supports multiple AND/OR. See reports help top-right.">
                     </select>
                 </div>
 
-                <div style="display:none" class="agile_report_filter" title="Leave blank for all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink"><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
-                <div style="display:none" class="agile_report_filter" title="Leave blank for all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink"><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink/..."><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink/..."><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
                 <div class="agile_report_filter" title="Show only rows after this row number.
 Leave blank to display all.">
                     <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />
@@ -267,26 +270,32 @@ E 1st: rows with a first estimate
                 </div>
             </div>
             <div style="display:none;" id="optionsContainer" class="agile_arrow_closed agile_arrow_container">
-                <p id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
+                <p title="Click to change options.
+To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
                 <div style="display:none;" id="report_options_section">
-                        <div class="report_options_item"  title="Check to prevent cropping text in results">
+                        <div class="report_options_item"  title="Check to prevent cropping text in results.">
                             <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
                             <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
                         </div>
+                    <div class="report_options_item" title="Check to not generate charts, which can speed-up huge reports.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCharts" />
+                        <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
+                    </div>
                     <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
                     <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
                         <label class="agile_unselectable" for="checkNoLabelColors">No color in labels</label>
                     </div>
-                    <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.">
+                    <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+After clicking 'Query' try sorting by board then shift-click the card number column.">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
                         <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
                     </div>
-                    <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink">
+                    <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
                         <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
                     </div>
-                    <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink">
+                    <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
                         <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
                     </div>
@@ -350,6 +359,12 @@ E 1st: rows with a first estimate
                 </div>
                 <div id="tabs-3" style="display:none;padding-left:6px;padding-right:6px;padding-top:6px;margin-bottom:1em;" class="agile_report_tab">
                     <div style="height:2em;">
+                        <select id="chartView" >
+                            <option value="ser">Spent and Remaining. E=S+R</option>
+                            <option value="e1vse">E1ˢᵗ versus E</option>
+                            <option value="echange">E change</option>
+                            <option value="cardcount">Card count</option>
+                        </select>
                         <img class="agile_drilldown_select"/>
                     </div>
                     <div id="chartMessage" style="margin-bottom:1em;"></div>
