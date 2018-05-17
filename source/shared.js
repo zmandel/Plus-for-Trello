@@ -121,6 +121,7 @@ function isTestVersion() {
 
 function getHashtagsFromTitle(title, bFirstOnly) {
     var hashtags = [];
+    g_regexpHashtags.lastIndex = 0; //needed because of /g in global regex
     var result = g_regexpHashtags.exec(title);
     while (result != null) {
         hashtags.push(result[1]);
