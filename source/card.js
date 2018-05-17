@@ -1498,7 +1498,9 @@ function recalcChecklistTotals() {
     var s = 0;
     var e = 0;
     
-    checks.each(function (i,elem) {
+    checks.each(function (i, elem) {
+        if (elem.clientHeight==0)
+            return; //"hidden" element
         var se = parseSE(elem.textContent, true);
         if (se.bParsed) {
             s = s + se.spent;
