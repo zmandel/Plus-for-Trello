@@ -662,11 +662,11 @@ function logException(e, str) {
 	logPlusError(str + " :: " + e.stack, false);
 }
 
-function sendDesktopNotification(strNotif, timeout) {
+function sendDesktopNotification(strNotif, timeout, idUse) {
     if (timeout === undefined)
         timeout = 7000;
 
-    sendExtensionMessage({ method: "showDesktopNotification", notification: strNotif, timeout: timeout }, function (response) { });
+    sendExtensionMessage({ method: "showDesktopNotification", notification: strNotif, timeout: timeout, idUse: idUse }, function (response) { });
 }
 
 var g_plusLogMessages = []; //queues an error log which is regularly purged

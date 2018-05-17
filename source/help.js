@@ -416,7 +416,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = 'View <b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more!';
+	    var textEnablePro = 'View or filter by <b>Card labels</b> in reports and burn-downs, custom report columns and extra export options useful for integrations.';
 	    if (!g_bProVersion)
 	        textEnablePro += '<br />Check for more details.';
 	    helpWin.para(textEnablePro);
@@ -1421,8 +1421,7 @@ function showNonMemberBoardsDialog() {
 <dialog class="agile_dialog_showNonMemberBoards agile_dialog_DefaultStyle"> \
 <h2>You are not a member of these boards:</h2> \
 <br> \
-<p>Plus compares your boards (since your last sync) with all boards in all organizations.</p>\
-<p>When you are just added board, it may still appear here if Plus has not yet had a chance to sync.</p>\
+<p>Plus compares your boards (since last sync) with all boards in all Trello teams where you belong.</p>\
 <br> \
 <div id="agile_nonmemberListContents"></div>\
 <br \>\
@@ -1452,23 +1451,25 @@ function showNonMemberBoardsDialog() {
                         return;
                     }
                     if (response.boards.length == 0) {
-                        div.text("No more boards found that you are not a direct member.");
+                        div.text("No boards found where you are not a member (and belong to its team).");
                         return;
                     }
-
-                    var ul = $("<ul>");
+                    div.text("To use Plus on a board in this list, click it and add yourself as a member.");
+                    var ul = $("<ul style='margin-top:1em;'>");
                     ul.appendTo(div);
                     response.boards.forEach(function (board) {
                         var li = $("<li>");
                         var a = $("<A target='_blank'>").prop("href", "https://trello.com/b/" + board.idBoardLong).text(board.name);
                         var text = " ";
+                        if (board.dateLastActivity)
+                            text += makeDateCustomString(new Date(board.dateLastActivity)) + " ";
+
                         if (board.closed)
                             text += "[Closed] ";
-                        if (board.dateLastActivity)
-                            text += makeDateCustomString(new Date(board.dateLastActivity));
-                        var span=$("<span>").text(text);
-                        a.appendTo(li);
+                        
+                        var span = $("<span style='margin-right:1em;'>").text(text);
                         span.appendTo(li);
+                        a.appendTo(li);
                         li.appendTo(ul);
                     });
                 });

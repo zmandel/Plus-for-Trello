@@ -78,7 +78,9 @@ list-style-type:disc !important;
 }
 
 #agile_nonmemberListContents {
-    max-width:40em !important;
+    max-width:45em !important;
+    height: 25em !important;
+    overflow-y:auto;
 }
 
 #agile_globalkeywordlist {
@@ -221,6 +223,7 @@ div.agile_box {
 	font: 14px;   
 	padding: 2px 4px 2px 4px;
 	text-align: center;
+    cursor:pointer !important;
 }
 
 .agile_box_partialUpdate {
@@ -1768,10 +1771,10 @@ table#tableMarkers td {
 }
 
 .agile_listboard_header {
-float:right;
-margin-top:0px !important;
-height:16px; /* prevent trello from growing the list title height */
+display:inline-block;
+padding-top:2px !important;
 overflow:visible;
+float:left;
 }
 
 .agile-open-card-composer {

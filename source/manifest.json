@@ -1,7 +1,7 @@
 ﻿{
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "4.1.4",
+  "version": "4.1.5",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -35,6 +35,7 @@
 
   "content_scripts": [
     {
+      "all_frames": true,
       "matches": [ "https://trello.com/*" ],
       "js": [
         "libs/jquery.min.js",
@@ -60,7 +61,7 @@
         "tour.js",
         "translations.js"
       ],
-      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css", "css/jquery-ui-custom.min.css"  ],
+      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css", "css/jquery-ui-custom.min.css" ],
       "run_at": "document_start"
     }
   ],
@@ -73,5 +74,5 @@
     "css/images/*.gif"
   ],
   "optional_permissions": ["https://spreadsheets.google.com/", "http://www.plusfortrello.com/", "https://www.plusfortrello.com/", "https://ssl.google-analytics.com/", "alarms", "gcm" ],
-  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "webRequest", "https://trello.com/", "https://trello.com/1/*", "https://www.googleapis.com/" ]
+  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "webRequest", "webRequestBlocking", "https://trello.com/", "https://trello.com/1/*", "https://www.googleapis.com/" ]
 }

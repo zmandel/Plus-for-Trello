@@ -115,7 +115,7 @@ function showApproveProTrialDialog(callback) {
 <h3>Which features are "Pro"?</h3>\
 <ul class="agile_help_Pro_ul"></li>\
 <li>Labels in reports and burn-downs.</li>\
-<li>More report export options.</li>\
+<li>Custom report columns and more export options.</li>\
 <li>Some of our <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">future features</a> will also we "Pro".\
 </ul>\
 <\p>\
@@ -1375,7 +1375,7 @@ function processUserSENotifications(sToday,sWeek) {
 			pair[key] = { strToday: strToday, sToday: sToday };
 			chrome.storage.local.set(pair, function (obj) { });
 			if (sToday!=0)
-			    sendDesktopNotification("Spent today: " + sToday, 3000);
+			    sendDesktopNotification("Spent today: " + sToday, 3000, "spentTodayTotal");
 		});
 
 	} catch (e) {

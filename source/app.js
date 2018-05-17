@@ -223,9 +223,15 @@ function loadExtensionVersion(callback) {
 }
 
 $(function () {
-
     loadExtensionVersion(function () {
         setTimeout(function () { //in timeout so we can safely reference globals and give a little time for trello load itself since we  "run_at": "document_start"
+            var bInIFrame = (window != window.top);
+            setTrelloAuth(null, bInIFrame); //do this earliest
+            if (bInIFrame) {
+                //We are on an iframe. This happens when trello authentication fails (dsc token is expired). background loads trello in an iframe, hitting here.
+                return;
+            }
+            setInterval(setTrelloAuth, 10000);
 
             //for <dialog>
             var preDialog = '<pre style="display:none;">dialog::backdrop\
@@ -242,10 +248,6 @@ $(function () {
             //http://tablesorter.com/docs/example-parsers.html
             //http://stackoverflow.com/a/2129479/2213940
             addTableSorterParsers();
-
-            setTrelloAuth(); //do this earliest
-            setInterval(setTrelloAuth, 10000);
-
             loadOptions(function () {
                 entryPoint();
             });
@@ -254,11 +256,11 @@ $(function () {
 });
 
 var g_dscTrello = null;
-function setTrelloAuth(callback) {
+function setTrelloAuth(callback, bInFrame) {
     var dscNew = $.cookie("dsc");
     if (dscNew && dscNew != g_dscTrello) {
         g_dscTrello = dscNew;
-        sendExtensionMessage({ method: "setTrelloAuthData", dsc: dscNew }, function () {
+        sendExtensionMessage({ method: "setTrelloAuthData", dsc: dscNew, bInFrame: bInFrame }, function () {
             if (callback)
                 setTimeout(callback,1); //prevent recursing from message callback
         });

@@ -344,7 +344,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 var linkCreateCard = $("<a href='#' title='Add a card...'>").addClass("js-open-card-composer agile-open-card-composer").text("+"); //js-open-card-composer makes it open the trello box
                 listCur.append(linkCreateCard);
             }
-            listCur.append(divSE); //not h2.after(divSE) because that would cause the "subscribed to list" icon to drop below
+            listCur.find(".list-header-extras").prepend(divSE); //not h2.after(divSE) because that would cause the "subscribed to list" icon to drop below
 
         } else {
             spentBox = h2SiblinsSpentBox.eq(0);

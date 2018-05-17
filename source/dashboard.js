@@ -3,14 +3,15 @@
 var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
 var g_marginLabelChart = 35;
 var g_heightBarUser = 30;
-
+var g_colorRemaining = "#519B51";
+var g_colorRemainingDark = "#346334";
 var g_data = null;
 var g_chartUser = null;
 var g_dataUser = null;
 var g_userTrello = null;
-var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations:null };
+var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations: null, pointer: null, bProjectionFirstClick: true };
 
-var g_TimelineColors = ["#D25656", "#6F83AD", "#519B51", "black"]; //red, blue, green (spent, estimate, remaining, annotation)
+var g_TimelineColors = ["#D25656", "#6F83AD", g_colorRemaining, "black"]; //red, blue, green (spent, estimate, remaining, annotation)
 
 document.addEventListener('DOMContentLoaded', function () {
 	if (g_bLoaded)
@@ -35,6 +36,9 @@ function redrawCharts(bDontRedrawUser) {
         drawChartUser();
     if (g_tl.crosshair)
         g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
+
+    if (g_tl.projectionLine)
+        g_tl.projectionLine.hide();
 
     if (g_tl.container) {
         //add in case it was removed by a previous resize (in checkHideTimelineSpark)
@@ -156,6 +160,9 @@ function updateBoardLinks(params) {
     var paramIdBoard = params["idBoard"];
     var idBoard = null;
 
+    
+    $("#projectionLink").show();
+    $("#saveBurndown").show();
     if (paramIdBoard)
         idBoard = decodeURIComponent(paramIdBoard);
 
@@ -191,6 +198,14 @@ function loadBurndown() {
 	var container = $("#boardMarkersContainer");
 	var headerFilter = $("#headerFilter");
 	var containerFilter = $("#filtersContainer");
+
+	$("#saveBurndown").click(function (e) {
+	    e.preventDefault();
+	    var nameChart = window.prompt("Name for the PNG file:", "burndown");
+	    var elemChart = $("#timeline");
+	    if (nameChart)
+	        saveSvgAsPng(elemChart[0], nameChart.trim() + ".png", { scale: window.devicePixelRatio || 1 });
+	});
 
 	function onDoneSlide() {
 	    redrawCharts(false);
@@ -339,7 +354,15 @@ function addRowMarkerData(table, rowData, colors, bHeader) {
 }
 
 function resetChartline() {
+    if (g_tl.pointer) {
+        if (g_tl.plot)
+            g_tl.pointer.detachFrom(g_tl.plot);
+        g_tl.pointer = null;
+    }
+    g_tl.plot = null;
     g_tl.crosshair = null;
+    g_tl.projectionLine = null;
+    g_tl.bProjectionFirstClick = true;
     g_tl.chartBottom = null;
     g_tl.xAxisBottom = null;
     g_tl.redrawAnnotations = null;
@@ -356,7 +379,8 @@ function resetTDOutput(output) {
 function loadTimeline(series) {
     var xScale = new Plottable.Scales.Time();
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
-    xAxis.formatter(Plottable.Formatters.multiTime());
+    var xFormatter = Plottable.Formatters.multiTime();
+    xAxis.formatter(xFormatter);
     var yScale = new Plottable.Scales.Linear();
     var yAxis = new Plottable.Axes.Numeric(yScale, "left");
     
@@ -443,8 +467,14 @@ function loadTimeline(series) {
 
 
     function onUpdateXScale() {
+
+        //could reposition these (like annotations) but not worth it
         if (g_tl.crosshair)
-            g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
+            g_tl.crosshair.hide(); 
+
+        if (g_tl.projectionLine)
+            g_tl.projectionLine.hide();
+
         dragBox.boxVisible(true);
         var xDomain = xScale.domain();
         dragBox.bounds({
@@ -471,6 +501,7 @@ function loadTimeline(series) {
     var gridline = new Plottable.Components.Gridlines(xScale, yScale);
     gridline.addClass("timelineGridline");
     resetChartline();
+    g_tl.plot = plot;
     g_tl.chartBottom = miniChart;
     g_tl.xAxisBottom = sparklineXAxis;
     g_tl.container = new Plottable.Components.Table([ //ALERT: resize code assumes table positions
@@ -502,26 +533,22 @@ function loadTimeline(series) {
             classes: "qtip-dark"
         }
     });
-    var crosshair = createCrosshair(plot);
+    var crosshair = createCrosshair(plot, yScale);
+    var projectionLine = createProjectionLine(plot, xFormatter, xScale, yScale);
     g_tl.crosshair = crosshair;
+    g_tl.projectionLine = projectionLine;
     var pointer = new Plottable.Interactions.Click();
-    var keyboard = new Plottable.Interactions.Key();
     var entityLast = null;
 
-    function selectPoint(direction) {
-        //entityLast
-        //review todo
-    }
+    g_tl.pointer = pointer;
 
-    //left arrow
-    keyboard.onKeyPress(37, function (keyCode) {
-        selectPoint(-1);
-    });
-    //right arrow
-    keyboard.onKeyPress(38, function (keyCode) {
-        selectPoint(1);
-    });
     pointer.onClick(function (p) {
+        var event = window.event;
+
+        if (event && event.ctrlKey) {
+            projectionLine.drawAt(p);
+            return;
+        }
         var nearestEntity = plot.entityNearest(p);
         if (!nearestEntity || nearestEntity.datum == null) {
             return;
@@ -537,15 +564,115 @@ function loadTimeline(series) {
     });
     
     pointer.attachTo(plot);
-    keyboard.attachTo(plot);
     redrawCharts(); //recalculate heights and redraw
 }
 
+var g_projectionData = {
+    x1: 0,
+    y1: 0,
+};
 
-function createCrosshair(plot) {
+function createProjectionLine(plot, xFormatter, xScale, yScale) {
+    var projection = {};
+    var container = plot.foreground().append("g").style("visibility", "hidden");
+    projection.lineDom = container.append("line").attr("stroke", g_colorRemaining).attr("stroke-width", 1).attr("stroke-dasharray", "5,5");
+    projection.circleStart = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "white").attr("r", 6);
+    projection.circleMid = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "black").attr("r", 3);
+    projection.circleEnd = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", g_colorRemaining).attr("r", 6).style("visibility", "hidden");
+    projection.labelBackground = container.append("rect").attr({ width: 0, height: 0, fill: "white", rx: 3, ry: 3, stroke: g_colorRemainingDark, "stroke-width":1 }).style("visibility", "hidden");;
+    projection.labelEnd = container.append("text").attr("stroke", g_colorRemainingDark).attr("stroke-width", 1).attr("stroke-opacity", 1);
+    g_tl.bProjectionFirstClick = true;
+
+    //plot.height()
+    projection.drawAt = function (p) {
+        var attr = {};
+        container.style("visibility", "visible");
+        if (g_tl.bProjectionFirstClick) {
+            projection.labelEnd.text("");
+            projection.labelBackground.style("visibility", "hidden");
+            projection.circleEnd.style("visibility", "hidden");
+            projection.circleMid.style("visibility", "hidden");
+            attr.x1 = p.x;
+            attr.x2 = p.x;
+            attr.y1 = p.y;
+            attr.y2 = p.y;
+            g_projectionData.x1 = attr.x1;
+            g_projectionData.y1 = attr.y1;
+            projection.circleStart.attr({
+                cx: p.x,
+                cy: p.y
+            });
+            projection.circleStart.style("visibility", "visible");
+        } else {
+            attr.y2 = yScale.scale(0);
+            if (p.y <= g_projectionData.y1) {
+                sendDesktopNotification("Click on a point to the right and below the first point.", 5000);
+                return;
+            }
+            attr.x2 = ((p.x - g_projectionData.x1) / (p.y - g_projectionData.y1)) * (attr.y2 - g_projectionData.y1) + g_projectionData.x1;
+
+            if (attr.x2 <= g_projectionData.x1) {
+                sendDesktopNotification("Click on a point to the right of the first point.", 5000);
+                return;
+            }
+            projection.circleStart.style("visibility", "visible");
+            projection.labelEnd.attr({ x: attr.x2 + 13, y: attr.y2 - 13 });
+            var widthLabel = 150;
+            if (attr.x2 + widthLabel > plot.width())
+                projection.labelEnd.attr({ x: attr.x2 - widthLabel, y: attr.y2 - 13 });
+            var dateEnd = xScale.invert(attr.x2);
+            var labelEnd = "";
+            if (dateEnd) {
+                labelEnd = dateEnd.toDateString(); //review couldnt use xFormatter(dateEnd)
+                sendDesktopNotification("Projected: "+labelEnd, 10000, "projectedBurnDownEndDate");
+            }
+
+            
+
+            projection.labelEnd.text(labelEnd);
+            projection.circleEnd.attr({
+                cx: attr.x2,
+                cy: attr.y2
+            });
+
+            projection.circleMid.attr({
+                cx: p.x,
+                cy: p.y
+            });
+            projection.circleEnd.style("visibility", "visible");
+            projection.circleMid.style("visibility", "visible");
+            projection.labelEnd.style("visibility", "visible");
+            var bbox = projection.labelEnd[0][0].getBBox();
+            var pxBorder = 5;
+            projection.labelBackground.attr({
+                x: bbox.x - pxBorder,
+                y: bbox.y - pxBorder,
+                width: bbox.width + 2 * pxBorder,
+                height: bbox.height + 2 * pxBorder
+            });
+            projection.labelBackground.style("visibility", "visible");
+            projection.lineDom.style("visibility", "visible");
+        }
+        g_tl.bProjectionFirstClick = !g_tl.bProjectionFirstClick;
+        projection.lineDom.attr(attr);
+        
+    };
+    projection.hide = function () {
+        container.style("visibility", "hidden");
+        projection.circleStart.style("visibility", "hidden");
+        projection.labelBackground.style("visibility", "hidden");
+        projection.circleEnd.style("visibility", "hidden");
+        projection.circleMid.style("visibility", "hidden");
+        projection.labelEnd.style("visibility", "hidden");
+        projection.lineDom.style("visibility", "hidden");
+    };
+    return projection;
+}
+
+function createCrosshair(plot, yScale) {
     var crosshair = {};
     var crosshairContainer = plot.foreground().append("g").style("visibility", "hidden");
-    crosshair.vLine = crosshairContainer.append("line").attr("stroke", g_colorTrelloBlack).attr("y1", 0).attr("y2", plot.height());
+    crosshair.vLine = crosshairContainer.append("line").attr("stroke", g_colorTrelloBlack).attr("y1", yScale.domainMin()).attr("y2", plot.height()).attr("stroke-dasharray", "2,4");
     crosshair.circle = crosshairContainer.append("circle").attr("stroke", g_colorTrelloBlack).attr("fill", "white").attr("r", 3);
     crosshair.drawAt = function (p) {
         crosshair.vLine.attr({
@@ -684,7 +811,7 @@ function setChartData(rows, idBoard, params) {
 	    resetChartline();
 	}
 	else {
-		elemProgress.style.display = "none";
+	    elemProgress.style.display = "none";
 		var heightUser = ((2 + g_dataUser.getNumberOfRows()) * g_heightBarUser);
 		elemByUserContainer.show();
 		chartBottom.show();

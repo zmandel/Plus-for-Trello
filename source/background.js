@@ -4,7 +4,7 @@ var g_dataTotalSpentThisWeek = { str: null, weeknum: null };
 var g_msSyncRateLimit = 1000 * 1; //1 second (used to be larger and more relevant back when syncing on spreadsheets with my developer key
 var MSDELAY_FIRSTSYNC = 500;
 var g_bOffline = false;
-var g_cErrorSync = 0; //errors during sync period
+var g_cErrorSync = 0; //errors during sync period. hack alert: it is set to specific values, does not really reflect a real count but a state
 var g_strTimerLast = "";
 var g_idTimeoutTimer = null;
 var PLUS_BACKGROUND_CALLER = true; //allows us to tell shared.js we are calling
@@ -452,6 +452,7 @@ var g_loaderDetector = {
         setInterval(function () {
             updatePlusIcon(true); //just the tooltip
             if (g_cErrorSync == 1) {
+                g_cErrorSync = 2; //not 1
                 //attempt to recover from the first error wihin the sync period.
                 setTimeout(function () {
                     checkNeedsSync(true);
@@ -895,6 +896,12 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
         }
         else if (request.method == "setTrelloAuthData") {
             localStorage["trelloAuth-dsc"] = request.dsc;
+            if (request.bInFrame) {
+                setTimeout(function () {
+                    uninjectTrelloFrame();
+                    handleRawSync(true);
+                }, 100);
+            }
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "getBoardsWithoutMe") {
@@ -1213,7 +1220,8 @@ function handleShowDesktopNotification(request) {
 	g_dtLastNotification = dtNow;
 	g_strLastNotification = request.notification;
 	var timeout = request.timeout || 5000;
-	var notification = chrome.notifications.create(request.notification,
+	var idUse = request.idUse || request.notification || "";
+	var notification = chrome.notifications.create(idUse,
         {
             type:"basic",
             iconUrl: chrome.extension.getURL("images/icon128.png"),
@@ -1536,3 +1544,59 @@ var g_analytics = {
             Math.random().toString(36).substring(2, 15);
     }
 };
+
+var g_bInstalledHeadersRequest = false;
+var g_bInjectedTrelloFrame = false;
+
+function handleHeadersReceived(info) {
+    var headers = info.responseHeaders;
+    if (g_bInjectedTrelloFrame) {
+        for (var i = headers.length - 1; i >= 0; --i) {
+            var header = headers[i].name.toLowerCase();
+            if (header == 'x-frame-options' || header == 'frame-options') {
+                headers.splice(i, 1); // Remove header
+                setTimeout(function () {
+                    uninjectTrelloFrame();
+                }, 30000); //ait at maximum this time
+            }
+        }
+    }
+    return { responseHeaders: headers };
+}
+
+function uninjectTrelloFrame() {
+    var parent = document.getElementById("parentTrelloIFrameAuth");
+    while (parent.firstChild)
+        parent.removeChild(parent.firstChild);
+    g_bInjectedTrelloFrame = false;
+    if (g_bInstalledHeadersRequest) {
+        chrome.webRequest.onHeadersReceived.removeListener(handleHeadersReceived);
+        g_bInstalledHeadersRequest = false;
+    }
+}
+
+function injectTrelloFrame() {
+    if (!g_bInstalledHeadersRequest) {
+        chrome.webRequest.onHeadersReceived.addListener(handleHeadersReceived,
+            {
+                urls: ['https://trello.com/b/nC8QJJoZ*'],
+                types: ['sub_frame']
+            },
+            ['blocking', 'responseHeaders']
+        );
+        g_bInstalledHeadersRequest = true;
+    }
+
+    var link = "https://trello.com/b/nC8QJJoZ/trello-development-roadmap";
+    var iframe = document.createElement('iframe');
+    iframe.frameBorder = 0;
+    iframe.width = "300px";
+    iframe.height = "250px";
+    iframe.id = "trelloiframe";
+    iframe.setAttribute("src", link);
+    var parent = document.getElementById("parentTrelloIFrameAuth");
+    while (parent.firstChild)
+        parent.removeChild(parent.firstChild);
+    parent.appendChild(iframe);
+    g_bInjectedTrelloFrame = true;
+}

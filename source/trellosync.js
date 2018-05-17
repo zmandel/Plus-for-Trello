@@ -2724,14 +2724,24 @@ function doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDay
                     }
                 } else {
                     if (status == 400) {
-                        objRet.status = "Error: Trello authentication expired. Please open or refresh trello.com to fix.";
-                        g_cErrorSync++; //hack alert: this prevents the counter from reaching 1 later, thus skipping the retry code in g_loaderDetector.init
-                        if (!g_bDisplayedDSCWarning || bUserInitiated) {
-                            g_bDisplayedDSCWarning = true;
-                            handleShowDesktopNotification({
-                                notification: objRet.status,
-                                timeout: 15000
-                            });
+                        try {
+                            injectTrelloFrame();
+                        } catch (e) {
+                            console.log("Error: could not insert trello iframe to fix expired auth.")
+                        }
+                        objRet.status = "Error: Trello authentication error. Will retry in a few seconds.";
+                        g_cErrorSync++;
+						//hack alert: this prevents the counter from reaching 1 later, thus skipping the retry code in g_loaderDetector.init
+                        if (g_cErrorSync==1)
+                            g_cErrorSync = 2;
+                        if (false) { //review zig remove once iframe fix is stable
+                            if (!g_bDisplayedDSCWarning || bUserInitiated) {
+                                g_bDisplayedDSCWarning = true;
+                                handleShowDesktopNotification({
+                                    notification: objRet.status,
+                                    timeout: 15000
+                                });
+                            }
                         }
                     }
                     else if (bHandledDeletedOrNoAccess(status, objRet)) { //no permission. should not happen in search case
@@ -2855,6 +2865,9 @@ function buildBoardsWithoutMe(callback) {
                     });
                 });
                 processBoardNames(boardsNotFound, function (status) {
+                    boardsNotFound.sort(function (a, b) {
+                        return ((b.dateLastActivity || "").localeCompare(a.dateLastActivity || ""));
+                    });
                     callback({ status: status, boards: boardsNotFound });
                 });
             });
@@ -2887,7 +2900,7 @@ function processBoardNames(boards,callback) {
             }
             board.name = boardData.board.name;
             board.closed = boardData.board.closed;
-            board.dateLastActivity = boardData.board.dateLastActivity;
+            board.dateLastActivity = boardData.board.dateLastActivity; //review zig: bad naming its string
             callPost(STATUS_OK);
         }
     }
