@@ -556,6 +556,7 @@ function handleGetReport(request, sendResponse, bAllowWhileOpening, cRetries) {
 	});
 }
 
+var g_regexDateParseRow = null;
 function parseNewHistoryRow(rowIn) {
     var dummyColumn = "dummyPlusForTrelloColumn"; //simplifies algorithm below
     var strContentsOrig = rowIn.content.$t;
@@ -591,8 +592,10 @@ function parseNewHistoryRow(rowIn) {
 
 	var date = rowIn.title.$t;
 	//   1  2  3   4  5  6
-	//   7/30/2013 18:15:25
-	var pattDate = new RegExp("'?(\\d+)/(\\d+)/(\\d+)\\s(\\d+):(\\d+):(\\d+)");
+    //   7/30/2013 18:15:25
+	if (!g_regexDateParseRow)
+	    g_regexDateParseRow = new RegExp("'?(\\d+)/(\\d+)/(\\d+)\\s(\\d+):(\\d+):(\\d+)");
+	var pattDate = g_regexDateParseRow;
 	var rgResultsDate = pattDate.exec(date);
 	if (rgResultsDate == null)
 		throw new Error("Generic date parse error: " + date);

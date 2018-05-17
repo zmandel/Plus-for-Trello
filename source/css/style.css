@@ -6,6 +6,14 @@
     }
 }
 
+.chart-tooltip-custom {
+text-align:center;
+pointer-events:none;
+position:absolute;
+padding:6px 9px 6px 9px;
+border-radius:3px;
+}
+
 .agile_dialog_showAprovePro {
     width:41em;
     background-color:#E4FFFF;

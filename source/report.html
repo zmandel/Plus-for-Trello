@@ -6,9 +6,11 @@
     <link href="css/tablesorter.css" rel="stylesheet" type="text/css">
     <link href="css/tooltip.css" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
+    <link href="css/jquery.qtip.min.css" rel="stylesheet" type="text/css">
     <link href="css/plottable.css" rel="stylesheet" type="text/css">
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
+    <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
     <script type="text/javascript" src="libs/svgpng.js"></script>
@@ -64,6 +66,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag</option>
                         <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' groups are only for 'S/E rows'.">Board-User</option>
                         <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag</option>
+                        <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
                         <option value="dateString">Date</option>
@@ -74,6 +77,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="user-keyword">User-Keyword</option>
                         <option value="idBoardH-keyword">Board-Keyword</option>
                         <option value="idTeamH-keyword">Team-Keyword</option>
+                        
                     </select>
                 </div>
                 <div title="Pick a pivot to change the columns in the 'Spent by ...' tabs.
@@ -365,11 +369,21 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                             <option value="echange">E change</option>
                             <option value="cardcount">Card count</option>
                         </select>
+                        <select id="stackCount">
+                            <option value="">No stacking</option>
+                            <option value="user">Stack by S/E user</option>
+                            <option value="nameList">Stack by list</option>
+                            <option value="hashtagFirst">Stack by first hashtag</option>
+                            <option value="keyword">Stack by keyword</option>
+                        </select>
                         <img class="agile_drilldown_select"/>
                     </div>
                     <div id="chartMessage" style="margin-bottom:1em;"></div>
+                    
                     <div class="agile_report_containerScroll" style="overflow: auto;">
-                      <svg id="chart" style="display: block;"></svg>
+                      <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;"></div>
+                      <svg id="chart" style="display:block;"></svg>
+                        
                     </div>
                 </div>
             </div>

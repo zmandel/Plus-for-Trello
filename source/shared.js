@@ -1660,7 +1660,7 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
     }
 }
 
-
+var g_regexParseSE = null;
 /* parseSE
 *
 * bKeepHashTags defaults to false
@@ -1680,7 +1680,9 @@ function parseSE(title, bKeepHashTags) {
     if (se.bParsed) {
         se.bSFTFormat = true;
     } else {
-        var patt = new RegExp("^([(]\\s*([+-]?[0-9]*[.]?[0-9]*)\\s*/\\s*([+-]?[0-9]*[.]?[0-9]*)\\s*[)])?\\s*(.+)$");
+        if (g_regexParseSE === null)
+            g_regexParseSE= new RegExp("^([(]\\s*([+-]?[0-9]*[.]?[0-9]*)\\s*/\\s*([+-]?[0-9]*[.]?[0-9]*)\\s*[)])?\\s*(.+)$");
+        var patt = g_regexParseSE;
         var rgResults = patt.exec(title);
 
         //review zig: when is rgResults null? one user had this but never sent the offending card title
@@ -1702,6 +1704,8 @@ function parseSE(title, bKeepHashTags) {
     return se;
 }
 
+var g_regexSFT1 = null;
+var g_regexSFT2 = null;
 function parseSE_SFT(title) {
     function makePatt(leftDelim, rightDelim) {
         var start = null;
@@ -1721,7 +1725,9 @@ function parseSE_SFT(title) {
     var leftDelim = "(";
     var rightDelim = ")";
     var part = makePatt(leftDelim, rightDelim);
-    var patt = new RegExp("^.*?" + makePatt(leftDelim, rightDelim) + ".*$"); //*? means non-greedy match so find first
+    if (g_regexSFT1 === null)
+        g_regexSFT1 = new RegExp("^.*?" + makePatt(leftDelim, rightDelim) + ".*$"); //*? means non-greedy match so find first
+    var patt = g_regexSFT1;
     var rgResults = patt.exec(title);
 
     if (rgResults == null || rgResults[1] === undefined)
@@ -1737,7 +1743,9 @@ function parseSE_SFT(title) {
 
     leftDelim = "[";
     rightDelim = "]";
-    patt = new RegExp("^.*" + makePatt(leftDelim, rightDelim) + ".*$"); //normal (greedy) match so it finds last
+    if (!g_regexSFT2)
+        g_regexSFT2 = new RegExp("^.*" + makePatt(leftDelim, rightDelim) + ".*$"); //normal (greedy) match so it finds last;
+    patt = g_regexSFT2;
     rgResults = patt.exec(title);
     if (rgResults == null || rgResults[1] === undefined)
         se.spent = 0;
