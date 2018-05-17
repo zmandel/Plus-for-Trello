@@ -5,6 +5,7 @@ var g_totalSpentAllBoards = 0;
 var g_totalEstimateAllBoards = 0;
 
 function updateBoardPageTotals() {
+    return; //review: feature no longer used as it can confuse showing the old cached values, and it works based on board name, not id.
     if (!bAtTrelloHome()) //other pages, like org. boards also shows the board elements (thanks MarkF!)
         return;
 	g_totalSpentAllBoards = 0;

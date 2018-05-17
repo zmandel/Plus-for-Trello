@@ -9,7 +9,7 @@ var g_data = null;
 var g_chartUser = null;
 var g_dataUser = null;
 var g_userTrello = null;
-var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations: null, pointer: null, bProjectionFirstClick: true };
+var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnotations: null, pointer: null };
 
 var g_TimelineColors = ["#D25656", "#6F83AD", g_colorRemaining, "black"]; //red, blue, green (spent, estimate, remaining, annotation)
 
@@ -369,7 +369,6 @@ function resetChartline() {
     g_tl.plot = null;
     g_tl.crosshair = null;
     g_tl.projectionLine = null;
-    g_tl.bProjectionFirstClick = true;
     g_tl.chartBottom = null;
     g_tl.xAxisBottom = null;
     g_tl.redrawAnnotations = null;
@@ -588,13 +587,13 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
     projection.circleEnd = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", g_colorRemaining).attr("r", 6).style("visibility", "hidden");
     projection.labelBackground = container.append("rect").attr({ width: 0, height: 0, fill: "white", rx: 3, ry: 3, stroke: g_colorRemainingDark, "stroke-width":1 }).style("visibility", "hidden");;
     projection.labelEnd = container.append("text").attr("stroke", g_colorRemainingDark).attr("stroke-width", 1).attr("stroke-opacity", 1);
-    g_tl.bProjectionFirstClick = true;
+    projection.bProjectionFirstClick = true;
 
     //plot.height()
     projection.drawAt = function (p) {
         var attr = {};
         container.style("visibility", "visible");
-        if (g_tl.bProjectionFirstClick) {
+        if (projection.bProjectionFirstClick) {
             projection.labelEnd.text("");
             projection.labelBackground.style("visibility", "hidden");
             projection.circleEnd.style("visibility", "hidden");
@@ -660,7 +659,7 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
             projection.labelBackground.style("visibility", "visible");
             projection.lineDom.style("visibility", "visible");
         }
-        g_tl.bProjectionFirstClick = !g_tl.bProjectionFirstClick;
+        projection.bProjectionFirstClick = !projection.bProjectionFirstClick;
         projection.lineDom.attr(attr);
         
     };
@@ -672,6 +671,7 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
         projection.circleMid.style("visibility", "hidden");
         projection.labelEnd.style("visibility", "hidden");
         projection.lineDom.style("visibility", "hidden");
+        projection.bProjectionFirstClick = true;
     };
     return projection;
 }
@@ -851,8 +851,10 @@ function setChartData(rows, idBoard, params) {
 	}
 }
 
-function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
-	var header = [{ name: "Date" }, { name: "Card" }, { name: "S" }, { name: "E" }, { name: "Note", bExtend: true }, { name: COLUMNNAME_ETYPE }];
+function getHtmlBurndownTooltipByUser(rowsParam, bReverse, colExclude, selection) {
+    
+    var header = [{ name: "Date Last" }, { name: "Card" }, { name: "S" }, { name: "E" }, { name: "R" }];
+    var bRemain = (selection && selection.col === 2);
 	function callbackRowData(row) {
 		var rgRet = [];
 		var date = new Date(row.date * 1000); //db is in seconds
@@ -866,14 +868,21 @@ function getHtmlBurndownTooltipByUser(rows, bReverse, colExclude) {
 		rgRet.push({ name: "<A target='_blank' href='" + urlCard + "'>" + strTruncate(row.nameCard) + "</A>", bNoTruncate: true });
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
+		var rPush = parseFixedFloat(row.est - row.spent);
+
+		if (bRemain) {
+		    if (rPush === 0)
+		        return null;
+		} else {
+		    if (sPush === 0)
+		        return null;
+		}
 		rgRet.push({ type: "S", name: sPush, bNoTruncate: true });
 		rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
-		rgRet.push({ name: row.comment, bNoTruncate: false });
-		rgRet.push({ name: nameFromEType(row.eType), bNoTruncate: true });
-		rgRet.title = "(" + sPush + " / " + estPush + ") " + " " + getCurrentWeekNum(date) + ". " + row.comment;
+		rgRet.push({ type: "R", name: rPush});
 		return rgRet;
 	}
-
+	var rows = groupRows(rowsParam, "idCardH", "date", false);
 	return getHtmlBurndownTooltipFromRows(true, rows, bReverse, header, callbackRowData);
 }
 

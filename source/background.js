@@ -14,6 +14,13 @@ var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
 var g_mapTimerWindows = {};
 
+chrome.runtime.onInstalled.addListener(function () {
+    handleShowDesktopNotification({
+        notification: "Welcome!\nRefresh or open a trello.com page to start.",
+        timeout: 20000
+    });
+});
+
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
     var data = null;
     //review zig: assumes g_optEnterSEByComment is loaded. should be. assert in IsEnabled ensures it wont continue if not.
