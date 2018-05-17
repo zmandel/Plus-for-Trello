@@ -884,6 +884,18 @@ table#tableMarkers td {
 	margin-bottom: -2px;
 }
 
+ .report_class_white_text {
+            color:white; /* Needs to be here and not in style.css, we dont want background to inherit, so when user copies and pastes to excel, text will be black, not white */
+  }
+
+.report_label_color {
+    padding-top:2px;
+    padding-bottom:2px;
+    padding-left:6px;
+    padding-right:6px;
+    border-radius:3px;
+}
+
 .agile-card-icon-recurring {
     margin-left: -2.6em !important;
     margin-top:0.7em !important;
@@ -1646,6 +1658,21 @@ table#tableMarkers td {
 	content: "▼";
 }
 
+#report_options_section {
+    padding:1em;
+    padding-top:.1em;
+}
+
+.report_options_item {
+    margin-top:.5em;
+}
+
+.agile_report_checkbox {
+    vertical-align: middle;
+    margin: 0px;
+    padding:0px;
+}
+
 .agile_busy {
     cursor: wait !important;
 }
@@ -1777,6 +1804,7 @@ overflow:visible;
     width:auto;
     border:none;
     background-color:#EDEFF0;
+    margin-right:1.5em !important;
 }
 
 #reportBottomMessage {

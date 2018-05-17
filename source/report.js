@@ -17,6 +17,34 @@ var keybEnterSEByCardComments = "bEnterSEByCardComments"; //review zig reuse sha
 var keyrgKeywordsforSECardComment = "rgKWFCC";
 var g_postFixHeaderLast = " last"; //special postfix for column headers
 var g_namedReport = null; //stores named report from initial url param
+var g_excludedColumns = {};
+
+var g_colours = { //thanks http://stackoverflow.com/a/1573141/2213940
+    "aliceblue": "#f0f8ff", "antiquewhite": "#faebd7", "aqua": "#00ffff", "aquamarine": "#7fffd4", "azure": "#f0ffff",
+    "beige": "#f5f5dc", "bisque": "#ffe4c4", "black": "#000000", "blanchedalmond": "#ffebcd", "blue": "#0000ff", "blueviolet": "#8a2be2", "brown": "#a52a2a", "burlywood": "#deb887",
+    "cadetblue": "#5f9ea0", "chartreuse": "#7fff00", "chocolate": "#d2691e", "coral": "#ff7f50", "cornflowerblue": "#6495ed", "cornsilk": "#fff8dc", "crimson": "#dc143c", "cyan": "#00ffff",
+    "darkblue": "#00008b", "darkcyan": "#008b8b", "darkgoldenrod": "#b8860b", "darkgray": "#a9a9a9", "darkgreen": "#006400", "darkkhaki": "#bdb76b", "darkmagenta": "#8b008b", "darkolivegreen": "#556b2f",
+    "darkorange": "#ff8c00", "darkorchid": "#9932cc", "darkred": "#8b0000", "darksalmon": "#e9967a", "darkseagreen": "#8fbc8f", "darkslateblue": "#483d8b", "darkslategray": "#2f4f4f", "darkturquoise": "#00ced1",
+    "darkviolet": "#9400d3", "deeppink": "#ff1493", "deepskyblue": "#00bfff", "dimgray": "#696969", "dodgerblue": "#1e90ff",
+    "firebrick": "#b22222", "floralwhite": "#fffaf0", "forestgreen": "#228b22", "fuchsia": "#ff00ff",
+    "gainsboro": "#dcdcdc", "ghostwhite": "#f8f8ff", "gold": "#ffd700", "goldenrod": "#daa520", "gray": "#808080", "green": "#008000", "greenyellow": "#adff2f",
+    "honeydew": "#f0fff0", "hotpink": "#ff69b4",
+    "indianred ": "#cd5c5c", "indigo": "#4b0082", "ivory": "#fffff0", "khaki": "#f0e68c",
+    "lavender": "#e6e6fa", "lavenderblush": "#fff0f5", "lawngreen": "#7cfc00", "lemonchiffon": "#fffacd", "lightblue": "#add8e6", "lightcoral": "#f08080", "lightcyan": "#e0ffff", "lightgoldenrodyellow": "#fafad2",
+    "lightgrey": "#d3d3d3", "lightgreen": "#90ee90", "lightpink": "#ffb6c1", "lightsalmon": "#ffa07a", "lightseagreen": "#20b2aa", "lightskyblue": "#87cefa", "lightslategray": "#778899", "lightsteelblue": "#b0c4de",
+    "lightyellow": "#ffffe0", "lime": "#00ff00", "limegreen": "#32cd32", "linen": "#faf0e6",
+    "magenta": "#ff00ff", "maroon": "#800000", "mediumaquamarine": "#66cdaa", "mediumblue": "#0000cd", "mediumorchid": "#ba55d3", "mediumpurple": "#9370d8", "mediumseagreen": "#3cb371", "mediumslateblue": "#7b68ee",
+    "mediumspringgreen": "#00fa9a", "mediumturquoise": "#48d1cc", "mediumvioletred": "#c71585", "midnightblue": "#191970", "mintcream": "#f5fffa", "mistyrose": "#ffe4e1", "moccasin": "#ffe4b5",
+    "navajowhite": "#ffdead", "navy": "#000080",
+    "oldlace": "#fdf5e6", "olive": "#808000", "olivedrab": "#6b8e23", "orange": "#ffa500", "orangered": "#ff4500", "orchid": "#da70d6",
+    "palegoldenrod": "#eee8aa", "palegreen": "#98fb98", "paleturquoise": "#afeeee", "palevioletred": "#d87093", "papayawhip": "#ffefd5", "peachpuff": "#ffdab9", "peru": "#cd853f", "pink": "#ffc0cb", "plum": "#dda0dd", "powderblue": "#b0e0e6", "purple": "#800080",
+    "red": "#ff0000", "rosybrown": "#bc8f8f", "royalblue": "#4169e1",
+    "saddlebrown": "#8b4513", "salmon": "#fa8072", "sandybrown": "#f4a460", "seagreen": "#2e8b57", "seashell": "#fff5ee", "sienna": "#a0522d", "silver": "#c0c0c0", "skyblue": "#87ceeb", "slateblue": "#6a5acd", "slategray": "#708090", "snow": "#fffafa", "springgreen": "#00ff7f", "steelblue": "#4682b4",
+    "tan": "#d2b48c", "teal": "#008080", "thistle": "#d8bfd8", "tomato": "#ff6347", "turquoise": "#40e0d0",
+    "violet": "#ee82ee",
+    "wheat": "#f5deb3", "white": "#ffffff", "whitesmoke": "#f5f5f5",
+    "yellow": "#ffff00", "yellowgreen": "#9acd32"
+};
 
 var g_namedParams = { //review move all here
     dontQuery: "dontQuery",//1 when set
@@ -542,7 +570,6 @@ document.addEventListener('DOMContentLoaded', function () {
 	    $("body").removeClass("agile_report_minSize");
 
 	if (g_bBuildSqlMode) {
-	    $("#checkNoCrop").parent().hide();
 	    $("#tabs").hide();
 	    $("#agile_title_header_report").hide();
 	    $("#groupBy").parent().hide();
@@ -865,18 +892,13 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 		        }
 
 		        el.css("background", color);
-		        if (rgb == null)
-		            rgb = rgbFromHex(color);
 		        var colorText = g_colorTrelloBlack;
-		        if (rgb) {
-		            if (el.hasClass("agile_pivotCell_Zero"))
-		                colorText = color; //prevent filling report with zeros which clutter it. value is there but with color equal to background
-		            else {
-		                var sum = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722; //standard luminance. This will never be perfect a user's gamma/calibration is never the same.
-		                if (sum < 128)
-		                    colorText = "white";
-		            }
-		        }
+
+		        if (el.hasClass("agile_pivotCell_Zero"))
+		            colorText = color; //prevent filling report with zeros which clutter it. value is there but with color equal to background
+		        else
+		            colorText = colorContrastWith(color, rgb, g_colorTrelloBlack);
+		        
 		        el.css("color", colorText);
 		    });
 		}
@@ -897,11 +919,31 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 	colorOverElem.off().on('input', onEditsChange);
 }
 
+function colorContrastWith(color, rgb, colorTrelloBlack) {
+    var colorText = colorTrelloBlack;
+
+    if (!rgb)
+        rgb = rgbFromHex(color);
+    if (rgb) {
+        var sum = rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722; //standard luminance. This will never be perfect a user's gamma/calibration is never the same.
+        if (sum < 128)
+            colorText = "white";
+    }
+    return colorText;
+}
+
+
 function rgbFromHex(hex) {
 	var regexRGB = /^#([\da-fA-F]{2})([\da-fA-F]{2})([\da-fA-F]{2})/;
 	var rgb = regexRGB.exec(hex);
-	if (!rgb)
-		return null;
+	if (!rgb) {
+	    var hexNamedColor = g_colours[hex.toLowerCase()];
+	    if (hexNamedColor) {
+	        rgb = regexRGB.exec(hexNamedColor);
+	    }
+        if (!rgb)
+	        return null;
+	}
 	return [parseInt(rgb[1], 16), parseInt(rgb[2], 16), parseInt(rgb[3], 16)];
 }
 
@@ -1049,7 +1091,11 @@ function loadReport(params) {
 		}
 	});
 
+
 	g_bShowLabelsFilter = g_bProVersion;
+	if (g_bProVersion)
+	    $("#labelOptionsProOnly").hide();
+
 	var editLabels = $("#label");
 	var editKeyword = $("#keyword");
 	g_bShowKeywordFilter = (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1);
@@ -1057,8 +1103,13 @@ function loadReport(params) {
 	var elems = {
 	    keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
 	    monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label:"", comment: "", eType: "all", archived: "0", deleted: "0",
-	    idBoard: (g_bBuildSqlMode?"":"showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide"
+	    idBoard: (g_bBuildSqlMode ? "" : "showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide",
+	    checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false"
 	};
+
+	if (g_bPopupMode && params["checkNoCrop"] == "true")
+	    params["checkNoCrop"] = "false"; //hacky. because popup mode no longer supports options, undo any remembered cropping option
+
 	for (var iobj in elems) {
 		var elemCur = $("#" + iobj);
 		elemCur.off("keypress.plusForTrello").on("keypress.plusForTrello",function (event) {
@@ -1069,6 +1120,7 @@ function loadReport(params) {
 				onQuery();
 			}
 		});
+
 		getParamAndPutInFilter(elemCur, params, iobj, elems[iobj]);
 		if ((iobj == "idBoard" || iobj == "idCard") && elems[iobj].length > 0)
 			hiliteOnce(elemCur);
@@ -1158,6 +1210,18 @@ function loadReport(params) {
 		    configReport(elems, !bFirstTime && !g_bBuildSqlMode);
 		}
 	}
+
+	var headerOptions = $("#headerOptions");
+	var containerOptions = $("#optionsContainer");
+
+	if (g_bBuildSqlMode || g_bPopupMode)
+	    containerOptions.hide();
+	else
+	    containerOptions.show();
+	headerOptions.off().click(function () {
+	    handleSectionSlide(containerOptions, $("#report_options_section"));
+	});
+
 	btn.off().click(function () {
 		onQuery();
 	});
@@ -1424,7 +1488,7 @@ function buildSql(elems) {
     var bByROpt=false;
 	var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
-                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, H.eType as eType, \
+                H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, H.eType as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM HISTORY as H \
                 JOIN CARDS as C on H.idCard=C.idCard \
@@ -1457,7 +1521,7 @@ function buildSql(elems) {
                 select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
                 0 as estFirst, \
                 case when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
-                T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
+                T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
@@ -1487,6 +1551,19 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 
 	if (elems["checkNoCrop"] == "false")
 	    elems["checkNoCrop"] = ""; //ditto like eType
+
+	if (elems["checkNoLabelColors"] == "false")
+	    elems["checkNoLabelColors"] = ""; //ditto like eType
+    
+	if (elems["checkOutputCardShortLink"] == "false")
+	    elems["checkOutputCardShortLink"] = ""; //ditto like eType
+
+	if (elems["checkOutputBoardShortLink"] == "false")
+	    elems["checkOutputBoardShortLink"] = ""; //ditto like eType
+
+	if (elems["checkOutputCardIdShort"] == "false")
+	    elems["checkOutputCardIdShort"] = ""; //ditto like eType
+
 	if (!g_bBuildSqlMode) {
 	    if (g_bAddParamSetLastRowViewedToQuery) {
 	        elems["setLastRowViewed"] = "true";
@@ -1526,8 +1603,16 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 					        return;
 					    }
 						var rows = response.rows;
-						try {
-						    setReportData(rows, elems["checkNoCrop"] == "true", elems, sqlQuery);
+					    try {
+					        var options = {
+					            bNoTruncate: elems["checkNoCrop"] == "true",
+					            bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
+					            bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
+					            bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
+					            bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true"
+					        };
+
+						    setReportData(rows, options, elems, sqlQuery);
 						}
 						catch (e) {
 							var strError = "error: " + e.message;
@@ -1544,9 +1629,8 @@ function resetQueryButton(btn) {
 	btn.text("Query");
 }
 
-function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
+function setReportData(rowsOrig, options, urlParams, sqlQuery) {
     var rowsGrouped = rowsOrig;
-
     var groupBy = urlParams["groupBy"];
     var orderBy = urlParams["orderBy"];
 
@@ -1610,7 +1694,8 @@ function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
             });
 
             var mapLabelNames = {};
-            sql = "SELECT idLabel,name FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
+            var mapLabelColors = {};
+            sql = "SELECT idLabel,name,color FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
             getSQLReport(sql, [], function (response) {
                 if (response.status != STATUS_OK) {
                     alert(response.status);
@@ -1618,21 +1703,44 @@ function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
                 }
                 response.rows.forEach(function (rowLabel) {
                     mapLabelNames[rowLabel.idLabel] = rowLabel.name;
+                    mapLabelColors[rowLabel.idLabel] = rowLabel.color || "#b6bbbf"; //trello's no-color color
                 });
 
                 var iLabel = 0;
                 for (var idCardLoop in mapCardsToLabels) {
                     var objLoop = mapCardsToLabels[idCardLoop];
                     var rgLabels = new Array(objLoop.idLabels.length);
+                    var rgLabelsDecorated = new Array(objLoop.idLabels.length);
                     iLabel = 0;
+
                     objLoop.idLabels.forEach(function (idLabel) {
-                        rgLabels[iLabel] = mapLabelNames[idLabel];
+                        rgLabels[iLabel] = { name: mapLabelNames[idLabel], idLabel: idLabel };
                         iLabel++;
                     });
+
                     rgLabels.sort(function (a, b) {
-                        return a.toLowerCase().localeCompare(b.toLowerCase());
+                        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
                     });
-                    objLoop.labels = rgLabels.join(", ");
+
+                    if (options.bNoLabelColors) {
+                        objLoop.labels = rgLabels.map(function(val) {
+                            return val.name;
+                        }).join(', ');
+                    }
+                    else {
+                        iLabel = 0;
+                        rgLabels.forEach(function (label) {
+                            var colorTextLabel = colorContrastWith(mapLabelColors[label.idLabel], null, "#000000");
+                            var strClassText = "";
+                            if (colorTextLabel == "white") {
+                                strClassText = "report_class_white_text ";
+                            }
+                            rgLabelsDecorated[iLabel] = '<span class="' + strClassText + 'report_label_color" style="background-color:' + mapLabelColors[label.idLabel] + ';">' + mapLabelNames[label.idLabel] + '</span>';
+                            iLabel++;
+                        });
+
+                        objLoop.labels = rgLabelsDecorated.join('&nbsp;&nbsp;');
+                    }
                 }
                 fillDOM(mapCardsToLabels);
             });
@@ -1642,7 +1750,7 @@ function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
     function fillDOM(mapCardsToLabels) {
         var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
         var headersSpecial = {};
-        var html = getHtmlDrillDownTooltip(rowsGrouped, mapCardsToLabels, headersSpecial, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
+        var html = getHtmlDrillDownTooltip(rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
         var parentScroller = $(".agile_report_container");
         var container = makeReportContainer(html, 1300, true, parentScroller, true);
         var tableElem = $(".tablesorter");
@@ -1688,7 +1796,7 @@ function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
 
         var btn = $("#buttonFilter");
         resetQueryButton(btn);
-        fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, bNoTruncate);
+        fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, options.bNoTruncate);
         selectTab(g_iTabCur); //select again to adjust height
         if (g_bNeedSetLastRowViewed) {
             g_bNeedSetLastRowViewed = false;
@@ -2184,7 +2292,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 		            mapCardsHandled[row.idCardH] = true;
 
 		        if (!row.user && mapCardsHandled[row.idCardH])
-		            continue; //filter row out
+		            continue; //filter duplicate row out
 		    }
 			ret.push(map[i]);
 		}
@@ -2231,16 +2339,17 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 	return ret;
 }
 
-function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
+function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
 	var bOrderR = (orderBy == "remain");
 	var header = [];
-
+	var bNoTruncate = options.bNoTruncate;
 	function pushSpecialLinkHeader() {
 	    assert(header.length > 0);
 	    headersSpecial[header.length - 1] = {
 	        sorter: 'links'
 	    };
 	}
+    //review zig exclude columns https://docs.google.com/spreadsheets/d/1mcDza4o4CG3xlQns_iL5zsrGb1a_EumL8Bn-5We77X0/edit#gid=0
 
 	var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
 	var bGroupedByDate = (groupBy.indexOf("date") >= 0);
@@ -2262,6 +2371,11 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 	var bPushedCard = false;
 
 	function pushCardHeader() {
+	    if (options.bOutputCardShortLink)
+	        header.push({ name: "Card shortLink" });
+
+	    if (options.bOutputCardIdShort)
+	        header.push({ name: "Card #" });
 	    header.push({ name: "Card" });
 	    pushSpecialLinkHeader();
 	}
@@ -2293,6 +2407,8 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 	}
 
 	if (bShowBoard) {
+	    if (options.bOutputBoardShortLink)
+	        header.push({ name: "Board shortLink" });
 	    header.push({ name: "Board" });
 	    pushSpecialLinkHeader();
 	}
@@ -2352,7 +2468,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 	        dateTimeString = makeDateCustomString(dateDbUse,true);
 	    }
 	    if (bShowKeyword)
-	        rgRet.push({ name: row.keyword, bNoTruncate: true });
+	        rgRet.push({ name: escapeHtml(row.keyword), bNoTruncate: true });
         if (bShowDate)
 	        rgRet.push({ name: (bGroupedByDate ? dateString : dateTimeString), bNoTruncate: true });
 	    if (bCardGrouping) {
@@ -2365,13 +2481,20 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 	    }
 
 	    function pushCardRow() {
-	        var urlCard = null;
+	        if (options.bOutputCardShortLink) {
+	            rgRet.push({ name: row.idCardH, bNoTruncate: true });
+	        }
+	        if (options.bOutputCardIdShort) {
+	            rgRet.push({ name: row.idShort, bNoTruncate: true });
+	        }
+
+	        var urlCard;
 	        if (row.idCardH.indexOf("https://") == 0)
 	            urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
 	        else
 	            urlCard = "https://trello.com/c/" + row.idCardH;
 
-	        rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + (bNoTruncate ? row.nameCard : strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
+	        rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + escapeHtml(bNoTruncate ? row.nameCard : strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
 	    }
 
 	    if (bShowWeek) //week
@@ -2390,19 +2513,21 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 		if (bShowTeam) {
 		    var urlTeam = "https://trello.com/" + (row.nameTeamShort || "");
 		    var nameTeam = row.nameTeam || ""; //for rows without team
-		    rgRet.push({ name: "<A title='Go to Trello team' target='_blank' href='" + urlTeam + "'>" + (bNoTruncate ? nameTeam : strTruncate(nameTeam)) + "</A>", bNoTruncate: true });
+		    rgRet.push({ name: "<A title='Go to Trello team' target='_blank' href='" + urlTeam + "'>" + escapeHtml(bNoTruncate ? nameTeam : strTruncate(nameTeam)) + "</A>", bNoTruncate: true });
 		}
 
 		if (bShowBoard) {
+		    if (options.bOutputBoardShortLink)
+			    rgRet.push({ name: (row.idBoardH==IDBOARD_UNKNOWN?"":row.idBoardH), bNoTruncate: true });
 			var urlBoard = "https://trello.com/b/" + row.idBoardH;
-			rgRet.push({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + (bNoTruncate?row.nameBoard:strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
+			rgRet.push({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + escapeHtml(bNoTruncate ? row.nameBoard : strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
 		}
 
 		if (bShowList) {
 		    var strListUse = row.nameList;
 		    if (!bNoTruncate)
 		        strListUse = strTruncate(strListUse, g_cchTruncateShort);
-		    rgRet.push({ name: strListUse, bNoTruncate: true });
+		    rgRet.push({ name: escapeHtml(strListUse), bNoTruncate: true });
 		}
 		if (bShowCard && !bPushedCard) {
 		    pushCardRow();
@@ -2412,7 +2537,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 		if (bShowLabels) {
 		    assert(mapCardsToLabels);
 		    var labels = (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
-		    rgRet.push({ name: labels, bNoTruncate: bNoTruncate });
+		    rgRet.push({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
 		}
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
@@ -2428,7 +2553,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTrun
 			rgRet.push({ type: "R", name: remainCalc, bNoTruncate: true }); //type "R" just so it generates the transparent zero
 		}
 		if (bShowComment)
-			rgRet.push({ name: row.comment, bNoTruncate: bNoTruncate });
+		    rgRet.push({ name: escapeHtml(row.comment), bNoTruncate: bNoTruncate });
 
 		if (bShowEtype)
 		    rgRet.push({ name: nameFromEType(row.eType), bNoTruncate: true });

@@ -1351,7 +1351,7 @@ function showNonMemberBoardsDialog() {
     var div = divDialog.find("#agile_nonmemberListContents");
     div.empty();
     div.text("Finding...");
-    divDialog[0].showModal();
+    showModalDialog(divDialog[0]);
     sendExtensionMessage({ method: "getBoardsWithoutMe"},
                 function (response) {
                     if (cProtect != g_cProtectMultiNonMemberBoardsDialog)

@@ -9,6 +9,7 @@
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
+    <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
     <script type="text/javascript" src="shared.js"></script>
     <script type="text/javascript" src="report.js"></script>
 </head>
@@ -30,11 +31,6 @@
             </div>
             <div class="agile_report_filters">
                 <div class="agile_report_filter">
-                    <p title="Check to prevent cropping text in the resulting report.
-Press 'Query' to reflect changes." style="margin-right: 0px;">
-                        <input style="vertical-align: middle; margin: 0px; padding:0px;" type="checkbox" value="checked" id="checkNoCrop" />
-                        <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
-                    </p>
                     <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
 
@@ -276,6 +272,32 @@ E 1st: rows with a first estimate
                         <option value="eincr">+E</option>
                         <option value="edecr">-E</option>
                     </select>
+                </div>
+            </div>
+            <div style="display:none;" id="optionsContainer" class="agile_arrow_closed agile_arrow_container">
+                <p id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
+                <div style="display:none;" id="report_options_section">
+                        <div class="report_options_item"  title="Check to prevent cropping text in results">
+                            <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
+                            <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
+                        </div>
+                    <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
+                    <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
+                        <label class="agile_unselectable" for="checkNoLabelColors">No color in labels</label>
+                    </div>
+                    <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
+                        <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
+                    </div>
+                    <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
+                        <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
+                    </div>
+                    <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
+                        <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
+                    </div>
                 </div>
             </div>
             <div id="tabs" style="background: #E8EBEE;padding:0px;">

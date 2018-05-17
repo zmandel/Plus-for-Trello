@@ -2,13 +2,14 @@
 
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
-var SQLQUERY_PREFIX_CARDDATA = "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted ";
+var SQLQUERY_PREFIX_CARDDATA = "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, idShort, bArchived, bDeleted ";
 var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
 var SQLQUERY_PREFIX_BOARDDATA = "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync, idTeam, dateLastActivity ";
 var SQLQUERY_PREFIX_LABELDATA = "select idLabel,name, idBoardShort, color ";
 var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
 var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
 
+//REVIEW zig: idCardShort is a bad name, its really shortLink, and NOT idShort
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
 }
@@ -297,7 +298,7 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
             }
             broadcastMessage({ event: EVENTS.FIRST_SYNC_RUNNING, status: STATUS_OK });
             handleShowDesktopNotification({
-                notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering over the Plus icon on the top-right of Chrome.",
+                notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering the Plus icon on the top-right of Chrome.",
                 timeout: 30000
             });
         }
@@ -926,10 +927,17 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
         if (card.due == null)
             dueDate = null;
         else
-            dueDate = Math.round(new Date(card.due).getTime()/1000);
+            dueDate = Math.round(new Date(card.due).getTime() / 1000);
     }
-        
+
+    var idShort = card.idShort;
+    if (idShort && typeof (idShort) == "number") //no evidence that its not a number, but list "pos" turned out to be sometimes not a number, thus assume it can happen here
+        idShort = idShort.toString(); //this also helps correctly converting to number, as sqlite will convert 4 to '4.0'
+
     if (cardCur) {
+        if (idShort)
+            cardCur.idShort = idShort;
+
         if (!cardCur.dateSzLastTrello || dateCard >= cardCur.dateSzLastTrello) {
             if (card.name) //not present on deleteCard
                 cardCur.name = card.name;
@@ -966,7 +974,7 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
             //before this change, trello used to keep all the history thus the name was never undefined ("createCard" and such were processed before)
             cardActionName = (typeAction == "deleteCard" ? "deleted card" : "unknown card name");
         }
-        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false, dateDue: dueDate || null };
+        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false, dateDue: dueDate || null, idShort: idShort };
         cards[card.shortLink] = cardCur;
     }
 
@@ -1630,66 +1638,6 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
     xhr.send();
 }
 
-function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback, waitRetry) {
-    //https://trello.com/docs/api/card/index.html
-    assert(idCardLong);
-    assert(fields);
-    assert(callback);
-    var url = "https://trello.com/1/cards/" + idCardLong + "?fields=" + fields;
-    if (bBoardShortLink)
-        url = url + "&board=true&board_fields=shortLink";
-    var xhr = new XMLHttpRequest();
-    xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
-    xhr.onreadystatechange = function (e) {
-        if (xhr.readyState == 4) {
-            handleFinishRequest();
-
-            function handleFinishRequest() {
-                var objRet = { status: "unknown error", hasPermission: false};
-                var bReturned = false;
-
-                if (xhr.status == 200) {
-                    try {
-                        objRet.hasPermission = true;
-                        objRet.card=JSON.parse(xhr.responseText);
-                        objRet.status = STATUS_OK;
-                        callback(objRet);
-                        bReturned = true;
-                    } catch (ex) {
-                        objRet.status = "error: " + ex.message;
-                    }
-                } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or card deleted already
-                        null; //happy lint
-                    }
-                    else if (xhr.status == 429) { //too many request, reached quota. 
-                        var waitNew = (waitRetry || 500) * 2;
-                        if (waitNew < 8000) {
-                            bReturned = true;
-                            setTimeout(function () {
-                                console.log("Plus: retrying api call");
-                                getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback, waitNew);
-                            }, waitNew);
-                        }
-                        else {
-                            objRet.status = errFromXhr(xhr);
-                        }
-                    }
-                    else {
-                        objRet.status = errFromXhr(xhr);
-                    }
-                }
-
-                if (!bReturned) {
-                    callback(objRet);
-                }
-            }
-        }
-    };
-
-    xhr.open("GET", url);
-    xhr.send();
-}
 var BOARD_ACTIONS_LIST = "updateList,deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard";
 
 function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefore, actionsSkip, callback, waitRetry) {
@@ -2111,8 +2059,10 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                     assert(statusProcess.boards.length > 0);
                                     statusProcess.boards.forEach(function (board) {
                                         //search only on boards that were modified and that will not undergo deep sync later
-                                        if (board.idLong && !board.methodProcess.deep)
+                                        if (board.idLong && !board.methodProcess.deep) {
+                                            assert(board.methodProcess.needLabels || board.methodProcess.needSearch);
                                             idBoardsSearch.push(board.idLong);
+                                        }
                                     });
 
                                     if (idBoardsSearch.length == 0) {
@@ -2325,7 +2275,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                                 var paramsQuery = null;
 
                                                 if (board.methodProcess.deep) {
-                                                    paramsQuery = "labels=all&label_fields=all&labels_limit=1000&cards=all&card_fields=labels,due,closed,dateLastActivity,idList,shortLink,name&lists=all&list_fields=closed,name,pos&fields=dateLastActivity";
+                                                    paramsQuery = "labels=all&label_fields=all&labels_limit=1000&cards=all&card_fields=labels,due,closed,dateLastActivity,idList,shortLink,name,idShort&lists=all&list_fields=closed,name,pos&fields=dateLastActivity";
                                                 }
                                                 else if (board.methodProcess.needLabels) {
                                                     //just get labels. currently the board's last activity date its the only way to know a label might have changed (without using webhooks)
@@ -2333,6 +2283,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                                 }
                                                 else {
                                                     assert(board.methodProcess.needSearch);
+                                                    //force this case to also end in processBoardData, to handle previously searched cards for this board
                                                     var dataProcess = {
                                                         status: STATUS_OK,
                                                         board: {
@@ -2640,7 +2591,7 @@ function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLi
     var url = "https://trello.com/1/search?query=edited:" + cDaysDelta +
         "&modelTypes=cards&cards_limit=" +
         cCardsLimit +
-        "&card_fields=dateLastActivity,labels,shortLink,idBoard" +  //warning: idBoard is trello long idBoard
+        "&card_fields=dateLastActivity,labels,shortLink,idBoard,idShort" +  //warning: idBoard is trello long idBoard
         "&idBoards=" + idBoardsSearch.join();
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future

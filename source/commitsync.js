@@ -216,7 +216,8 @@ function commitCardSyncData(tx, alldata) {
 
             if (strLabelsOrig == strLabels && card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&
    				card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted &&
-                card.orig.dateDue==card.dateDue && card.orig.idLong == card.idLong) {
+                card.orig.dateDue == card.dateDue && card.orig.idLong == card.idLong &&
+                card.orig.idShort == card.idShort) { //idShort can change if orig null (old version) or if card is moved
                 thisChanged = false;
                 if (card.orig.dateSzLastTrello == card.dateSzLastTrello)
                     continue;
@@ -227,12 +228,12 @@ function commitCardSyncData(tx, alldata) {
 
 
         //review zig: for performance, this should update when orig exists, using INSERT OR IGNORE, then UPDATE (unless it must be there because there is an orig)
-        sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong, dateDue) VALUES (?,?,?,?,?,?,?,?,?)";
+        sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong, dateDue, idShort) VALUES (?,?,?,?,?,?,?,?,?,?)";
         handleInsertCard(sql, idCard, card);
 
         //a function is needed here so idCard, card are retained for use in callbacks
         function handleInsertCard(sql, idCard, card) {
-            tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue],
+            tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue, card.idShort],
                     function onOkInsert(tx2, resultSet) {
                         if (g_bDummyLabel && !card.orig && !card.idLabels) {
                             //could be a newly created card. check if it has no dummy.

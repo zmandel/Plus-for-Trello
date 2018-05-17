@@ -181,7 +181,7 @@ function handleCardTour() {
     {
         id: 4,
         selector: "h2.js-card-title",
-        text: "You can also change the card title directly to manage #tags/recurring.",
+        text: "You can also<br>change the card title directly to manage #tags/recurring.",
         angle: 180,
         distance: 0,
         size: 150

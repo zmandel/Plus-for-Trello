@@ -23,6 +23,22 @@ var g_bUpdatingGlobalSums = null;  //null means uninitialized. tracks if we are 
 var g_manifestVersion = "";
 var g_rgExcludedUsers = []; //users exluded from the S/E bar
 
+function showModlessDialog(elem) {
+    if (!elem.show) {
+        dialogPolyfill.registerDialog(elem);
+    }
+    elem.show();
+}
+
+function showModalDialog(elem) {
+    if (!elem.show) {
+        dialogPolyfill.registerDialog(elem);
+    }
+    elem.showModal();
+}
+
+
+
 function getSpentSpecialUser() { //review zig: unused
     //review zig: wrap g_configData futher as it can be null
     if (g_configData)
@@ -93,15 +109,17 @@ function showExtensionUpgradedError(e) {
         return;
     g_bErrorExtension = true;
     var message = "";
-    if (e && e.message && !bIgnoreError(e.message))
+    //note: newer chrome no longer detects the "connecting to extension" error and instead throws a general "Cannot read property 'name' from Undefined" error.
+    if (e && e.message && !bIgnoreError(e.message) && e.message.indexOf("Cannot read property")<0)
         message = e.message;
 
     var divDialog = $("#agile_dialog_ExtensionUpgraded");
 
     if (divDialog.length == 0) {
+        //focus on h2 so it doesnt go to the first link
         divDialog = $('\
-<dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_ExtensionUpgraded"> \
-<h2>Chrome updated Plus for Trello</h2><br> \
+<dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_ExtensionUpgraded">\
+<h2 tabindex="1" style="outline: none;">Chrome updated Plus for Trello</h2><br> \
 <p>Reload this page to use Plus. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
 <p id="agile_dialog_ExtensionUpgraded_message"></p> \
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
@@ -127,7 +145,7 @@ function showExtensionUpgradedError(e) {
         });
     }
     $("#agile_dialog_ExtensionUpgraded_message").text(message);
-    divDialog[0].show();
+    showModlessDialog(divDialog[0]);
     setTimeout(function () { divDialog.addClass("agile_dialog_ExtensionUpgraded_animate"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 
@@ -156,7 +174,7 @@ function showFatalError(message) {
         });
     }
     $("#agile_dialog_FatalError_message").text(message);
-    divDialog[0].show();
+    showModlessDialog(divDialog[0]);
 }
 
 function testExtension(callback) {

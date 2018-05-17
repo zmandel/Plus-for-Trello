@@ -402,15 +402,37 @@ function handleQueryTrelloDetectionCount(sendResponse) {
     sendResponse({ status: STATUS_OK, count: cRet });
 }
 
+var g_bPlusExtensionLoadedOK = false;
+var g_bRetryWhenNotLoadedOK = true;
+
 var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
-        setTimeout(function () { //avoid global dependencies
+
+        //prevent too old Chrome versions.
+        //Must support at least Promises (Chrome 33) http://caniuse.com/#feat=promises
+        //<dialog>: polyfilled so we dont check. http://caniuse.com/#feat=dialog (native since Chrome 37)
+
+        //your ticket to the Promised land
+        if (!window.Promise) {
+            g_bRetryWhenNotLoadedOK = false;
+            setTimeout(function () {
+                handleShowDesktopNotification({
+                    notification: "Sorry, your Chrome browser is outdated. Plus for Trello requires Chrome 33 or later.\nUpdate Chrome or remove Plus from the Chrome Menu + More Tools + Extensions.",
+                    timeout: 30000
+                });
+            }, 1000);
+            //g_bPlusExtensionLoadedOK remains false
+            return;
+        }
+
+        setTimeout(function () { //avoid global dependencies. however, this timeout could cause content script to call before we are ready. in messaging we handle it.
             g_analytics.init();
             loadBackgroundOptions(function () {
                 thisLocal.init();
+                g_bPlusExtensionLoadedOK = true;
             });
-        }, 1);
+        }, 1); //to force-test timing-related issues, change this 1 to a larger number so that other places will retry. those places also need larger setTimeouts to test.
     },
     init: function () {
         g_bOffline = !navigator.onLine;
@@ -800,7 +822,7 @@ function broadcastMessage(message) {
 }
 
 chrome.runtime.onConnect.addListener(function (port) {
-    assert(port.name == "registerForChanges");
+    assert(port.name == "registerForChanges"); //else handle !g_bPlusExtensionLoadedOK case
     g_rgPorts.push(port);
     port.onDisconnect.addListener(function () {
         var i = 0;
@@ -816,195 +838,226 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponseParam) {
-
-
     var responseStatus = { bCalled: false };
 
-	function sendResponse(obj) {
-	    try {
-	        if (sendResponseParam)
-			    sendResponseParam(obj);
-		} catch (e) {
-			if (e.message.indexOf("disconnected port object") < 0) //skip disconnected ports as the user may close a trello tab anytime
-				logException(e);
-		}
-		responseStatus.bCalled= true;
-	}
 
-	if (request.method == "getConfigData") {
-	    var bSkipCache = (request.bSkipCache);
-	    
-	    getConfigData(request.urlService, request.userTrello, function (retConfig) {
-			if (retConfig === undefined) //null means something different
-				sendResponse({ config: { status: "not configured" } });
-			else
-				sendResponse({ config: retConfig });
-		}, bSkipCache);
-	}
-	else if (request.method == "getBoardsWithoutMe") {
-	    buildBoardsWithoutMe(function (response) {
-	        sendResponse(response);
-	    });
-	}
-	else if (request.method == "hitAnalyticsEvent") {
-	    handleHitAnalyticsEvent(request.category, request.action);
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "showTimerWindow") {
-	    var keybDontShowTimerPopups = "bDontShowTimerPopups";
-	    chrome.storage.sync.get([keybDontShowTimerPopups], function (objSync) {
-	        g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
-	        if (!g_bDontShowTimerPopups)
-	            doShowTimerWindow(request.idCard);
-	    });
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "openChromeOptionsPanels") {
-	    alert("Enable 'Chrome panels' for much better timers.\n\
+    function sendResponse(obj) {
+        try {
+            if (sendResponseParam)
+                sendResponseParam(obj);
+        } catch (e) {
+            if (e.message.indexOf("disconnected port object") < 0) //skip disconnected ports as the user may close a trello tab anytime
+                logException(e);
+        }
+        responseStatus.bCalled = true;
+    }
+
+
+    if (!g_bPlusExtensionLoadedOK) {
+        //in case it is timing related, give it one breath
+        //dont keep giving breaths on unrecoverable errors
+        console.log("Unusual: !g_bPlusExtensionLoadedOK in onMessage.addListener callback");
+        function doError() {
+            g_bRetryWhenNotLoadedOK = false;
+            var err = "Extension not loaded error.";
+            console.log(err);
+            sendResponse({ status: err, bExtensionNotLoadedOK: true });
+        }
+
+        if (!g_bRetryWhenNotLoadedOK) {
+            doError();
+        }
+        else {
+            setTimeout(function () {
+                if (g_bPlusExtensionLoadedOK)
+                    doit();
+                else {
+                    console.log("Unusual: 2nd try !g_bPlusExtensionLoadedOK in onMessage.addListener callback");
+                    doError();
+                }
+            }, 2000);
+        }
+        return (!responseStatus.bCalled);
+    }
+
+    doit();
+
+    function doit() {
+        if (request.method == "getConfigData") {
+            var bSkipCache = (request.bSkipCache);
+
+            getConfigData(request.urlService, request.userTrello, function (retConfig) {
+                if (retConfig === undefined) //null means something different
+                    sendResponse({ config: { status: "not configured" } });
+                else
+                    sendResponse({ config: retConfig });
+            }, bSkipCache);
+        }
+        else if (request.method == "getBoardsWithoutMe") {
+            buildBoardsWithoutMe(function (response) {
+                sendResponse(response);
+            });
+        }
+        else if (request.method == "hitAnalyticsEvent") {
+            handleHitAnalyticsEvent(request.category, request.action);
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "showTimerWindow") {
+            var keybDontShowTimerPopups = "bDontShowTimerPopups";
+            chrome.storage.sync.get([keybDontShowTimerPopups], function (objSync) {
+                g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
+                if (!g_bDontShowTimerPopups)
+                    doShowTimerWindow(request.idCard);
+            });
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "openChromeOptionsPanels") {
+            alert("Enable 'Chrome panels' for much better timers.\n\
 'Panels' is a new Chrome feature that comes disabled by default. To enable now:\n\n\
 1. Press OK to open the 'Chrome options' page.\n\n\
 2. Click 'Enable' there and 'Relaunch Chrome' from\n    the bottom of that page.\n\n\
 Do not change any other option there.\n\
 With 'Panels' enabled, your card timer popups will become top-most panels that organize neatly and stay up even if you quit Chrome.\n\
 If you instead want to disable timer popups do so from Plus preferences.");
-	    chrome.tabs.create({ url: "chrome://flags/#enable-panels" });
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "animateChromeIconFlip") {
-	    animateFlip();
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "requestGoogleSyncPermission") {
-	    handleGoogleSyncPermission(sendResponse);
-	}
-	else if (request.method == "requestProPermission") {
-	    handlePequestProPermission(sendResponse);
-	}
-	else if (request.method == "queryTrelloDetectionCount") {
-	    handleQueryTrelloDetectionCount(sendResponse);
-	}
-	else if (request.method == "plusMenuSync") {
-	    handlePlusMenuSync(sendResponse);
-	}
-	else if (request.method == "createNewSs") {
-	    handleCreateSs(sendResponse);
-	}
-	else if (request.method == "getPlusFeed") {
-	    handleGetPlusFeed(request.msLastPostRetrieved, sendResponse);
-	}
-	else if (request.method == "getAllHashtags") {
-	    handleGetAllHashtags(sendResponse);
-	}
-	else if (request.method == "updatePlusIcon") {
-	    if (request.bOnlyTimer) {
-	        processTimerCounter();
-	    }
-	    else {
-	        if (request.bSetSpentBadge) {
-	            chrome.storage.sync.get([SYNCPROP_optAlwaysShowSpentChromeIcon], function (obj) {
-	                setOptAlwaysShowSpentChromeIcon(obj[SYNCPROP_optAlwaysShowSpentChromeIcon]);
-	                if (g_strTimerLast.length == 0)
-	                    setIconBadgeText(g_strBadgeText, false);
-	                updatePlusIcon();
-	            });
-	        }
-	        else {
-	            updatePlusIcon();
-	        }
-	    }
+            chrome.tabs.create({ url: "chrome://flags/#enable-panels" });
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "animateChromeIconFlip") {
+            animateFlip();
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "requestGoogleSyncPermission") {
+            handleGoogleSyncPermission(sendResponse);
+        }
+        else if (request.method == "requestProPermission") {
+            handlePequestProPermission(sendResponse);
+        }
+        else if (request.method == "queryTrelloDetectionCount") {
+            handleQueryTrelloDetectionCount(sendResponse);
+        }
+        else if (request.method == "plusMenuSync") {
+            handlePlusMenuSync(sendResponse);
+        }
+        else if (request.method == "createNewSs") {
+            handleCreateSs(sendResponse);
+        }
+        else if (request.method == "getPlusFeed") {
+            handleGetPlusFeed(request.msLastPostRetrieved, sendResponse);
+        }
+        else if (request.method == "getAllHashtags") {
+            handleGetAllHashtags(sendResponse);
+        }
+        else if (request.method == "updatePlusIcon") {
+            if (request.bOnlyTimer) {
+                processTimerCounter();
+            }
+            else {
+                if (request.bSetSpentBadge) {
+                    chrome.storage.sync.get([SYNCPROP_optAlwaysShowSpentChromeIcon], function (obj) {
+                        setOptAlwaysShowSpentChromeIcon(obj[SYNCPROP_optAlwaysShowSpentChromeIcon]);
+                        if (g_strTimerLast.length == 0)
+                            setIconBadgeText(g_strBadgeText, false);
+                        updatePlusIcon();
+                    });
+                }
+                else {
+                    updatePlusIcon();
+                }
+            }
 
-	    if (request.bAnimate)
-	        animateFlip();
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "checkLoggedIntoChrome") {
-	    handleCheckLoggedIntoChrome(sendResponse);
-	}
-	else if (request.method == "setBadgeData") { //str, weeknum, text
-	    if (request.text !== undefined) {
-	        g_dataTotalSpentThisWeek.str = request.text;
-	        g_dataTotalSpentThisWeek.weeknum = request.weeknum;
-	        setIconBadgeText(request.text);
-	    }
-	    if (request.tooltip !== undefined)
-	        chrome.browserAction.setTitle({ title: request.tooltip });
-	    sendResponse({});
-	}
-	else if (request.method == "testBackgroundPage") {
-	    insertLogMessages(request.logMessages, sendResponse);
-	}
-	else if (request.method == "showDesktopNotification") {
-	    handleShowDesktopNotification(request);
-	    sendResponse({});
-	}
-	else if (request.method == "insertHistoryRowFromUI") {
-	    handleInsertHistoryRowFromUI(request, sendResponse);
-	}
-	else if (request.method == "queueRenameAllCards") {
-	    localStorage["renameCardsPendingData"] = JSON.stringify({ pending: true, bOnlyCardsWithHistory: request.bOnlyCardsWithHistory });
-	    sendResponse({ status: STATUS_OK });
-	}
-	else if (request.method == "getReport") {
-	    handleGetReport(request, sendResponse);
-	}
-	else if (request.method == "openDB") {
-	    handleOpenDB(request.options, sendResponse);
-	}
-	else if (request.method == "syncDB") {
-	    handleSyncDB(request, sendResponse);
-	    //testResetVersion(); //for testing only
-	}
-	else if (request.method == "trelloSyncBoards") {
-	    handleSyncBoards(request, sendResponse);
-	}
-	else if (request.method == "detectLegacyHistoryRows") {
-	    detectLegacyHistoryRows(sendResponse);
-	}
-	else if (request.method == "getTrelloCardData") {
-	    handleGetTrelloCardData(request, sendResponse);
-	}
-	else if (request.method == "getTrelloBoardData") {
-	    handleGetTrelloBoardData(request, sendResponse);
-	}
-	else if (request.method == "getTotalDBRows") {
-	    handleGetTotalRows(false, sendResponse);
-	}
-	else if (request.method == "getTotalDBRowsNotSync") {
-	    handleGetTotalRows(true, sendResponse);
-	}
-	else if (request.method == "getTotalDBMessages") {
-	    handleGetTotalMessages(sendResponse);
-	}
-	else if (request.method == "getlocalStorageSize") {
-	    sendResponse({ result: unescape(encodeURIComponent(JSON.stringify(localStorage))).length });
-	}
-	else if (request.method == "clearAllStorage") {
-	    var savedId = localStorage[g_analytics.PROP_IDANALYTICS];
-	    localStorage.clear();
-	    if (savedId)
-	        localStorage[g_analytics.PROP_IDANALYTICS] = savedId;
-	    handleDeleteDB(request, sendResponse);
-	}
-	else if (request.method == "clearAllLogMessages") {
-	    handleDeleteAllLogMessages(request, sendResponse);
-	}
-	else if (request.method == "writeLogToPlusSupport") {
-	    handleWriteLogToPlusSupport(request, sendResponse);
-	}
-	else if (request.method == "isSyncing") {
-	    handleIsSyncing(sendResponse);
-	}
-	else if (request.method == "beginPauseSync") {
-	    handlePause(sendResponse);
-	}
-	else if (request.method == "endPauseSync") {
-	    handleUnpause(sendResponse);
-	}
-	else if (request.method == "copyToClipboard") {
-	    handleCopyClipboard(request.html, sendResponse);
-	}
-	else
-	    sendResponse({});
+            if (request.bAnimate)
+                animateFlip();
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "checkLoggedIntoChrome") {
+            handleCheckLoggedIntoChrome(sendResponse);
+        }
+        else if (request.method == "setBadgeData") { //str, weeknum, text
+            if (request.text !== undefined) {
+                g_dataTotalSpentThisWeek.str = request.text;
+                g_dataTotalSpentThisWeek.weeknum = request.weeknum;
+                setIconBadgeText(request.text);
+            }
+            if (request.tooltip !== undefined)
+                chrome.browserAction.setTitle({ title: request.tooltip });
+            sendResponse({});
+        }
+        else if (request.method == "testBackgroundPage") {
+            insertLogMessages(request.logMessages, sendResponse);
+        }
+        else if (request.method == "showDesktopNotification") {
+            handleShowDesktopNotification(request);
+            sendResponse({});
+        }
+        else if (request.method == "insertHistoryRowFromUI") {
+            handleInsertHistoryRowFromUI(request, sendResponse);
+        }
+        else if (request.method == "queueRenameAllCards") {
+            localStorage["renameCardsPendingData"] = JSON.stringify({ pending: true, bOnlyCardsWithHistory: request.bOnlyCardsWithHistory });
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "getReport") {
+            handleGetReport(request, sendResponse);
+        }
+        else if (request.method == "openDB") {
+            handleOpenDB(request.options, sendResponse);
+        }
+        else if (request.method == "syncDB") {
+            handleSyncDB(request, sendResponse);
+            //testResetVersion(); //for testing only
+        }
+        else if (request.method == "trelloSyncBoards") {
+            handleSyncBoards(request, sendResponse);
+        }
+        else if (request.method == "detectLegacyHistoryRows") {
+            detectLegacyHistoryRows(sendResponse);
+        }
+        else if (request.method == "getTrelloCardData") {
+            handleGetTrelloCardData(request, sendResponse);
+        }
+        else if (request.method == "getTrelloBoardData") {
+            handleGetTrelloBoardData(request, sendResponse);
+        }
+        else if (request.method == "getTotalDBRows") {
+            handleGetTotalRows(false, sendResponse);
+        }
+        else if (request.method == "getTotalDBRowsNotSync") {
+            handleGetTotalRows(true, sendResponse);
+        }
+        else if (request.method == "getTotalDBMessages") {
+            handleGetTotalMessages(sendResponse);
+        }
+        else if (request.method == "getlocalStorageSize") {
+            sendResponse({ result: unescape(encodeURIComponent(JSON.stringify(localStorage))).length });
+        }
+        else if (request.method == "clearAllStorage") {
+            var savedId = localStorage[g_analytics.PROP_IDANALYTICS];
+            localStorage.clear();
+            if (savedId)
+                localStorage[g_analytics.PROP_IDANALYTICS] = savedId;
+            handleDeleteDB(request, sendResponse);
+        }
+        else if (request.method == "clearAllLogMessages") {
+            handleDeleteAllLogMessages(request, sendResponse);
+        }
+        else if (request.method == "writeLogToPlusSupport") {
+            handleWriteLogToPlusSupport(request, sendResponse);
+        }
+        else if (request.method == "isSyncing") {
+            handleIsSyncing(sendResponse);
+        }
+        else if (request.method == "beginPauseSync") {
+            handlePause(sendResponse);
+        }
+        else if (request.method == "endPauseSync") {
+            handleUnpause(sendResponse);
+        }
+        else if (request.method == "copyToClipboard") {
+            handleCopyClipboard(request.html, sendResponse);
+        }
+        else
+            sendResponse({});
+    }
 
 	if (!responseStatus.bCalled)
 	    return true;
@@ -1120,7 +1173,7 @@ function handleShowDesktopNotification(request) {
 	var dtNow = new Date();
 	var dtDiff = 0;
 	if (g_dtLastNotification != null) {
-		if (dtNow.getTime() - g_dtLastNotification.getTime() < 10000 && g_strLastNotification == request.notification)
+		if (dtNow.getTime() - g_dtLastNotification.getTime() < 5000 && g_strLastNotification == request.notification)
 			return; //ingore possible duplicate notifications
 	}
 	g_dtLastNotification = dtNow;
@@ -1417,7 +1470,9 @@ var g_analytics = {
         }
     },
     hit: function (params, msDelay) {
-        //return;
+        if (isTestVersion())
+            return;
+
         if (this.bDisableAnalytics)
             return;
         msDelay = msDelay || 1000;

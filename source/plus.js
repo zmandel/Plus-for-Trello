@@ -85,7 +85,7 @@ function showAproveGoogleSyncPermissions(callback) {
         callback(); 
     });
 
-    divDialog[0].showModal();
+    showModalDialog(divDialog[0]);
 }
 
 function handleProAproval(callback) {
@@ -162,7 +162,7 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
         doFinish(true);
     });
 
-    divDialog[0].showModal();
+    showModalDialog(divDialog[0]);
 }
 
 
@@ -1682,7 +1682,7 @@ function handleLoadRecent(listElem, data) {
 		var comment = row.comment || ""; //review zig: cant find how a user reported this was null. I added this and a colalesce into the report, but cant see how it can happen.
 		var commentNew = "";
 		do {
-		    commentNew = comment.replace(/\n\n/gm, "\n");
+		    commentNew = replaceString(comment,/\n\n/gm, "\n");
 		    if (commentNew == comment)
 		        break;
 		    comment = commentNew;

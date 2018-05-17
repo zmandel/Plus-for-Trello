@@ -417,10 +417,10 @@ function showSEButtonBubble(elem) {
     var step = {
         selector: elem,
         text: "Add Plus S/E<br>from here!",
-        angle: 0,
-        distance: 10,
+        angle: 180,
+        distance: 5,
         size: 150,
-        hiliteTime:20000
+        hiliteTime:10000
     };
     showBubbleFromStep(step, true, true, 0);
 }
@@ -436,32 +436,21 @@ function createSEButton() {
         spanIcon.append(icon);
         a.append(spanIcon);
         parent.prepend(a);
-        if (!isTourRunning()) {
-            chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
-                if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
-                    showSEButtonBubble(a);
-                    obj[SYNCPROP_bShowedFeatureSEButton] = true;
-                    chrome.storage.sync.set(obj, function () {
-                        if (chrome.runtime.lastError !== undefined)
-                            return; //just to reference it so chrome debugger doesnt complain
-                    });
-                }
-            });
-        }
         a.click(function () {
-            showSEBarContainer();
-            setTimeout(function () {
-                $(".agile_spent_box_input").focus();
-            },0);
-            
+            showSEBarContainer(false,true);
         });
     }
 }
 
-function showSEBarContainer(bDontRemember) {
+function showSEBarContainer(bDontRemember, bFocusS) {
     $(".agile-se-bar-entry").show();
     if (!bDontRemember)
         g_bShowSEBar = true;
+    if (bFocusS) {
+        setTimeout(function () {
+            $(".agile_spent_box_input").focus();
+        }, 0);
+        }
 }
 
 function createCardSEInput(parentSEInput, idCardCur, board) {
@@ -593,12 +582,12 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	});
 	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input agile_placeholder_small agile_focusColorBorder"));
 	spinS.attr("title", "Click to type Spent.");
-	spinS[0].onkeypress = function (e) { validateSEKey(e); };
+	spinS[0].onkeypress = function (e) { validateSEKey(e); checkEnterKey(e); };
     //thanks for "input" http://stackoverflow.com/a/14029861/2213940
 	spinS.bind("input", function (e) { updateEOnSChange(); });
 	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E"></input>').addClass("agile_estimation_box_input agile_placeholder_small agile_focusColorBorder"));
 	spinE.attr("title", "Click to type Estimate.");
-	spinE[0].onkeypress = function (e) { validateSEKey(e); };
+	spinE[0].onkeypress = function (e) { validateSEKey(e); checkEnterKey(e); };
 	spinE.bind("input", function (e) { updateNoteR(); });
 	var slashSeparator = setSmallFont($("<span />").text("/"));
 	var comment = setNormalFont($('<input type="text" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input agile_placeholder_small"));
@@ -719,13 +708,15 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 		});
 	});
 
-	comment.keypress(function (event) {
+	function checkEnterKey(event) {
 	    var keycode = (event.keyCode ? event.keyCode : event.which);
 	    if (keycode == '13') { //enter key
 	        buttonEnter.click();
 	        return false;
 	    }
-	});
+	}
+
+	comment.keypress(checkEnterKey);
 	
 	comment.bind("input", function (e) { updateCurrentSEData(); });
 	parentSEInput.before(container);
@@ -902,7 +893,7 @@ function getSEDate(callback) {
         }
     });
 
-    divDialog[0].showModal();
+    showModalDialog(divDialog[0]);
 }
 
 function verifyValidInput(sTotal, eTotal) {
@@ -939,8 +930,8 @@ function getInitialCardBalances(idCard, callback) {
 		            var row = response.rows[i];
 		            map[row.user] = row.estSum;
 		        }
-		    }
-		    callback(map);
+		        callback(map);
+            }
 		});
 }
 
@@ -1294,7 +1285,7 @@ function showSETotalEdit(idCardCur, user) {
     elemE.unbind().bind("input", function (e) { updateMessage(true); });
     elemR.unbind().bind("input", function (e) { updateEFromR(); updateMessage(false); });
     $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current));
-    divDialog[0].showModal();
+    showModalDialog(divDialog[0]);
     elemR.focus();
     elemR[0].select();
 }
@@ -1391,14 +1382,14 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	        u.on("mousemove", function (e) {
 	            if (bRecurse) {
 	                bRecurse = false;
-	                return false;
+	                return true; //not handled
 	            }
 
 	            var msdateNow = Date.now();
 				//prevent lots of reports while use moves the mouse over link
 	            //also prevents running this flow while the report is being calculated, thus possibly breaking the hack
 				if (msdateNow - msdateCalc<3000)
-	                return false;
+	                return true; //not handled
 
 	            msdateCalc = msdateNow;
 	            var maxRows = 10;
@@ -1434,7 +1425,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	                bRecurse = true;
 	                u.trigger("mousemove"); //trick dom to show the title we just set
 	            });
-	            return true; //handled so return true
+	            return false; //handled so return false
 	        });
 	    }
 	}
@@ -1526,7 +1517,7 @@ Click for more.");
 				while (!elemWindowTop.hasClass("window-wrapper"))
 				    elemWindowTop = elemWindowTop.parent();
 				var div = $("<div class='no-print'></div>");
-				div.append(createRecurringCheck()).append(createHashtagsList());
+				div.append(createRecurringCheck()).append(createHashtagsList()).append(createSELink());
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
 				createCardSEInput(elemParent, idCardCur, board);
@@ -1582,7 +1573,7 @@ function createRecurringCheck() {
     var titleCur = elemTitle.text().trim();
     var bChecked = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
     check[0].checked = bChecked;
-    span.append($('<label style="display:inline;margin-right:2em;font-weight:normal" for="agile_checkRecurringCard" class="agile_unselectable agile_linkSoftColor">Recurring</label>'));
+    span.append($('<label style="display:inline;margin-right:1.5em;font-weight:normal" for="agile_checkRecurringCard" class="agile_unselectable agile_linkSoftColor">Recurring</label>'));
     updateRecurringCardImage(bChecked, icon);
     check.click(function () {
         bChecked = check.is(':checked');
@@ -1607,7 +1598,7 @@ function createRecurringCheck() {
         if (bChecked)
             titleCur = titleCur + " " + TAG_RECURRING_CARD;
         else {
-            titleCur = titleCur.replace(/\[R\]/g, "").trim();
+            titleCur = replaceString(titleCur,/\[R\]/g, "").trim();
         }
 
         check.attr('disabled', 'disabled');
@@ -1639,6 +1630,29 @@ function updateRecurringCardImage(bRecurring, icon) {
         icon.hide();
 }
 
+function createSELink() {
+    var elem = $("<A href='' class='agile_linkSoftColor agile_AddSELink' style='text-decoration:none;'>Add S/E</A>");
+    elem.click(function (evt) {
+        showSEBarContainer(false, true);
+        return false; //handled
+    });
+
+    if (!isTourRunning()) {
+        chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
+            if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
+                showSEButtonBubble(elem);
+                obj[SYNCPROP_bShowedFeatureSEButton] = true;
+                chrome.storage.sync.set(obj, function () {
+                    if (chrome.runtime.lastError !== undefined)
+                        return; //just to reference it so chrome debugger doesnt complain
+                });
+            }
+        });
+    }
+
+    return elem;
+}
+
 function createHashtagsList() {
     var comboK = $("<select class='agile_hashtags_list agile_linkSoftColor'></select>");
     comboK.prop("title", "Add Plus #tags which are searchable from Reports.");
@@ -1647,7 +1661,7 @@ function createHashtagsList() {
 
     function addFirst() {
         //disabled selected
-        comboK.append($(new Option("add #tags", "", false, true)).attr('disabled', 'disabled').prop("title", "Click to add #tags"));
+        comboK.append($(new Option("Add #tags", "", false, true)).attr('disabled', 'disabled').prop("title", "Click to add #tags"));
     }
 
     function addOther() {
@@ -1927,12 +1941,12 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
         idCardActiveTimer = (objActiveTimer[SYNCPROP_ACTIVETIMER] || null);
 
         getCardTimerData(hash, function (obj) { //get it again in case it changed from another device
-            hash = obj.hash;
+            hash = obj.hash; //legacy timer case
             var stored = obj.stored;
             if (stored === undefined || (stored.msStart != null && stored.msEnd != null) ||
                 (stored.msStart == null && stored.msEnd == null)) {
                 //START
-                if (idCardActiveTimer && !g_bDontWarnParallelTimers) {
+                if (idCardActiveTimer && idCardActiveTimer!= idCard && !g_bDontWarnParallelTimers) {
                     if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n(See Plus help Preferences to disable this warning)"))
                         return;
                 }
@@ -1977,7 +1991,12 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                 //STOP
                 var msStartCur = stored.msStart;
                 var msEndCur = msDateClick;
-                chrome.storage.sync.remove([hash, SYNCPROP_ACTIVETIMER], function () {
+                var rgRemove = [hash];
+                var bRemoveActive = (idCardActiveTimer && idCardActiveTimer == idCard);
+                if (bRemoveActive)
+                    rgRemove.push(SYNCPROP_ACTIVETIMER);
+            
+                chrome.storage.sync.remove(rgRemove, function () {
                     if (chrome.runtime.lastError !== undefined)
                         return;
                     clearTimerInterval(timerStatus);
@@ -1994,7 +2013,8 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     else {
                         sendDesktopNotification("Ellapsed time too small (under 0.01 "+UNITS.getLongFormat()+"). Timer ignored\n.", 10000);
                     }
-                    findNextActiveTimer();
+                    if (bRemoveActive)
+                        findNextActiveTimer();
                 });
             }
         });

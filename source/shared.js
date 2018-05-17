@@ -27,6 +27,34 @@ var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage 
 var g_language = "en";
 var g_bProVersion = false;
 
+//thanks http://stackoverflow.com/a/12034334
+var g_entityMap = {
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': '&quot;',
+    "'": '&#39;',
+    "/": '&#x2F;'
+};
+
+//replace can be a string, or a map function
+//for performace, returns same string when there is no match
+function replaceString(string, regex, replace) {
+    if (typeof (string) != "string")
+        string = String(string);
+
+    if (!regex.test(string))
+        return string; //prevent recreating string in the most common case
+
+    return string.replace(regex, replace);
+}
+
+function escapeHtml(string) {
+    return replaceString(string, /[&<>"'\/]/g, function (s) {
+        return g_entityMap[s];
+    });
+}
+
 function bHandledDeletedOrNoAccess(status, objRet, statusRetCustom) {
     var bDeleted = bStatusXhrDeleted(status);
     if (bStatusXhrNoAccess(status) || bDeleted) {
@@ -61,7 +89,7 @@ function addTableSorterParsers() {
         },
         format: function (s) {
             // format your data for normalization 
-            return s.replace(new RegExp(/<.*?>/), "");
+            return replaceString(s,/<.*?>/, "");
         },
         // set type, either numeric or text
         type: 'text'
@@ -84,6 +112,9 @@ function addTableSorterParsers() {
 
 }
 
+function isTestVersion() {
+    return (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf");
+}
 
 function getHashtagsFromTitle(title) {
     var hashtags = [];
@@ -558,8 +589,11 @@ function sendExtensionMessage(obj, responseParam, bRethrow) {
 	try {
 	    chrome.runtime.sendMessage(obj, function (response) {
 	        try {
+	            if (response && response.bExtensionNotLoadedOK)
+	                return; //safer to not respond
+
 	            if (chrome.runtime.lastError) //could happen on error connecting to the extension. that case response can even be undefined https://developer.chrome.com/extensions/runtime#method-sendMessage
-	                throw new Error(runtime.lastError);
+	                throw new Error(chrome.runtime.lastError);
 
 			    if (responseParam)
 			        responseParam(response);
@@ -661,27 +695,55 @@ function setCallbackPostLogMessage(callback) {
 	}, 60000);
 }
 
-
+/* getSQLReportShared supports Promises or callbacks 
+ * when okCallback is not set, it will use promises (ignoring errorCallback even if set)
+ * when okCallback is set, it uses callbacks (okCallback and errorCallback if set)
+ **/
 function getSQLReportShared(sql, values, okCallback, errorCallback) {
+
+    var promise = null;
+    var resolveFn = null; //these are used so we can use promises or callbacks
+    var rejectFn = null;
 
     function sendResponse(response) {
         if (response.status != STATUS_OK) {
-            if (errorCallback)
+            if (rejectFn) {
+                rejectFn(new Error(response.status));
+                return;
+            }
+            if (errorCallback && !resolveFn)
                 errorCallback(response.status);
             return; //dont call  okCallback
+        }
+        if (resolveFn) {
+            resolveFn(response);
+            return;
         }
         okCallback(response);
     }
 
-    var obj = { method: "getReport", sql: sql, values: values };
-    if (chrome && chrome.runtime && chrome.runtime.getBackgroundPage) { //calling directly background (vs using a message) should be more efficient and allow bigger returned tables
-        chrome.runtime.getBackgroundPage(function (bkPage) {
-            bkPage.handleGetReport(obj, sendResponse);
-        });
+    if (!okCallback) {
+        assert(window.Promise);
+        promise = new Promise(doit);
+        return promise;
     }
-    else {
-        sendExtensionMessage(obj, sendResponse);
+
+    function doit(resolve, reject) {
+        resolveFn = resolve;
+        rejectFn = reject;
+        var obj = { method: "getReport", sql: sql, values: values };
+        if (chrome && chrome.runtime && chrome.runtime.getBackgroundPage) { //calling directly background (vs using a message) should be more efficient and allow bigger returned tables
+            chrome.runtime.getBackgroundPage(function (bkPage) {
+                bkPage.handleGetReport(obj, sendResponse);
+            });
+        }
+        else {
+            sendExtensionMessage(obj, sendResponse);
+        }
     }
+
+    doit();
+    return null; //happy lint
 }
 
 
@@ -1415,6 +1477,31 @@ function findNextActiveTimer() {
     });
 }
 
+function removeTimerForCard(idCardParsed) {
+    var hash = getCardTimerSyncHash(idCardParsed);
+    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, hash], function (obj) {
+        var bDeleteActive = false;
+        if (obj[SYNCPROP_ACTIVETIMER] !== undefined && obj[SYNCPROP_ACTIVETIMER] == idCardParsed)
+            bDeleteActive = true;
+        var rgPropsRemove = [];
+        if (obj[hash])
+            rgPropsRemove.push(hash);
+        if (bDeleteActive)
+            rgPropsRemove.push(SYNCPROP_ACTIVETIMER);
+
+        if (rgPropsRemove.length == 0)
+            return;
+        chrome.storage.sync.remove(rgPropsRemove, function () {
+            if (chrome.runtime.lastError !== undefined)
+                return;
+            updateTimerChromeIcon();
+            if (bDeleteActive)
+                findNextActiveTimer();
+            sendDesktopNotification("Plus deleted the timer because the card cannot be found in Trello.", 15000); //note: timer panels rely on this, as alerts dont work in panels
+        });
+    });
+}
+
 
 function getTimerElemText(msStart, msEnd, bValues, bNoSeconds) {
     bNoSeconds = bNoSeconds || false;
@@ -1598,7 +1685,7 @@ function parseSE(title, bKeepHashTags) {
     }
     // Strip hashtags
     if (bKeepHashTags === undefined || bKeepHashTags == false) //review zig cleanup by initializing to bKeepHashTags = bKeepHashTags || false and testing !bKeepHashTags
-        se.titleNoSE = se.titleNoSE.replace(/#[\S-]+/g, "");
+        se.titleNoSE = replaceString(se.titleNoSE,/#[\S-]+/g, "");
     return se;
 }
 
@@ -1650,6 +1737,68 @@ function parseSE_SFT(title) {
     }
     return se;
 }
+
+function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback, waitRetry) {
+    //https://trello.com/docs/api/card/index.html
+    assert(idCardLong);
+    assert(fields);
+    assert(callback);
+    var url = "https://trello.com/1/cards/" + idCardLong + "?fields=" + fields;
+    if (bBoardShortLink)
+        url = url + "&board=true&board_fields=shortLink";
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
+    xhr.onreadystatechange = function (e) {
+        if (xhr.readyState == 4) {
+            handleFinishRequest();
+
+            function handleFinishRequest() {
+                var objRet = { status: "unknown error", hasPermission: false };
+                var bReturned = false;
+
+                if (xhr.status == 200) {
+                    try {
+                        objRet.hasPermission = true;
+                        objRet.card = JSON.parse(xhr.responseText);
+                        objRet.status = STATUS_OK;
+                        callback(objRet);
+                        bReturned = true;
+                    } catch (ex) {
+                        objRet.status = "error: " + ex.message;
+                    }
+                } else {
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or card deleted already
+                        null; //happy lint
+                    }
+                    else if (xhr.status == 429) { //too many request, reached quota. 
+                        var waitNew = (waitRetry || 500) * 2;
+                        if (waitNew < 8000) {
+                            bReturned = true;
+                            setTimeout(function () {
+                                console.log("Plus: retrying api call");
+                                getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback, waitNew);
+                            }, waitNew);
+                        }
+                        else {
+                            objRet.status = errFromXhr(xhr);
+                        }
+                    }
+                    else {
+                        objRet.status = errFromXhr(xhr);
+                    }
+                }
+
+                if (!bReturned) {
+                    callback(objRet);
+                }
+            }
+        }
+    };
+
+    xhr.open("GET", url);
+    xhr.send();
+}
+
 
 function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
     //https://trello.com/docs/api/card/index.html
@@ -1707,15 +1856,18 @@ function renameCard(tokenTrello, idCard, title, callback, waitRetry) {
 }
 
 function replaceBrackets(str) {
-    return str.replace(/\[/g, '*').replace(/\]/g, '*').trim();
+    var strRet = replaceString(str, /\[/g, '*');
+	if (strRet != str)
+    	strRet = replaceString(strRet, /\]/g, '*').trim();
+    return strRet;
 }
 
 function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userCur, s, e, comment, idHistoryRowUse, keyword) {
     //console.log(dateNow + " idCard:" + idCard + " idBoard:" + idBoard + " card:" + strCard + " board:" + strBoard);
     var obj = {};
-    var userForId = userCur.replace(/-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username.
+    var userForId = replaceString(userCur,/-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username.
     if (idHistoryRowUse) {
-        idHistoryRowUse = idHistoryRowUse.replace(/-/g, '~'); //replace dashes just in case
+        idHistoryRowUse = replaceString(idHistoryRowUse,/-/g, '~'); //replace dashes just in case
         obj.idHistory = 'idc' + idHistoryRowUse; //make up a unique 'notification' id across team users. start with string so it never confuses the spreadsheet, and we can also detect the ones with comment ids
     }
     else {

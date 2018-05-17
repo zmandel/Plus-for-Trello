@@ -198,7 +198,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
                 var cleanTitle = se.titleNoSE;
                 if (bRecurring)
-                    cleanTitle = cleanTitle.replace(/\[R\]/g, "");
+                    cleanTitle = replaceString(cleanTitle,/\[R\]/g, "");
                 
                 var ctlContents = cloneTitleTag.contents();
                 var ctlUpdate = null;
@@ -483,31 +483,6 @@ function updateWorker(bShowBoardTotals) {
 }
 
 var g_strLastBoardNameIdSaved = null;
-
-function removeTimerForCard(idCardParsed) {
-    var hash = getCardTimerSyncHash(idCardParsed);
-    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, hash], function (obj) {
-        var bDeleteActive = false;
-        if (obj[SYNCPROP_ACTIVETIMER] !== undefined && obj[SYNCPROP_ACTIVETIMER] == idCardParsed)
-            bDeleteActive = true;
-        var rgPropsRemove = [];
-        if (obj[hash])
-            rgPropsRemove.push(hash);
-        if (bDeleteActive)
-            rgPropsRemove.push(SYNCPROP_ACTIVETIMER);
-
-        if (rgPropsRemove.length == 0)
-            return;
-        chrome.storage.sync.remove(rgPropsRemove, function () {
-            if (chrome.runtime.lastError !== undefined)
-                return;
-            updateTimerChromeIcon();
-            if (bDeleteActive)
-                findNextActiveTimer();
-            sendDesktopNotification("Deleted timer for this card.", 10000);
-        });
-    });
-}
 
 function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards) {
     if (isPlusDisplayDisabled())

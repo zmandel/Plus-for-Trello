@@ -12,7 +12,7 @@ var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
 
 //ver 3: 3.4.4
 var VERDEEPSYNC = {
-    CURRENT: 3,  //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync. must be >0
+    CURRENT: 4,  //making it bigger will trigger a "deep sync" on all boards. Temporary solution to running deep sync. must be >0
     MINVALID: 0,
     NOTMEMBER: -1 //hackinsh way to keep a special board state when user is no longer a member of the board. needed to distinguish from zero in first-sync case with existing db data
 };
@@ -721,7 +721,7 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 		    //since its the first time we encounter the card, idBoard should be OK
 		    rowCard = { idCard: row.idCard, idBoard: row.idBoard, name: row.strCard }; //for consistency
 		    alldata.cards[row.idCard] = rowCard;
-		    strExecute2 = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name) \
+		    strExecute2 = "INSERT INTO CARDS (idCard, idBoard, name) \
 						   VALUES (? , ? , ?)";
 		    tx2.executeSql(strExecute2, [row.idCard, row.idBoard, row.strCard],
                 function onOkInsert(tx3, resultSet) {
@@ -1225,7 +1225,7 @@ function handleWriteLogToPlusSupport(request, sendResponse) {
                     var strDate = new Date(row.date * 1000).toGMTString();
                     var strMessage = strDate + " " + row.message;
 					// < > break ss api.
-                    strMessage = strMessage.replace(/</g, "-").replace(/>/g, "-");
+                    strMessage = replaceString(strMessage, /[<>]/g, "-");
                     rgPostPublicLog.push(strMessage);
                 });
             }
@@ -1438,10 +1438,28 @@ function rawOpenDb() {
 }
 
 function handleOpenDB(options, sendResponseParam, cRetries) {
+    function doit() {
+        loadBackgroundOptions(function () {
+            handleOpenDBWorker(options, sendResponseParam, cRetries);
+        });
+    }
 
-    loadBackgroundOptions(function () {
-        handleOpenDBWorker(options, sendResponseParam, cRetries);
-    });
+    if (!g_bPlusExtensionLoadedOK) {
+        //in case it is timing related, give it one breath
+        console.log("Unusual: !g_bPlusExtensionLoadedOK in handleOpenDB");
+        if (!g_bRetryWhenNotLoadedOK) {
+            setTimeout(function () {
+                if (g_bPlusExtensionLoadedOK)
+                    doit();
+                else {
+                    console.log("Unusual: 2nd try !g_bPlusExtensionLoadedOK in handleOpenDB");
+                }
+            }, 2000);
+        }
+        return;
+    }
+
+    doit();
 
     function handleOpenDBWorker(options, sendResponseParam, cRetries) {
         var db = null;
@@ -2001,6 +2019,11 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             }
 
         });
+
+        M.migration(37, function (t) {
+            t.executeSql("ALTER TABLE CARDS ADD COLUMN idShort TEXT DEFAULT NULL"); //not shortLink. idShort is unique per board
+        });
+
         M.doIt();
     }
 }
