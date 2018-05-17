@@ -1166,8 +1166,9 @@ table#tableMarkers td {
     width: 2.5em !important;
 }
 
-.agile_users_box_input {
+.agile_general_box_input {
 	text-align: center !important;
+    text-align-last: center !important; /*chrome needs it */
 	margin-top: 0px !important;
 	margin-bottom: 0px !important;
 	min-height: 14px !important;
@@ -1182,6 +1183,7 @@ table#tableMarkers td {
 
 .agile_days_box_input {
 	text-align: center !important;
+    text-align-last: center !important; /*chrome needs it */
 	margin-top: 0px !important;
 	margin-bottom: 0px !important;
 	min-height: 14px !important;

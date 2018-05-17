@@ -30,24 +30,31 @@ function checkHideTimelineSpark() {
     }
 }
 
-function redrawCharts() {
+function redrawCharts(bDontRedrawUser) {
+    if (!bDontRedrawUser)
+        drawChartUser();
     if (g_tl.crosshair)
         g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
 
     if (g_tl.container) {
+        //add in case it was removed by a previous resize (in checkHideTimelineSpark)
         if (g_tl.chartBottom)
             g_tl.container.add(g_tl.chartBottom, 2, 1);
         
         if (g_tl.xAxisBottom)
             g_tl.container.add(g_tl.xAxisBottom, 3, 1);
         
+        var elemContainerTL = $("#timeline");
+        var position = elemContainerTL.offset();
+        var heightBody = window.innerHeight;
+        var height = Math.max(heightBody - position.top, Math.max(heightBody / 2, 200));
+        elemContainerTL.height(height);
         g_tl.container.computeLayout();
         g_tl.container.redraw();
         checkHideTimelineSpark();
         if (g_tl.redrawAnnotations)
             g_tl.redrawAnnotations();
     }
-    drawChartUser();
 }
 
 window.addEventListener('resize', function () {
@@ -116,15 +123,26 @@ function loadBurndown() {
 	$("#boardLink").attr("href", "https://trello.com/b/" + encodeURIComponent(idBoard));
 	var header = $("#headerMarker");
 	var container = $("#boardMarkersContainer");
+
+	function onDoneSlide() {
+	    redrawCharts(false);
+	}
+
 	header.click(function () {
-		handleSectionSlide(container, $("#boardMarkersContent"));
+	    handleSectionSlide(container, $("#boardMarkersContent"), undefined, undefined, onDoneSlide);
 	});
 
 	var headerFilter = $("#headerFilter");
 	var containerFilter = $("#filtersContainer");
 
 	headerFilter.click(function () {
-	    handleSectionSlide(containerFilter, $("#report_filter_section"));
+	    handleSectionSlide(containerFilter, $("#report_filter_section"), undefined, undefined, onDoneSlide);
+	});
+
+	var headerUser = $("#headerByUser");
+	headerUser.off().click(function () {
+	    handleSectionSlide($("#chartUserContainer"), $("#byUserContent"), undefined, undefined, onDoneSlide);
+	    drawChartUser();
 	});
 
     chrome.storage.local.get([PROP_TRELLOUSER, PROP_SHOWBOARDMARKERS], function (obj) {
@@ -236,9 +254,7 @@ function resetChartline() {
 }
 
 function resetTDOutput(output) {
-    output.html("&nbsp;<br>&nbsp;"); //pretend it has two lines of text, so layout height doesnt change when setting output later.
-    //covers the most common case, but height could still change if the s/e note is long. a vertical scrollbar could appear and cover
-    //the legend a little. oh well.
+//obsolete
 }
 
 function loadTimeline(series) {
@@ -320,7 +336,8 @@ function loadTimeline(series) {
         });
     }
 
-    xScale.onUpdate(function () {
+
+    function onUpdateXScale() {
         if (g_tl.crosshair)
             g_tl.crosshair.hide(); //could reposition (like annotations) but not worth it
         dragBox.boxVisible(true);
@@ -330,7 +347,9 @@ function loadTimeline(series) {
             bottomRight: { x: sparklineXScale.scale(xDomain[1]), y: null }
         });
         redrawAnnotations();
-    });
+    }
+
+    xScale.onUpdate(onUpdateXScale);
 
     yScale.onUpdate(function () {
         redrawAnnotations();
@@ -357,6 +376,8 @@ function loadTimeline(series) {
     ]);
     g_tl.container.rowWeight(2, 0.2);
     g_tl.container.renderTo("#timeline");
+    onUpdateXScale(); //causes the gray selection on bottom chart to show all range selected
+
     checkHideTimelineSpark(); //this before annotations, top chart height could change
     series.annotation.forEach(function (annotation) {
         addAnnotationText(annotation.tooltip, annotation.x, annotation.y);
@@ -384,6 +405,7 @@ function loadTimeline(series) {
 
     function selectPoint(direction) {
         //entityLast
+        //review todo
     }
 
     //left arrow
@@ -411,6 +433,7 @@ function loadTimeline(series) {
     
     pointer.attachTo(plot);
     keyboard.attachTo(plot);
+    redrawCharts(); //recalculate heights and redraw
 }
 
 
@@ -503,12 +526,14 @@ function setChartData(rows, idBoard) {
 	addSumToRows(true, rowsUser, "E: ");
 	g_dataUser.addRows(rowsUser);
 	var elemProgress = document.getElementById("progress");
-	var chartBottom = $("#visualizationBottom"); //review zig cleanup mix of jquery and native
+	var chartBottom = $("#visualizationBottom"); //review zig cleanup mix of jquery and native NOTE: historically this was at the bottom, now on top.
 	var elemFilter = $("#filtersContainer");
+	var elemByUserContainer = $("#chartUserContainer");
 	var elemTimeline = $("#timeline");
 	if (rows.length == 0) {
 	    elemProgress.innerText = "No data for given board.";
 	    elemProgress.style.display = "block";
+	    elemByUserContainer.hide();
 	    chartBottom.hide();
 	    elemTimeline.hide();
 	    resetChartline();
@@ -517,9 +542,10 @@ function setChartData(rows, idBoard) {
 		elemProgress.style.display = "none";
 		var heightUser = ((2 + g_dataUser.getNumberOfRows()) * g_heightBarUser);
 		elemFilter.show();
-		elemTimeline.show();
+		elemByUserContainer.show();
 		chartBottom.show();
 		chartBottom.css("height", "" + heightUser);
+		elemTimeline.show();
 		loadTimeline(seriesTimeline);
 		g_chartUser = new google.visualization.BarChart(chartBottom[0]);
 		var chartLocal = g_chartUser;
@@ -597,10 +623,10 @@ function drawChartUser() {
 	if (g_chartUser == null)
 		return;
 	var style = {
-	    title: "By User",
+	    title: "",
 		tooltip: { isHtml: false, trigger: 'selection' },
 		titleTextStyle: { fontSize: "16", bold: true },
-		chartArea: { left: 130, top: 40, height: g_dataUser.getNumberOfRows() * g_heightBarUser },
+		chartArea: { left: 130, top: 20, height: g_dataUser.getNumberOfRows() * g_heightBarUser },
 		height: "100%",
 		titleTextStyle: { color: '#4D4D4D', fontSize: 16 },
 		vAxes: [{

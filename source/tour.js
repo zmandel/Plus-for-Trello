@@ -34,6 +34,18 @@ function showTourBubble() {
     showBubbleFromStep(step, true, true,0);
 }
 
+
+function showSeeYaBubble() {
+    var step = {
+        selector: ".agile_tour_link",
+        text: "See you later!",
+        angle: 180,
+        distance: 0,
+        size: 100
+    };
+    showBubbleFromStep(step, true, true, 0, true);
+}
+
 function handleHomeTour() {
     var flow = [
         {
@@ -189,9 +201,9 @@ function handleCardTour() {
 
       {
           id: 5,
-          selector: ".agile-addSEButton",
+          selector: ".agile_AddSELink",
           text: "To show the<br>card 'S/E bar'<br>when hidden<br>click here.",
-          angle: 0,
+          angle: 180,
           distance: 0,
           size: 150
       },
@@ -568,7 +580,8 @@ function handleBoardTour() {
                text: "<br>Card totals per list.<br><br>Mouse-over<br>to view <b>% complete</b> and <b>R</b><br><br><br>",
                angle: -(180+45),
                distance: 0,
-               size: 200
+               size: 200,
+               noFocus: true
            },
            {
                id: 6,
@@ -576,7 +589,8 @@ function handleBoardTour() {
                text: "Total card S/E<br>by all team users.<br><br><b>Click on a card</b><br>to continue the tour<br><br>",
                angle: -(180 + 45),
                distance: 0,
-               size: 200
+               size: 200,
+               noFocus: true
            }
            //id:7 taken
 
@@ -723,7 +737,7 @@ function showCurrentBubble(delta) {
     showBubbleFromStep(step, g_tour.index == 0, g_tour.index == g_tour.flow.length - 1,delta);
 }
 
-function showBubbleFromStep(step, bFirst, bLast, delta) {
+function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
     //delta != 0 means its on a tour
 
     removeAllGrumbleBubbles(true);
@@ -747,7 +761,8 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         var szClassClose = "agile_bubbleClose";
         if (!bFirst && !bLast)
             szClassClose = szClassClose + " agile_bubbleClose_bottom";
-        text = text + '<span style="display:inline-block" title="Close" class="'+szClassClose+'">&#10006;</span>';
+        if (!bNoClose)
+            text = text + '<span style="display:inline-block" title="Close" class="'+szClassClose+'">&#10006;</span>';
 
         if (!bLast)
             text = text + '<span style="display:inline-block" title="Next tip" class="agile_bubbleArrow agile_bubbleArrowRight">&#10140;</span>';
@@ -765,15 +780,15 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
         }
 
         elemTarget = elemTarget.eq(0);
-
+        //hipri zig fix keyboard arrow on board last two steps, cause lists page to scroll horizontally
         //use focus as a way to force scrolling, certain special windows like Cards scroll in a custom way and body scrolling doesnt work.
         var elemFocus = elemTarget;
         if (step.focus)
             elemFocus = $(step.focus).eq(0);
-            if (elemFocus[0].tabIndex < 0)
-                elemFocus[0].tabIndex = 1000; //force it to have a tabindex otherwise focus will be noop
-            elemFocus.focus();
-
+        if (elemFocus[0].tabIndex < 0)
+            elemFocus[0].tabIndex = 1000; //force it to have a tabindex otherwise focus will be noop
+        elemFocus.focus();
+        
         hiliteOnce(elemTarget, step.hiliteTime || 2000);
         elemTarget.grumble({
             text: text,
@@ -796,9 +811,21 @@ function showBubbleFromStep(step, bFirst, bLast, delta) {
 
 
             $(".agile_bubbleClose").click(function () {
-                if (delta != 0 && (g_tour.index != g_tour.flow.length - 1 || step.bEndTour))
-                    g_tour.bAutoShowTour=false; //stop auto tour if bubble (other than last) is closed
+                var bShowBye = false;
+                if (delta != 0 && (g_tour.index != g_tour.flow.length - 1 || step.bEndTour)) {
+                    g_tour.bAutoShowTour = false; //stop auto tour if bubble (other than last) is closed
+                    if (!(bFirst && bLast))
+                        bShowBye = true;
+                }
                 removeAllGrumbleBubbles();
+                if (bShowBye) {
+                    setTimeout(function () {
+                        showSeeYaBubble();
+                        setTimeout(function () {
+                            removeAllGrumbleBubbles();
+                        }, 3000);
+                    }, 200);
+                }
             });
         }, 0);
     },0);

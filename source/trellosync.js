@@ -760,7 +760,7 @@ function getAllItemsFromDb(actions, alldata, sendStatus) {
             if (bCheckMaxCallstack) { //reduce long callstacks. must be large else is slow in canary
                 setTimeout(function () {
                     nextAction(STATUS_OK);
-                });
+                }); //undefined timeout is faster and still clears callstack
             }
             else
                 nextAction(STATUS_OK);

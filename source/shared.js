@@ -1137,7 +1137,7 @@ function handleDrilldownWindow(chart, drilldowns, htmlFromRows, colExclude, widt
 	var container = makeReportContainer(html, widthWindow);
 }
 
-function handleSectionSlide(section, content, widthOpen, elemShowHide) {
+function handleSectionSlide(section, content, widthOpen, elemShowHide, callbackDone) {
     var step = 250;
 	var bOpened = (section.hasClass("agile_arrow_opened"));
 	if (!bOpened && widthOpen) { //doing width before the toggle looks better and avoids a chrome paint bug
@@ -1160,6 +1160,9 @@ function handleSectionSlide(section, content, widthOpen, elemShowHide) {
 			section.removeClass("agile_arrow_closed");
 			section.addClass("agile_arrow_opened");
 		}
+
+		if (callbackDone)
+		    callbackDone();
 	}});
 	
 }

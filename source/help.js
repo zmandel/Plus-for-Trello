@@ -216,6 +216,7 @@ var Help = {
 	    var pComboLang = helpWin.para('<select style="width:auto"></select>');
 	    var comboLang = pComboLang.children('select');
 	    comboLang.append($(new Option("English", "en")));
+	    comboLang.append($(new Option("Danish - Dansk", "da")));
 	    comboLang.append($(new Option("Dutch - Nederlands", "nl")));
 	    comboLang.append($(new Option("French - Français", "fr")));
 	    comboLang.append($(new Option("Portuguese - Português", "pt")));
@@ -385,8 +386,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2>Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    helpWin.para('<b>Card labels</b> in reports and burn-downs is our first "Pro" feature.');
-	    helpWin.para('Many more "Pro" <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">features are planned</a> including "Ping" and "Time in lists".');
+	    helpWin.para('<b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more "Pro" <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">features soon!</a>.');
 
 	    checkEnablePro[0].checked = g_bProVersion;
 
@@ -508,8 +508,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        bDisplayedLegacyNote = true;
 	    }
 	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally but do not close it until sync finishes.");
-	    helpWin.para('If you switch sync methods or changed keywords you may need to "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here for more details about Sync in general</A>.');
+	    helpWin.para('If you switch sync methods or change keywords, "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here</A> for more sync details.');
 
 	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
 	    helpWin.para("To get all Plus features enable sync from the list above. Once enabled you will get:", divCur);
@@ -546,10 +546,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para("&nbsp;", divCur);
 	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1st option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
-        helpWin.para('Differences over "Trello card comments" sync:', divCur);
+        helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
         helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into chrome</A>', divCur);
         helpWin.para('&bull; Enter S/E using the "card S/E bar", never as card comments nor from mobile or other browsers.', divCur);
-	    helpWin.para('&bull; No "multiple keywords" feature to use with many teams. Instead, data is separated by using multiple spreadsheets.', divCur);
+	    helpWin.para('&bull; No "multiple keywords" feature.', divCur);
 	    helpWin.para('&bull; No board-based permissions. Share the private spreadsheet using Google permissions.', divCur);
 	    helpWin.para('&bull; No mobile app support, but will be added in the future.', divCur);
 	    helpWin.para("&nbsp;", divCur);
@@ -1225,6 +1225,11 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/faq.html" >see FAQ or submit a new question or request</a>.');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and licence agreement</h2></b>');
 	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
 	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user licence agreement (EULA)</A>.');
@@ -1242,11 +1247,6 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&bull; html5 localStorage: ' + helpWin.storageTotalLocalStorage + " bytes.");
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
 	    helpWin.para('Empty storage by doing a "Reset sync" from Utilities.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
-
-	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/faq.html" >see FAQ or submit a new question or request</a>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -1333,7 +1333,7 @@ function showNonMemberBoardsDialog() {
 <h2>You are not a member of these boards:</h2> \
 <br> \
 <p>Plus compares your boards (since your last sync) with all boards in all organizations.</p>\
-<p>Thus when you make yourself a member of a board, it will still appear here until Plus does a sync.</p>\
+<p>When you are just added board, it may still appear here if Plus has not yet had a chance to sync.</p>\
 <br> \
 <div id="agile_nonmemberListContents"></div>\
 <br \>\
@@ -1363,7 +1363,7 @@ function showNonMemberBoardsDialog() {
                         return;
                     }
                     if (response.boards.length == 0) {
-                        div.text("no boards found.");
+                        div.text("No more boards found that you are not a direct member.");
                         return;
                     }
 

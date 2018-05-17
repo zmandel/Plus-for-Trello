@@ -12,6 +12,9 @@ var g_valUserExtra = null; //for "other" added user in S/E bar
 
 var g_strNoteBase = "type note.";
 var g_regexValidateSEKey = /[0-9]|\.|\:|\-/;
+const g_iLastComboDays = 9;
+var g_timeoutComboDaysUpdate = null;
+var g_msdateFillDaysList = 0;
 
 /* g_currentCardSEData 
  * 
@@ -115,7 +118,7 @@ var g_currentCardSEData = {
             this.clearValues();
     },
 
-    //ALL BELOW IS PRIVATE
+    //ALL BELOW ARE PRIVATE
 
     clearValues: function () {
         this.msTime = 0;
@@ -145,7 +148,8 @@ function validateSEKey(evt) {
 	key = String.fromCharCode(key);
 	if (!g_regexValidateSEKey.test(key)) {
 		theEvent.returnValue = false;
-		if (theEvent.preventDefault) theEvent.preventDefault();
+		if (theEvent.preventDefault)
+		    theEvent.preventDefault();
 	}
 }
 
@@ -314,7 +318,7 @@ function getUserFromCombo(combo) {
 }
 
 function isRecurringCard() {
-    var elemTitle = $(".window-title-text");
+    var elemTitle = $(".card-detail-title-assist");
     if (elemTitle.length == 0)
         return false; //no longer in card window. just pretend not recurring
     var titleCur = elemTitle.text();
@@ -444,6 +448,7 @@ function createSEButton() {
 
 function showSEBarContainer(bDontRemember, bFocusS) {
     $(".agile-se-bar-entry").show();
+    $(".agile_plushelp_cardCommentHelp").show();
     if (!bDontRemember)
         g_bShowSEBar = true;
     if (bFocusS) {
@@ -451,6 +456,45 @@ function showSEBarContainer(bDontRemember, bFocusS) {
             $(".agile_spent_box_input").focus();
         }, 0);
         }
+}
+
+function fillDaysList(comboDays, cDaySelected) {
+    var iDays = null;
+    const bStrSelected = (typeof (cDaySelected) === "string");
+    g_msdateFillDaysList = Date.now();
+    function addItem(iDays, iDaysSelected) {
+        var bSelected = (iDays === iDaysSelected);
+        var str = null;
+        var title = "";
+        if (iDays == g_strDateOtherOption)
+            str = iDays;
+        else if (iDays == 0) {
+            str = g_strNowOption;
+            title = "today";
+        }
+        else {
+            str = "-" + iDays + "d";
+            title = "" + iDays + (iDays == 1 ? " day ago" : " days ago");
+            var dateNow = new Date();
+            dateNow.setDate(dateNow.getDate() - iDays);
+            title = title + ": " + dateNow.toLocaleDateString();
+        }
+        var optAdd = new Option(str, str);
+        if (bStrSelected)
+            bSelected = (str === iDaysSelected);
+        if (bSelected)
+            optAdd.selected = true;
+        comboDays.append($(optAdd).attr("title", title));
+    }
+
+    comboDays.empty();
+    addItem(0, cDaySelected);
+    for (iDays = 1; iDays <= g_iLastComboDays; iDays++)
+        addItem(iDays, cDaySelected);
+
+    if (g_valDayExtra)
+        addItem(g_valDayExtra, cDaySelected);
+    addItem(g_strDateOtherOption, -1); //-1 so its different from all others
 }
 
 function createCardSEInput(parentSEInput, idCardCur, board) {
@@ -470,7 +514,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	var row = $("<tr></tr>").addClass("agile-card-background");
 	containerBar.append(row);
 
-	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_users_box_input"));
+	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_general_box_input"));
 	comboUsers.attr("title", "Click to select the user for this new S/E row.");
 	fillComboUsers(comboUsers, "", idCardCur, board);
 	comboUsers.change(function () {
@@ -516,37 +560,30 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	var comboDays = setSmallFont($('<select id="plusCardCommentDays"></select>').addClass("agile_days_box_input"));
 	comboDays.attr("title", "Click to pick how many days ago it happened.");
-	var iDays = null;
-	var iLast = 9;
-	if (bHasSpentBackend)
-	    iLast = 2;
-	function fillDaysList(cDaySelected) {
-	    function addItem(iDays, iDaysSelected) {
-	        var bSelected = (iDays == iDaysSelected);
-	        var str = null;
-	        if (iDays == g_strDateOtherOption)
-	            str = iDays;
-	        else if (iDays == 0)
-	            str = g_strNowOption;
-	        else
-	            str = "-" + iDays + "d";
-	        var optAdd = new Option(str, str);
-	        if (bSelected)
-	            optAdd.selected = true;
-	        comboDays.append($(optAdd));
+
+	fillDaysList(comboDays, 0);
+    
+	if (g_timeoutComboDaysUpdate == null) {
+
+	    function prepareNextCheck() {
+	        assert(g_msdateFillDaysList > 0);
+	        var dateNext = new Date(g_msdateFillDaysList);
+	        dateNext = new Date(dateNext.getFullYear(), dateNext.getMonth(), dateNext.getDate() + 1);
+
+	        g_timeoutComboDaysUpdate = setTimeout(function () {
+	            var comboDaysCheck = $("#plusCardCommentDays");
+	            if (comboDaysCheck.length == 0) {
+	                g_timeoutComboDaysUpdate = null; //will create timeout again next time
+	                return;
+	            }
+	            fillDaysList(comboDaysCheck, comboDaysCheck.val());
+	            prepareNextCheck();
+	        }, dateNext.getTime() - g_msdateFillDaysList + 500);
 	    }
 
-	    comboDays.empty();
-	    addItem(0, cDaySelected);
-	    for (iDays=1; iDays <= iLast; iDays++)
-	        addItem(iDays, cDaySelected);
-
-	    if (g_valDayExtra)
-	        addItem(g_valDayExtra, cDaySelected);
-	    addItem(g_strDateOtherOption, -1); //-1 so its different from all others
+	    prepareNextCheck();
 	}
 
-	fillDaysList(0);
 	comboDays.change(function () {
 	        var combo = $(this);
 	        var val = combo.val();
@@ -556,10 +593,10 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        if (val == g_strDateOtherOption) {
 	            function process(dayNew) {
 	                if (dayNew) {
-	                    if (dayNew > iLast)
+	                    if (dayNew > g_iLastComboDays)
 	                        g_valDayExtra = dayNew;
 	                }
-	                fillDaysList(dayNew);
+	                fillDaysList(comboDays, dayNew);
 	            }
 
 	            var dateNow = new Date();
@@ -609,7 +646,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	if (g_optEnterSEByComment.IsEnabled()) {
 	    var rgkeywords = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
 	    if (rgkeywords.length > 1) {
-	        comboKeyword = setSmallFont($('<select id="plusCardCommentKeyword"></select>').addClass("agile_users_box_input"));
+	        comboKeyword = setSmallFont($('<select id="plusCardCommentKeyword"></select>').addClass("agile_general_box_input"));
 	        comboKeyword.attr("title", "Click to pick a different keyword for this new S/E row.");
 	        fillComboKeywords(comboKeyword, rgkeywords, null);
 	        row.append($('<td />').addClass("agile_tablecellItem").append($("<div>").addClass("agile_keywordsComboContainer").append(comboKeyword)));
@@ -668,7 +705,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 			    hiliteOnce(comboDays, 500);
 			    return;
 			}
-			var valComment = replaceBrackets(comment.val());
+			var valComment = comment.val();
 
 			if (s == 0 && e == 0 && valComment.length == 0) {
 			    hiliteOnce(spinS, 500);
@@ -1276,7 +1313,7 @@ function showSETotalEdit(idCardCur, user) {
             alert("nothing to do!");
             return;
         }
-        var note = replaceBrackets(elemNote.val());
+        var note =elemNote.val();
         setNewCommentInCard(idCardCur, data.keyword, data.s, data.e, note, "", //empty prefix means time:now
             user, onBeforeStartCommit, onFinished);
     });
@@ -1461,12 +1498,7 @@ function addCardCommentHelp() {
 	if (!g_bReadGlobalConfig)
 		return; //wait til later
 
-	var elems = $(".add-controls");
-	var elemsVerifyCardWindow = $(".card-detail-title");
-
-	if (elemsVerifyCardWindow.length == 0)
-		return;
-
+	var elems = $(".new-comment");
 	var i = 0;
 
 	//create S/E bar if not there yet
@@ -1484,34 +1516,34 @@ function addCardCommentHelp() {
 
 		for (i = 0; i < elems.length; i++) {
 			var elem = elems.eq(i);
-			var elemParent = elem.parent();
-			var bNewCommentFound = elemParent.hasClass("new-comment");
+			var elemParent = elem;
 
-			if (!bNewCommentFound) {
-			    elemParent = elemParent.parent();
-			    bNewCommentFound = elemParent.hasClass("new-comment");
-
-			}
-			if (bNewCommentFound) {
+			if (true) {
 				var classSpentCommentHelp = "agile_plushelp_cardCommentHelp";
 				if (elem.eq(0).children("." + classSpentCommentHelp).length == 0) {
-				    var help = null;
-				    if (isBackendMode()) {
-				        help = setSmallFont($("<span>Spent: @" + getSpentSpecialUser() + " [-1d] S/E note</span>").addClass(classSpentCommentHelp), 0.85);
-				    }
-				    else if (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length > 0) {
-				        var kw = g_optEnterSEByComment.getDefaultKeyword();
-				        help = setSmallFont($("<A class='quiet-button u-float-left' style='margin-left:10px' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'><b>" + kw + "</b> keyword help</A>").addClass(classSpentCommentHelp), 0.85);
-				        help.prop("title", kw + " 0/4  :  adds 4 to your estimate\n\n\
+				    var helpComment = null;
+
+				    var kw = g_optEnterSEByComment.getDefaultKeyword();
+				    helpComment = setSmallFont($("<A class='quiet-button' style='margin-left:10px;display:inline-block;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>S/E help</A>").addClass(classSpentCommentHelp), 0.85);
+				    var strTip = "Click for Plus S/E help";
+				    if (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length > 0) {
+				        strTip += "\n\nQuick comment format help:\n" + kw + " 0/4  :  adds 4 to your estimate\n\n\
 " + kw + " -2d 5/3 fix doc : adds 2days ago 5/3 with note 'fix doc'\n\n\
 " + kw + " @john 0/6 : adds to john 6 estimate\n\n\
 " + kw + " @john @paul -2d 3/3 codereview : adds to john and paul -2days ago 3/3 with note 'codereview'\n\n\
-You may use @me to add yourself.\n\n\
+use @me as shortcut to add yourself.\n\n\
 " + kw + " 7 : (without '/') spends 7/0 or 7/7 for recurring [R] cards.\n\n\
-Click for more.");
+Click for more.";
 				    }
-				    if (help)
-				        elem.append(help);
+				    helpComment.prop("title", strTip);
+				    if (!g_bShowSEBar)
+				        helpComment.hide();
+				    var commentControls = elem.find(".comment-controls");
+
+				    if (commentControls.length === 1) {
+				        if (helpComment)
+				            commentControls.append(helpComment);
+				    }
 				}
 				var elemWindowTop = elemParent;
 				while (!elemWindowTop.hasClass("window-wrapper"))
@@ -1525,32 +1557,13 @@ Click for more.");
 			}
 		}
 	}
-
-	var saveBtn = $(".js-save-edit");
-
-	if (saveBtn.length == 0)
-		return;
-
-	for (i = 0; i < saveBtn.length; i++) {
-		var e = saveBtn.eq(i);
-
-		var editControls = e.parent();
-		if (!editControls.eq(0).hasClass("edit-controls"))
-			continue;
-		var elemFind = editControls.eq(0).parent();
-		if (!elemFind.eq(0).hasClass("edit"))
-			continue;
-		elemFind = elemFind.eq(0).parent();
-		if (!elemFind.eq(0).hasClass("card-detail-title"))
-			continue;
-	}
 }
 
 function checkCardRecurringCheckbox() {
     var idCardCur = getIdCardFromUrl(document.URL);
     if (!idCardCur)
         return;
-    var elemTitle = $(".window-title-text");
+    var elemTitle = $(".card-detail-title-assist");
     if (elemTitle.length == 0)
         return;
     
@@ -1569,7 +1582,7 @@ function createRecurringCheck() {
     var icon = $("<img>").attr("src", chrome.extension.getURL("images/recurring.png")).addClass("agile-card-icon-recurring");
     var span = $('<span id="container_agile_checkRecurringCard" class="agile_linkSoftColor">').append(icon).append(check);
     span.prop("title", "Plus [R]ecurring cards (like weekly meetings) don\'t affect changed estimate reports.");
-    var elemTitle = $(".window-title-text");
+    var elemTitle = $(".card-detail-title-assist");
     var titleCur = elemTitle.text().trim();
     var bChecked = (titleCur.indexOf(TAG_RECURRING_CARD) >= 0);
     check[0].checked = bChecked;
@@ -1577,7 +1590,7 @@ function createRecurringCheck() {
     updateRecurringCardImage(bChecked, icon);
     check.click(function () {
         bChecked = check.is(':checked');
-        elemTitle = $(".window-title-text");
+        elemTitle = $(".card-detail-title-assist");
 
         function undoCheck() {
             bChecked = !bChecked;
@@ -1722,7 +1735,7 @@ function createHashtagsList() {
         if (val == "")
             return;
         if (val == txtOther) {
-            var newHash = prompt("Type the new hashtag:");
+            var newHash = prompt("Note: To remove a tag, remove it from the card title. Type the new hashtag:");
             if (!newHash) {
                 selectFirst();
                 return;
@@ -1753,7 +1766,7 @@ function createHashtagsList() {
             val = newHash;
         }
         var idCardCur = getIdCardFromUrl(document.URL);
-        elem = $(".window-title-text");
+        elem = $(".card-detail-title-assist");
         if (!idCardCur || elem.length == 0) {
             selectFirst();
             return;
@@ -2094,7 +2107,7 @@ function setNewCommentInCard(idCardCur, keywordUse, s, e, commentBox,
 	if (prefix.length > 0)
 		comment = comment + " " + prefix + " ";
 	comment = comment + s + "/" + e + " " + commentBox;
-
+	commentBox = replaceBrackets(commentBox);
 	var board = getCurrentBoard();
 	if (!board) {
 		logPlusError("error: no board");
@@ -2145,7 +2158,7 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	var titleCur = null;
 	var cleanTitle = null;
 
-	elem = $(".window-title-text");
+	elem = $(".card-detail-title-assist");
 	if (elem.length == 0)
 	    return; //trello html broke.
 	titleCur = elem.text();
