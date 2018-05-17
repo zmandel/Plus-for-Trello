@@ -247,7 +247,7 @@ function handlePlusMenuSync(sendResponse) {
     });
 }
 
-function handlePequestProPermission(sendResponse) {
+function handleRequestProPermission(sendResponse) {
     chrome.permissions.request({
         permissions: ["alarms","gcm"],
         origins: ['http://www.plusfortrello.com/', 'https://www.plusfortrello.com/', 'https://ssl.google-analytics.com/']
@@ -930,7 +930,7 @@ If you instead want to disable timer popups do so from Plus preferences.");
             handleGoogleSyncPermission(sendResponse);
         }
         else if (request.method == "requestProPermission") {
-            handlePequestProPermission(sendResponse);
+            handleRequestProPermission(sendResponse);
         }
         else if (request.method == "queryTrelloDetectionCount") {
             handleQueryTrelloDetectionCount(sendResponse);

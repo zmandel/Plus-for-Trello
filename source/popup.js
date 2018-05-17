@@ -208,12 +208,12 @@ function listAllBoards() {
 	        var textStatus;
 
 	        if (!g_bEnableTrelloSync)
-	            textStatus = "Plus Sync is not yet enabled. Open trello.com, click the Plus icon (right of 'tour') and enable sync.";
+	            textStatus = "Plus Sync is not yet enabled.</br></br>From <A target='_blank' href='https://trello.com'>trello.com</A> click the Plus icon (right of 'tour') to open the Plus help pane. Read the basic help and pick a sync method.";
 	        else if ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true")
-	            textStatus = "First sync has not yet completed. Come back in a couple minutes.";
+	            textStatus = "First sync has not yet completed. Hover the Chrome Plus icon for progress.";
 	        else
 	            textStatus = "No boards with you as member.";
-	        status.text(textStatus);
+	        status.html(textStatus);
 	        status.show();
 	        return;
 	    }

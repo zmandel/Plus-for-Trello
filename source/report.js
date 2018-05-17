@@ -1375,7 +1375,7 @@ function loadReport(params) {
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false",
-        checkHideAnnotationTexts: "false"
+        checkHideAnnotationTexts: "false", checkSyncBeforeQuery: "false"
     };
 
 
@@ -1860,12 +1860,18 @@ function buildSql(elems) {
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     var elems = cloneObject(elemsParam);
+    var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] == "true")
     var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
     if (customColumns.length == 1 && customColumns[0] == "")
         customColumns = [];
 
-    if (!g_bProVersion && elems.customColumns)
-        sendDesktopNotification("To use custom columns enable 'Pro' from the Plus help pane.", 10000);
+    if (!g_bProVersion) {
+        if (bSyncBeforeQuery || elems.customColumns) {
+            bSyncBeforeQuery = false;
+            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane.", 10000);
+        }
+    }
+
 
     if (elems["eType"] == "all") //do this before updateUrlState so it doesnt include this default in the url REVIEW zig change so its elem value IS "" (see sinceDate)
         elems["eType"] = ""; //this prevents growing the URL with the default value for eType
@@ -1888,6 +1894,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (elems["checkNoLabelColors"] == "false")
         elems["checkNoLabelColors"] = ""; //ditto like eType
 
+    if (elems["checkSyncBeforeQuery"] == "false")
+        elems["checkSyncBeforeQuery"] = ""; //ditto like eType
+    
     if (elems["checkOutputCardShortLink"] == "false")
         elems["checkOutputCardShortLink"] = ""; //ditto like eType
 
@@ -1948,33 +1957,55 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 			        showError(response.status);
 			        return;
 			    }
-			    getSQLReport(sqlQuery.sql, sqlQuery.values,
-					function (response) {
-					    if (response.status != STATUS_OK) {
-					        showError(response.status);
-					        return;
-					    }
-					    var rows = response.rows;
-					    try {
-					        var groupBy = elems["groupBy"];
-					        
-					        var options = {
-					            bNoTruncate: elems["checkNoCrop"] == "true",
-					            bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
-					            bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
-					            bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
-					            bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
-					            bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0),
-					            customColumns: customColumns
-					        };
+			    var elemProgress = $("#progress");
+			    if (bSyncBeforeQuery) {
+			        elemProgress.text("Syncing...").show();
+			        sendExtensionMessage({ method: "plusMenuSync" }, function (response) {
+			            if (response.status != STATUS_OK)
+			                alert(response.status);
+			            elemProgress.text("").hide();
+			            doSQLReportPart();
+			        });
 
-					        setReportData(rows, options, elems, sqlQuery);
-					    }
-					    catch (e) {
-					        var strError = "error: " + e.message;
-					        showError(strError);
-					    }
-					});
+			    } else {
+			        doSQLReportPart();
+			    }
+
+			    function doSQLReportPart() {
+			        elemProgress.text("Querying...").show();
+			        getSQLReport(sqlQuery.sql, sqlQuery.values,
+                        function (response) {
+                            elemProgress.text("").hide();
+                            if (response.status != STATUS_OK) {
+                                showError(response.status);
+                                return;
+                            }
+                            var rows = response.rows;
+                            try {
+                                var groupBy = elems["groupBy"];
+
+                                var options = {
+                                    bNoTruncate: elems["checkNoCrop"] == "true",
+                                    bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
+                                    bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
+                                    bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
+                                    bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
+                                    bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0),
+                                    customColumns: customColumns
+                                };
+
+                                elemProgress.text("Filling...").show();
+                                setReportData(rows, options, elems, sqlQuery, function onOK() {
+                                    elemProgress.text("").hide();
+                                });
+                            }
+                            catch (e) {
+                                var strError = "error: " + e.message;
+                                showError(strError);
+                            }
+
+                        });
+			    }
 			});
 }
 
@@ -2018,7 +2049,7 @@ function transformAndMarkSkipCardRows(rows, transformRow) {
     }
 }
 
-function setReportData(rowsOrig, options, urlParams, sqlQuery) {
+function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
     var rowsGrouped = rowsOrig;
     const groupBy = urlParams["groupBy"];
     const orderBy = urlParams["orderBy"];
@@ -2053,7 +2084,7 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
     var mapCardsToLabels = {};
 
     if (!bShowCard) {
-        fillDOM(null, options.customColumns);
+        fillDOM(null, options.customColumns, callbackOK);
     }
     else {
         rowsGrouped.forEach(function (row) {
@@ -2152,12 +2183,12 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
                         objLoop.labels = rgLabelsDecorated.join('&nbsp;&nbsp;');
                     }
                 }
-                fillDOM(mapCardsToLabels, options.customColumns);
+                fillDOM(mapCardsToLabels, options.customColumns, callbackOK);
             });
         });
     }
 
-    function fillDOM(mapCardsToLabels, customColumns) {
+    function fillDOM(mapCardsToLabels, customColumns, callbackOK) {
         var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
         var headersSpecial = {};
         var html = getHtmlDrillDownTooltip(customColumns, rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
@@ -2214,6 +2245,7 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
             configureLastViewedRowButton();
             g_bAddParamSetLastRowViewedToQuery = true;
         }
+        callbackOK();
     }
 }
 

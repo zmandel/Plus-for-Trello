@@ -24,6 +24,7 @@
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
     <div id="divMain" style="margin:0;padding:0;display:none;">
         <div class="agile_toplevel_report_container">
+            <a style="display:none;position:absolute;left:10px;top:10px;" id="progress"></a>
             <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
                 <div style="width:100%" id="agile_title_header_report">
                 <span id="report_title_text">&nbsp;</span>
@@ -302,6 +303,10 @@ To remember this custom report: click 'Query', change the tab below if needed, t
                     <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
                         <label class="agile_unselectable" for="checkNoLabelColors">No color in labels</label>
+                    </div>
+                    <div class="report_options_item">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkSyncBeforeQuery" />
+                        <label class="agile_unselectable" for="checkSyncBeforeQuery">Sync before doing the query</label>
                     </div>
                     <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
 After clicking 'Query' try sorting by board then shift-click the card number column.">
