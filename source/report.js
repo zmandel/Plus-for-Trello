@@ -17,17 +17,68 @@ var KEY_bEnableTrelloSync = "bEnableTrelloSync";
 var KEY_bIgnoreZeroECards = "bIgnoreZeroECards";
 var keybEnterSEByCardComments = "bEnterSEByCardComments"; //review zig reuse shared globals loader
 var keyrgKeywordsforSECardComment = "rgKWFCC";
-var g_postFixHeaderLast = " last"; //special postfix for column headers
+const g_postFixHeaderLast = "*"; //special postfix for column headers
 var g_namedReport = null; //stores named report from initial url param
 var g_excludedColumns = {};
 var g_bAllowNegativeRemaining = false;
+var g_bNoGroupChart = false;
+const g_strMessageNoGroupChart = "To view a chart, make a report that is grouped by other than 'S/E rows'.";
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
+    e: "e",
+    r: "r",
     ser: "ser",
     e1vse: "e1vse",
     echange: "echange",
+    cardcount: "cardcount",
+    burndown: "burndown"
+};
+
+//fixed colors only for g_chartViews that have a single color 
+const g_colorsFixed={
+    s:"#D25656",
+    e: "#2196F3",
+    r: "#519B51",
+    cardcount: "#026AA7"
+};
+
+//domains for the various charts
+const g_dnames = { 
+    ser: "ser",
+    s: "s",
+    e: "e",
+    r: "r",
     cardcount: "cardcount"
+};
+
+//maps to an array of possible groupings that correspond to a unique element in the group
+//see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
+const g_columnData = {
+    user: ["user"],
+    team: ["idTeamH","idBoardH","idCardH"],
+    board: ["idBoardH", "idCardH"],
+    nameList: ["nameList", "idCardH"],
+    hashtagFirst: ["hashtagFirst", "idCardH"],
+    card: ["idCardH"],
+    week: ["week", "dateString"],
+    month: ["month", "dateString"],
+    dateString: ["dateString"],
+    keyword: ["keyword"],
+    archived: ["archived", "idCardH"],
+    boardShortLink: ["idBoardH", "idCardH"],
+    cardNumber: ["idCardH"],
+    cardCount: ["idCardH"],
+    cardShortLink: ["idCardH"],
+    deleted: ["deleted", "idCardH"],
+    dateDue: ["dateDue", "idCardH"],
+    e: ["e"],
+    e1st: ["e1st"],
+    eType: ["eType"],
+    labels: ["idCardH"],
+    note: ["note"],
+    r: ["r"],
+    s: ["s"],
 };
 
 var g_colours = { //thanks http://stackoverflow.com/a/1573141/2213940
@@ -100,10 +151,7 @@ function getCleanHeaderName(name) {
     return ret.trim();
 }
 
-function buildUrlFromParams(params, bNoPopupMode) {
-    var doc = "report.html";
-    var url = chrome.extension.getURL(doc);
-
+function buildUrlFromParams(params, bNoPopupMode, prefixCustom) {
     if (bNoPopupMode) {
         params["popup"] = 0;
         params[g_namedParams.namedReport] = "";
@@ -113,20 +161,7 @@ function buildUrlFromParams(params, bNoPopupMode) {
             params["popup"] = "1";
     }
     assert(!g_bBuildSqlMode);
-
-    var c = 0;
-    for (var i in params) {
-        var val = params[i];
-        if (val == "")
-            continue;
-        if (c == 0)
-            url += "?";
-        else
-            url += "&";
-        url += (i + "=" + encodeURIComponent(val));
-        c++;
-    }
-    return url;
+    return commonBuildUrlFromParams(params, prefixCustom || "report.html");
 }
 
 function updateNamedReport(url) {
@@ -566,6 +601,7 @@ function updateURLPart(part) {
 }
 
 
+//see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
 var g_mapNameFieldToInternal = {
     team: "idTeamH",
     board: "idBoardH",
@@ -579,11 +615,43 @@ var g_mapNameFieldToInternal = {
     month: "month"
 };
 
+function refreshBuildSqlMode(params) {
+    if (params["board"] || !params["idBoard"]) {
+        $("#team").parent().show();
+        $("#board").parent().show();
+    }
+    else {
+        $("#board").parent().hide();
+        $("#team").parent().hide();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     //chrome Content Security Policy (CSP) needs DOMContentLoaded
     if (g_bLoaded)
         return;
     g_bLoaded = true;
+
+    $("#selectAllColumns").bsmSelect({
+        addItemTarget: 'bottom',
+        animate: true,
+        highlight: true,
+        listClass: "bsmListCustomColumns",
+        plugins: [
+          $.bsmSelect.plugins.sortable({ axis: 'y', opacity: 0.5 }, { }),
+          $.bsmSelect.plugins.compatibility()
+        ]
+    });
+
+    $("#checkCustomColumns").change(function () {
+        var bChecked = ($("#checkCustomColumns")[0].checked == true);
+        var elemSection = $("#section_customColumns");
+        if (!bChecked) {
+            elemSection.hide();
+        } else {
+            elemSection.show();
+        }
+    });
 
     addTableSorterParsers();
     //any params that do not have a UI counterpart will be stripped later, so get them here and set a few global states
@@ -623,16 +691,16 @@ document.addEventListener('DOMContentLoaded', function () {
     if (!g_bPopupMode)
         $("body").removeClass("agile_report_minSize");
 
+
     if (g_bBuildSqlMode) {
         $("#tabs").hide();
         $("#agile_title_header_report").hide();
         $("#groupBy").parent().hide();
         $("#pivotBy").parent().hide();
         $("#orderBy").parent().hide();
-        $("#team").parent().hide();
-        $("#board").parent().hide();
         $("body").css("margin-top", "0px");
         $("#report_top_section").css("margin-bottom", "0px");
+        refreshBuildSqlMode(params);
 
     }
 
@@ -667,7 +735,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (g_bPopupMode) {
-        $("#agile_title_header_report").hide();
+        $("#report_title_rightLinks").hide();
         //$("body").height(470); //these two are also duplicated in report.html body so that reports opened from the popup (spent this week) has the right size (prevent flicker)
         //$("body").width(685);
         var dockOut = $("#dockoutImg");
@@ -690,6 +758,8 @@ document.addEventListener('DOMContentLoaded', function () {
             return false;
         });
 
+    } else {
+        $("#report_title_rightLinks").show();
     }
 
     openPlusDb(function (response) {
@@ -726,7 +796,8 @@ document.addEventListener('DOMContentLoaded', function () {
         var elemGroupBy = $("#groupBy");
         elemGroupBy.change(function () {
             if (elemGroupBy.val() == "custom") {
-                var strGroup = window.prompt("Enter your custom grouping separated by '-' as in 'board-user-month'\nYou may bookmark the report after clicking query.\nPick from:\n\nteam • board • list • card • hashtag • user • keyword • date • month • week");
+                var strGroup = window.prompt("Enter your custom grouping separated by '-' as in 'board-user-month'\nYou may bookmark the report after clicking query.\n\
+Pick from:\n\nteam • board • list • card • hashtag • user • keyword • date • month • week");
                 if (!strGroup)
                     elemGroupBy.val("");
                 else {
@@ -1269,15 +1340,39 @@ function loadReport(params) {
     if (params["stackCount"]) //old property
         params["stackBy"] = params["stackCount"]; //migrate
 
+    var elemAllCustomColumns = $("#selectAllColumns");
+    var elemCheckCCol = $("#checkCustomColumns");
+    if (params["customColumns"]) {
+        var optsPush = [];
+        var opt;
+        var columnsSet = params["customColumns"].split(",");
+        //note that the bsmselect library cannot handle well initial selection sort, see https://github.com/vicb/bsmSelect/issues/34
+        //to workarround, we re-order the original list so that it puts the ordered list at the beginning of the list, thus preserving sort
+        //of the multi selection
+        columnsSet.forEach(function (elem) {
+            opt = elemAllCustomColumns.children('option[value="' + elem + '"]');
+            var text = opt.text();
+            opt.remove();
+            optsPush.push(new Option(text, elem));
+        });
+        while (optsPush.length > 0) {
+            opt = optsPush.pop();
+            $(opt).attr('selected', 'selected');
+            elemAllCustomColumns.prepend(opt);
+        }
+        elemAllCustomColumns.change();
+        elemCheckCCol[0].checked = true;
+        elemCheckCCol.change();
+    }
+
     var elems = {
         stackBy: "", checkNoColorsChart: "false", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
-        idBoard: (g_bBuildSqlMode ? "" : "showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
-        checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false"
+        idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
+        checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false",
+        checkHideAnnotationTexts: "false"
     };
 
-    if (g_bPopupMode && params["checkNoCrop"] == "true")
-        params["checkNoCrop"] = "false"; //hacky. because popup mode no longer supports options, undo any remembered cropping option
 
     if (params["groupBy"] == "custom")
         params["groupBy"] = ""; //too late here
@@ -1300,11 +1395,12 @@ function loadReport(params) {
 
     var elemChartMessage = $("#chartMessage");
     elemChartMessage.text(""); //reset
-
+    g_bNoGroupChart = false;
     if (params["checkNoCharts"] == "true") {
         elemChartMessage.text("To view charts, uncheck 'No Charts' from reports Options and query again.");
     } else if (!params["groupBy"]) {
-        elemChartMessage.text("To view a chart, make a report that is grouped by other than 'S/E rows'.");
+        elemChartMessage.text(g_strMessageNoGroupChart);
+        g_bNoGroupChart = true;
     }
 
 
@@ -1365,6 +1461,8 @@ function loadReport(params) {
         }
         if (bFirstTime)
             btn.text("•••");
+
+
         for (var iobj in elems) {
             if (iobj == "tab")
                 continue;
@@ -1378,6 +1476,21 @@ function loadReport(params) {
                     groupDateAdvanced.find("input").val(""); //review: implement a "postGet" event defined per field so each field handles this
             }
         }
+
+
+        if (elemCheckCCol[0].checked) {
+            var options = $("#selectAllColumns")[0].options;
+            var opt;
+            var opts = [];
+            for (var iOpt = 0; iOpt < options.length; iOpt++) {
+                opt = options[iOpt];
+
+                if (opt.selected)
+                    opts.push(opt.value);
+            }
+            elems["customColumns"] = opts.join(",");
+        }
+
         assert(g_iTabCur != null);
         elems["tab"] = g_iTabCur;
 
@@ -1397,12 +1510,15 @@ function loadReport(params) {
     var headerOptions = $("#headerOptions");
     var containerOptions = $("#optionsContainer");
 
-    if (g_bBuildSqlMode || g_bPopupMode)
+    if (g_bBuildSqlMode)
         containerOptions.hide();
     else
         containerOptions.show();
     headerOptions.off().click(function () {
-        handleSectionSlide(containerOptions, $("#report_options_section"));
+        handleSectionSlide(containerOptions, $("#report_options_section"), undefined, undefined, function () {
+            selectTab(g_iTabCur, undefined, true);
+        });
+        
     });
 
     btn.off().click(function () {
@@ -1422,8 +1538,17 @@ function loadReport(params) {
             updateUrlState(params);
         }
         resetQueryButton(btn);
-        if (bFromMarkAllViewed)
-            $("#reportBottomMessage").show().html("s/e rows marked viewed. Close this window or query a new report.");
+        if (bFromMarkAllViewed) {
+            $("#reportBottomMessage").show().html("s/e rows marked viewed. Query a new report or <button id='report-close-window'>close this window</button>");
+            $("#report-close-window").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+                window.close();
+            });
+
+        }
+        if (g_bBuildSqlMode)
+            onQuery(true);
+        else
+            hiliteOnce($("#buttonFilter"));
     }
 }
 
@@ -1621,7 +1746,7 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 function buildSql(elems) {
 
     var cErrors = 0;
-    function buildAllParams(state, bTable, bExcludeWeekFilter) {
+    function buildAllParams(state, bTable, bExcludeWeekFilter, bOnlyWithDueDates) {
         //bTable is needed to dissambiguate when table column names collide in joins
         var sql = "";
         var pre = (bTable ? "H" : "");
@@ -1646,7 +1771,7 @@ function buildSql(elems) {
         sql += buildSqlParam("afterRow", elems, pre, "rowid", ">", state, null, false);
         sql += buildSqlParam("keyword", elems, "", "keyword", "LIKE", state);
 
-        if (elems["orderBy"] == "dateDue")
+        if (bOnlyWithDueDates || elems["orderBy"] == "dateDue")
             sql += buildSqlParam("dateDue", { dateDue: null }, "", "dateDue", "IS NOT", state);
 
         if (g_bShowLabelsFilter) {
@@ -1665,6 +1790,7 @@ function buildSql(elems) {
             }
 
         }
+
         return sql;
     }
 
@@ -1688,24 +1814,26 @@ function buildSql(elems) {
     //cardbalance is indexed by diff. using that index makes report O(log n) versus O(n)
     //cant do it with filters because S/E/E1st totals would be off 
     if (bOrderByR && bAllDates && elems["eType"] == "" && elems["afterRow"] == "" && elems["comment"] == "") {
-        sql += " JOIN CARDBALANCE CB on CB.idCard=C.idCard AND H.user=CB.user AND CB.diff<>0";
+        sql += " JOIN CARDBALANCE CB on CB.idCard=C.idCard AND H.user=CB.user AND (CB.diff<-0.005 OR CB.diff>0.005)";
         bByROpt = true;
     }
     var state = { cFilters: 0, values: [] };
     sql += buildAllParams(state, true);
 
-    if (!g_bBuildSqlMode
-        && groupByLower != ""
+    if ((groupByLower != "" || g_bBuildSqlMode)
         && !elems["user"] //these two imply s/e rows (except when using NOT, but even thewn it could be unexpected). Card count charts are better for finding those.
         && !elems["keyword"]
         && !bOrderByR) {
         bHasUnion = true;
         //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
         //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
+        //note: dashboard (g_bBuildSqlMode) setChartData relies on special-case of dateDue
         sql += " UNION ALL \
-                select -1 as rowid, '' as keyword, '' as user, '' as week, case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end as month, 0 as spent, 0 as est, \
-                0 as estFirst, \
-                CASE when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end as date , '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
+                select -1 as rowid, '' as keyword, '' as user, '' as week, " +
+                (g_bBuildSqlMode ? "strftime('%Y',datetime(dateDue, 'unixepoch'))||'-'||strftime('%m',datetime(dateDue, 'unixepoch'))" : "case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end") + " as month, 0 as spent, 0 as est, \
+                0 as estFirst, "+
+                (g_bBuildSqlMode? "C.dateDue" : "CASE when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end")+" as date " +
+                ", '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
                 T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
                 CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
                 FROM CARDS as C \
@@ -1714,7 +1842,9 @@ function buildSql(elems) {
                 LEFT OUTER JOIN TEAMS T on B.idTeam=T.idTeam";
         //rebuild filters again because table names are different
         state.cFilters = 0;
-        sql += buildAllParams(state, false, true); //exclude week filter, which is done later
+
+        //review hack alert: This excludes the week filter. its taken care later for reports, but not for g_bBuildSqlMode (dashboard) which manually filters in setChartData
+        sql += buildAllParams(state, false, true, g_bBuildSqlMode);
     }
 
 
@@ -1725,6 +1855,13 @@ function buildSql(elems) {
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     var elems = cloneObject(elemsParam);
+    var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
+    if (customColumns.length == 1 && customColumns[0] == "")
+        customColumns = [];
+
+    if (!g_bProVersion && elems.customColumns)
+        sendDesktopNotification("To use custom columns enable 'Pro' from the Plus help pane.", 10000);
+
     if (elems["eType"] == "all") //do this before updateUrlState so it doesnt include this default in the url REVIEW zig change so its elem value IS "" (see sinceDate)
         elems["eType"] = ""; //this prevents growing the URL with the default value for eType
 
@@ -1755,6 +1892,9 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (elems["checkOutputCardIdShort"] == "false")
         elems["checkOutputCardIdShort"] = ""; //ditto like eType
 
+    if (elems["checkHideAnnotationTexts"] == "false") //this is for burndown only
+        elems["checkHideAnnotationTexts"] = ""; //ditto like eType
+
     if (!g_bBuildSqlMode) {
         if (g_bAddParamSetLastRowViewedToQuery) {
             elems["setLastRowViewed"] = "true";
@@ -1777,8 +1917,21 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 
     var sqlQuery = buildSql(elems);
     if (g_bBuildSqlMode) {
-        window.parent.setSql(sqlQuery.sql, sqlQuery.values);
+        refreshBuildSqlMode(elems);
+        window.parent.setSql(sqlQuery.sql, sqlQuery.values, elems);
         return;
+    }
+
+    const orderBy = elems["orderBy"];
+    if (g_bPopupMode) {
+        var strTitleReport;
+        if (orderBy == "remain")
+            strTitleReport = "Remain";
+        else
+            strTitleReport = "Spent";
+        $("#report_title_text").text(strTitleReport);
+    } else {
+        $("#report_title_text").text("Report - Plus");
     }
 
     openPlusDb(
@@ -1796,13 +1949,15 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 					    var rows = response.rows;
 					    try {
 					        var groupBy = elems["groupBy"];
+					        
 					        var options = {
 					            bNoTruncate: elems["checkNoCrop"] == "true",
 					            bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
 					            bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
 					            bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
 					            bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
-					            bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0)
+					            bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0),
+					            customColumns: customColumns
 					        };
 
 					        setReportData(rows, options, elems, sqlQuery);
@@ -1887,9 +2042,10 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
     var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0); //review zig: dup elsewhere
     var mapIdCards = {};
     var idCards = [];
+    var mapCardsToLabels = {};
 
     if (!bShowCard) {
-        fillDOM();
+        fillDOM(null, options.customColumns);
     }
     else {
         rowsGrouped.forEach(function (row) {
@@ -1926,7 +2082,6 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
             var rowsLC = response.rows;
             var mapIdLabels = {};
             var idLabels = [];
-            var mapCardsToLabels = {};
             rowsLC.forEach(function (row) {
                 if (!mapIdLabels[row.idLabel]) {
                     mapIdLabels[row.idLabel] = true;
@@ -1989,15 +2144,15 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery) {
                         objLoop.labels = rgLabelsDecorated.join('&nbsp;&nbsp;');
                     }
                 }
-                fillDOM(mapCardsToLabels);
+                fillDOM(mapCardsToLabels, options.customColumns);
             });
         });
     }
 
-    function fillDOM(mapCardsToLabels) {
+    function fillDOM(mapCardsToLabels, customColumns) {
         var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
         var headersSpecial = {};
-        var html = getHtmlDrillDownTooltip(rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
+        var html = getHtmlDrillDownTooltip(customColumns, rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
         var parentScroller = $(".agile_report_container");
         var container = makeReportContainer(html, 1300, true, parentScroller, true);
         var tableElem = $(".tablesorter");
@@ -2147,12 +2302,6 @@ function setLastViewedRow() {
 var g_chartContainer = null;
 var g_dataChart = null;
 const g_yFieldSeparator = "\n";
-const g_dnames = { //domains for the various charts
-    ser: "ser",
-    s: "s",
-    e: "e",
-    counts: "counts"
-};
 
 function saveDataChart(rows, urlParams, options) {
     //remove any possible previous leftover
@@ -2261,7 +2410,7 @@ function saveDataChart(rows, urlParams, options) {
 
         if (options.bCountCards) {
             dataCountCards.push({ x: rowCur.countCards, y: yField });
-            checkPushDomain("counts", yField);
+            checkPushDomain("cardcount", yField);
         }
 
         if (bRemain || (rowCur.spent != 0 || (bShowR && rowCur.est != 0))) {
@@ -2274,13 +2423,12 @@ function saveDataChart(rows, urlParams, options) {
             }
             if (bShowR) {
                 var rCalc = parseFixedFloat(rowCur.est - rowCur.spent);
-                if (g_bAllowNegativeRemaining && rCalc < 0) {
-                    null; //makes no sense in a stacked chart but at least warns the user
-                } else if (rCalc != 0) {
+                if (rCalc != 0) {
                     if (rCalc < 0)
                         bHasNegatives = true;
                     dataR.push({ x: rCalc, y: yField });
                     checkPushDomain("ser", yField);
+                    checkPushDomain("r", yField);
                 }
             }
         }
@@ -2333,44 +2481,61 @@ var g_lastChartFilled = "";
 function fillChart(bForce) {
     var typeChart = $("#chartView").val();
     var elemStack = $("#stackBy");
-    if (typeChart == g_chartViews.cardcount || typeChart == g_chartViews.s) {
+    var spanNoColors = $("#spancheckNoColorsChart");
+    var bStacked = (typeChart == g_chartViews.s || typeChart == g_chartViews.e || typeChart == g_chartViews.r);
+    if (typeChart == g_chartViews.cardcount || bStacked) {
         elemStack.show();
     }
     else {
         elemStack.hide();
     }
 
-    if (!g_dataChart)
-        return;
+
+    if (typeChart == g_chartViews.burndown)
+        spanNoColors.hide();
+    else
+        spanNoColors.show();
 
     if (g_lastChartFilled == typeChart && !bForce)
         return;
 
-    var bCancel = false;
-    g_dataChart.dnameLast = null; //reset
+    if (g_bNoGroupChart)
+        $("#chartMessage").text(g_strMessageNoGroupChart);
 
-    function callbackCancel(dname) {
-        var domain = g_dataChart.domains[dname];
-        if (!bForce && bCancelFromAlertLargeSize(domain, false)) {
-            bCancel = true;
-            return true; //cancel
+    if (typeChart == g_chartViews.burndown) {
+        chartBurndown(bForce);
+    }
+
+    else {
+        if (!g_dataChart) {
+            g_lastChartFilled = "";
+            return;
         }
-        g_dataChart.dnameLast=dname; //asume chart wont fail after this
-        return false; //continue
-    }
+        var bCancel = false;
+        g_dataChart.dnameLast = null; //reset
 
-    if (typeChart == g_chartViews.s)
-        chartStacked(typeChart, bForce, callbackCancel);
-    else if (typeChart == g_chartViews.ser)
-        chartSER(bForce, callbackCancel);
-    else if (typeChart == g_chartViews.cardcount) {
-        chartStacked(typeChart, bForce, callbackCancel);
-    }
-    else if (typeChart == g_chartViews.e1vse)
-        charte1vse(bForce, callbackCancel);
-    else if (typeChart == g_chartViews.echange)
-        charteChange(bForce, callbackCancel);
+        function callbackCancel(dname) {
+            var domain = g_dataChart.domains[dname];
+            if (!bForce && bCancelFromAlertLargeSize(domain, false)) {
+                bCancel = true;
+                return true; //cancel
+            }
+            g_dataChart.dnameLast = dname; //asume chart wont fail after this
+            return false; //continue
+        }
 
+        if (bStacked)
+            chartStacked(typeChart, bForce, callbackCancel);
+        else if (typeChart == g_chartViews.ser)
+            chartSER(bForce, callbackCancel);
+        else if (typeChart == g_chartViews.cardcount) {
+            chartStacked(typeChart, bForce, callbackCancel);
+        }
+        else if (typeChart == g_chartViews.e1vse)
+            charte1vse(bForce, callbackCancel);
+        else if (typeChart == g_chartViews.echange)
+            charteChange(bForce, callbackCancel);
+    }
     if (!bCancel)
         g_lastChartFilled = typeChart;
 }
@@ -2430,9 +2595,12 @@ function prependChartTitle(table, dataChart, domain) {
 
 
     if (domain.length == 1) {
-        if (strTitle)
-            strTitle += "\n";
-        strTitle += dlabelRealFromEncoded(domain[0]);
+        var strDlabel = dlabelRealFromEncoded(domain[0]);
+        if (strDlabel) { //adding a break with empty next line causes ... on first line.
+            if (strTitle)
+                strTitle += "\n";
+            strTitle += strDlabel;
+        }
     }
 
     if (strTitle)
@@ -2479,25 +2647,37 @@ function chartSER(bForce, callbackCancel) {
     var textMessage = "";
 
     if (!g_dataChart.bRemain) {
-        if (g_dataChart.dataS.length == 0)
-            textMessage += "There is no Spent/Estimate to chart.";
+        if (g_dataChart.dataS.length == 0 && (!g_dataChart.bShowR || g_dataChart.dataR.length == 0))
+            textMessage += "There is no Spent/Estimate to chart. ";
     } else {
         if (g_dataChart.dataR.length == 0)
-            textMessage += "There is no Remain to chart.";
+            textMessage += "There is no Remain to chart. ";
     }
+
     if (textMessage)
-        textMessage += " Try the 'Card count' chart from the list above.";
+        textMessage += "Try the 'Card count' chart from the list above. ";
+
+    if (g_dataChart.params["sinceSimple"]) {
+        hiliteOnce($("#sinceSimple"));
+        textMessage += "To make this chart, do not filter by Date. ";
+    }
+
+    var bCriticalError = (textMessage.length > 0);
+
+    if (g_dataChart.bRemain && g_dataChart.dataS.length == 0)
+        textMessage += "To show Spent, do not order by 'R (non zero)'. ";
+
     elemChartMessage.text(textMessage);
-    if (textMessage.length > 0)
+    if (bCriticalError)
         return;
 
-    var colors = ["#D25656"];
+    var colors = [g_colorsFixed[g_chartViews.s]];
     if (bNoColors) {
         colors = ["#FFFFFF"];
     }
     var legendTexts = ["Spent"];
     if (g_dataChart.bShowR) {
-        colors.push(bNoColors? "#DDDDDD" : "#519B51");
+        colors.push(bNoColors? "#DDDDDD" : g_colorsFixed[g_chartViews.r]);
         legendTexts.push("Remain");
     }
     var dname = g_dnames.ser;
@@ -2556,14 +2736,14 @@ function charte1vse(bForce, callbackCancel) {
     var textMessage = "";
 
     if (g_dataChart.dataE.length == 0) {
-        textMessage += "There are no estimates to chart.";
+        textMessage += "There are no estimates to chart. ";
     }
     elemChartMessage.text(textMessage);
     if (textMessage.length > 0)
         return;
 
     addChartEstWarning(elemChartMessage);
-    var colors = ["#A5D6A7", "#43A047"];
+    var colors = ["#81D4FA", g_colorsFixed.e];
     if (bNoColors)
         colors = ["#FFFFFF", "#DDDDDD"];
     var legendTexts = ["E 1st", "E current"];
@@ -2609,9 +2789,23 @@ function charte1vse(bForce, callbackCancel) {
 
 function addChartEstWarning(elemChartMessage) {
     if (g_dataChart.params["sinceSimple"]) {
-        elemChartMessage.text("Note: This report is filtered by date, which may cause unexpected E/E 1st values.");
+        elemChartMessage.text("Note: This report is filtered by date, which may cause unexpected values.");
         hiliteOnce($("#sinceSimple"));
     }
+}
+
+function chartBurndown(bForce) {
+    getCleanChartElem();
+    var elemChartMessage = $("#chartMessage");
+    var params = getUrlParams();
+    delete params["orderBy"];
+    delete params["groupBy"];
+    delete params["pivotBy"];
+    delete params["stackBy"];
+    delete params["tab"];
+    var url = buildUrlFromParams(params, true, "dashboard.html");
+    elemChartMessage.html("<div style='margin-top:1em;'><A href='" + url + "' target='_blank'><img src=images/chart-sm.png style='vertical-align: middle;margin-right:5px;'/>Burndown chart</A> based on this report filters.</div>");
+    return;
 }
 
 function charteChange(bForce, callbackCancel) {
@@ -2621,7 +2815,7 @@ function charteChange(bForce, callbackCancel) {
     var textMessage = "";
 
     if (g_dataChart.dataE.length == 0) {
-        textMessage += "There are no estimates to chart.";
+        textMessage += "There are no estimates to chart. ";
     }
     elemChartMessage.text(textMessage);
     if (textMessage.length > 0)
@@ -2629,7 +2823,7 @@ function charteChange(bForce, callbackCancel) {
 
     addChartEstWarning(elemChartMessage);
 
-    var colors = ["#607D8B", "#f44336", "#4CAF50"];
+    var colors = ["#81D4FA", "#f44336", "#4CAF50"];
     if (bNoColors)
         colors = ["#DDDDDD", "#000000","#FFFFFF"];
     var legendTexts = ["E 1st", "Increased E", "Reduced E"];
@@ -2694,39 +2888,54 @@ function chartStacked(type, bForce, callbackCancel) {
     var elemChart = getCleanChartElem();
     var stackBy = $("#stackBy").val();
     var bNoColors = (g_dataChart.params["checkNoColorsChart"] == "true");
+    var bOrderRemain = (g_dataChart.params["orderBy"] == "remain");
 
     var elemChartMessage = $("#chartMessage");
     var textMessage = "";
     var dataChart = null;
     var domain = null;
-    var colorFixed = null;
-    var colorsVar = null;
-    var dname = null;
+    var colorFixed = g_colorsFixed[type];
+    var colorsVar = ["#DDDDDD", "#FFFFFF"];
+    var dname = g_dnames[type];
     if (type == g_chartViews.cardcount) {
-        colorFixed = "#026AA7";
-        colorsVar = ["#DDDDDD", "#FFFFFF"];
         dataChart = g_dataChart.dataCountCards;
-        dname = g_dnames.counts;
         if (dataChart.length == 0)
-            textMessage += "There are no counts to chart. Make sure to group by other than Card or 'S/E rows'.";
-    } else if (type == g_chartViews.s) {
-        colorFixed = "#D25656";
-        colorsVar = ["#DDDDDD", "#FFFFFF"];
-        dataChart = g_dataChart.dataS;
-        dname = g_dnames.s;
+            textMessage += "There are no counts to chart. Make sure to group by other than Card or 'S/E rows'. ";
+    } else {
+        if (type == g_chartViews.s)
+            dataChart = g_dataChart.dataS;
+        else if (type == g_chartViews.e)
+            dataChart = g_dataChart.dataE;
+        else if (type == g_chartViews.r)
+            dataChart = g_dataChart.dataR;
+
+        assert(dataChart);
         if (dataChart.length == 0)
-            textMessage += "There is no Spent to chart.";
-        if ($("#orderBy").val()=="remain")
-            textMessage += " Order by something different than 'R'.";
+            textMessage += "There is no data to chart. ";
+
+        if (type == g_chartViews.s && bOrderRemain)
+            textMessage += "Order by something different than 'R'. ";
     }
 
     assert(dataChart && colorFixed && colorsVar && dname);
     domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
+    if (type == g_chartViews.r || type == g_chartViews.e) {
+        if (g_dataChart.params["sinceSimple"]) {
+            hiliteOnce($("#sinceSimple"));
+            textMessage += "To make this chart, do not filter by Date.";
+        }
+    }
 
+    var bCriticalError = (textMessage.length > 0);
+
+    //non-critical messages here
+
+    if (type == g_chartViews.r && !bOrderRemain)
+        textMessage += "Tip: make a faster 'Remain' report ordering by 'R (non-zero)'.";
     elemChartMessage.text(textMessage);
-    if (textMessage.length > 0)
+    if (bCriticalError)
         return;
 
     var colors = [colorFixed];
@@ -2935,7 +3144,7 @@ function chartStacked(type, bForce, callbackCancel) {
             if (closest && closest[0]) {
                 closest = closest[0];
                 if (closest.datum != null) {
-                    elemTooltip.css("left", p.x + elemChart.offset().left + common.yAxis._width + 20);
+                    elemTooltip.css("left", p.x + elemChart.offset().left + (common.yAxis._width || 0) + 20);
                     elemTooltip.css("top", closest.position.y + elemChart.offset().top);
                     var iColor = 0;
                     if (typeof (closest.datum.iColor) !== "undefined")
@@ -3416,9 +3625,10 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
     return ret;
 }
 
-function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
+function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
     var bOrderR = (orderBy == "remain");
     var header = [];
+    const partsGroup = groupBy.split("-");
     var bCountCards = options.bCountCards;
     var bNoTruncate = options.bNoTruncate;
     function pushSpecialLinkHeader() {
@@ -3427,122 +3637,207 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
             sorter: 'links'
         };
     }
-    //review zig exclude columns https://docs.google.com/spreadsheets/d/1mcDza4o4CG3xlQns_iL5zsrGb1a_EumL8Bn-5We77X0/edit#gid=0
 
-    var strAppendHeaders = (groupBy == "" ? "" : g_postFixHeaderLast);
-    var bGroupedByDate = (groupBy.indexOf("date") >= 0);
-    var bShowKeyword = g_bShowKeywordFilter;
-    if (bShowKeyword)
-        header.push({ name: "Keyword" + strAppendHeaders });
-
-    var bRPopup = (bOrderR && g_bPopupMode);
-    var bShowDate = (!bRPopup || bGroupedByDate);
-    if (bShowDate)
-        header.push({ name: "Date" + (bGroupedByDate ? "" : strAppendHeaders) });
-
-    var bCardGrouping = (groupBy.toLowerCase().indexOf("card") >= 0);
-    var bShowBoard = (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || groupBy.indexOf("idCardH") >= 0);
-    var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
-    var bShowTeam = (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
-    var bShowLabels = bShowCard && g_bShowLabelsFilter;
-    var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
-    var bPushedCard = false;
-    var bShowHashtag = (groupBy.indexOf("hashtagFirst") >= 0);
-    function pushCardHeader() {
-        if (options.bOutputCardShortLink)
-            header.push({ name: "Card shortLink" });
-
-        if (options.bOutputCardIdShort)
-            header.push({ name: "Card #" });
-        header.push({ name: "Card" });
-        pushSpecialLinkHeader();
+    const bCustomColumns = (customColumns.length > 0);
+    //see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
+    function includeCol(strCol) {
+        var colData = g_columnData[strCol];
+        assert(colData);
+        if (!bCustomColumns)
+            return true;
+        return (customColumns.indexOf(strCol) >= 0);
+    }
+   
+    var rgColumnPositions = [];
+    function pushHeader(name, base, bIsAggregate, bExtended) {
+        base = base || name.toLowerCase();
+        var colData = g_columnData[base];
+        assert(colData);
+        
+        if (bCustomColumns) {
+            var iColCustom = customColumns.indexOf(base);
+            assert(iColCustom>=0);
+            rgColumnPositions.push(iColCustom);
+        }
+        if (!bIsAggregate && groupBy != "") {
+            for (var iProp = 0; iProp < colData.length; iProp++) {
+                if (partsGroup.indexOf(colData[iProp]) >= 0)
+                    break;  //found
+            }
+            if (iProp >= colData.length)  //not found
+                name += g_postFixHeaderLast;
+        }
+        var obj = { name: name };
+        if (bExtended)
+            obj.bExtend = true;
+        header.push(obj);
     }
 
-    if (bCardGrouping)
-        header.push({ name: "Due date" }); //without strAppendHeaders
+    function pushHeaderExtended(name, base, bIsAggregate) {
+        pushHeader(name, base, bIsAggregate, true);
+    }
 
-    var bShowWeek = (bShowDate && (bGroupedByDate || !g_bPopupMode));
+    function pushHeaderAggregate(name, base, bExtended) {
+        pushHeader(name, base, true, bExtended);
+    }
+
+    var bGroupedByDate = (groupBy.indexOf("dateString") >= 0);
+    var bShowKeyword = (bCustomColumns ? includeCol("keyword") : g_bShowKeywordFilter);
+    if (bShowKeyword)
+        pushHeader("Keyword");
+
+    var bRPopup = (bOrderR && g_bPopupMode);
+    var bShowDate = bCustomColumns ? includeCol("dateString") : (!bRPopup || bGroupedByDate);
+    if (bShowDate)
+        pushHeader("Date", "dateString");
+
+    if (bCustomColumns)
+        bShowMonth = includeCol("month");
+    var bCardGrouping = (groupBy.indexOf("idCardH") >= 0);
+    var bShowBoard = bCustomColumns ? includeCol("board") : (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || bCardGrouping);
+    var bShowCard = bCustomColumns ? includeCol("card") : (groupBy == "" || bCardGrouping);
+    var bShowTeam = bCustomColumns ? includeCol("team") : (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
+    var bShowLabels = bCustomColumns ? includeCol("labels") : bShowCard && g_bShowLabelsFilter;
+
+    if (bShowLabels && bCustomColumns && !mapCardsToLabels) {
+        bShowLabels = false;
+        sendDesktopNotification("To show labels, group by card or s/e rows.", 12000);
+    }
+    var bShowList = bCustomColumns ? includeCol("nameList") : ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
+    var bPushedCard = false;
+    var bShowHashtag = bCustomColumns ? includeCol("hashtagFirst") : (groupBy.indexOf("hashtagFirst") >= 0);
+    var bShowCardShortLink = bCustomColumns ? includeCol("cardShortLink") : options.bOutputCardShortLink;
+    var bShowCardNumber=bCustomColumns ? includeCol("cardNumber") : options.bOutputCardIdShort;
+
+    function pushCardHeader() {
+        if (bShowCardShortLink)
+            pushHeader("Card shortLink", "cardShortLink");
+
+        if (bShowCardNumber)
+            pushHeader("Card #", "cardNumber");
+        if (bShowCard) {
+            pushHeader("Card", "card");
+            pushSpecialLinkHeader();
+        }
+    }
+
+    var bShowDueDate = bCustomColumns? includeCol("dateDue") : bCardGrouping;
+    if (bShowDueDate)
+        pushHeader("Due date", "dateDue");
+
+    var bShowWeek = bCustomColumns ? includeCol("week") : (bShowDate && (bGroupedByDate || !g_bPopupMode));
     if (bShowWeek)
-        header.push({ name: "Week" + strAppendHeaders });
+        pushHeader("Week","week");
 
     if (bShowCard && bCardGrouping && !bPushedCard) {
         pushCardHeader();
         bPushedCard = true;
     }
 
-    if (bCountCards)
-        header.push({ name: "Card count" });
+    var bShowCardCount= bCustomColumns? includeCol("cardCount"): bCountCards;
+    if (bShowCardCount)
+        pushHeader("Card count", "cardCount", true);
     var bGroupByCardOrNone = (groupBy == "" || bCardGrouping);
-    var bShowArchived = (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
-    var bShowDeleted = (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
+    var bShowArchived = bCustomColumns ? includeCol("archived") : (g_bEnableTrelloSync && bGroupByCardOrNone && archived != "1" && archived != "0");
+    var bShowDeleted = bCustomColumns ? includeCol("deleted") : (g_bEnableTrelloSync && bGroupByCardOrNone && deleted != "1" && deleted != "0");
     if (bShowMonth)
-        header.push({ name: "Month" + strAppendHeaders });
-    var bShowUser = (groupBy == "" || groupBy.toLowerCase().indexOf("user") >= 0);
+        pushHeader("Month", "month");
+
+    var bShowUser = bCustomColumns ? includeCol("user") : (groupBy == "" || groupBy.indexOf("user") >= 0);
     if (bShowUser)
-        header.push({ name: "User" });
+        pushHeader("User");
 
     if (bShowTeam) {
-        header.push({ name: "Team" });
+        pushHeader("Team");
         pushSpecialLinkHeader();
     }
 
+    var bShowBoardShortLink = bCustomColumns ?includeCol("boardShortLink") : (bShowBoard && options.bOutputBoardShortLink);
+    if (bShowBoardShortLink) {
+        pushHeader("Board shortLink", "boardShortLink");
+    }
+
     if (bShowBoard) {
-        if (options.bOutputBoardShortLink)
-            header.push({ name: "Board shortLink" });
-        header.push({ name: "Board" });
+        pushHeader("Board","board");
         pushSpecialLinkHeader();
     }
 
     if (bShowList)
-        header.push({ name: "List" });
+        pushHeader("List","nameList");
 
     if (bShowHashtag) {
-        header.push({ name: "Hashtag" });
+        pushHeader("1st Hashtag", "hashtagFirst");
     }
 
-    if (bShowCard && !bPushedCard) {
+    if (!bPushedCard) {
         pushCardHeader();
         bPushedCard = true;
     }
 
     if (bShowLabels)
-        header.push({ name: "Labels" });
+        pushHeader("Labels", "labels");
 
-    var bShowSE = true;
+    var bShowS = true;
+    var bShowEFirst = true;
+    var bShowE = true;
+    var bShowRemain = true;
+    var bNoSEInfo = (bOrderR && groupBy != "idCardH-user" && bByROpt);
+    if (!bCustomColumns) {
+        if (bNoSEInfo) {
+            bShowS = false; //S/E is not meaningful when filtering only by cards with non-zero R
+            bShowEFirst = false;
+            bShowE = false;
+        }
 
-    if (bOrderR && groupBy != "idCardH-user" && bByROpt)
-        bShowSE = false; //S/E is not meaningful when filtering only by cards with non-zero R
-
-    if (bShowSE) {
-        header.push({ name: "S" });
-        header.push({ name: "E 1ˢᵗ" });
-        header.push({ name: "E" });
+        bShowRemain = (bOrderR || groupBy != "");
+    } else {
+        bShowS = includeCol("s");
+        bShowEFirst = includeCol("e1st");
+        bShowE = includeCol("e");
+        bShowRemain = includeCol("r");
     }
-    bShowRemain = (bOrderR || groupBy != "");
+
+    if (bShowS)
+        pushHeader("S", "", true);
+    if (bShowEFirst)
+        pushHeaderAggregate("E 1ˢᵗ","e1st");
+    if (bShowE)
+        pushHeaderAggregate("E");
     if (bShowRemain)
-        header.push({ name: "R" });
+        pushHeaderAggregate("R");
 
-    var bShowComment = (groupBy == "");
+    var bShowComment = bCustomColumns? includeCol("note") :(groupBy == "");
     if (bShowComment)
-        header.push({ name: "Note", bExtend: true });
+        pushHeaderExtended("Note");
 
-    var bShowEtype = (groupBy == "");
+    var bShowEtype = bCustomColumns ? includeCol("eType") : (groupBy == "");
 
     if (bShowEtype)
-        header.push({ name: COLUMNNAME_ETYPE });
+        pushHeader(COLUMNNAME_ETYPE, "eType");
 
     if (bShowArchived)
-        header.push({ name: "Archived" });
+        pushHeader("Archived");
 
     if (bShowDeleted)
-        header.push({ name: "Deleted" });
+        pushHeader("Deleted");
 
     var dateNowCache = new Date();
+    const lengthCols = header.length;
+    if (bCustomColumns) {
+        var headerSorted = new Array(lengthCols);
+        for (var iHeader = 0; iHeader < lengthCols; iHeader++) {
+            assert(iHeader < rgColumnPositions.length);
+            var iPosCol = rgColumnPositions[iHeader];
+            headerSorted[iPosCol] = header[iHeader];
+        }
+        header = headerSorted;
+    }
+    
     function callbackRowData(row) {
         bPushedCard = false;
         if (row.rowid && row.rowid > g_rowidLastSyncRemember) //review zig: hacky way so we dont loop the array twice. would be nice if this was outside of view
             g_rowidLastSyncRemember = row.rowid;
-        var rgRet = [];
+        var rgRet = new Array(lengthCols);
         var dateString = row["dateString"];
         var dateTimeString = row["dtString"];
         var daterow = new Date(row.date * 1000); //db is in seconds
@@ -3551,78 +3846,107 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
             dateString = makeDateCustomString(dateDbUse);
             dateTimeString = makeDateCustomString(dateDbUse, true);
         }
+
+        var iColPushed = -1;
+        function pushCol(obj) {
+            iColPushed++;
+            var iPosCol;
+            if (bCustomColumns) {
+                assert(iColPushed < rgColumnPositions.length);
+                iPosCol = rgColumnPositions[iColPushed];
+            } else {
+                iPosCol = iColPushed;
+            }
+           
+            rgRet[iPosCol]=obj;
+        }
+
         if (bShowKeyword)
-            rgRet.push({ name: escapeHtml(row.keyword), bNoTruncate: true });
+            pushCol({ name: escapeHtml(row.keyword), bNoTruncate: true });
         if (bShowDate)
-            rgRet.push({ name: (bGroupedByDate ? dateString : dateTimeString), bNoTruncate: true });
-        if (bCardGrouping) {
+            pushCol({ name: (bGroupedByDate ? dateString : dateTimeString), bNoTruncate: true });
+        if (bShowDueDate) {
             var dateDueTimeString = row.dateDue || "";
             if (dateDueTimeString) {
                 dateDueTimeString = new Date(dateDueTimeString * 1000);
                 dateDueTimeString = makeDateCustomString(dateDueTimeString, true);
             }
-            rgRet.push({ name: dateDueTimeString, bNoTruncate: true });
+            pushCol({ name: dateDueTimeString, bNoTruncate: true });
         }
 
         function pushCardRow() {
-            if (options.bOutputCardShortLink) {
-                rgRet.push({ name: row.idCardH, bNoTruncate: true });
+            if (bShowCardShortLink) {
+                pushCol({ name: row.idCardH, bNoTruncate: true });
             }
-            if (options.bOutputCardIdShort) {
-                rgRet.push({ name: row.idShort, bNoTruncate: true });
+            if (bShowCardNumber) {
+                pushCol({ name: row.idShort, bNoTruncate: true });
             }
 
-            var urlCard;
-            if (row.idCardH.indexOf("https://") == 0)
-                urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
-            else
-                urlCard = "https://trello.com/c/" + row.idCardH;
+            if (bShowCard) {
+                var urlCard;
+                if (row.idCardH.indexOf("https://") == 0)
+                    urlCard = row.idCardH; //old-style card URLs. Could be on old historical data from a previous Spent version
+                else
+                    urlCard = "https://trello.com/c/" + row.idCardH;
 
-            rgRet.push({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + escapeHtml(bNoTruncate ? row.nameCard : strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
+                pushCol({ name: "<A title='Go to Trello card' target='_blank' href='" + urlCard + "'>" + escapeHtml(bNoTruncate ? row.nameCard : strTruncate(row.nameCard)) + "</A>", bNoTruncate: true });
+            }
         }
 
         if (bShowWeek) //week
-            rgRet.push({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
+            pushCol({ name: row.week ? row.week : getCurrentWeekNum(daterow), bNoTruncate: true });
 
         if (bShowCard && bCardGrouping && !bPushedCard) { //card
             pushCardRow();
             bPushedCard = true;
         }
 
-        if (bCountCards)
-            rgRet.push({ name: String(row.countCards || 0), bNoTruncate: true });
+        if (bShowCardCount) //note if !countCards we must output something if user picked the custom column. 1 makes more sense than 0
+            pushCol({ name: String(row.countCards || 1), bNoTruncate: true });
 
         if (bShowMonth)
-            rgRet.push({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
+            pushCol({ name: row.month ? row.month : getCurrentMonthFormatted(daterow), bNoTruncate: true });
+
         if (bShowUser)
-            rgRet.push({ name: row.user, bNoTruncate: bNoTruncate });
+            pushCol({ name: row.user, bNoTruncate: bNoTruncate });
 
         if (bShowTeam) {
             var urlTeam = "https://trello.com/" + (row.nameTeamShort || "");
             var nameTeam = row.nameTeam || ""; //for rows without team
-            rgRet.push({ name: "<A title='Go to Trello team' target='_blank' href='" + urlTeam + "'>" + escapeHtml(bNoTruncate ? nameTeam : strTruncate(nameTeam)) + "</A>", bNoTruncate: true });
+            pushCol({ name: "<A title='Go to Trello team' target='_blank' href='" + urlTeam + "'>" + escapeHtml(bNoTruncate ? nameTeam : strTruncate(nameTeam)) + "</A>", bNoTruncate: true });
         }
 
+        if (bShowBoardShortLink)
+            pushCol({ name: (row.idBoardH == IDBOARD_UNKNOWN ? "" : row.idBoardH), bNoTruncate: true });
+
         if (bShowBoard) {
-            if (options.bOutputBoardShortLink)
-                rgRet.push({ name: (row.idBoardH == IDBOARD_UNKNOWN ? "" : row.idBoardH), bNoTruncate: true });
             var urlBoard = "https://trello.com/b/" + row.idBoardH;
-            rgRet.push({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + escapeHtml(bNoTruncate ? row.nameBoard : strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
+            pushCol({ name: "<A title='Go to Trello board' target='_blank' href='" + urlBoard + "'>" + escapeHtml(bNoTruncate ? row.nameBoard : strTruncate(row.nameBoard)) + "</A>", bNoTruncate: true });
         }
 
         if (bShowList) {
             var strListUse = row.nameList;
             if (!bNoTruncate)
                 strListUse = strTruncate(strListUse, g_cchTruncateShort);
-            rgRet.push({ name: escapeHtml(strListUse), bNoTruncate: true });
+            pushCol({ name: escapeHtml(strListUse), bNoTruncate: true });
         }
 
 
         if (bShowHashtag) {
-            rgRet.push({ name: escapeHtml(row.hashtagFirst), bNoTruncate: bNoTruncate });
+            var nameHSF;
+            if (groupBy.indexOf("hashtagFirst") >= 0)
+                nameHSF = row.hashtagFirst; //when grouping by hashtag, its already extracted
+            else {
+                var rgHashForCard = getHashtagsFromTitle(row.nameCard || "", true);
+                if (rgHashForCard.length > 0)
+                    nameHSF = rgHashForCard[0];
+                else
+                    nameHSF = "";
+            }
+            pushCol({ name: escapeHtml(nameHSF), bNoTruncate: bNoTruncate });
         }
 
-        if (bShowCard && !bPushedCard) {
+        if (!bPushedCard && (bShowCard || bShowCardNumber || bShowCardShortLink)) {
             pushCardRow();
             bPushedCard = true;
         }
@@ -3630,32 +3954,34 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
         if (bShowLabels) {
             assert(mapCardsToLabels);
             var labels = (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
-            rgRet.push({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
+            pushCol({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
         }
         var sPush = parseFixedFloat(row.spent);
         var estPush = parseFixedFloat(row.est);
-        if (bShowSE) {
-            rgRet.push({ type: "S", name: sPush, bNoTruncate: true });
-            rgRet.push({ type: "EFirst", name: parseFixedFloat(row.estFirst), bNoTruncate: true }); //not type "E". that is used when showing sum of row selections
-            rgRet.push({ type: "E", name: estPush, bNoTruncate: true });
-        }
+        if (bShowS)
+            pushCol({ type: "S", name: sPush, bNoTruncate: true });
+        if (bShowEFirst)
+            pushCol({ type: "EFirst", name: parseFixedFloat(row.estFirst), bNoTruncate: true }); //not type "E". that is used when showing sum of row selections
+        if (bShowE)
+            pushCol({ type: "E", name: estPush, bNoTruncate: true });
+        
         if (bShowRemain) {
             var remainCalc = parseFixedFloat(row.est - row.spent);
             if (bOrderR && remainCalc == 0)
                 return [];
-            rgRet.push({ type: "R", name: remainCalc, bNoTruncate: true }); //type "R" just so it generates the transparent zero
+            pushCol({ type: "R", name: remainCalc, bNoTruncate: true }); //type "R" just so it generates the transparent zero
         }
         if (bShowComment)
-            rgRet.push({ name: escapeHtml(row.comment), bNoTruncate: bNoTruncate });
+            pushCol({ name: escapeHtml(row.comment), bNoTruncate: bNoTruncate });
 
         if (bShowEtype)
-            rgRet.push({ name: nameFromEType(row.eType), bNoTruncate: true });
+            pushCol({ name: nameFromEType(row.eType), bNoTruncate: true });
 
         if (bShowArchived)
-            rgRet.push({ name: row.bArchivedCB > 0 ? "Yes" : "No", bNoTruncate: true });
+            pushCol({ name: row.bArchivedCB > 0 ? "Yes" : "No", bNoTruncate: true });
 
         if (bShowDeleted)
-            rgRet.push({ name: row.bDeleted ? "Yes" : "No", bNoTruncate: true });
+            pushCol({ name: row.bDeleted ? "Yes" : "No", bNoTruncate: true });
 
         if (!bShowComment) {
             var title = "Last: ";
@@ -3668,7 +3994,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
                 title += "\n(no s/e)";
             rgRet.title = title;
         } else {
-            rgRet.title = (bShowSE ? "(" + sPush + " / " + estPush + ") " : "") + row.comment;
+            rgRet.title = (!bNoSEInfo ? "(" + sPush + " / " + estPush + ") " : "") + row.comment;
         }
         if (row.date) {
             var dateRow = new Date(row.date * 1000);
@@ -3685,7 +4011,7 @@ function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, options
         return rgRet;
     }
 
-    return getHtmlBurndownTooltipFromRows(true, rows, false, header, callbackRowData, true, "", bShowSE);
+    return getHtmlBurndownTooltipFromRows(true, rows, false, header, callbackRowData, true, "", !bNoSEInfo);
 }
 
 function getSQLReport(sql, values, callback) {

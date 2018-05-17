@@ -51,6 +51,26 @@ function replaceString(string, regex, replace) {
     return string.replace(regex, replace);
 }
 
+function commonBuildUrlFromParams(params, doc) {
+    var url = chrome.extension.getURL(doc);
+    var val = null;
+    var bPasQ = (doc.indexOf("?")>=0);
+
+    for (var i in params) {
+        val = params[i];
+        if (val == "")
+            continue;
+        if (!bPasQ) {
+            url += "?";
+            bPasQ = true;
+        }
+        else
+            url += "&";
+        url += (i + "=" + encodeURIComponent(val));
+    }
+    return url;
+}
+
 function escapeHtml(string) {
     if (!string)
         return "";
@@ -184,7 +204,7 @@ var g_strServiceUrl = null; //null while not loaded. set to empty string or url 
 var SEKEYWORD_DEFAULT = "plus!";
 var g_strUserMeOption = "me";
 var SEKEYWORD_LEGACY = "plus s/e";
-var g_bEnableTrelloSync = false; //review zig this ad g_bDisableSync must be initialized by caller
+var g_bEnableTrelloSync = false; //review zig this and g_bDisableSync must be initialized by caller (like loadSharedOptions)
 var g_bDisableSync = false; // 'bDisabledSync' sync prop. note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
 var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
@@ -892,7 +912,8 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	                classesTd += " agile_reportSECellZero";
 	            }
 	        }
-	        
+	        if (val === "")
+	            val = "&nbsp;";  //prevent tables with all empty fields (Bad height)
 			return "<td class='"+classesTd+ "'>" + (bNoTruncate ? val : strTruncate(val)) + "</td>";
 		}
 

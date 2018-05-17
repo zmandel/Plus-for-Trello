@@ -6,6 +6,16 @@
     }
 }
 
+
+.bsmListCustomColumns {
+  width: 14em;
+  margin: 0.25em 0 1em 0;
+  position: relative;
+  display: block;
+  padding-left: 0;
+  list-style: none;
+}
+
 .labelGetPro {
         font-size: 10px !important;
         margin-bottom: 3px !important;
@@ -572,6 +582,8 @@ div#agile_help_container h1 {
 .agile_close_button {
 	cursor: pointer;
     position:fixed !important;
+    top: 10px;
+    left: 55em !important;
 }
 
 .agile_close_button:hover {
@@ -581,12 +593,16 @@ div#agile_help_container h1 {
 .agile_help_top {
 	cursor: pointer;
     position:fixed !important;
-    margin-left:-27px !important;
-
+    top: 10px;
+    left: 53em !important;
 }
 
 .agile_help_top:hover {
     opacity:1 !important;
+}
+
+.agile_topmost {
+    z-index: 2147483647 !important;
 }
 
 .agile-help-firstTime {

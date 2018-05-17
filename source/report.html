@@ -8,11 +8,13 @@
     <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
     <link href="css/jquery.qtip.min.css" rel="stylesheet" type="text/css">
     <link href="css/plottable.css" rel="stylesheet" type="text/css">
+    <link href="css/bsmselect.css" rel="stylesheet" type="text/css">
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
     <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
+    <script type="text/javascript" src="libs/bsmselect.js"></script>
     <script type="text/javascript" src="libs/svgpng.js"></script>
     <script type="text/javascript" src="libs/d3.min.js"></script>
     <script type="text/javascript" src="libs/plottable.min.js"></script>
@@ -24,19 +26,21 @@
         <div class="agile_toplevel_report_container">
             <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
                 <div style="width:100%" id="agile_title_header_report">
-                <span>Report - Plus</span>
-                <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
-                    <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
-                    <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=FH223PYNLWZQU&lc=US&item_name=Plus%20for%20Trello&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted" target="_blank" title="Thank you!">Donate</a>
-                    <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" target="_blank" title="Rate Plus to release the guilt from not donating!">Rate</a>
-                    <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
+                <span id="report_title_text">&nbsp;</span>
+                    <span id="report_title_rightLinks" style="display:none;">
+                        <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
+                        <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
+                        <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=FH223PYNLWZQU&lc=US&item_name=Plus%20for%20Trello&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted" target="_blank" title="Thank you!">Donate</a>
+                        <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" target="_blank" title="Rate Plus to release the guilt from not donating!">Rate</a>
+                        <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
+                    </span>
+                    <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
+                    <img src="" style="display:none;" class="agile_img_popup" id="backImg" title='Back' />
                 </div>
-                <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
-                <img src="" style="display:none;" class="agile_img_popup" id="backImg" title='Back' />
             </div>
             <div class="agile_report_filters">
                 <div class="agile_report_filter">
-                    <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
+                    <button disabled style="height: 20px; width:47px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
 
                 <div style="display:none" class="agile_report_filter" title="Filter by Plus keywords.
@@ -55,19 +59,19 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
 
 'User' refers to those with S/E, not card members." class="agile_report_filter agile_groupby_report_section">
                     <p class="agile_report_filter_label">Group by</p>
-                    <select id="groupBy">
+                    <select id="groupBy" style="width:8.5em;">
                         <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
                         <option value="user">User</option>
                         <option value="idTeamH" title="Groups resulting cards and 'S/E rows' by team.\nColumns like 'date' use the newest row in each team.">Team</option>
                         <option value="idTeamH-user" title="Groups resulting cards and 'S/E rows' by team & user.\nColumns like 'date' use the newest row in each team.">Team-User</option>
                         <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by board.\nColumns like 'date' use the newest row in each board.">Board</option>
                         <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by unique board & list combination.">Board-List</option>
-                        <option value="idBoardH-nameList-hashtagFirst" title="Groups by board, list & first #tag in the card">Board-List-Hashtag</option>
+                        <option value="idBoardH-nameList-hashtagFirst" title="Groups by board, list & first #tag in the card">Board-List-hashtag1</option>
                         <option value="idBoardH-nameList-user" title="Groups by board, list & card S/E user">Board-List-User</option>
-                        <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag</option>
+                        <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag1</option>
                         <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' groups are only for 'S/E rows'.">Board-User</option>
-                        <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag</option>
-                        <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag</option>
+                        <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag1</option>
+                        <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag1</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
                         <option value="week">Week</option>
@@ -285,6 +289,7 @@ E 1st: rows with a first estimate
                 <p title="Click to change options.
 To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
                 <div style="display:none;" id="report_options_section">
+                    <div><i>Click 'Query' after making changes.</i></div>
                         <div class="report_options_item"  title="Check to prevent cropping text in results.">
                             <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
                             <label class="agile_unselectable" for="checkNoCrop">No Crop</label>
@@ -303,6 +308,9 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
                         <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
                     </div>
+                    
+                    <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
+                    
                     <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
                         <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
@@ -310,6 +318,41 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                     <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
                         <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
+                    </div>
+                    <div class="report_options_item" style="width:40em;">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkCustomColumns" />
+                        <label class="agile_unselectable" for="checkCustomColumns">Output custom columns</label>
+                        <div id="section_customColumns" style="display:none;margin-left:1.2em;">
+                            <select multiple="multiple" title="Pick columns..." id="selectAllColumns">
+                                /* https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing */
+                                <option  value="archived">Archived</option>
+                                <option  value="board">Board</option>
+                                <option  value="boardShortLink">Board shortLink</option>
+                                <option  value="card">Card</option>
+                                <option  value="cardNumber" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+After clicking 'Query' try sorting by board then shift-click the card number column.">Card #</option>
+                                <option  value="cardCount">Card count</option>
+                                <option  value="cardShortLink">Card shortLink</option>
+                                <option  value="dateString">Date</option>
+                                <option  value="deleted">Deleted</option>
+                                <option  value="dateDue">Due date</option>
+                                <option  value="e">E</option>
+                                <option  value="e1st">E 1ˢᵗ</option>
+                                <option  value="eType">E. type</option>
+                                <option  value="hashtagFirst">Hashtag1</option>
+                                <option  value="keyword">Keyword</option>
+                                <option  value="labels">Labels</option>
+                                <option  value="nameList">List</option>
+                                <option  value="month">Month</option>
+                                <option  value="note">Note</option>
+                                <option  value="r">R</option>
+                                <option  value="s">S</option>
+                                <option  value="team">Team</option>
+                                <option  value="user">User</option>
+                                <option  value="week">Week</option>
+                            </select>
+                            <div><i>Drag to re-order. When grouping and the group does not include a custom column, the column name will end with <b>*</b> and show the value of the newest item in the group.</i></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -373,16 +416,19 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                     <div style="height:2em;">
                         <select id="chartView" >
                             <option value="s">Spent</option>
-                            <option value="ser">Spent and Remaining. E=S+R</option>
-                            <option value="e1vse">E1ˢᵗ versus E</option>
+                            <option value="e">Estimate</option>
+                            <option value="r">Remaining</option>
+                            <option value="ser">Spent & Remaining. E=S+R</option>
+                            <option value="e1vse">E 1ˢᵗ versus E</option>
                             <option value="echange">E change</option>
+                            <option value="burndown">S.E.R. Burndown</option>
                             <option value="cardcount">Card count</option>
                         </select>
                         <select id="stackBy" style="display:none;">
                             <option value="">No stacking</option>
                             <option value="user">Stack by S/E user</option>
                             <option value="nameList">Stack by list</option>
-                            <option value="hashtagFirst">Stack by first hashtag</option>
+                            <option value="hashtagFirst">Stack by hashtag1</option>
                             <option value="keyword">Stack by keyword</option>
                             <option value="week">Stack by week</option>
                             <option value="month">Stack by month</option>
@@ -404,6 +450,6 @@ After clicking 'Query' try sorting by board then shift-click the card number col
             </div>
         </div>
     </div>
-    <div id="reportBottomMessage" style="display:none"></div>
+    <div id="reportBottomMessage" style="display:none;"></div>
 </body>
 </html>	

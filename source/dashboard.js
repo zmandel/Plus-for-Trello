@@ -69,20 +69,39 @@ function showError(strError) {
 	progress.style.display = "block";
 }
 
-function setSql(sql, values) {
+function setSql(sql, values, elemsParam) {
     g_sql = sql;
     g_valuesSql = values;
-    configBoardBurndownData(null);
+    var elems = cloneObject(elemsParam);
+    delete elems["chartView"];
+    if (elems["orderBy"] == "date") //review default sort
+        delete elems["orderBy"];
+
+    if (elems["archived"] == "0")
+        delete elems["archived"];
+
+    if (elems["deleted"] == "0")
+        delete elems["deleted"];
+
+    updateBoardLinks(elems); //updates elems too
+    window.history.replaceState('data', '', commonBuildUrlFromParams(elems, "dashboard.html"));
+    if (!g_bDontQuery)
+        configBoardBurndownData(null, elems);
+    else {
+        g_bDontQuery = false;
+        hiliteOnce($("#buttonFilter", $("#frameFilter").contents()));
+    }
 }
 
 function resizeMe(innerHeight) {
     $("#frameFilter").height(innerHeight);
 }
 
-var g_sql = "select H.user, H.spent, H.est, H.date, H.comment, H.eType, H.idCard as idCardH, C.name as nameCard FROM HISTORY as H JOIN CARDS as C on H.idCard=C.idCard WHERE c.bDeleted=0 AND c.idBoard=? order by H.date ASC";
+var g_sql = "";
 var g_valuesSql = [];
 
-function configBoardBurndownData(idBoard) {
+function configBoardBurndownData(idBoard, elems) {
+    document.getElementById("progress").style.display = "block";
     openPlusDb(
 			function (response) {
 			    if (response.status != STATUS_OK) {
@@ -90,15 +109,38 @@ function configBoardBurndownData(idBoard) {
 			        return;
 			    }
 			    var sql = g_sql;
-			    var values = [idBoard];
-			    if (idBoard == null) {
-			        values = g_valuesSql;
+			    var values;
+                
+			    values = g_valuesSql;
+			    
+			    function updateTitle(title) {
+			        title += " - Plus Burndown";
+			        document.title = title;
+			        $("#dashBoardTopTitle").text(title);
 			    }
+
 			    getSQLReport(sql, values,
                     function (response) {
                         var rows = response.rows;
                         try {
-                            setChartData(rows, idBoard);
+                            setChartData(rows, idBoard, elems);
+                            var bUniqueBoard = !!elems["idBoard"];
+                            if (bUniqueBoard) {
+                                if (rows && rows.length>0)
+                                    updateTitle(rows[0].nameBoard);
+                                else {
+                                    getSQLReport("select name from BOARDS where idBoard=?", [elems["idBoard"]],
+                                        function (response) {
+                                            rows = response.rows;
+                                            if (rows && rows.length>0)
+                                                updateTitle(rows[0].name);
+                                            else
+                                                updateTitle("board not synced");
+                                        });
+                                }
+                            } else {
+                                updateTitle("Custom filters");
+                            }
                         }
                         catch (e) {
                             var strError = "error: " + e.message;
@@ -109,35 +151,84 @@ function configBoardBurndownData(idBoard) {
 }
 
 
+// params is IN/OUT
+function updateBoardLinks(params) {
+    var paramIdBoard = params["idBoard"];
+    var idBoard = null;
+
+    if (paramIdBoard)
+        idBoard = decodeURIComponent(paramIdBoard);
+
+    if (idBoard) {
+        delete params["board"]; //dont pass it back to the report. it was historically just for title display purposes (june  2016)
+        $("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + paramIdBoard + "&weekStartRecent=true").show();
+        $("#boardLink").attr("href", "https://trello.com/b/" + paramIdBoard).show();
+    }
+    else {
+        $("#reportLink").hide();
+        $("#boardLink").hide();
+    }
+}
 
 function loadBurndown() {
     resetChartline();
+    g_bDontQuery = false; //reset
 	var params = getUrlParams();
-	var idBoard = decodeURIComponent(params["idBoard"]);
-    var boardName = decodeURIComponent(params["board"]);
-	document.title = (boardName + " - Plus Dashboard");
-	$("#dashBoardTopTitle").text(document.title);
-	$("#frameFilter").attr('src', "report.html?getsql=1&idBoard=" + idBoard);
-	g_boardName = boardName;
-	$("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + encodeURIComponent(idBoard) + "&weekStartRecent=true");
-	$("#boardLink").attr("href", "https://trello.com/b/" + encodeURIComponent(idBoard));
+	var paramIdBoard = params["idBoard"];
+	var paramNameBoard = params["board"];
+	var idBoard = null;
+    var boardName = null;
+    
+    if (paramNameBoard)
+        boardName = decodeURIComponent(paramNameBoard);
+
+    if (paramIdBoard)
+        idBoard = decodeURIComponent(paramIdBoard);
+
+    updateBoardLinks(params);
+
 	var header = $("#headerMarker");
 	var container = $("#boardMarkersContainer");
+	var headerFilter = $("#headerFilter");
+	var containerFilter = $("#filtersContainer");
 
 	function onDoneSlide() {
 	    redrawCharts(false);
+	}
+
+	function doFilterClick() {
+	    handleSectionSlide(containerFilter, $("#report_filter_section"), undefined, undefined, onDoneSlide);
 	}
 
 	header.click(function () {
 	    handleSectionSlide(container, $("#boardMarkersContent"), undefined, undefined, onDoneSlide);
 	});
 
-	var headerFilter = $("#headerFilter");
-	var containerFilter = $("#filtersContainer");
-
 	headerFilter.click(function () {
-	    handleSectionSlide(containerFilter, $("#report_filter_section"), undefined, undefined, onDoneSlide);
+	    doFilterClick();
 	});
+
+	var elemHideAnnotations = $("#checkHideAnnotationTexts");
+	elemHideAnnotations[0].checked = (params["checkHideAnnotationTexts"] == "true");
+	elemHideAnnotations.click(function () {
+	    if (!g_sql)
+	        return; //too early
+	    params = getUrlParams();
+	    if (elemHideAnnotations[0].checked)
+	        params["checkHideAnnotationTexts"] = "true";
+	    else
+	        delete params["checkHideAnnotationTexts"];
+
+	    setSql(g_sql, g_valuesSql, params); //repeat last query
+	});
+    //review ugly
+	if (!idBoard && !boardName && !params["keyword"] && !params["sinceSimple"] && !params["weekStart"] && !params["weekEnd"]
+        && !params["monthStart"] && !params["monthEnd"] && !params["user"] && !params["team"] && !params["list"] && !params["card"]
+        && !params["label"] && !params["comment"] && !params["eType"] && !params["idCard"]) {
+        $("#filtersContainer").show();
+	    g_bDontQuery = true;
+	}
+
 
 	var headerUser = $("#headerByUser");
 	headerUser.off().click(function () {
@@ -146,13 +237,18 @@ function loadBurndown() {
 	});
 
     chrome.storage.local.get([PROP_TRELLOUSER, PROP_SHOWBOARDMARKERS], function (obj) {
-	    g_userTrello = (obj[PROP_TRELLOUSER] || null); //review zig handle null case when used in the future
-	    configBoardBurndownData(idBoard);
-	    g_bShowBoardMarkers = (obj[PROP_SHOWBOARDMARKERS] || false);
+        g_userTrello = (obj[PROP_TRELLOUSER] || null); //review zig handle null case when used in the future
+        g_bShowBoardMarkers = (obj[PROP_SHOWBOARDMARKERS] || false);
+        var bDontQuery = g_bDontQuery; //in case callback changes it
+        var srcUse = commonBuildUrlFromParams(params, "report.html?getsql=1");
+        $("#frameFilter").attr('src', srcUse); //this ends up calling us back to setSql()
+        if (bDontQuery)
+            setTimeout(doFilterClick, 250); //without timeout it wont work. likely from timing of resizeMe. did not investigate further
 	});
 }
 
 var g_bShowBoardMarkers = false;
+var g_bDontQuery = false; //in case user navivates without any parameters
 
 function makeRowMarkerParams(rowOrig, totalByUser) {
     var bOpen = (rowOrig.dateEnd == null);
@@ -254,7 +350,7 @@ function resetChartline() {
 }
 
 function resetTDOutput(output) {
-//obsolete
+    output.html("");
 }
 
 function loadTimeline(series) {
@@ -324,12 +420,13 @@ function loadTimeline(series) {
     function addAnnotationText(annotation,x,y) {
         var txt = plotAnnotations.foreground().append("text");
         txt.attr({
-            "text-anchor": "middle",
-            "font-size": "0.8em",
-            "font-weight" : "bold",
+            "text-anchor": "right",
+            "font-size": "0.7em",
+            "font-weight": "bold",
             "dx": "0em", //use if you want to offset x
             "dy": "1.5em", //offset y relative to text-anchor
-            "fill": g_colorTrelloBlack
+            "fill": g_colorTrelloBlack,
+            "writing-mode": "vertical-rl"
         });
         txt.text(annotation);
         txtAnnotations.push({ txt: txt, x: x, y: y });
@@ -369,7 +466,7 @@ function loadTimeline(series) {
     var output = d3.select("#timelineDetail");
     resetTDOutput(output);
 
-    var colorScale = new Plottable.Scales.Color().range(g_TimelineColors).domain(["Spent", "Estimate", "Remain", "!Annotation"]);
+    var colorScale = new Plottable.Scales.Color().range(g_TimelineColors).domain(["Spent", "Estimate", "Remain", "Annotation"]);
     var legend = new Plottable.Components.Legend(colorScale).xAlignment("center").yAlignment("center");
     var gridline = new Plottable.Components.Gridlines(xScale, yScale);
     gridline.addClass("timelineGridline");
@@ -388,7 +485,7 @@ function loadTimeline(series) {
 
     checkHideTimelineSpark(); //this before annotations, top chart height could change
     series.annotation.forEach(function (annotation) {
-        addAnnotationText(annotation.tooltip, annotation.x, annotation.y);
+        addAnnotationText(annotation.text, annotation.x, annotation.y);
     });
 
     g_tl.redrawAnnotations = redrawAnnotations;
@@ -467,15 +564,29 @@ function createCrosshair(plot) {
     return crosshair;
 }
 
-function setChartData(rows, idBoard) {
+//review: idBoard not correct anymore but ok as its only used by (unused) board markers feature
+function setChartData(rows, idBoard, params) {
     resetChartline();
-    $("#reportLink").show();
-    $("#boardLink").show();
 	var i = 0;
 	var seriesTimeline = {spent:[],est:[],remain:[],annotation:[]};
 	var spentTotal = 0;
 	var estTotal = 0;
 	var totalByUser = {};
+	const weekStart = params["weekStart"];
+	const weekEnd = params["weekEnd"];
+	const bHideAnnotation = (params["checkHideAnnotationTexts"] == "true");
+	var maxLength = 58; //hover tooltip shows full text
+
+	function shortenString(str) {
+	    if (str.length > maxLength)
+	        str = str.substring(0, maxLength) + "…";
+	    return str;
+	}
+
+
+	var remainTotalDisplay = 0;
+	var spentTotalDisplay = 0;
+	var estTotalDisplay = 0;
 	for (; i < rows.length; i++) {
 		var row = rows[i];
 
@@ -486,39 +597,64 @@ function setChartData(rows, idBoard) {
 		var comment = row.comment;
 		var card = row.nameCard;
 		var user = row.user;
-		if (totalByUser[user] === undefined)
-		    totalByUser[user] = { s: 0, e: 0, sNotR: 0, eNotR: 0, data: [] };
-		var totalsUser = totalByUser[user];
-		totalsUser.s += spent;
-		totalsUser.e += est;
-		if (card.indexOf(TAG_RECURRING_CARD) < 0) {
-		    totalsUser.sNotR += spent;
-		    totalsUser.eNotR += est;
+		if (user) { //!user when row is a card due date
+		    if (totalByUser[user] === undefined)
+		        totalByUser[user] = { s: 0, e: 0, sNotR: 0, eNotR: 0, data: [] };
+		    var totalsUser = totalByUser[user];
+		    totalsUser.s += spent;
+		    totalsUser.e += est;
+		    if (card.indexOf(TAG_RECURRING_CARD) < 0) {
+		        totalsUser.sNotR += spent;
+		        totalsUser.eNotR += est;
+		    }
+		    totalsUser.data.push(row); //for drill-down tooltip
+		    spentTotal += spent;
+		    estTotal += est;
+		    remainTotalDisplay = parseFixedFloat(estTotal - spentTotal);
+		    spentTotalDisplay = parseFixedFloat(spentTotal);
+		    estTotalDisplay = parseFixedFloat(estTotal);
+		    var annotation = "";
+		    var iAnnotation = comment.indexOf("!");
+		    if (iAnnotation == 0 || comment.indexOf("] !") > 0) //needs to start with ! (] happens when Spent autoinserts markers like [+E] in the comment
+		        annotation = comment.slice(iAnnotation + 1);
+
+		    var objHtml = {
+		        user: user, card: card, date: date, spent: parseFixedFloat(spent), est: parseFixedFloat(est), spentSum: spentTotalDisplay,
+		        estSum: estTotalDisplay, remainSum: remainTotalDisplay, idCard: idCard, note: comment
+		    };
+		    seriesTimeline.spent.push({ x: date, y: spentTotalDisplay, stroke: g_TimelineColors[0], drill: objHtml });
+		    seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
+		    seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
+		    if (annotation)
+		        seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation?"":shortenString(annotation), tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
 		}
-		totalsUser.data.push(row); //for drill-down tooltip
-		spentTotal += spent;
-		estTotal += est;
-		var remainTotalDisplay = parseFixedFloat(estTotal - spentTotal);
-		var spentTotalDisplay = parseFixedFloat(spentTotal);
-		var estTotalDisplay = parseFixedFloat(estTotal);
-		var annotation = "";
-		var iAnnotation = comment.indexOf("!");
-		if (iAnnotation == 0 || comment.indexOf("] !") > 0) //needs to start with ! (] happens when Spent autoinserts markers like [+E] in the comment
-			annotation = comment.slice(iAnnotation + 1);
-		
-		var objHtml = {
-            user:user, card:card, date:date, spent:parseFixedFloat(spent), est:parseFixedFloat(est), spentSum:spentTotalDisplay,
-		    estSum:estTotalDisplay, remainSum:remainTotalDisplay, idCard:idCard, note:comment
-            };
-		seriesTimeline.spent.push({ x: date, y: spentTotalDisplay, stroke: g_TimelineColors[0], drill: objHtml });
-		seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
-		seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
-		if (annotation) {
-		    var maxLength=40;
-		    if (annotation.length > maxLength)
-		        annotation = annotation.substring(0, maxLength);
-		    seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		else {
+		    if (row.dateDue) {
+		        //we use row.user to determine if this is a row from the 2nd UNION (due date list)
+		        //note: row.date will contain dateDue in this case.
+		        assert(row.dateDue == row.date);
+		        var bSkip = false;
+
+		        if (weekStart || weekEnd) {
+		            var week = getCurrentWeekNum(date);
+		            if ((weekStart && week < weekStart) || (weekEnd && week > weekEnd))
+		                bSkip = true;
+		        }
+		        if (!bSkip) {
+
+		            var objHtml = {
+		                user: user, card: card, date: date, spent: 0, est: 0, spentSum: spentTotalDisplay,
+		                estSum: estTotalDisplay, remainSum: remainTotalDisplay, idCard: idCard, note: "Card with due date."
+		            };
+                    //push E so user can click on the dot.
+		            seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
+
+		            var strNote = "Due: " + row.nameCard;
+		            seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation ? "" : shortenString(strNote), tooltip: strNote, sumSpent: 0, sumR: 0, isDue: true });
+		        }
+		    }
 		}
+        
 	}
 	g_dataUser = new google.visualization.DataTable();
 	g_dataUser.addColumn('string', 'Who');
@@ -538,8 +674,9 @@ function setChartData(rows, idBoard) {
 	var elemFilter = $("#filtersContainer");
 	var elemByUserContainer = $("#chartUserContainer");
 	var elemTimeline = $("#timeline");
+	elemFilter.show();
 	if (rows.length == 0) {
-	    elemProgress.innerText = "No data for given board.";
+	    elemProgress.innerText = "No S/E or due dates for the given board/filters.";
 	    elemProgress.style.display = "block";
 	    elemByUserContainer.hide();
 	    chartBottom.hide();
@@ -549,7 +686,6 @@ function setChartData(rows, idBoard) {
 	else {
 		elemProgress.style.display = "none";
 		var heightUser = ((2 + g_dataUser.getNumberOfRows()) * g_heightBarUser);
-		elemFilter.show();
 		elemByUserContainer.show();
 		chartBottom.show();
 		chartBottom.css("height", "" + heightUser);
@@ -618,10 +754,13 @@ function getHtmlBurndownTooltip(user, card, date, spent, est, sTotal, eTotal, rT
 
 	html += makeDateCustomString(date, true) + " (" + getCurrentWeekNum(date)+") ";
 	html += '<A target="_blank" href="' + url + '">' + card + '</A> ';
-	html += 'by ' + user + '. ';
-	html += 'S:' + spent + '  E:' + est;
+	if (user)
+	    html += 'by ' + user;
+	html += '. ';
+	if (spent!=0 || est!=0)
+	    html += 'S:' + spent + '  E:' + est + ".";
 	if (comment != "")
-	    html += '. Note:' + comment;
+	    html += " "+comment;
 	html += '<br>Total S:' + sTotal + '&nbsp; E:' + eTotal + '&nbsp; R:' + rTotal;
 	return html;
 }

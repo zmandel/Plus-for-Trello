@@ -14,10 +14,12 @@ var SYNCMETHOD = {
 var Help = {
     m_bShowing: false, //necessary to catch the possibility of null m_container on a consecutive display call
 	m_container: null,
-
-	raw: function (h) {
+    m_extraElems:[],
+	raw: function (h, container) {
+	    if (!container)
+	        container = this.m_container;
 		var elem = $(h);
-		this.m_container.append(elem);
+		container.append(elem);
 		return elem;
 	},
 	para: function (h, container) {
@@ -172,8 +174,15 @@ var Help = {
 	        return true; //do default action for this element
 	    });
 	    helpWin.m_container = container;
-	    var elemClose = helpWin.raw('<div style="float:right;width:18px;"><img id="agile_help_close" class="agile_close_button" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
-	    elemClose = elemClose.find("#agile_help_close");
+	    helpWin.m_extraElems = [];
+	    setTimeout(function () {
+	        //NOTE: these two fixed elements must go outside of the scrolling element to avoid an issue (most likely a chrome bug) where the element is not painted unless the window is very wide.
+	        //in that case, while resizing the window, a transparent area starts to cover these fixed elements. After much debugging, I found that when the help pane has no scrollbar, the issue goes away,
+            //this is likely related to stacking context changes in chrome, in this case there are two scrollbars: one in trello and another in the help pane.
+	        //This was fixed by moving these two elements out of the pane, make them topmost, and track them with m_extraElems
+	        var containerFixed = $(body);
+	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_topmost" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
+	        helpWin.m_extraElems.push(elemClose);
 	    elemClose.click(function () {
 	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
 	            var msgAlert = "You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.";
@@ -200,8 +209,8 @@ var Help = {
 	        Help.close(false);
 	    });
 
-	    var elemTop = helpWin.raw('<div style="float:right;width:18px;"><img class="agile_help_top" src="' + chrome.extension.getURL("images/helptop.png") + '"></img></div>');
-	    elemTop = elemTop.find(".agile_help_top");
+	    var elemTop = helpWin.raw('<img class="agile_help_top agile_topmost" src="' + chrome.extension.getURL("images/helptop.png") + '"></img>', containerFixed);
+	    helpWin.m_extraElems.push(elemTop);
 	    elemTop.click(function () {
 	        helpWin.m_container.animate({ scrollTop: helpWin.m_container.offset().top }, 350);
 	    });
@@ -214,7 +223,7 @@ var Help = {
 	            opacity: 0.33
 	        }, 4000);
 	    }, 8000);
-
+	    }, 200);
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
 	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars and help spread the word!">Rate</A>&nbsp;&nbsp \
 			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
@@ -525,12 +534,13 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        syncSectionsMap[SYNCMETHOD[sMethod]] = div;
 	    }
 
+	    var bAddFirstSyncNote = !g_bEnableTrelloSync;
 	    var bDisplayedLegacyNote = false;
 	    if (helpWin.hasLegacyRows) {
 	        helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
 	        bDisplayedLegacyNote = true;
 	    }
-	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally but do not close it until sync finishes.");
+	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally. You may close Trello but leave at least one Chrome window open until sync finishes.");
 	    helpWin.para('If you switch sync methods or change keywords, "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here</A> for more sync details.');
 
@@ -554,11 +564,17 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
 	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
-	    txtSEByCardComments = txtSEByCardComments + '<br><br>Find all boards that you are not a member (thus Plus wont sync their S/E):<br><input type="button" value="Find boards" />';
+
+	    var buttonshowNonMemberBoardsDialog = null; 
+
+	    if (!bAddFirstSyncNote)
+	        txtSEByCardComments = txtSEByCardComments + '<br><br>Find all boards that you are not a member (Plus syncs on boards with your membership):<br><input type="button" value="Find boards" />';
+
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
-	    var buttonshowNonMemberBoardsDialog = paraEnterSEByCardComments.children('input:button:last');
+	    if (!bAddFirstSyncNote)
+	        buttonshowNonMemberBoardsDialog = paraEnterSEByCardComments.children('input:button:last');
 	    helpWin.para("&nbsp;", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetStealth];
@@ -606,7 +622,6 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para("&nbsp;", divCur);
 
 	    var valCombo = null;
-	    var bAddFirstSyncNote = !g_bEnableTrelloSync;
 
 	    function onComboSyncChange() {
 	        var valComboOld = valCombo;
@@ -727,9 +742,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        doSaveKeywords(true);
 	    });
 
-	    buttonshowNonMemberBoardsDialog.click(function () {
-	        showNonMemberBoardsDialog();
-	    });
+	    if (buttonshowNonMemberBoardsDialog) {
+	        buttonshowNonMemberBoardsDialog.click(function () {
+	            showNonMemberBoardsDialog();
+	        });
+	    }
 
 	    function setEnableTrelloSyncValue(bValue, bValueSyncByComments, bDisabled, bStealthSEMode) {
 	        worker();
@@ -805,7 +822,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/plusmenu.png") + '"/>');
 	    helpWin.para('<A href="https://www.youtube.com/watch?v=gbAZXtaRi5o" target="_blank">Don\'t see the Plus menu icon?</A>');
 	    helpWin.para('The icon changes to <img src="' + chrome.extension.getURL("images/icon19new.png") + '"/> (green dot top-left) when there are <b>new S/E</b> rows from your team.');
-	    helpWin.para('Click the menu to open a board, card, report or dashboard even when offline.');
+	    helpWin.para('Click the menu to open a board, card, report or burndown even when offline.');
 	    helpWin.para('Find boards, top 10 cards (last 12 months) and Plus notes (last 4 months).');
         helpWin.para('Type words in any order. Cards are searched if you type three or more characters.');
 	    helpWin.para('Use pattern matching with <b>*</b> for "any characters" and <b>?</b> for "single character" (<a target="_blank" href="http://en.wikipedia.org/wiki/Glob_(programming)#Syntax">GLOB syntax</a>).');
@@ -859,10 +876,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; The initial Estimate climb (blue) happens during an estimation period and later remains stable.');
 	    helpWin.para('&bull; In that estimation period the blue dots are equal to the green dots since no Spent is being done yet.');
 	    helpWin.para('&bull; Then, the red line (Spent) climbs daily making the green line (Remaining) go down.');
-	    helpWin.para('&bull; At the end, green (R) stays at zero and red (S) stops climbing.');
+	    helpWin.para('&bull; In the end, green (R) stays at zero and red (S) stops climbing.');
 	    helpWin.para('&bull; Click on a dot to see more details and drill-down to the card.');
 	    helpWin.para('&bull; Click on a user chart bar to drill-down into a report and cards.');
 	    helpWin.para('&bull; Add a chart annotation by entering a card S/E row with a <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">note starting with "!"</A>.');
+	    helpWin.para('&bull; Include multiple boards by customizing filters or first make a report, then pick "burndown" from the chart tab.');
 	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">See another example</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -879,7 +897,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
 	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to send to the clipboard. Paste on a spreadsheet or email.');
 	    helpWin.para('&bull; Drill-down on any chart bar or pivot cell to get a detailed report.');
-	    helpWin.para('&bull; Reports and dashboards work offline from the Chrome Plus menu and can be bookmarked or emailed by URL.');
+	    helpWin.para('&bull; Reports and burndowns work offline from the Chrome Plus menu and can be bookmarked or emailed by URL.');
 	    helpWin.para('&bull; The <b>E. type</b> column tells if the row Estimate is new, increases (+E) or decreases (-E) the card estimate per user.');
 	    helpWin.para('&bull; A blank E. type means the estimate was not affected.');
 	    helpWin.para('&bull; <A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html">Detailed report help</A>.');
@@ -935,7 +953,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        comboDowStart.append($(new Option("sunday", "0")));
 	        comboDowStart.append($(new Option("monday", "1")));
 	        comboDowStart.val(DowMapper.getDowStart());
-	        pComboDow.append($('<span>. Change it anytime. All users should have the same setting or numbering will be off.</span>'));
+	        pComboDow.append($('<span>. Change it anytime. All users should have the same setting.</span>'));
 	        var statusDow = $("<b></b>").hide();
 	        pComboDow.append(statusDow);
 	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
@@ -1356,6 +1374,9 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	        return;
 	    objHelp.m_bShowing = false;
 	    sendExtensionMessage({ method: "endPauseSync" }, function (response) {
+	        while (objHelp.m_extraElems && objHelp.m_extraElems.length > 0)
+	            objHelp.m_extraElems.pop().remove();
+	        objHelp.m_extraElems = [];
 	        objHelp.m_container.fadeOut('fast', function () {
 	            var container = objHelp.m_container;
 	            objHelp.m_container = null;

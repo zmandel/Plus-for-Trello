@@ -345,16 +345,20 @@ function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependN
 
         if (!disabled && strPrependNonDisabled)
             str = strPrependNonDisabled + str;
-        var item = new Option(str, val);
-        if (val == kwSelected)
-            item.selected = true;
-        var elemOption = $(item);
+        var elemOption;
+        if (disabled)
+            elemOption = $('<optgroup label="' + str + '">');
+        else {
+            elemOption = $(new Option(str, val));
+            if (val == kwSelected)
+                elemOption[0].selected = true;
+        }
+        
+
         if (classItem)
             elemOption.addClass(classItem);
         if (title)
             elemOption.attr("title", title);
-        if (disabled)
-            item.disabled = true;
         comboKeywords.append(elemOption);
     }
 

@@ -556,7 +556,7 @@ function startOpenDB(config, user) {
 			        showFatalError(response.status);
 			        return;
 			    }
-				g_cRowsHistoryLast = response.cRowsTotal;
+			    g_cRowsHistoryLast = response.cRowsTotal; //review: only this caller uses cRowsTotal. that and 'dateMin' could be an option of handleOpenDB
 				g_dbOpened = true;
 				onDbOpened();
 				doWeeklyReport(config, user, true, false, false); //bRefreshCardReport=false because onDbOpened already does so REVIEW zig detect it in a cleaner way
@@ -1115,7 +1115,7 @@ function getKeywordsViewList() {
     }
 
     if (rgItems.length >= 1) {
-        rgItems.unshift({ str: "➖ Board Dimensions ➖", val: VAL_COMBOVIEWKW_HEADER, disabled: true });
+        rgItems.unshift({ str: "Board Dimensions", val: VAL_COMBOVIEWKW_HEADER, disabled: true });
         rgItems.push({ str: '\u00A0'+"All S/E", val: VAL_COMBOVIEWKW_ALL });
         rgItems.push({ str: "───────────────", val: VAL_COMBOVIEWKW_SEP, disabled: true });
         if (bMultipleKeywords)
@@ -1273,16 +1273,13 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 		return false;
 
 	if (burndownLink.length == 0) {
-	    burndownLink = $("<img title='Plus - Board Dashboard'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
+	    burndownLink = $("<img title='Plus - Board Burndown'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
 	    burndownLink.insertAfter(spentTotal);
 	    burndownLink.click(function () {
-	        var boardCur = getCurrentBoard(); //board could have changed relative to "board"
-	        if (boardCur == null)
-	            return false;
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
 	        if (idBoardCur == null)
 	            return false;
-	        var url = chrome.extension.getURL("dashboard.html") + "?board=" + encodeURIComponent(boardCur) + "&idBoard=" + encodeURIComponent(idBoardCur);
+	        var url = chrome.extension.getURL("dashboard.html") + "?idBoard=" + encodeURIComponent(idBoardCur);
 	        window.open(url, '_blank');
 	        return false;
 	    });
@@ -1329,13 +1326,8 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	    });
 	}
 
-	if (bShowHeaderStuff) {
-	    burndownLink.show();
-		reportLink.show();
-	} else {
-		reportLink.show();
-	    burndownLink.hide();
-	}
+	burndownLink.show();
+	reportLink.show();
 
 	if (!g_bheader.comboSEView) {
 	    g_bheader.comboSEView = getKeywordsViewList();
@@ -1494,9 +1486,9 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		row2.append(cellD);
 		waiter.SetWaiting(true);
 		var divItemDashboardRecent = addModuleSection(true, false, cellA, "", idRecentModule, true, "left", false);
-		divItemDashboardRecent.addClass("agile_spent_item_title  agile_spent_item_combo");
+		divItemDashboardRecent.addClass("agile_spent_item_title  agile_spent_item_combo").attr("title", "Your recent S/E.\n\nTip: control+click items to open in a new tab");
 		var divItemDashboardUnspent = addModuleSection(true, false, cellA, "", idPendingModule, true, "left", false);
-		divItemDashboardUnspent.addClass("agile_spent_item_combo");
+		divItemDashboardUnspent.addClass("agile_spent_item_combo").attr("title", "Your remaining S/E.\n\nTip: control+click items to open in a new tab");
 		chartModuleLoader(waiter, divSpentItems, cellC, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left", true);
 		chartModuleLoader(waiter, divSpentItems, cellD, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left", true);
 		loadDashboards(waiter, divItemDashboardRecent, divItemDashboardUnspent, user);
@@ -1622,13 +1614,15 @@ function doRecentReport(waiter, elemRecent, user) {
 		function (response) {
 		    elemRecent.empty();
 		    elemRecent.append($(new Option("► Recent", "")).addClass("agile_section_comboTitle"));
-		    handleLoadRecent(elemRecent, response.rows);
+		    elemRecent.append($(new Option("↗ Open report", VAL_COMBO_OPENREPORT)));
+		    handleLoadRecent(elemRecent, response.rows, user);
 			elemRecent.parent().show();
 			if (waiter)
 			    waiter.Decrease();
 		});
 }
 
+const VAL_COMBO_OPENREPORT = "//"; //special string that wont collide with idCard
 
 function doPendingReport(waiter, elemPending, user) {
     if (g_bHidePendingCards) {
@@ -1648,7 +1642,8 @@ function doPendingReport(waiter, elemPending, user) {
 		function (response) {
 		    elemPending.empty();
 		    elemPending.append($(new Option("► Remain", "")).addClass("agile_section_comboTitle"));
-		    handleLoadPending(elemPending, response.rows);
+		    elemPending.append($(new Option("↗ Open report", VAL_COMBO_OPENREPORT)));
+		    handleLoadPending(elemPending, response.rows, user);
 			elemPending.parent().show();
 			if (waiter)
 			    waiter.Decrease();
@@ -1675,7 +1670,7 @@ function addDashboardListItem(list, name, url, tooltip) {
 	return option;
 }
 
-function handleLoadRecent(combo, data) {
+function handleLoadRecent(combo, data, user) {
     var i = 0;
     var dateNow = new Date();
 	for (; i < data.length; i++) {
@@ -1715,16 +1710,42 @@ function handleLoadRecent(combo, data) {
 
 		addDashboardListItem(combo, strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), row.idCard, tooltip);
 	}
+
+	var msDateLastCtrlClick = 0;
+	combo.off("keydown").on("keydown", function (ev) {
+	    //chrome does not fill the "change" event ctrlKey paramenters, thus we must remember here that a ctrl keydown happened.
+	    if (ev && ev.ctrlKey)
+	        msDateLastCtrlClick = performance.now();
+	});
+
 	combo.off("change").on("change", function (ev) {
 	    var id = combo.val();
-	    if (id)
-	        window.location.href = "https://trello.com/c/" + id;
+	    combo.val("");
+
+	    if (id) {
+	        if (id == VAL_COMBO_OPENREPORT) {
+	            var params = "?chartView=s&groupBy=idCardH&orderBy=date&sinceSimple=w-4&user=" + user + "&archived=0&deleted=0";
+	            window.open(chrome.extension.getURL("report.html") + params, "_blank");
+	        } else {
+	            //must use timeout because this event arrives before the keydown event above
+	            var msChange = performance.now();
+	            setTimeout(function () {
+	                var url = "https://trello.com/c/" + id;
+	                if (msDateLastCtrlClick && Math.abs(msChange - msDateLastCtrlClick) < 500) {
+	                    window.open(url, "_blank");
+	                    return;
+	                }
+	                window.location.href = url;
+	            }, 300);
+	        }
+	    }
 	});
 }
 
-function handleLoadPending(combo, data) {
+function handleLoadPending(combo, data, user) {
     var i = 0;
     var dateNow = new Date();
+    var bAddedSeparatorOld = false;
 	for (; i < data.length; i++) {
 		var row = data[i];
 		if (row.dateLocal == null)
@@ -1749,14 +1770,43 @@ function handleLoadPending(combo, data) {
 			bError = true;
 		}
 
+		if (cDays > 7 && !bAddedSeparatorOld) {
+		    bAddedSeparatorOld = true;
+		    var optSepOlder = $('<optgroup label="Older than 7 days:">');
+		    combo.append(optSepOlder);
+		}
 		var span = addDashboardListItem(combo, parseFixedFloat(row.diff) + " \u00A0\u00A0\u00A0" + strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), row.idCard, tooltip);
 		if (bError)
 			span.addClass("agile_card_error");
 	}
+
+	var msDateLastCtrlClick = 0;
+	combo.off("keydown").on("keydown", function (ev) {
+	    //chrome does not fill the "change" event ctrlKey paramenters, thus we must remember here that a ctrl keydown happened.
+	    if (ev && ev.ctrlKey)
+	        msDateLastCtrlClick = performance.now();
+	});
+
 	combo.off("change").on("change", function (ev) {
 	    var id = combo.val();
-	    if (id)
-	        window.location.href = "https://trello.com/c/" + id;
+	    combo.val("");
+	    if (id) {
+	        if (id == VAL_COMBO_OPENREPORT) {
+	            var params="?chartView=r&groupBy=idCardH&orderBy=remain&user="+user+"&archived=0&deleted=0&sortList=%5B%5B%22Date%22%2C1%5D%5D";
+	            window.open(chrome.extension.getURL("report.html")+params, "_blank");
+	        } else {
+	            //must use timeout because this event arrives before the keydown event above
+	            var msChange = performance.now();
+	            setTimeout(function () {
+	                var url = "https://trello.com/c/" + id;
+	                if (msDateLastCtrlClick && Math.abs(msChange - msDateLastCtrlClick) < 500) {
+	                    window.open(url, "_blank");
+	                    return;
+	                }
+	                window.location.href = url;
+	            }, 200);
+	        }
+	    }
 	});
 }
 

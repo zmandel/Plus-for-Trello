@@ -205,7 +205,15 @@ function listAllBoards() {
 	    var rows = response.rows;
 
 	    if (rows === undefined || rows.length == 0) {
-	        status.text("No boards or cards until sync.");
+	        var textStatus;
+
+	        if (!g_bEnableTrelloSync)
+	            textStatus = "Plus Sync is not yet enabled. Open trello.com, click the Plus icon (right of 'tour') and enable sync.";
+	        else if ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true")
+	            textStatus = "First sync has not yet completed. Come back in a couple minutes.";
+	        else
+	            textStatus = "No boards with you as member.";
+	        status.text(textStatus);
 	        status.show();
 	        return;
 	    }
@@ -216,11 +224,11 @@ function listAllBoards() {
 	    for (; rows && i < rows.length; i++) {
 	        var item = $("<div tabindex=0>").addClass("agile_board_dashboardItem");
 	        var row = rows[i];
-	        var url = urlBaseDashboard + "idBoard=" + encodeURIComponent(row.idBoard) + "&board=" + encodeURIComponent(row.name);
+	        var url = urlBaseDashboard + "idBoard=" + encodeURIComponent(row.idBoard);
 	        var a1 = $("<div class='agile_board_dashboardItem_name'>").text(row.name);
 	        var a2 = $("<div class='agile_board_dashboardItem_row2'>");
 	        mapBoards[row.idBoard] = { div: item, se: a2, name: row.name };
-	        var imgDash = $("<img title='Dashboard'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_popup");
+	        var imgDash = $("<img title='Burndown'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_popup");
 	        var imgReport = $("<img title='Report'>").attr("src", chrome.extension.getURL("images/report-sm.png")).addClass("agile_img_popup");
 	        var urlReport = urlBaseReport + encodeURIComponent(row.idBoard);
 	        setPopupClickHandler(imgDash, url);
