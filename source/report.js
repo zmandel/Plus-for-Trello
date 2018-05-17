@@ -625,6 +625,7 @@ document.addEventListener('DOMContentLoaded', function () {
             $("#sinceSimple").parent().hide();
             $("#pivotBy").parent().hide();
             $(".agile_tab_rest").hide();
+            $(".agile_tab_chart").show();
         }
     }
     else {
@@ -1939,9 +1940,10 @@ var g_dataChart = null;
 function saveDataChart(rows, urlParams) {
     g_chartContainer = null;
     g_dataChart = null;
-    var groupBy = urlParams["groupBy"];
-    var bAllDates = (urlParams["sinceSimple"] == "");
-    var bHasIdBoardFilter = (!!urlParams["idBoard"]);
+    const groupBy = urlParams["groupBy"];
+    const bAllDates = (urlParams["sinceSimple"] == "");
+    const bHasIdBoardFilter = (!!urlParams["idBoard"]);
+    const bRemain = (urlParams["orderBy"] == "remain");
     var elemMessage = $("#chartMessage");
     elemMessage.text(""); //reset
 
@@ -2009,11 +2011,12 @@ function saveDataChart(rows, urlParams) {
         prepend += REPORTCHART_LABEL_PREPENDSEP;
         yField = prepend + yField;
         
-        if (rowCur.spent != 0 || (bShowR && rowCur.est != 0)) {
-            if (rowCur.spent != 0)
+        if (bRemain || (rowCur.spent != 0 || (bShowR && rowCur.est != 0))) {
+            if (!bRemain && rowCur.spent != 0) {
                 dataS.push({ x: parseFixedFloat(rowCur.spent), y: yField });
-            if (rowCur.spent<0)
-                bHasNegatives=true;
+                if (rowCur.spent < 0)
+                    bHasNegatives = true;
+            }
             if (bShowR) {
                 var rCalc = parseFixedFloat(rowCur.est - rowCur.spent);
                 if (g_bAllowNegativeRemaining && rCalc < 0) {
@@ -2032,12 +2035,17 @@ function saveDataChart(rows, urlParams) {
         dataR: dataR,
         domain: domain,
         bShowR: bShowR,
+        bRemain: bRemain,
         bHasNegatives: bHasNegatives
     };
-
-    if (dataS.length == 0)
-        textMessage += " There is no Spent/Estimate to chart.";
     
+    if (!bRemain) {
+        if (dataS.length == 0)
+            textMessage += " There is no Spent/Estimate to chart.";
+    } else {
+        if (dataR.length == 0)
+            textMessage += " There is no Remain to chart.";
+    }
     elemMessage.text(textMessage);
     return;
 }
@@ -2056,7 +2064,8 @@ function fillChart() {
         colors.push("#519B51");
         labelTexts.push("Remain");
     }
-    var colorScale = new Plottable.Scales.Color().range(colors).domain(labelTexts);
+    var colorScale = new Plottable.Scales.Color().range(g_dataChart.bRemain ? [colors[1]] : colors).
+        domain(g_dataChart.bRemain ? [labelTexts[1]] : labelTexts);
     var legend = new Plottable.Components.Legend(colorScale).xAlignment("center").yAlignment("center");
     var yScale = new Plottable.Scales.Category().domain(g_dataChart.domain);
     var xScale = new Plottable.Scales.Linear();
@@ -2081,9 +2090,12 @@ function fillChart() {
     };
 
     var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
-        addDataset(datasets.ds).labelsEnabled(true).animated(true).addClass("chartReportStyle");
-    if (!g_dataChart.bHasNegatives)
+        addDataset(datasets.ds).labelsEnabled(true).addClass("chartReportStyle");
+    if (false && !g_dataChart.bHasNegatives) //review caused problems in popup and with negative values (scale changed), not well tested to enable in non popup
         chart.deferredRendering(true);
+
+    if (!g_bPopupMode)
+        chart.animated(true);
 
     if (g_dataChart.bShowR)
         chart.addDataset(datasets.dr);
