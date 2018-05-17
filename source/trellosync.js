@@ -319,7 +319,7 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
             });
         }
 
-        getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process);
+        getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process, bUserInitiated);
         }
     
     function sendResponse(response) {
@@ -1931,7 +1931,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
 }
 
 
-function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, sendResponse) {
+function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, sendResponse, bUserInitiated) {
     assert(boardsReport);
 
     if (false) { //debugging
@@ -2168,7 +2168,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                         return;
                                     }
                                     
-                                    doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cLimitCardsSearch, function (data) {
+                                    doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDaysDelta, cLimitCardsSearch, function (data) {
                                         if (data.status != STATUS_OK) {
                                             sendResponse(data);
                                             return;
@@ -2683,18 +2683,23 @@ function matchCommentParts(text,date, bRecurringCard) {
     return ret;
 }
 
+var g_bDisplayedDSCWarning = false;
 
-function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitRetry) {
+function doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitRetry) {
     //https://developers.trello.com/advanced-reference/search
 
     //warning: card_fields must be the same as the fields we get in card actions, see bUpdateAlldataCard for relevant fields. Otherwise a search
     //calling on bUpdateAlldataCard could update dateSzLastTrello to a newer date and moot action change updates, as the action will have a slightly smaller date
         
+    var dscTrello=localStorage["trelloAuth-dsc"];
     var url = "https://trello.com/1/search?query=edited:" + cDaysDelta +
         "&modelTypes=cards&cards_limit=" +
         cCardsLimit +
         "&card_fields=closed,due,idList,name,dateLastActivity,labels,shortLink,idBoard,idShort" +  //warning: idBoard is trello long idBoard
         "&idBoards=" + idBoardsSearch.join();
+    if (dscTrello)
+        url = url + "&dsc=" + dscTrello;
+
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
 
@@ -2705,8 +2710,9 @@ function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLi
             function handleFinishRequest() {
                 var objRet = { status: "unknown error", hasPermission: false };
                 var bReturned = false;
+                var status = xhr.status;
 
-                if (xhr.status == 200) {
+                if (status == 200) {
                     try {
                         objRet.hasPermission = true;
                         objRet.search = JSON.parse(xhr.responseText);
@@ -2717,16 +2723,27 @@ function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLi
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission. should not happen in search case
+                    if (status == 400) {
+                        objRet.status = "Error: Trello authentication expired. Please open or refresh trello.com to fix.";
+                        g_cErrorSync++; //hack alert: this prevents the counter from reaching 1 later, thus skipping the retry code in g_loaderDetector.init
+                        if (!g_bDisplayedDSCWarning || bUserInitiated) {
+                            g_bDisplayedDSCWarning = true;
+                            handleShowDesktopNotification({
+                                notification: objRet.status,
+                                timeout: 15000
+                            });
+                        }
+                    }
+                    else if (bHandledDeletedOrNoAccess(status, objRet)) { //no permission. should not happen in search case
                         null; //happy lint
                     }
-                    else if (xhr.status == 429) { //too many request, reached quota.
+                    else if (status == 429) { //too many request, reached quota.
                         var waitNew = (waitRetry || 500) * 2;
                         if (waitNew < 8000) {
                             bReturned = true;
                             setTimeout(function () {
                                 console.log("Plus: retrying api call"); //review zig put this in the generic version
-                                doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitNew);
+                                doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitNew);
                             }, waitNew);
                         }
                         else {

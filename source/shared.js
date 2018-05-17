@@ -674,7 +674,7 @@ var g_lastLogPush = null;
 var g_lastLogError = "";
 
 function bIgnoreError(str) {
-    return (str.indexOf("Error connecting to extension") >= 0);
+    return (str.indexOf("Error connecting to extension") >= 0 || str.indexOf("Invocation of form runtime")>=0);
 }
 
 //logPlusError
@@ -708,7 +708,7 @@ function logPlusError(str, bAddStackTrace) {
 	        if (typeof document != "undefined" && typeof PLUS_BACKGROUND_CALLER == "undefined")
 	            console.dir(document.body);
 	        //hi to me
-	        if (str && str.indexOf("sendMessageImpl") < 0) //sendMessageImpl detects if the extension was updated thus port object breaks
+	        if (str)
 	            alert(str);
 	    }
 	}

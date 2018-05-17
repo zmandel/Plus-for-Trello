@@ -174,7 +174,7 @@ function updateUrlState(params) {
     if (g_namedReport)
         params[g_namedParams.namedReport] = g_namedReport;
     if (g_sortListNamed)
-        params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed); //preserve sortist HIPRI only if sort didnt change?
+        params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed);
     var url = buildUrlFromParams(params);
     window.history.replaceState('data', '', url);
     updateNamedReport(url);

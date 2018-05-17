@@ -110,7 +110,7 @@ function showExtensionUpgradedError(e) {
     g_bErrorExtension = true;
     var message = "";
     //note: newer chrome no longer detects the "connecting to extension" error and instead throws a general "Cannot read property 'name' from Undefined" error.
-    if (e && e.message && !bIgnoreError(e.message) && e.message.indexOf("Cannot read property")<0)
+    if (e && e.message && !bIgnoreError(e.message))
         message = e.message;
 
     var divDialog = $("#agile_dialog_ExtensionUpgraded");
@@ -242,12 +242,31 @@ $(function () {
             //http://tablesorter.com/docs/example-parsers.html
             //http://stackoverflow.com/a/2129479/2213940
             addTableSorterParsers();
+
+            setTrelloAuth(); //do this earliest
+            setInterval(setTrelloAuth, 10000);
+
             loadOptions(function () {
                 entryPoint();
             });
         }, 600); //"run_at": "document_start" is before trello does ajax so breathe and dont compete with trello load
     });
 });
+
+var g_dscTrello = null;
+function setTrelloAuth(callback) {
+    var dscNew = $.cookie("dsc");
+    if (dscNew && dscNew != g_dscTrello) {
+        g_dscTrello = dscNew;
+        sendExtensionMessage({ method: "setTrelloAuthData", dsc: dscNew }, function () {
+            if (callback)
+                setTimeout(callback,1); //prevent recursing from message callback
+        });
+    } else if (callback) {
+        callback();
+    }
+}
+
 
 function entryPoint() {
     //note: this also does setInterval on the callback which we use to do sanity checks and housekeeping

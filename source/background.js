@@ -893,6 +893,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
                     sendResponse({ config: retConfig });
             }, bSkipCache);
         }
+        else if (request.method == "setTrelloAuthData") {
+            localStorage["trelloAuth-dsc"] = request.dsc;
+            sendResponse({ status: STATUS_OK });
+        }
         else if (request.method == "getBoardsWithoutMe") {
             buildBoardsWithoutMe(function (response) {
                 sendResponse(response);

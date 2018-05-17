@@ -1,0 +1,49 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25123.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{2C5D4E06-B3F8-406C-AFB9-7729DC9AB044}"
+	ProjectSection(SolutionItems) = preProject
+		app.js = app.js
+		background.html = background.html
+		background.js = background.js
+		board.js = board.js
+		burndown.html = burndown.html
+		burndown.js = burndown.js
+		buttons.js = buttons.js
+		card.js = card.js
+		css\colors.css = css\colors.css
+		commitsync.js = commitsync.js
+		dashboard.html = dashboard.html
+		dashboard.js = dashboard.js
+		help.js = help.js
+		intellisense.js = intellisense.js
+		labels.js = labels.js
+		language.js = language.js
+		manifest.json = manifest.json
+		plus.js = plus.js
+		plusconfig.js = plusconfig.js
+		plusmessages.html = plusmessages.html
+		plusmessages.js = plusmessages.js
+		popup.html = popup.html
+		popup.js = popup.js
+		report.html = report.html
+		report.js = report.js
+		shared.js = shared.js
+		sql.js = sql.js
+		css\style.css = css\style.css
+		timerwin.html = timerwin.html
+		timerwin.js = timerwin.js
+		tour.js = tour.js
+		trellosync.js = trellosync.js
+	EndProjectSection
+	ProjectSection(FolderGlobals) = preProject
+		__JSONSchema = http://json.schemastore.org/tslint
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

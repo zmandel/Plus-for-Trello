@@ -767,6 +767,12 @@ function onDbOpened() {
 	}
 }
 
+//REVIEW zig: workarround for Trello auth "dsc" issue
+function AuthAndsendExtensionMessage(obj, responseParam, bRethrow) {
+    setTrelloAuth(function () {
+        sendExtensionMessage(obj, responseParam, bRethrow);
+    });
+}
 
 function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
     if (Help.isVisible() || isPlusDisplayDisabled())
@@ -816,7 +822,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
         //when bEnterSEByComments, we want to go through google sync, which will route it to trello sync and take care of uptading history rows related stuff
         //review zig: this option will soon be imposible to configure in help, but legacy users could have it (thou we force-upgrade them on open except the few that declined it back when it was optional)
         if (g_bEnableTrelloSync && !bDidTrelloSync && !bEnterSEByComments) {
-            sendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello, bUserInitiated: !bFromAuto },
+            AuthAndsendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello, bUserInitiated: !bFromAuto },
             function (response) {
                 var statusSync = response.status;
                 if (response.status != STATUS_OK) {
@@ -861,7 +867,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
             return;
         }
         bSetStatus = false;
-        sendExtensionMessage({ method: "syncDB", config: config, bUserInitiated: !bFromAuto, tokenTrello: tokenTrello },
+        AuthAndsendExtensionMessage({ method: "syncDB", config: config, bUserInitiated: !bFromAuto, tokenTrello: tokenTrello },
             function (response) {
                 statusSync = response.status;
                 if (statusSync == "busy")
