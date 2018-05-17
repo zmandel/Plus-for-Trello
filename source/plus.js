@@ -88,6 +88,84 @@ function showAproveGoogleSyncPermissions(callback) {
     divDialog[0].showModal();
 }
 
+function handleProAproval(callback) {
+    showApproveProTrialDialog(function (bOK) {
+        if (!bOK) {
+            callback("cancelled");
+        }
+        else {
+            sendExtensionMessage({ method: "requestProPermission" }, function (response) {
+                callback(response.status);
+            });
+        }
+    });
+}
+
+function showApproveProTrialDialog(callback) {
+
+    //generate a user action (OK click) to ask for new permissions
+    //also get permission from user to upgrade to Pro
+    var divDialog = $(".agile_dialog_showAprovePro");
+    if (divDialog.length == 0) {
+        //note: tabindex="1" will set focus to the title. this is to prevent focus to other elements that may cause a scroll down of the dialog on small screens.
+        divDialog = $('\
+<dialog class="agile_dialog_showAprovePro agile_dialog_DefaultStyle"> \
+<h2  tabindex="1" id="agile_dialog_showAprovePro_Top" style="outline: none;" align="center">Plus for Trello - "Pro" version</h2>\
+<p align="justify">\
+Good news! we have new "Pro" paid features!<br>\
+Can\'t pay? No problem! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them along with the "Pro" features.<\p>\
+<br>\
+<h3>Why?</h3>\
+<p align="justify">\
+We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 50K daily users and 180+ updates since 2013! Writing great software takes a lot of effort, talent and knowledge.<br>\
+We have never sacrificed quality but without charging we can only go so fast.\
+<\p>\
+<br>\
+<h3>Which features are "Pro"?</h3>\
+<p align="justify">\
+Besides our newly-added <b>labels support</b> in reports, Chrome Plus menu, burn-downs and offline, we have many <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">pending features</a> like "Ping" and "Time in lists" charts which we will add over time.\
+<\p>\
+<br>\
+<h3>How to enable "Pro"?</h3>\
+<p align="justify">\
+By Pressing "Approve", you accept to purchase later this year the "Pro" licence for $9.⁹⁹ yearly per user through the Chrome store (*). Until then, "Pro" features will run as free trial.<br>\
+You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement</A>.<br>\
+<\p>\
+<br>Once you approve, Chrome will also ask your approval for:\
+<ul class="agile_help_Pro_ul">\
+<li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store: To verify your "Pro" licence once free trial is over.</p></li>\
+<li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and help us shape the future of Plus. Our mobile app already does this.</p></li>\
+<li><p align="justify">plusfortrello.com: So our help pages can talk with the extension to better help you.</p></li>\
+</ul>\
+<br>\
+* We won\'t ask for payment right now. Plus will remind you after May 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
+<br>\
+<button id="agile_dialog_showAprovePro_OK">Approve</button>&nbsp;\
+<button id="agile_dialog_showAprovePro_Cancel">Cancel</button>\
+\
+<a style="float:right;margin-top:2em;" target="_blank" href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html">Read more</a>.\
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_showAprovePro");
+    }
+
+    function doFinish(bOK) {
+        divDialog[0].close();
+        callback(bOK);
+    }
+
+    divDialog.find("#agile_dialog_showAprovePro_Cancel").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        doFinish(false);
+    });
+
+    divDialog.find("#agile_dialog_showAprovePro_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        doFinish(true);
+    });
+
+    divDialog[0].showModal();
+}
+
+
 
 function configureSsLinks(bParam) {
 	if (g_strServiceUrl != null) {
@@ -137,10 +215,10 @@ function configureSsLinks(bParam) {
 				        });
 				    }
 				    else {
-				        //possibly first time it has a sync url. must ask for extension webRequest permissions
+				        //possibly first time it has a sync url. must ask for extension permissions
                         //review zig multiple calls to continueConfig can be simplified with promises (need to add polyfill for older chromes)
 				        showAproveGoogleSyncPermissions(function () {
-				            sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+				            sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
 				                if (response.status != STATUS_OK)
 				                    return;
 
@@ -720,7 +798,7 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
         //when bEnterSEByComments, we want to go through google sync, which will route it to trello sync and take care of uptading history rows related stuff
         //review zig: this option will soon be imposible to configure in help, but legacy users could have it (thou we force-upgrade them on open except the few that declined it back when it was optional)
         if (g_bEnableTrelloSync && !bDidTrelloSync && !bEnterSEByComments) {
-            sendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello },
+            sendExtensionMessage({ method: "trelloSyncBoards", tokenTrello: tokenTrello, bUserInitiated: !bFromAuto },
             function (response) {
                 var statusSync = response.status;
                 if (response.status != STATUS_OK) {

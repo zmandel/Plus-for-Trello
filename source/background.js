@@ -109,7 +109,7 @@ function standarizeSpreadsheetValue(value) {
 	return value;
 }
 
-function handleRawSync(sendResponseParam) {
+function handleRawSync(bFromAuto, sendResponseParam) {
     var PROP_SERVICEURL = 'serviceUrl';
 
     function sendResponse(response) {
@@ -144,7 +144,7 @@ function handleRawSync(sendResponseParam) {
                         return;
                     }
 
-                    handleSyncDB({ config: responseConfig }, function (responseSync) {
+                    handleSyncDB({ config: responseConfig, bUserInitiated: !bFromAuto }, function (responseSync) {
                         sendResponse(responseSync);
                     }, true);
                 });
@@ -243,13 +243,27 @@ function handleGetAllHashtags(sendResponse) {
 
 function handlePlusMenuSync(sendResponse) {
     loadBackgroundOptions(function () {
-        handleRawSync(sendResponse);
+        handleRawSync(false, sendResponse);
     });
 }
 
-function handleWebRequestPermission(sendResponse) {
+function handlePequestProPermission(sendResponse) {
     chrome.permissions.request({
-        permissions: ['webRequest'],
+        permissions: ["alarms","gcm"],
+        origins: ['http://www.plusfortrello.com/', 'https://www.plusfortrello.com/', 'https://ssl.google-analytics.com/']
+    }, function (granted) {
+        if (!granted) {
+            sendResponse({ status: "error: permission not granted by the user." });
+            return;
+        }
+
+        handleCheckChromeStoreToken(sendResponse);
+    });
+}
+
+function handleGoogleSyncPermission(sendResponse) {
+    chrome.permissions.request({
+        permissions: [],
         origins: ['https://spreadsheets.google.com/']
     }, function (granted) {
         // The callback argument will be true if the user granted the permissions.
@@ -392,6 +406,7 @@ var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
         setTimeout(function () { //avoid global dependencies
+            g_analytics.init();
             loadBackgroundOptions(function () {
                 thisLocal.init();
             });
@@ -476,7 +491,7 @@ var g_loaderDetector = {
                     var dateNow = new Date();
                     if (!bForce && msDateSyncLast !== undefined && dateNow.getTime() - msDateSyncLast < g_msSyncRateLimit)
                         return;
-                    handleRawSync();
+                    handleRawSync(true);
                 });
             });
         }
@@ -826,10 +841,19 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
 				sendResponse({ config: retConfig });
 		}, bSkipCache);
 	}
+	else if (request.method == "getBoardsWithoutMe") {
+	    buildBoardsWithoutMe(function (response) {
+	        sendResponse(response);
+	    });
+	}
+	else if (request.method == "hitAnalyticsEvent") {
+	    handleHitAnalyticsEvent(request.category, request.action);
+	    sendResponse({ status: STATUS_OK });
+	}
 	else if (request.method == "showTimerWindow") {
 	    var keybDontShowTimerPopups = "bDontShowTimerPopups";
 	    chrome.storage.sync.get([keybDontShowTimerPopups], function (objSync) {
-            g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
+	        g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
 	        if (!g_bDontShowTimerPopups)
 	            doShowTimerWindow(request.idCard);
 	    });
@@ -850,8 +874,11 @@ If you instead want to disable timer popups do so from Plus preferences.");
 	    animateFlip();
 	    sendResponse({ status: STATUS_OK });
 	}
-	else if (request.method == "requestWebRequestPermission") {
-	    handleWebRequestPermission(sendResponse);
+	else if (request.method == "requestGoogleSyncPermission") {
+	    handleGoogleSyncPermission(sendResponse);
+	}
+	else if (request.method == "requestProPermission") {
+	    handlePequestProPermission(sendResponse);
 	}
 	else if (request.method == "queryTrelloDetectionCount") {
 	    handleQueryTrelloDetectionCount(sendResponse);
@@ -952,7 +979,10 @@ If you instead want to disable timer popups do so from Plus preferences.");
 	    sendResponse({ result: unescape(encodeURIComponent(JSON.stringify(localStorage))).length });
 	}
 	else if (request.method == "clearAllStorage") {
+	    var savedId = localStorage[g_analytics.PROP_IDANALYTICS];
 	    localStorage.clear();
+	    if (savedId)
+	        localStorage[g_analytics.PROP_IDANALYTICS] = savedId;
 	    handleDeleteDB(request, sendResponse);
 	}
 	else if (request.method == "clearAllLogMessages") {
@@ -1193,13 +1223,34 @@ href="'+ feedUrl + '/version"/> \
 	return ret;
 }
 
+function handleCheckChromeStoreToken(sendResponse) {
+    if (chrome.identity === undefined) {
+        sendResponse({ status: "Please sign-in to Chrome." });
+        return;
+    }
+
+    chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
+        if (token) {
+            g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
+            sendResponse({ status: STATUS_OK });
+        } else {
+            g_bProVersion = false; //caller will update storage
+            var message = "";
+            if (chrome.runtime.lastError)
+                message = chrome.runtime.lastError.message;
+            sendResponse({ status: "Not signed into Chrome, network error or no permission.\n" + message });
+        }
+    });
+}
+
+
 function handleApiCall(url, params, bRetry, sendResponse, postBody, contentType, bAddIfMatchStar) {
 	if (chrome.identity === undefined) {
 		sendResponse({ status: "Please sign-in to Chrome from its top-right menu." });
 		return;
 	}
 
-	chrome.identity.getAuthToken({ interactive: true }, function (token) {
+	chrome.identity.getAuthToken({ interactive: true, scopes: ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive.file"] }, function (token) {
 		if (token) {
 			onAuthorized(url, params, sendResponse, token, bRetry, postBody, contentType, bAddIfMatchStar);
 		} else {
@@ -1336,3 +1387,57 @@ function onAuthorized(url, params, sendResponse, oauth, bRetry, postBody, conten
 	xhr.send(postBody);
 }
 
+function handleHitAnalyticsEvent(category, action) {
+    //try and hit anyway. if user didnt enable analytics, it will fail silently
+    g_analytics.hit({ t: "event", ec: category, ea: action }, 1000);
+}
+
+var g_analytics = {
+    idGlobalAnalytics: "UA-72924905-1",
+    idAnalytics: null,
+    PROP_IDANALYTICS: "idAnalytics",
+    PROP_DISABLEANALYTICS: "bDisableAnalytics",
+    bDisableAnalytics: false,
+    setDisabled: function (bDisabled) {
+        if (bDisabled)
+            localStorage[this.PROP_DISABLEANALYTICS] = "true";
+        else
+            delete localStorage[this.PROP_DISABLEANALYTICS];
+        this.bDisableAnalytics = bDisabled;
+    },
+    init: function () {
+        if (this.idAnalytics)
+            return;
+
+        this.idAnalytics = localStorage[this.PROP_IDANALYTICS];
+        this.bDisableAnalytics = (localStorage[this.PROP_DISABLEANALYTICS] == "true");
+        if (!this.idAnalytics) {
+            this.idAnalytics = this.generateQuickGuid();
+            localStorage[this.PROP_IDANALYTICS] = this.idAnalytics;
+        }
+    },
+    hit: function (params, msDelay) {
+        if (this.bDisableAnalytics)
+            return;
+        msDelay = msDelay || 1000;
+        this.init();
+        var payload = "v=1&tid=" + this.idGlobalAnalytics + "&cid=" + encodeURIComponent(this.idAnalytics);
+        for (p in params) {
+            payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
+        }
+        setTimeout(function () {
+            var xhr = new XMLHttpRequest();
+            var url = "https://ssl.google-analytics.com/collect";
+
+            xhr.open("POST", url, true);
+            //xhr.setRequestHeader("Content-length", payload.length); //unsafe in chrome
+            xhr.send(payload);
+        }, msDelay);
+    },
+    //private
+    generateQuickGuid: function () {
+        //http://stackoverflow.com/questions/105034/create-guid-uuid-in-javascript
+        return Math.random().toString(36).substring(2, 15) +
+            Math.random().toString(36).substring(2, 15);
+    }
+};

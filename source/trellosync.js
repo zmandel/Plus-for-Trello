@@ -4,6 +4,10 @@ var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overfl
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
 var SQLQUERY_PREFIX_CARDDATA = "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, bArchived, bDeleted ";
 var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
+var SQLQUERY_PREFIX_BOARDDATA = "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync, idTeam, dateLastActivity ";
+var SQLQUERY_PREFIX_LABELDATA = "select idLabel,name, idBoardShort, color ";
+var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
+var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
 
 function checkMaxCallStack(iLoop) {
     return (((iLoop+1) % g_cMaxCallstack) == 0);
@@ -96,12 +100,15 @@ var g_syncStatus = {
     }
 };
 
-function processThreadedItemsSync(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll) {
+//review zig: tokenTrello is not used. some callers already pass null
+function processThreadedItemsSync(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, bDontUpdateSyncStatus) {
 
     function onFinishedEach(status) {
         if (status == STATUS_OK) {
-            g_syncStatus.cProcessed++;
-            updatePlusIcon(true);
+            if (!bDontUpdateSyncStatus) {
+                g_syncStatus.cProcessed++;
+                updatePlusIcon(true);
+            }
         }
     }
 
@@ -121,7 +128,7 @@ function handleGetTrelloCardData(request, sendResponseParam) {
 
 function handleGetTrelloBoardData(request, sendResponseParam) {
     var response = { status: "error" };
-    getBoardData(request.tokenTrello, request.idBoard, "fields=" + request.fields, callback);
+    getBoardData(request.tokenTrello, false, request.idBoard, "fields=" + request.fields, callback);
 
     function callback(data) {
         response.status = data.status;
@@ -139,6 +146,10 @@ function makeLastStatusSync(statusRead, statusWrite, date) {
 /* handleSyncBoards
  *
  * Entry point to trello sync
+ *
+ * See sync diagram on how this can be reached:
+ * https://docs.google.com/drawings/d/1C6SaEjejg1e_NzfqhMpno5B5RyugtwCzdfH4XTyZmuw/edit?usp=sharing
+ *
  **/
 function handleSyncBoards(request, sendResponseParam) {
     loadBackgroundOptions(function () {
@@ -181,12 +192,12 @@ function handleSyncBoards(request, sendResponseParam) {
                 sendResponseParam({ status: responseInsertSE.status });
                 return;
             }
-            handleSyncBoardsWorker(request.tokenTrello, sendResponse);
+            handleSyncBoardsWorker(request.tokenTrello, request.bUserInitiated, sendResponse);
         });
     });
 }
 
-function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
+function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) {
     var strKeyTokenTrelloLast = "tokenTrelloLast";
     var tokenTrelloStored = localStorage[strKeyTokenTrelloLast];
 
@@ -214,15 +225,21 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
     //CARDBALANCE and BOARDMARKER tables are reset for the cards, and are re-generated.
 
     var alldata = {
+        bForceDeepSyncOnRecentBoards: bUserInitiated,
+        labels: {}, //hash by idLabel (name,idBoardShort,color)
         teams: {}, //hash by idTeam (name, dateSzLastTrello, nameShort)
         boards: {}, //hash by shortLink. (name, dateSzLastTrello, idActionLast, bArchived, idTeam ...) **NOTE** dateSzLastTrello is 1ms behind (see note in sql)
         lists: {},  //hash by idLong. (name, idBoard, dateSzLastTrello, bArchived, pos)
         cards: {},  //hash by shortLink. (name, idBoard, dateSzLastTrello, idList, bArchived, listCards[] (idList,dateSzIn,dateSzOut,userIn,userOut) )
+                    //if cards.idLabels, contains an array of idLabels
+
         cardsByLong: {}, //hash idLong -> shortLink.
         boardsByLong: {}, //hash idLong -> shortLink.
         hasBoardAccess: {}, //hash by shortLink -> true iff user has access to that board
         rgCommentsSE: [], //all possible S/E comments
-        rgCardResetData: [] //array of {idCard: shortLink, idBoard: shortLink, dateSzBefore, idActionReset: action with resetsync command } of cards needing reset
+        rgCardResetData: [], //array of {idCard: shortLink, idBoard: shortLink, dateSzBefore, idActionReset: action with resetsync command } of cards needing reset
+        dateLastLabelsSyncStrOrig: null, //when not null, indicates original value from GLOBALS
+        dateLastLabelsSyncStrNew: null //when not null, indicates new value from GLOBALS
     };
 
     g_lastLogError = ""; //reset
@@ -245,7 +262,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
                     alldata.teams[row.idTeam] = teamCur;
                 });
 
-                var request = { sql: "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync, idTeam FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
+                var request = { sql: SQLQUERY_PREFIX_BOARDDATA+"FROM BOARDS where idBoard<>?", values: [IDBOARD_UNKNOWN] };
                 handleGetReport(request,
                     function (responseReport) {
                         if (responseReport.status != STATUS_OK) {
@@ -284,7 +301,7 @@ function handleSyncBoardsWorker(tokenTrello, sendResponseParam) {
                 timeout: 30000
             });
         }
-        populateTeams(alldata.teams, boardsTrello);
+
         getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process);
         }
     
@@ -325,10 +342,11 @@ function populateTeams(teamsDb, boardsTrello) {
         if (!team)
             return;
         var teamDb = teamsDb[team.id];
+        assert(board.dateLastActivity);
         var teamNew = {
             idTeam: team.id,
             name: team.displayName,
-            dateSzLastTrello: board.dateLastActivity || earliest_trello_date(), //board.dateLastActivity is null sometimes
+            dateSzLastTrello: board.dateLastActivity,
             nameShort: team.name || ""
         };
 
@@ -875,6 +893,7 @@ function commitTrelloChanges(alldata, sendResponse) {
         bMadeChanges = commitTeamSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitBoardSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitListSyncData(tx, alldata) || bMadeChanges;
+        bMadeChanges = commitBoardLabelsSyncData(tx, alldata) || bMadeChanges;
         bMadeChanges = commitCardSyncData(tx, alldata) || bMadeChanges;
         commitSESyncData(tx, alldata); //ignore return value, history row changes are broadcasted with NEW_ROWS later.
     }
@@ -884,6 +903,7 @@ function commitTrelloChanges(alldata, sendResponse) {
 function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
     assert(idBoard); //can be unknown
     //actionCur can be null
+    //warning: can get called (from search) with partial card details (only labels)
     var ret = true;
     var idList = null;
     var typeAction = null;
@@ -950,6 +970,7 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
         cards[card.shortLink] = cardCur;
     }
 
+    assert(card.id);
     cardCur.idLong = card.id;
     if (card.bDeleted || typeAction == "deleteCard") {
         cardCur.bDeleted = true; //prevent further api calls. review zig check callers
@@ -1493,10 +1514,10 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
     }
 }
 
-function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
+function getBoardData(tokenTrello, bOnlyCards, idBoard, params, callback, waitRetry) {
     //https://trello.com/docs/api/board/index.html
 
-    var url = "https://trello.com/1/boards/" + idBoard + "?" + params;
+    var url = "https://trello.com/1/boards/" + idBoard + (bOnlyCards? "/cards?":"?") + params;
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {
@@ -1528,7 +1549,7 @@ function getBoardData(tokenTrello, idBoard, params, callback, waitRetry) {
                             bReturned = true;
                             setTimeout(function () {
                                 console.log("Plus: retrying api call"); //review zig put this in the generic version
-                                getBoardData(tokenTrello, idBoard, params, callback, waitNew);
+                                getBoardData(tokenTrello, bOnlyCards, idBoard, params, callback, waitNew);
                             }, waitNew);
                         }
                         else {
@@ -1872,195 +1893,325 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
         return;
     }
     var limit = g_cLimitActionsPerPage;
-    var statusProcess = { boards: [], iBoard: -1, hasBoardAccess: {}};
+    var statusProcess = { boards: [], iBoard: -1, hasBoardAccess: {} };
     var results = [];
     var bReturned = false;
     var cNeedProcess = 0;
     var cReadyToWait = false;
 
-    worker();
-
-    function worker() {
-        var boardsProcess = [];
-        var mapBoards = {};
-        var mapBecameNonMemberBoard = {};
-        boardsReport.forEach(function (board) {
-            board.orig = cloneObject(board); //keep original values for comparison
-            //verDeepSync notes:
-            //when a user regains membership to a board that he used to be a member, we want to fix all cards and 
-            //history with "unknown board/list" by doing a "deep sync". For this, we want to set verDeepSync = VERDEEPSYNC.NOTMEMBER if the user is not a member,
-            //so that when regaining membership, verDeepSync will change and cause a deep sync.
-            
-            assert(VERDEEPSYNC.NOTMEMBER < VERDEEPSYNC.MINVALID);
-            if (board.verDeepSync != VERDEEPSYNC.NOTMEMBER)
-                mapBecameNonMemberBoard[board.idBoard] = true; //assume true until later
-            board.bProcessActions = false;
-            board.bPushed = false;
-            mapBoards[board.idBoard]=board;
-        });
-
-        var boardDb = null;
-        boardsTrello.forEach(function (board) {
-            if (!board.actions || board.actions.length == 0)
+    handleGetReport({ sql: "SELECT dateLastLabelsSync from GLOBALS", values: [] },
+        function (responseGlobal) {
+            if (responseGlobal.status != STATUS_OK) {
+                sendResponse(responseGlobal);
                 return;
-            var idTeamNew = board.idOrganization || null;
-
-            statusProcess.hasBoardAccess[board.shortLink] = true;
-            boardDb = mapBoards[board.shortLink];
-
-            if (boardDb) {
-                mapBecameNonMemberBoard[board.shortLink] = false;
             }
-           else {
-                boardDb = {
-                    idBoard : board.shortLink,
-                    name : board.name,
-                    idLong: board.id,
-                    bPendingCreation : true,
-					dateSzLastTrello : null,
-					idActionLast: null,
-					bArchived: 0,
-					verDeepSync: VERDEEPSYNC.MINVALID, //always smaller than current. will cause a deep sync
-					idTeam: idTeamNew
-                };
+            assert(responseGlobal.rows.length == 1);
+            var dateLastLabelsSync = new Date(responseGlobal.rows[0].dateLastLabelsSync);
+            assert(dateLastLabelsSync);
+            var dateNow = new Date();
+            var msDateNow = dateNow.getTime();
+            alldata.dateLastLabelsSyncStrOrig = responseGlobal.rows[0].dateLastLabelsSync;
+            alldata.dateLastLabelsSyncStrNew = dateNow.toISOString();
+            var msdateLastLabelsSync = dateLastLabelsSync.getTime();
+            var cDaysDelta = ((msDateNow - msdateLastLabelsSync) / 1000 / 60 / 60 / 24);
+            assert(cDaysDelta >= 0);
+            cDaysDelta = Math.ceil(cDaysDelta); //trello api handles minimum of 1 'edited' search
+            var bForceAllBoards = (cDaysDelta > 30);
+            if (bForceAllBoards)
+                worker(cDaysDelta, msdateLastLabelsSync, sendResponse);
+            else {
+                //call with a custom sendResponse, so we can retry worker if needed
+                worker(cDaysDelta, msdateLastLabelsSync, function (response) {
+                    if (response.status != STATUS_OK && response.bNeedWorkerRetry) {
+                        bForceAllBoards = true;
+                        worker(cDaysDelta, msdateLastLabelsSync, sendResponse); //retry
+                    }
+                    else {
+                        sendResponse(response);
+                    }
+                });
             }
-            assert(boardDb.idBoard == board.shortLink);
-            var actionLast = board.actions[0];
-            boardDb.bProcessActions = true;
 
-            if (boardDb.dateSzLastTrello && actionLast.date < boardDb.dateSzLastTrello) {
-                //when cards are deleted or moved, their history will be moved out of the board so the last action date could be smaller.
-                boardDb.bProcessActions = false;
-            }
-		    
-            var bSameLastAction = (actionLast.id == boardDb.idActionLast);
-            if (bSameLastAction)
-                boardDb.bProcessActions = false;
 
-            if (boardDb.verDeepSync < VERDEEPSYNC.CURRENT || !bSameLastAction || boardDb.idTeam != idTeamNew) {
-                var dateLastAction = new Date(actionLast.date);
-                dateLastAction.setTime(dateLastAction.getTime() + 1);
-                assert(board.name);
-                boardDb.name = board.name;
-                boardDb.bArchived = board.closed || false;
-                boardDb.idLong = board.id;
-                boardDb.dateSzBefore = dateLastAction.toISOString();
-                boardDb.idTeam = idTeamNew; //can be null
-                boardDb.bPushed = true;
+            function worker(cDaysDelta, msdateLastLabelsSync, sendResponse) {
+                var boardsProcess = [];
+                var mapBoards = {};
+                var mapBecameNonMemberBoard = {};
+                boardsReport.forEach(function (board) {
+                    board.orig = cloneObject(board); //keep original values for comparison
+                    //verDeepSync notes:
+                    //when a user regains membership to a board that he used to be a member, we want to fix all cards and 
+                    //history with "unknown board/list" by doing a "deep sync". For this, we want to set verDeepSync = VERDEEPSYNC.NOTMEMBER if the user is not a member,
+                    //so that when regaining membership, verDeepSync will change and cause a deep sync.
 
-                if (boardDb.verDeepSync == VERDEEPSYNC.NOTMEMBER)
-                    boardDb.verDeepSync = VERDEEPSYNC.MINVALID; //restore as its no longer not member. this causes deep sync
-                boardsProcess.push(boardDb);
-            }
-        });
-
-        for (var idBoardShort in mapBecameNonMemberBoard) {
-            if (mapBecameNonMemberBoard[idBoardShort]) {
-                boardDb = mapBoards[idBoardShort];
-                assert(boardDb);
-                assert(!boardDb.bPushed);
-                boardDb.bPushed = true;
-                boardDb.bArchived = true; //pretend archived. when user gains membership again, it will get fixed
-                assert(!boardDb.bProcessActions);
-                boardDb.verDeepSync = VERDEEPSYNC.NOTMEMBER; //forces deep sync when user regains membership
-                boardsProcess.push(boardDb); //just to update version+archived
-            }
-        }
-        statusProcess.boards = boardsProcess;
-
-        var requestCardsUnknown = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where idBoard=?", values: [IDBOARD_UNKNOWN] };
-        handleGetReport(requestCardsUnknown,
-            function (responseReport) {
-                if (responseReport.status != STATUS_OK) {
-                    sendResponse(responseReport);
-                    return;
-                }
-                var cards = responseReport.rows || [];
-                var mapCardsUnknownBoard = {};
-                cards.forEach(function (card) {
-                    mapCardsUnknownBoard[card.idCard] = card;
+                    assert(VERDEEPSYNC.NOTMEMBER < VERDEEPSYNC.MINVALID);
+                    if (board.verDeepSync != VERDEEPSYNC.NOTMEMBER)
+                        mapBecameNonMemberBoard[board.idBoard] = true; //assume true until later
+                    board.bProcessActions = false;
+                    board.bPushed = false;
+                    mapBoards[board.idBoard] = board;
                 });
 
-                var requestListsUnknown = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=? AND idList<>?", values: [IDBOARD_UNKNOWN, IDLIST_UNKNOWN] };
-                handleGetReport(requestListsUnknown,
+
+                var boardDb = null;
+                var msStartDetectLabels = Date.now() - g_msDelayTrelloSearch;
+                boardsTrello.forEach(function (board) {
+                    boardDb = mapBoards[board.shortLink];
+                    //trello returns null dateLastActivity sometimes.
+                    if (!board.dateLastActivity) {
+                        board.dateLastActivity = earliest_trello_date(); //give it some default date. safest to make it earliest so it later queries for all data
+                        if (boardDb)
+                            board.dateLastActivity = boardDb.dateLastActivity; //default to the last known value
+                    }
+
+                    if (!board.actions || board.actions.length == 0)
+                        return;
+                    assert(board.dateLastActivity); //normalized above
+                    var idTeamNew = board.idOrganization || null;
+
+                    statusProcess.hasBoardAccess[board.shortLink] = true;
+
+
+                    var actionLast = board.actions[0];
+                    if (actionLast.date > board.dateLastActivity)
+                        board.dateLastActivity = actionLast.date; //fix it, as sometimes trello api returns null date (normalized to earliest_trello_date)
+
+                    if (boardDb) {
+                        mapBecameNonMemberBoard[board.shortLink] = false;
+                    }
+                    else {
+                        boardDb = {
+                            idBoard: board.shortLink,
+                            name: board.name,
+                            idLong: board.id,
+                            bPendingCreation: true,
+                            dateSzLastTrello: null,
+                            idActionLast: null,
+                            bArchived: 0,
+                            verDeepSync: VERDEEPSYNC.MINVALID, //always smaller than current. will cause a deep sync
+                            dateLastActivity: board.dateLastActivity,
+                            idTeam: idTeamNew
+                        };
+                    }
+
+                    assert(boardDb.dateLastActivity);
+                    assert(boardDb.idBoard == board.shortLink);
+
+                    boardDb.bProcessActions = true;
+                    boardDb.methodProcess = { deep: false, needLabels: false, needSearch: false };
+
+                    if (boardDb.dateSzLastTrello && actionLast.date < boardDb.dateSzLastTrello) {
+                        //when cards are deleted or moved, their history will be moved out of the board so the last action date could be smaller.
+                        boardDb.bProcessActions = false;
+                    }
+
+                    var bSameLastAction = (actionLast.id == boardDb.idActionLast);
+                    var bBoardUpdated = (boardDb.dateLastActivity < board.dateLastActivity);
+                    if (bSameLastAction)
+                        boardDb.bProcessActions = false;
+
+                    if (bBoardUpdated) {
+                        boardDb.dateLastActivity = board.dateLastActivity;
+                        boardDb.methodProcess.needLabels = true;
+                    }
+                    else {
+                        var msdateLastActivity = new Date(boardDb.dateLastActivity).getTime();
+                        if (msdateLastActivity > msStartDetectLabels) {
+                            if (alldata.bForceDeepSyncOnRecentBoards)
+                                boardDb.verDeepSync = VERDEEPSYNC.MINVALID; //force deep later
+                            else
+                                boardDb.methodProcess.needSearch = true;
+                        }
+                    }
+
+
+                    if (bForceAllBoards || bBoardUpdated || boardDb.methodProcess.needSearch || boardDb.verDeepSync < VERDEEPSYNC.CURRENT || !bSameLastAction || boardDb.idTeam != idTeamNew) {
+                        assert(board.name);
+                        boardDb.name = board.name;
+                        boardDb.bArchived = board.closed || false;
+                        boardDb.idLong = board.id;
+                        boardDb.idTeam = idTeamNew; //can be null
+                        boardDb.bPushed = true;
+                        if (boardDb.bProcessActions) {
+                            var dateLastAction = new Date(actionLast.date);
+                            dateLastAction.setTime(dateLastAction.getTime() + 1);
+                            boardDb.dateSzBefore = dateLastAction.toISOString();
+                        }
+                        if (bForceAllBoards || boardDb.verDeepSync == VERDEEPSYNC.NOTMEMBER)
+                            boardDb.verDeepSync = VERDEEPSYNC.MINVALID; //restore as its no longer not member. this causes deep sync
+
+                        if (boardDb.verDeepSync >= VERDEEPSYNC.MINVALID && boardDb.verDeepSync < VERDEEPSYNC.CURRENT)
+                            boardDb.methodProcess.deep = true;
+                        boardDb.bBoardUpdated = bBoardUpdated;
+                        boardsProcess.push(boardDb);
+                    }
+                });
+
+                populateTeams(alldata.teams, boardsTrello); //happens after looping boardsTrello, as fields (like dateLastActivity) are updated there
+
+                for (var idBoardShort in mapBecameNonMemberBoard) {
+                    if (mapBecameNonMemberBoard[idBoardShort]) {
+                        boardDb = mapBoards[idBoardShort];
+                        assert(boardDb);
+                        assert(!boardDb.bPushed);
+                        boardDb.bPushed = true;
+                        boardDb.bArchived = true; //pretend archived. when user gains membership again, it will get fixed
+                        assert(!boardDb.bProcessActions);
+                        boardDb.verDeepSync = VERDEEPSYNC.NOTMEMBER; //forces deep sync later when user regains membership
+                        boardsProcess.push(boardDb); //just to update version+archived
+                    }
+                }
+                statusProcess.boards = boardsProcess;
+                if (boardsProcess.length == 0) {
+                    //skip searching for modified cards, otherwise we would do that search every time
+                    startAllBoardActionsCalls({}, {}, sendResponse);
+                    return;
+                }
+
+                var requestCardsUnknown = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where idBoard=?", values: [IDBOARD_UNKNOWN] };
+                handleGetReport(requestCardsUnknown,
                     function (responseReport) {
                         if (responseReport.status != STATUS_OK) {
                             sendResponse(responseReport);
                             return;
                         }
-                        var lists = responseReport.rows || [];
-                        var mapListsUnknownBoard = {};
-                        lists.forEach(function (list) {
-                            mapListsUnknownBoard[list.idList] = list;
+                        var cards = responseReport.rows || [];
+                        var mapCardsUnknownBoard = {};
+                        cards.forEach(function (card) {
+                            mapCardsUnknownBoard[card.idCard] = card;
                         });
-                        startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard);
+
+                        var requestListsUnknown = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=? AND idList<>?", values: [IDBOARD_UNKNOWN, IDLIST_UNKNOWN] };
+                        handleGetReport(requestListsUnknown,
+                            function (responseReport) {
+                                if (responseReport.status != STATUS_OK) {
+                                    sendResponse(responseReport);
+                                    return;
+                                }
+                                var lists = responseReport.rows || [];
+                                var mapListsUnknownBoard = {};
+                                lists.forEach(function (list) {
+                                    mapListsUnknownBoard[list.idList] = list;
+                                });
+
+                                if (bForceAllBoards) {
+                                    //no need to search modified cards
+                                    startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard, sendResponse);
+                                }
+                                else {
+                                    //search for recently modified cards
+                                    var cLimitCardsSearch = 1000;
+                                    var idBoardsSearch = [];
+                                    assert(statusProcess.boards.length > 0);
+                                    statusProcess.boards.forEach(function (board) {
+                                        //search only on boards that were modified and that will not undergo deep sync later
+                                        if (board.idLong && !board.methodProcess.deep)
+                                            idBoardsSearch.push(board.idLong);
+                                    });
+
+                                    if (idBoardsSearch.length == 0) {
+                                        startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard, sendResponse);
+                                        return;
+                                    }
+                                    
+                                    doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cLimitCardsSearch, function (data) {
+                                        if (data.status != STATUS_OK) {
+                                            sendResponse(data);
+                                            return;
+                                        }
+                                        
+                                        if (data.search.cards.length == cLimitCardsSearch) {
+                                            //rare case, too many cards changed. instead of coding a paged search, just tell caller to retry with a full deep sync
+                                            //hack alert: this repeats the previous step using deep sync for all boards. might be hard to maintain if step later changes global state
+                                            sendResponse({ bNeedWorkerRetry: true, status: "retry with deep sync"});
+                                        }
+                                        else {
+                                            var cardsSearch = [];
+                                            data.search.cards.forEach(function (card) {
+                                                if (card.dateLastActivity) {
+                                                    var msCard = (new Date(card.dateLastActivity)).getTime();
+                                                    if (msCard < (msdateLastLabelsSync - g_msDelayTrelloSearch*3)) {
+                                                        //stale card that still shows in search because we always search for at least "edited:1"
+                                                        //so skip those that are safely out of our range, just to avoid processing them and later do nothing (no changes)
+                                                        return;
+                                                    }
+                                                }
+                                                cardsSearch.push(card);
+                                            });
+                                            startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard, sendResponse, cardsSearch);
+                                        }
+                                    });
+                                }
+                            });
                     });
-            });
-    }
+            }
 
-    function startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard) {
-        var cGotActions = 0;
-        g_syncStatus.setStage("Getting board history", statusProcess.boards.length);
-        if (statusProcess.boards.length==0) //not really necessary but it happens very often so short-circuit earlier
-            onFinishedAll(STATUS_OK);
-        else
-            processThreadedItemsSync(tokenTrello, statusProcess.boards, onPreProcessItem, onProcessItem, onFinishedAll);
+            function startAllBoardActionsCalls(mapCardsUnknownBoard, mapListsUnknownBoard, sendResponse, cardsSearch) {
+                var cGotActions = 0;
+                g_syncStatus.setStage("Getting board history", statusProcess.boards.length);
+                if (statusProcess.boards.length == 0) //not really necessary but it happens very often so short-circuit earlier
+                    onFinishedAll(STATUS_OK);
+                else
+                    processThreadedItemsSync(tokenTrello, statusProcess.boards, onPreProcessItem, onProcessItem, onFinishedAll);
 
 
-        function onFinishedAll(status) {
-            results.sort(function (a, b) {
-                var cmp = a.date.localeCompare(b.date);
-                if (cmp == 0) {
-                    //some paired trello actions like moveCardFromBoard/moveCardToBoard receive the exact same date, thus a simple sort by date
-                    //could end up flipping those pairs. This caused a bug before 2.11.5 where, depending on the order that the actions were queried, the pairs
-                    //could end up inverted
-                    if (a.type.indexOf("From") >= 0 && b.type.indexOf("To") >= 0)
-                        return -1;
-                    else if (b.type.indexOf("From") >= 0 && a.type.indexOf("To") >= 0)
-                        return 1;
-                    else if (b.type != a.type) {
-                        //sometimes an updateCard happens at the same time as others. in plus case, in old versions
-                        //it would add a comment and in paralel it would rename the card. we want updateCard to win
-                        //and since "updateCard" > "commentCard", this works like the order we want
-                        //this also gives order consistency.
-                        
-                        return a.type.localeCompare(b.type);
+                function onFinishedAll(status) {
+                    results.sort(function (a, b) {
+                        var cmp = a.date.localeCompare(b.date);
+                        if (cmp == 0) {
+                            //some paired trello actions like moveCardFromBoard/moveCardToBoard receive the exact same date, thus a simple sort by date
+                            //could end up flipping those pairs. This caused a bug before 2.11.5 where, depending on the order that the actions were queried, the pairs
+                            //could end up inverted
+                            if (a.type.indexOf("From") >= 0 && b.type.indexOf("To") >= 0)
+                                return -1;
+                            else if (b.type.indexOf("From") >= 0 && a.type.indexOf("To") >= 0)
+                                return 1;
+                            else if (b.type != a.type) {
+                                //sometimes an updateCard happens at the same time as others. in plus case, in old versions
+                                //it would add a comment and in paralel it would rename the card. we want updateCard to win
+                                //and since "updateCard" > "commentCard", this works like the order we want
+                                //this also gives order consistency.
+
+                                return a.type.localeCompare(b.type);
+                            }
+                        }
+                        return cmp;
+                    });
+                    if (results.length) {
+                        saveAsFile(results, "resultsSorted-" + results.length + ".json");
+                        saveAsFile(statusProcess, "statusProcess.json");
                     }
+
+                    sendResponse({ status: status, actions: results, boards: statusProcess.boards, hasBoardAccess: statusProcess.hasBoardAccess });
                 }
-                return cmp;
-            });
-            if (results.length) {
-                saveAsFile(results, "resultsSorted-"+results.length+".json");
-                saveAsFile(statusProcess, "statusProcess.json");
-            }
-            sendResponse({ status: status, actions: results, boards: statusProcess.boards, hasBoardAccess: statusProcess.hasBoardAccess });
-        }
 
-        function onPreProcessItem(board) {
-            if (board.hasPermission === false)
-                return false;
+                function onPreProcessItem(board) {
+                    if (board.hasPermission === false)
+                        return false;
 
-            if (!board.dateSzLastTrelloNew) {
-                board.dateSzLastTrelloNew = (board.dateSzLastTrello || "");
-                board.idActionLastNew = (board.idActionLast || "");
-            }
-            else {
-                assert(board.idActionLastNew);
-            }
-            return true;
-        }
+                    if (!board.dateSzLastTrelloNew) {
+                        board.dateSzLastTrelloNew = (board.dateSzLastTrello || "");
+                        board.idActionLastNew = (board.idActionLast || "");
+                    }
+                    else {
+                        assert(board.idActionLastNew);
+                    }
+                    return true;
+                }
 
-        function onProcessItem(tokenTrello, board, iitem, postProcessItem) {
+                function onProcessItem(tokenTrello, board, iitem, postProcessItem) {
 
-            function callPost(status) {
-                var bContinueProcessItem = true;
-                if (status == STATUS_OK) {
-                    var idBoard = board.idBoard;
-                    
-                    if (board.verDeepSync >= VERDEEPSYNC.MINVALID && board.verDeepSync < VERDEEPSYNC.CURRENT) {
-                        bContinueProcessItem = false;
-                        //get all board lists in db, so we can have an "orig"
-                        var request = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=?", values: [idBoard] };
+                    function callPost(status) {
+                        if (status != STATUS_OK) {
+                            postProcessItem(status, board, iitem);
+                            return;
+                        }
+
+                        var idBoard = board.idBoard;
+                        var labelsDb = [];
+
+                        //get all board labels
+                        var request = { sql: SQLQUERY_PREFIX_LABELDATA + "FROM LABELS where idBoardShort=?", values: [idBoard] };
                         handleGetReport(request,
                             function (responseReport) {
                                 if (responseReport.status != STATUS_OK) {
@@ -2068,129 +2219,279 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                     return;
                                 }
 
-                                function populateAllDataList(row) {
-                                    var listDb = cloneObject(row); //to modify it
-                                    assert(listDb.idList);
-                                    listDb.orig = cloneObject(listDb); //keep original values for comparison
-                                    alldata.lists[listDb.idList] = listDb;
+                                function populateAllDataLabel(row) {
+                                    var labelDb = cloneObject(row); //to modify it
+                                    labelDb.orig = cloneObject(labelDb); //keep original values for comparison
+                                    assert(labelDb.idLabel);
+                                    alldata.labels[labelDb.idLabel] = labelDb;
+                                    labelsDb.push(labelDb);
                                 }
 
                                 responseReport.rows.forEach(function (row) {
-                                    populateAllDataList(row);
+                                    populateAllDataLabel(row);
                                 });
 
-                                //get all board cards in db, so we can have an "orig"
-                                                    
-                                var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS WHERE idBoard=?", values: [idBoard] };
-                                handleGetReport(request,
-                                    function (responseReport) {
-                                        if (responseReport.status != STATUS_OK) {
-                                            postProcessItem(responseReport.status, board, iitem);
-                                            return;
-                                        }
 
-                                        
-                                        function populateAllDataCard(row) {
-                                            var cardDb = cloneObject(row); //to modify it later
-                                            alldata.cardsByLong[cardDb.idLong] = cardDb.idCard;
-                                            cardDb.orig = cloneObject(cardDb); //keep original values for comparison
-                                            alldata.cards[cardDb.idCard] = cardDb;
-                                        }
-
-                                        responseReport.rows.forEach(function (row) {
-                                            populateAllDataCard(row);
-                                        });
-
-                                        //trello returns null dateLastActivity sometimes. use a default a little before now, so in case local clock is a little off, it wont save a future date.
-                                        var szdateNowDefault = new Date(Date.now() - 1000 * 60 * 60).toISOString();
-                                        getBoardData(tokenTrello, idBoard, "cards=all&card_fields=due,closed,dateLastActivity,idList,shortLink,name,due&lists=all&list_fields=closed,name,pos&fields=dateLastActivity", function (data) {
-                                            if (data.status == STATUS_OK && data.board) {
-                                                var lists = data.board.lists;
-                                                var cards = data.board.cards;
-                                                var dateLast = data.board.dateLastActivity || szdateNowDefault;
-
-                                                lists.forEach(function (list) {
-                                                    assert(list.id);
-                                                    var listUnknownBoard = mapListsUnknownBoard[list.id];
-                                                    if (listUnknownBoard) 
-                                                        populateAllDataList(listUnknownBoard);
-                                                    
-                                                    bUpdateAlldataList(alldata.lists, list, idBoard, dateLast);
-                                                });
-
-                                                cards.forEach(function (card) {
-                                                    assert(card.id);
-                                                    assert(card.shortLink);
-                                                    var cardUnknownBoard = mapCardsUnknownBoard[card.shortLink];
-                                                    if (cardUnknownBoard)
-                                                        populateAllDataCard(cardUnknownBoard);
-                                                    else
-                                                        alldata.cardsByLong[card.id] = card.shortLink;
-                                                    bUpdateAlldataCard(null, alldata.cards, card, idBoard, card.dateLastActivity || szdateNowDefault);
-                                                });
-                                                board.verDeepSync = VERDEEPSYNC.CURRENT;
-                                            }
-                                            postProcessItem(data.status, board, iitem);
-                                        });
-                                    });
+                                if (!bHandleUpdateBoardDeepSync())
+                                    postProcessItem(status, board, iitem);
                             });
+
+                        function bHandleUpdateBoardDeepSync() {
+                            if (!board.methodProcess.deep && !board.methodProcess.needLabels && !board.methodProcess.needSearch)
+                                return false;
+                            //get all board lists in db, so we can have an "orig"
+                            var request = { sql: SQLQUERY_PREFIX_LISTDATA + "FROM LISTS where idBoard=?", values: [idBoard] };
+                            handleGetReport(request,
+                                function (responseReport) {
+                                    if (responseReport.status != STATUS_OK) {
+                                        postProcessItem(responseReport.status, board, iitem);
+                                        return;
+                                    }
+
+                                    function populateAllDataList(row) {
+                                        var listDb = cloneObject(row); //to modify it
+                                        assert(listDb.idList);
+                                        listDb.orig = cloneObject(listDb); //keep original values for comparison
+                                        alldata.lists[listDb.idList] = listDb;
+                                    }
+
+                                    responseReport.rows.forEach(function (row) {
+                                        populateAllDataList(row);
+                                    });
+
+                                    //get all board cards in db, so we can have an "orig"
+
+                                    var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS WHERE idBoard=?", values: [idBoard] };
+                                    handleGetReport(request,
+                                        function (responseReport) {
+                                            if (responseReport.status != STATUS_OK) {
+                                                postProcessItem(responseReport.status, board, iitem);
+                                                return;
+                                            }
+
+
+                                            function populateAllDataCard(row) {
+                                                var cardDb = cloneObject(row); //to modify it later
+                                                assert(cardDb.idCard);
+                                                alldata.cardsByLong[cardDb.idLong] = cardDb.idCard;
+                                                cardDb.orig = cloneObject(cardDb); //keep original values for comparison
+                                                alldata.cards[cardDb.idCard] = cardDb;
+                                            }
+
+                                            responseReport.rows.forEach(function (row) {
+                                                populateAllDataCard(row);
+                                            });
+
+                                            request = {
+                                                sql: SQLQUERY_PREFIX_LABELCARDDATA + "FROM LABELCARD WHERE idCardShort in (SELECT idCard from CARDS where idBoard=?)",
+                                                values: [idBoard]
+                                            };
+
+                                            if (g_bDummyLabel) {
+                                                request.sql += " AND idLabel<>?";
+                                                request.values.push(IDLABEL_DUMMY);
+                                            }
+                                            request.sql += " ORDER BY idCardShort DESC,idLabel DESC";
+                                            handleGetReport(request,
+                                                function (responseReport) {
+                                                    if (responseReport.status != STATUS_OK) {
+                                                        postProcessItem(responseReport.status, board, iitem);
+                                                        return;
+                                                    }
+
+                                                    responseReport.rows.forEach(function (lc) {
+                                                        var cardDb = alldata.cards[lc.idCardShort];
+                                                        if (!cardDb)
+                                                            return; //might be out of sync
+                                                        assert(cardDb.orig);
+                                                        if (!cardDb.orig.idLabels)
+                                                            cardDb.orig.idLabels = [];
+                                                        cardDb.orig.idLabels.push(lc.idLabel);
+                                                    });
+
+                                                    stepBoardData();
+                                                });
+
+                                            function stepBoardData() {
+                                                //trello returns null dateLastActivity sometimes. use a default a little before now, so in case local clock is a little off, it wont save a future date.
+                                                var szdateNowDefault = new Date(Date.now() - 1000 * 60 * 60).toISOString();
+                                                //review zig: handle updated renamed/[deleted] labels
+                                                var paramsQuery = null;
+
+                                                if (board.methodProcess.deep) {
+                                                    paramsQuery = "labels=all&label_fields=all&labels_limit=1000&cards=all&card_fields=labels,due,closed,dateLastActivity,idList,shortLink,name&lists=all&list_fields=closed,name,pos&fields=dateLastActivity";
+                                                }
+                                                else if (board.methodProcess.needLabels) {
+                                                    //just get labels. currently the board's last activity date its the only way to know a label might have changed (without using webhooks)
+                                                    paramsQuery = "labels=all&label_fields=all&labels_limit=1000&fields=dateLastActivity";
+                                                }
+                                                else {
+                                                    assert(board.methodProcess.needSearch);
+                                                    var dataProcess = {
+                                                        status: STATUS_OK,
+                                                        board: {
+                                                            id: board.idLong,
+                                                            dateLastActivity: board.dateLastActivity
+                                                        }
+                                                    };
+                                                    processBoardData(dataProcess);
+                                                    return;
+                                                }
+
+                                                getBoardData(tokenTrello, false, idBoard, paramsQuery, processBoardData);
+
+                                                function processBoardData(data) {
+                                                    if (data.status == STATUS_OK && data.board) {
+                                                        var lists = data.board.lists; //might be undefined
+                                                        var cards = data.board.cards; //might be undefined
+                                                        var labelsBoard = data.board.labels;
+
+                                                        function updateLabel(label) {
+                                                            var labelDb = alldata.labels[label.id];
+                                                            var row = {
+                                                                idLabel: label.id,
+                                                                name: label.name || label.color, //default to color if name is empty
+                                                                idBoardShort: idBoard,
+                                                                color: label.color
+                                                            };
+                                                            if (!labelDb) {
+                                                                labelDb = row;
+                                                                alldata.labels[labelDb.idLabel] = labelDb;
+                                                            }
+                                                            else {
+                                                                labelDb.name = row.name;
+                                                                labelDb.idBoardShort = row.idBoardShort;
+                                                                labelDb.color = row.color;
+                                                            }
+                                                        }
+
+                                                        //lists
+                                                        if (lists) {
+                                                            var dateLast = data.board.dateLastActivity || szdateNowDefault;
+
+                                                            lists.forEach(function (list) {
+                                                                assert(list.id);
+                                                                var listUnknownBoard = mapListsUnknownBoard[list.id];
+                                                                if (listUnknownBoard)
+                                                                    populateAllDataList(listUnknownBoard);
+
+                                                                //list doesnt have a dateLastActivity so use board's dateLastActivity
+                                                                bUpdateAlldataList(alldata.lists, list, idBoard, dateLast);
+                                                            });
+                                                        }
+
+                                                        //labels
+                                                        if (labelsBoard) {
+                                                            labelsDb.forEach(function (label) {
+                                                                if (label.idBoardShort == idBoard)
+                                                                    label.idBoardShort = IDBOARD_UNKNOWN; //temporarily unknown. restored below if still in board
+                                                            });
+
+                                                            labelsBoard.forEach(function (label) {
+                                                                assert(label.id);
+                                                                updateLabel(label);
+                                                            });
+                                                        }
+
+                                                        function processCards(cards) {
+                                                            cards.forEach(function (card) {
+                                                                if (card.idBoard && card.idBoard != data.board.id) {
+                                                                    //when passing cards from search, it contains results from multiple boards.
+                                                                    return;
+                                                                }
+                                                                assert(card.id);
+                                                                assert(card.shortLink);
+                                                                var cardUnknownBoard = mapCardsUnknownBoard[card.shortLink];
+                                                                if (cardUnknownBoard)
+                                                                    populateAllDataCard(cardUnknownBoard); //card belongs to this board, load it into alldata cards/cardsByLong
+                                                                else
+                                                                    alldata.cardsByLong[card.id] = card.shortLink;
+                                                                bUpdateAlldataCard(null, alldata.cards, card, idBoard, card.dateLastActivity || szdateNowDefault);
+
+                                                                //labels
+                                                                if (card.labels) {
+                                                                    var cardAD = alldata.cards[card.shortLink];
+                                                                    assert(cardAD);
+                                                                    cardAD.idLabels = [];
+                                                                    card.labels.forEach(function (label) {
+                                                                        cardAD.idLabels.push(label.id);
+                                                                        if (!labelsBoard)
+                                                                            updateLabel(label);
+                                                                    });
+                                                                }
+                                                            });
+                                                        }
+
+                                                        //cards
+                                                        if (cards)
+                                                            processCards(cards);
+
+                                                        if (cardsSearch)
+                                                            processCards(cardsSearch); //warning: in this case, cards just contain labels, not all fields. processCards deals with that
+                                                        board.verDeepSync = VERDEEPSYNC.CURRENT;
+                                                    }
+                                                    postProcessItem(data.status, board, iitem);
+                                                }
+                                            }
+                                        });
+                                });
+                            return true;
+                        } //end bHandleUpdateBoardDeepSync
+
+                    }
+
+                    if (board.bProcessActions === false)
+                        callPost(STATUS_OK); //shortcut getting actions.
+                    else
+                        getBoardActions(tokenTrello, iitem, board.idBoard, limit, board.dateSzBefore, board.dateSzLastTrelloNew, [board.idActionLastNew], callbackGetBoardActions);
+
+                    function callbackGetBoardActions(response, lengthOriginal) {
+                        var boardCur = board;
+                        if (response.status != STATUS_OK) {
+                            callPost(response.status);
+                            return;
+                        }
+
+                        cGotActions++;
+                        if (cGotActions % 2 == 0)
+                            g_syncStatus.postfixStage = "..."; //keeps "alive" the status progress, even if the last board is stuck on a lot of history.
+                        else
+                            g_syncStatus.postfixStage = "";
+                        updatePlusIcon(true);
+                        if (response.hasPermission !== undefined)
+                            boardCur.hasPermission = response.hasPermission;
+
+                        if (response.items && response.items.length > 0) {
+                            var actionFirst = response.items[0];
+                            var dateFirst = new Date(actionFirst.date);
+                            dateFirst.setTime(dateFirst.getTime() - 1);
+                            var szDateFirst = dateFirst.toISOString();
+                            assert(boardCur.dateSzLastTrelloNew || boardCur.dateSzLastTrelloNew == "");
+                            if (szDateFirst > boardCur.dateSzLastTrelloNew) { //happens on first page per board
+                                boardCur.dateSzLastTrelloNew = szDateFirst;
+                                boardCur.idActionLastNew = actionFirst.id;
+                            }
+                            results = results.concat(response.items);
+
+                            if (lengthOriginal < limit) {
+                                callPost(response.status);
+                                return;
+                            }
+                            var actionLast = response.items[response.items.length - 1];
+                            var dateLast = new Date(actionLast.date);
+                            //see "Why skip an item and query with a date 1 millisecond  after the last item"
+                            dateLast.setTime(dateLast.getTime() + 1);
+                            setTimeout(function () {
+                                getBoardActions(tokenTrello, response.iBoard, boardCur.idBoard, limit, dateLast.toISOString(), boardCur.dateSzLastTrello || "", [actionLast.id, boardCur.idActionLast || ""], callbackGetBoardActions);
+                            }, MS_TRELLOAPI_WAIT);
+                        }
+                        else {
+                            callPost(response.status);
+                        }
                     }
                 }
-                if (bContinueProcessItem)
-                    postProcessItem(status, board, iitem);
             }
-
-            if (board.bProcessActions === false)
-                callPost(STATUS_OK); //shortcut getting actions.
-            else
-                getBoardActions(tokenTrello, iitem, board.idBoard, limit, board.dateSzBefore, board.dateSzLastTrelloNew, [board.idActionLastNew], callbackGetBoardActions);
-
-            function callbackGetBoardActions(response, lengthOriginal) {
-                var boardCur = board;
-                if (response.status != STATUS_OK) {
-                    callPost(response.status);
-                    return;
-                }
-
-                cGotActions++;
-                if (cGotActions%2 == 0)
-                    g_syncStatus.postfixStage = "..."; //keeps "alive" the status progress, even if the last board is stuck on a lot of history.
-                else
-                    g_syncStatus.postfixStage = "";
-                updatePlusIcon(true);
-                if (response.hasPermission !== undefined)
-                    boardCur.hasPermission = response.hasPermission;
-
-                if (response.items && response.items.length > 0) {
-                    var actionFirst = response.items[0];
-                    var dateFirst = new Date(actionFirst.date);
-                    dateFirst.setTime(dateFirst.getTime() - 1);
-                    var szDateFirst = dateFirst.toISOString();
-                    assert(boardCur.dateSzLastTrelloNew || boardCur.dateSzLastTrelloNew == "");
-                    if (szDateFirst > boardCur.dateSzLastTrelloNew) { //happens on first page per board
-                        boardCur.dateSzLastTrelloNew = szDateFirst;
-                        boardCur.idActionLastNew = actionFirst.id;
-                    }
-                    results = results.concat(response.items);
-
-                    if (lengthOriginal < limit) {
-                        callPost(response.status);
-                        return;
-                    }
-                    var actionLast = response.items[response.items.length - 1];
-                    var dateLast = new Date(actionLast.date);
-                    //see "Why skip an item and query with a date 1 millisecond  after the last item"
-                    dateLast.setTime(dateLast.getTime() + 1);
-                    setTimeout(function () {
-                        getBoardActions(tokenTrello, response.iBoard, boardCur.idBoard, limit, dateLast.toISOString(), boardCur.dateSzLastTrello || "", [actionLast.id, boardCur.idActionLast || ""], callbackGetBoardActions);
-                    }, MS_TRELLOAPI_WAIT);
-                }
-                else {
-                    callPost(response.status);
-                }
-            }
-        }
-    }
+        });
 }
 
 
@@ -2253,8 +2554,11 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
     xhr.send();
 }
 
+var g_etDateCache = null;
 function earliest_trello_date() {
-    return new Date(1).toISOString();
+    if (!g_etDateCache)
+        g_etDateCache = new Date(1).toISOString();
+    return g_etDateCache;
 }
 
 //code based on spent backend
@@ -2322,4 +2626,197 @@ function matchCommentParts(text,date, bRecurringCard) {
     ret.strCommand = rgResults[i_command] || "";
     ret.comment = preComment + replaceBrackets(rgResults[i_note] || "");
     return ret;
+}
+
+
+function doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitRetry) {
+    //https://developers.trello.com/advanced-reference/search
+    var url = "https://trello.com/1/search?query=edited:" + cDaysDelta +
+        "&modelTypes=cards&cards_limit=" +
+        cCardsLimit +
+        "&card_fields=dateLastActivity,labels,shortLink,idBoard" +  //warning: idBoard is trello long idBoard
+        "&idBoards=" + idBoardsSearch.join();
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
+
+    xhr.onreadystatechange = function (e) {
+        if (xhr.readyState == 4) {
+            handleFinishRequest();
+
+            function handleFinishRequest() {
+                var objRet = { status: "unknown error", hasPermission: false };
+                var bReturned = false;
+
+                if (xhr.status == 200) {
+                    try {
+                        objRet.hasPermission = true;
+                        objRet.search = JSON.parse(xhr.responseText);
+                        objRet.status = STATUS_OK;
+                        callback(objRet);
+                        bReturned = true;
+                    } catch (ex) {
+                        objRet.status = "error: " + ex.message;
+                    }
+                } else {
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission. should not happen in search case
+                        null; //happy lint
+                    }
+                    else if (xhr.status == 429) { //too many request, reached quota.
+                        var waitNew = (waitRetry || 500) * 2;
+                        if (waitNew < 8000) {
+                            bReturned = true;
+                            setTimeout(function () {
+                                console.log("Plus: retrying api call"); //review zig put this in the generic version
+                                doSearchTrelloChanges(tokenTrello, idBoardsSearch, cDaysDelta, cCardsLimit, callback, waitNew);
+                            }, waitNew);
+                        }
+                        else {
+                            objRet.status = errFromXhr(xhr);
+                        }
+                    }
+                    else {
+                        objRet.status = errFromXhr(xhr);
+                    }
+                }
+
+                if (!bReturned) {
+                    callback(objRet);
+                }
+            }
+        }
+    };
+
+    xhr.open("GET", url);
+    xhr.send();
+}
+
+function getAllTeams(callback, waitRetry) {
+    //https://trello.com/docs/api/board/index.html
+
+    var url = "https://trello.com/1/members/me/organizations?fields=idBoards";
+    var xhr = new XMLHttpRequest();
+    xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
+    xhr.onreadystatechange = function (e) {
+        if (xhr.readyState == 4) {
+            handleFinishRequest();
+
+            function handleFinishRequest() {
+                var objRet = { status: "unknown error", hasPermission: false };
+                var bReturned = false;
+
+                if (xhr.status == 200) {
+                    try {
+                        objRet.hasPermission = true;
+                        objRet.teams = JSON.parse(xhr.responseText);
+                        objRet.status = STATUS_OK;
+                        callback(objRet);
+                        bReturned = true;
+                    } catch (ex) {
+                        objRet.status = "error: " + ex.message;
+                    }
+                } else {
+                    //boards cant be deleted, but leave it here for future possibility. REVIEW zig: board delete case isnt handled in sync
+                    if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or board deleted already
+                        null; //happy lint
+                    }
+                    else if (xhr.status == 429) { //too many request, reached quota.
+                        var waitNew = (waitRetry || 500) * 2;
+                        if (waitNew < 8000) {
+                            bReturned = true;
+                            setTimeout(function () {
+                                console.log("Plus: retrying api call"); //review zig put this in the generic version
+                                getAllTeams(callback, waitNew);
+                            }, waitNew);
+                        }
+                        else {
+                            objRet.status = errFromXhr(xhr);
+                        }
+                    }
+                    else {
+                        objRet.status = errFromXhr(xhr);
+                    }
+                }
+
+                if (!bReturned) {
+                    callback(objRet);
+                }
+            }
+        }
+    };
+
+    xhr.open("GET", url);
+    xhr.send();
+}
+
+function buildBoardsWithoutMe(callback) {
+    if ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true") {
+        callback({ status: "Before using this feature, 'First sync' needs to complete.\n\n'First sync' will complete automatically once you close the Plus help pane." });
+        return;
+    }
+
+    var request = { sql: "SELECT idLong from BOARDS", values: [] };
+    handleGetReport(request,
+        function (responseReport) {
+            if (responseReport.status != STATUS_OK) {
+                callback({ status: responseReport.status });
+                return;
+            }
+            var mapBoards = {};
+            responseReport.rows.forEach(function (row) {
+                mapBoards[row.idLong] = true;
+            });
+
+            getAllTeams(function (response) {
+                if (response.status != STATUS_OK) {
+                    callback({ status: response.status });
+                    return;
+                }
+                var boardsNotFound = [];
+                response.teams.forEach(function (team) {
+                    team.idBoards.forEach(function (idBoard) {
+                        if (!mapBoards[idBoard])
+                            boardsNotFound.push({ idBoardLong: idBoard });
+                    });
+                });
+                processBoardNames(boardsNotFound, function (status) {
+                    callback({ status: status, boards: boardsNotFound });
+                });
+            });
+        });
+}
+
+function processBoardNames(boards,callback) {
+    processThreadedItemsSync(null, boards, null, onProcessItem, onFinishedAll);
+
+    function onProcessItem(tokenTrello, board, iitem, postProcessItem) {
+
+        assert(board.idBoardLong);
+        getBoardData(null, false, board.idBoardLong, "fields=name,closed,dateLastActivity,", callbackBoard);
+
+        function callPost(status) {
+            postProcessItem(status, board, iitem);
+        }
+
+        function callbackBoard(boardData) {
+            board.name = "Error loading";
+            if (!boardData.hasPermission) {
+                board.name = "No permission";
+                callPost(STATUS_OK);
+                return;
+            }
+
+            if (boardData.status != STATUS_OK) {
+                callPost(boardData.status);
+                return;
+            }
+            board.name = boardData.board.name;
+            board.closed = boardData.board.closed;
+            board.dateLastActivity = boardData.board.dateLastActivity;
+            callPost(STATUS_OK);
+        }
+    }
+
+    function onFinishedAll(status) {
+        callback(status);
+    }
 }

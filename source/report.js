@@ -9,6 +9,7 @@ var ITAB_BYBOARD = 2;
 var g_colorDefaultOver="#B9FFA9";
 var g_colorDefaultUnder = "#FFD5BD";
 var g_bShowKeywordFilter = false;
+var g_bShowLabelsFilter = false;
 var KEY_FORMAT_PIVOT_USER = "formatPivotUser";
 var KEY_FORMAT_PIVOT_BOARD = "formatPivotBoard";
 var KEY_bEnableTrelloSync = "bEnableTrelloSync";
@@ -110,7 +111,15 @@ function loadStorageGlobals(callback) {
 		    g_dataFormatBoard.format = objs[KEY_FORMAT_PIVOT_BOARD];
 		g_bEnableTrelloSync = objs[KEY_bEnableTrelloSync] || false;
 		g_optEnterSEByComment.loadFromStrings(objs[keybEnterSEByCardComments], objs[keyrgKeywordsforSECardComment]);
-		callback();
+
+		chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
+		    if (chrome.runtime.lastError) {
+		        alert(chrome.runtime.lastError.message);
+		        return;
+		    }
+		    g_bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
+		    callback();
+		});
 	});
 }
 
@@ -216,6 +225,19 @@ function selectTabUI(iTab, href) {
 	return iTab;
 }
 
+function findMatchingKeywords(term, autoResponse) {
+    if (term == "*")
+        term = "";
+    var rg = [];
+    
+    if (g_optEnterSEByComment.IsEnabled())
+        rg = g_optEnterSEByComment.rgKeywords;
+
+    autoResponse(term == "" ? rg : rg.filter(function (item) {
+        return (item.indexOf(term) >= 0);
+    }));
+}
+
 function findMatchingTeams(term, autoResponse) {
     if (term == "*")
         term = "";
@@ -289,27 +311,83 @@ function findMatchingBoards(term, autoResponse) {
     });
 }
 
+function findMatchingLabels(term, autoResponse) {
+    if (term == "*")
+        term = "";
+    var nameBoard = $("#board").val().trim();
+    var idBoard = $("#idBoard").val().trim();
+    var sql = null;
+    var sqlPost = " ORDER BY LOWER(labels.name) ASC";
+    var params = [];
+    var cWhere = 0;
+
+    if (idBoard.length > 0) {
+        sql = "SELECT labels.name FROM labels where idBoardShort = ?";
+        cWhere++;
+        params.push(idBoard);
+    }
+    else if (nameBoard.length > 0) {
+        sql = "SELECT distinct(labels.name) FROM labels join boards on labels.idBoardShort=boards.idBoard where boards.name LIKE ?";
+        cWhere++;
+        params.push("%" + nameBoard + "%");
+    }
+    else {
+        sql = "SELECT distinct(labels.name) FROM labels";
+    }
+
+    if (term != "") {
+        if (cWhere == 0) {
+            sql = sql + " WHERE";
+        }
+        else {
+            sql = sql + " AND";
+        }
+        cWhere++;
+        sql = sql + " labels.name LIKE ?";
+        if (g_bDummyLabel)
+            sql = sql + " AND labels.idLabel<>'" + IDLABEL_DUMMY + "'";
+        params.push("%" + term + "%");
+    }
+
+    getSQLReport(sql + sqlPost, params, function (response) {
+        var rows = response.rows;
+        if (response.status != STATUS_OK || !rows) {
+            autoResponse([]);
+            return;
+        }
+
+        var ret = new Array(rows.length);
+
+        for (var i = 0; i < rows.length; i++) {
+            ret[i] = rows[i].name;
+        }
+
+        autoResponse(ret);
+    });
+}
+
 function findMatchingLists(term, autoResponse) {
     if (term == "*")
         term = "";
     var nameBoard = $("#board").val().trim();
+    var idBoard = $("#idBoard").val().trim();
     var sql = null;
     var sqlPost = " ORDER BY LOWER(lists.name) ASC";
     var params = [];
     var cWhere = 0;
-    if (nameBoard.length > 0) {
+
+    if (idBoard.length > 0) {
+        sql = "SELECT lists.name FROM lists where idBoard = ?";
+        cWhere++;
+        params.push(idBoard);
+    }
+    else if (nameBoard.length > 0) {
         sql = "SELECT distinct(lists.name) FROM lists join boards on lists.idBoard=boards.idBoard where boards.name LIKE ?";
         cWhere++;
         params.push("%" + nameBoard+"%");
     }
     else {
         sql = "SELECT distinct(lists.name) FROM lists";
-        var idBoard = $("#idBoard").val().trim();
-        if (idBoard) {
-            sql = sql + " WHERE idBoard=?";
-            cWhere++;
-            params.push(idBoard);
-        }
     }
 
     if (term != "") {
@@ -555,6 +633,14 @@ document.addEventListener('DOMContentLoaded', function () {
 	        });
 	    }
 
+	    addFocusHandler($("#keyword").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingKeywords(request.term, response);
+	        }
+
+	    }));
 	    addFocusHandler($("#team").autocomplete({
 	        delay: 0,
 	        minChars: 0,
@@ -617,6 +703,14 @@ document.addEventListener('DOMContentLoaded', function () {
 	        minChars: 0,
 	        source: function (request, response) {
 	            findMatchingMonths(request.term, response);
+	        }
+	    }));
+
+	    addFocusHandler($("#label").autocomplete({
+	        delay: 0,
+	        minChars: 0,
+	        source: function (request, response) {
+	            findMatchingLabels(request.term, response);
 	        }
 	    }));
 
@@ -955,27 +1049,14 @@ function loadReport(params) {
 		}
 	});
 
-	var comboKeyword = $("#keyword");
-	g_bShowKeywordFilter = false;
-	if (g_optEnterSEByComment.IsEnabled()) {
-	    var rgkeywords = g_optEnterSEByComment.rgKeywords;
-	    function addKW(str, val, bSelected) {
-	        var optAdd = new Option(str, val);
-	        comboKeyword.append($(optAdd));
-	        if (bSelected)
-	            optAdd.selected = true;
-	    }
-	    addKW("All", "", true);
-	    for (var i = 0; i < rgkeywords.length; i++)
-	        addKW(rgkeywords[i], rgkeywords[i]);
-
-	    if (g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1)
-	        g_bShowKeywordFilter = true;
-	}
+	g_bShowLabelsFilter = g_bProVersion;
+	var editLabels = $("#label");
+	var editKeyword = $("#keyword");
+	g_bShowKeywordFilter = (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.getAllKeywordsExceptLegacy().length > 1);
 
 	var elems = {
 	    keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
-	    monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", comment: "", eType: "all", archived: "0", deleted: "0",
+	    monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label:"", comment: "", eType: "all", archived: "0", deleted: "0",
 	    idBoard: (g_bBuildSqlMode?"":"showhide"), idCard: "showhide", checkNoCrop: "false", afterRow: "showhide"
 	};
 	for (var iobj in elems) {
@@ -993,9 +1074,17 @@ function loadReport(params) {
 			hiliteOnce(elemCur);
 	}
 
-	if (g_bShowKeywordFilter)
-	    comboKeyword.parent().show();
+	if (g_bShowLabelsFilter) {
+	    editLabels.parent().show();
+	}
 	else {
+	    editLabels.parent().hide();
+	}
+
+	if (g_bShowKeywordFilter)
+	    editKeyword.parent().show();
+	else {
+	    editKeyword.parent().hide();
 	    $("#orderBy option[value*='keyword']").remove();
 	    $("#groupBy option[value*='keyword']").remove();
 	}
@@ -1103,7 +1192,13 @@ function completeString(str, pattern) {
 	return str;
 }
 
-function buildSqlParam(param, params, table, sqlField, operator, state, completerPattern, btoUpper) {
+//advancedParams:
+// bNoWhereAnd: IN. hacky. will also not increment cFilters
+// bLabelMode: IN
+// bNegateAll : OUT
+// errorParse: OUT. if set (string), a parsing error occurred
+function buildSqlParam(param, params, table, sqlField, operator, state, completerPattern, btoUpper, advancedParams) {
+    advancedParams = advancedParams || {};
     if (table)
         table = table + ".";
     else
@@ -1176,10 +1271,12 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 
 	bString = (typeof (val) == 'string'); //refresh
 
-	if (state.cFilters == 0)
-		sql += " WHERE ";
-	else
-		sql += " AND ";
+	if (!advancedParams.bNoWhereAnd) {
+	    if (state.cFilters == 0)
+	        sql += " WHERE ";
+	    else
+	        sql += " AND ";
+	}
 
 	var decorate = "";
 	var bAllowOrAnd = false;
@@ -1200,6 +1297,7 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 	}
 
 	var opOrAnd = "";
+	var opOrAndOrig = "";
 	var valElems = [val];
 	if (bAllowOrAnd) {
 	    if (val.indexOf(" AND ") > 0)
@@ -1207,6 +1305,7 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 	    else if (val.indexOf(" OR ") > 0)
 	        opOrAnd = " OR ";
 
+	    opOrAndOrig = opOrAnd;
 	    if (opOrAnd) {
 	        valElems = val.split(opOrAnd);
 	    }
@@ -1214,6 +1313,9 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 
 	var bMultiple = valElems.length > 1;
 	var cProcessed = 0;
+	var cNegated = 0;
+	var cFiltersAdd = 0;
+	var valuesAdd = [];
 	if (bMultiple)
 	    sql += "(";
 	valElems.forEach(function (val) {
@@ -1223,7 +1325,14 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 	        val = val.trim();
 	    if (bAllowOrAnd && val.charAt(0) == "!") {
 	        opNot = "NOT ";
+	        cNegated++;
 	        val = val.substr(1);
+	        if (advancedParams.bLabelMode) {
+	            opNot = "";
+	            advancedParams.bNegateAll = true;
+	            if (opOrAnd)
+	                opOrAnd = " OR "; //apply !A AND !B AND !C --> !(A OR B OR C)
+	        }
 	    }
 
 	    if (bString && btoUpper)
@@ -1233,16 +1342,38 @@ function buildSqlParam(param, params, table, sqlField, operator, state, complete
 
 	    if (bMultiple && cProcessed != valElems.length)
 	        sql = sql + opOrAnd;
-	    state.cFilters++;
-	    state.values.push(decorate == "" ? val : decorate + val + decorate);
+	    if (!advancedParams.bNoWhereAnd)
+	        cFiltersAdd++;
+	    valuesAdd.push(decorate == "" ? val : decorate + val + decorate);
 	});
+
+	if (advancedParams.bLabelMode) {
+	    if (opOrAnd == " AND ") {
+	        advancedParams.errorParse = "AND is not supported unless all terms are negated, as in: !a AND !b AND !c";
+	    }
+	    else if ((cNegated > 0 && opOrAndOrig == " OR ") || //no negation with OR
+            (advancedParams.bNegateAll && cNegated != valElems.length)) { //when negating, negate all
+	        advancedParams.errorParse = "When using ! (negation) with multiple terms, all terms must be negated with AND, as in: !a AND !b AND !c";
+	    }
+	}
+
 	if (bMultiple)
 	    sql += ")";
+
+	if (advancedParams.errorParse)
+	    sql = "";
+	else {
+	    state.cFilters += cFiltersAdd;
+	    valuesAdd.forEach(function (val) {
+	        state.values.push(val);
+	    });
+	}
 	return sql;
 }
 
 function buildSql(elems) {
    
+    var cErrors = 0;
     function buildAllParams(state, bTable) {
         //bTable is needed to dissambiguate when table column names collide in joins
         var sql = "";
@@ -1264,11 +1395,27 @@ function buildSql(elems) {
 	    sql += buildSqlParam("idBoard",     elems, "",  "idBoardH",     "=", state);
 	    sql += buildSqlParam("idCard",      elems, "",  "idCardH",      "=", state);
 	    sql += buildSqlParam("afterRow",    elems, pre, "rowid",        ">", state, null, false);
-	    sql += buildSqlParam("keyword",     elems, "",  "keyword",      "=", state);
+	    sql += buildSqlParam("keyword",     elems, "",  "keyword",      "LIKE", state);
 
 	    if (elems["orderBy"] == "dateDue")
 	        sql += buildSqlParam("dateDue", { dateDue: null }, "", "dateDue", "IS NOT", state);
 	    
+	    if (g_bShowLabelsFilter) {
+	        if (elems["label"]) {
+	            var advancedParams = { bNoWhereAnd: true, bLabelMode: true, bNegateAll: false, errorParse:"" };
+	            var sqlLabels = "SELECT LC.idCardShort FROM LABELCARD as LC JOIN LABELS as L on LC.idLabel=L.idLabel WHERE " +
+                    buildSqlParam("label", elems, "", "L.name", "LIKE", state, undefined, undefined, advancedParams);
+	            if (advancedParams.errorParse) {
+	                if (cErrors==0)
+	                    sendDesktopNotification("Error: unsupported label filter. Please hover the labels filter for help: " + advancedParams.errorParse, 12000);
+	                cErrors++;
+	            }
+	            else {
+	                sql += (state.cFilters > 0 ? " AND" : " WHERE") + " C.idCard" + (advancedParams.bNegateAll ? " NOT" : "") + " in (" + sqlLabels + ")";
+	            }
+	        }
+
+	    }
 	    return sql;
 	}
 
@@ -1374,6 +1521,10 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 				}
 				getSQLReport(sqlQuery.sql, sqlQuery.values,
 					function (response) {
+					    if (response.status != STATUS_OK) {
+					        showError(response.status);
+					        return;
+					    }
 						var rows = response.rows;
 						try {
 						    setReportData(rows, elems["checkNoCrop"] == "true", elems, sqlQuery);
@@ -1394,70 +1545,157 @@ function resetQueryButton(btn) {
 }
 
 function setReportData(rowsOrig, bNoTruncate, urlParams, sqlQuery) {
-	var rowsGrouped = rowsOrig;
+    var rowsGrouped = rowsOrig;
 
-	var groupBy = urlParams["groupBy"];
-	var orderBy = urlParams["orderBy"];
+    var groupBy = urlParams["groupBy"];
+    var orderBy = urlParams["orderBy"];
 
-	if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
-	    rowsGrouped = groupRows(rowsOrig, groupBy, orderBy);
+    if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
+        rowsGrouped = groupRows(rowsOrig, groupBy, orderBy);
+
+    var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0); //review zig: dup elsewhere
+    var mapIdCards = {};
+    var idCards = [];
+    
+    if (!bShowCard) {
+        fillDOM();
+    }
+    else {
+        rowsGrouped.forEach(function (row) {
+            if (!mapIdCards[row.idCardH]) {
+                mapIdCards[row.idCardH] = true;
+                idCards.push("'" + row.idCardH + "'");
+            }
+        });
+        idCards.sort();
+        var sql = "SELECT idCardShort,idLabel FROM LABELCARD";
+        var bWhere = false;
+        var paramsSql = [];
+        if (idCards.length < 3000) {
+            //avoid making a huge query string when there are too many cards. limit to 3000 as it wasnt tested with over 4000
+            sql = sql + " WHERE idCardShort IN (" + idCards.join() + ")";
+            bWhere = true;
+        }
+        if (g_bDummyLabel) {
+            if (bWhere)
+                sql = sql + " AND";
+            else {
+                sql = sql + " WHERE";
+                bWhere = true;
+            }
+            sql = sql + " idLabel<>?";
+            paramsSql.push(IDLABEL_DUMMY);
+        }
+        sql = sql + " ORDER BY idCardShort DESC, idLabel DESC";
+        getSQLReport(sql, paramsSql, function (response) {
+            if (response.status != STATUS_OK) {
+                alert(response.status);
+                return;
+            }
+            var rowsLC = response.rows;
+            var mapIdLabels = {};
+            var idLabels = [];
+            var mapCardsToLabels = {};
+            rowsLC.forEach(function (row) {
+                if (!mapIdLabels[row.idLabel]) {
+                    mapIdLabels[row.idLabel] = true;
+                    idLabels.push("'" + row.idLabel + "'");
+                }
+                var mapCTL = mapCardsToLabels[row.idCardShort];
+                if (!mapCTL) {
+                    mapCTL = { idLabels: [] };
+                    mapCardsToLabels[row.idCardShort] = mapCTL;
+                }
+                mapCTL.idLabels.push(row.idLabel);
+            });
+
+            var mapLabelNames = {};
+            sql = "SELECT idLabel,name FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
+            getSQLReport(sql, [], function (response) {
+                if (response.status != STATUS_OK) {
+                    alert(response.status);
+                    return;
+                }
+                response.rows.forEach(function (rowLabel) {
+                    mapLabelNames[rowLabel.idLabel] = rowLabel.name;
+                });
+
+                var iLabel = 0;
+                for (var idCardLoop in mapCardsToLabels) {
+                    var objLoop = mapCardsToLabels[idCardLoop];
+                    var rgLabels = new Array(objLoop.idLabels.length);
+                    iLabel = 0;
+                    objLoop.idLabels.forEach(function (idLabel) {
+                        rgLabels[iLabel] = mapLabelNames[idLabel];
+                        iLabel++;
+                    });
+                    rgLabels.sort(function (a, b) {
+                        return a.toLowerCase().localeCompare(b.toLowerCase());
+                    });
+                    objLoop.labels = rgLabels.join(", ");
+                }
+                fillDOM(mapCardsToLabels);
+            });
+        });
+    }
+
+    function fillDOM(mapCardsToLabels) {
+        var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
+        var headersSpecial = {};
+        var html = getHtmlDrillDownTooltip(rowsGrouped, mapCardsToLabels, headersSpecial, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
+        var parentScroller = $(".agile_report_container");
+        var container = makeReportContainer(html, 1300, true, parentScroller, true);
+        var tableElem = $(".tablesorter");
+        var bDoSort = true;
+        if (tableElem.length > 0 && rowsGrouped.length > 0) {
+            var sortList = [];
+            if (g_sortListNamed) {
+                //some scenarios could end up pointing to nonexistent rows from a previous saved report
+                sortList = namedToIndexedSortList(g_sortListNamed, tableElem);
+            }
+
+            if (sortList.length == 0 && orderBy) {
+                var elemMatch = $('#orderBy option').filter(function () { return $(this).val() == orderBy; });
+                if (elemMatch.length > 0) {
+                    var textSort = getCleanHeaderName(elemMatch[0].innerText);
+                    var ascdesc = 0;
+                    if (orderBy != "dateDue" && (orderBy == "date" || typeof (rowsGrouped[0][orderBy]) != "string"))
+                        ascdesc = 1;
+
+                    //dont update g_sortListNamed as this is not an explicit custom sort, it just came from the filter combo
+                    //in reality it shouldnt make a difference but not updating it just to reduce code change impact
+                    sortList = namedToIndexedSortList([[textSort, ascdesc]], tableElem);
+                    bDoSort = false;
+                }
+            }
+            tableElem.tablesorter({
+                sortList: sortList,
+                bDoSort: bDoSort,
+                headers: headersSpecial
+            });
+
+            tableElem.bind("sortEnd", function () {
+                var elem = this;
+                if (elem && elem.config && elem.config.sortList && elem.config.headerList) {
+                    var params = getUrlParams();
+                    g_sortListNamed = indexedToNamedSortList(elem.config.sortList, tableElem);
+                    params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed);
+                    configReport(params, false, true);
+                }
+            });
+        }
 
 
-	var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
-	var headersSpecial = {};
-	var html = getHtmlDrillDownTooltip(rowsGrouped, headersSpecial, bNoTruncate, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
-	var parentScroller = $(".agile_report_container");
-	var container = makeReportContainer(html, 1300, true, parentScroller, true);
-	var tableElem = $(".tablesorter");
-	var bDoSort = true;
-	if (tableElem.length > 0 && rowsGrouped.length > 0) {
-	    var sortList=[];
-	    if (g_sortListNamed) {
-	        //some scenarios could end up pointing to nonexistent rows from a previous saved report
-	        sortList = namedToIndexedSortList(g_sortListNamed, tableElem);
-	    }
-
-	    if (sortList.length == 0 && orderBy) {
-	        var elemMatch = $('#orderBy option').filter(function () { return $(this).val() == orderBy; });
-	        if (elemMatch.length > 0) {
-	            var textSort = getCleanHeaderName(elemMatch[0].innerText);
-	            var ascdesc = 0;
-	            if (orderBy != "dateDue" && (orderBy == "date" || typeof (rowsGrouped[0][orderBy]) != "string"))
-	                ascdesc = 1;
-
-	            //dont update g_sortListNamed as this is not an explicit custom sort, it just came from the filter combo
-                //in reality it shouldnt make a difference but not updating it just to reduce code change impact
-	            sortList = namedToIndexedSortList([[textSort, ascdesc]], tableElem);
-	            bDoSort = false;
-	        }
-	    }
-	    tableElem.tablesorter({
-	        sortList: sortList,
-	        bDoSort: bDoSort,
-	        headers: headersSpecial
-	    });
-	    
-	    tableElem.bind("sortEnd", function () {
-	        var elem = this;
-	        if (elem && elem.config && elem.config.sortList && elem.config.headerList) {
-	            var params = getUrlParams();
-	            g_sortListNamed = indexedToNamedSortList(elem.config.sortList, tableElem);
-	            params[g_namedParams.sortListNamed] = JSON.stringify(g_sortListNamed);
-	            configReport(params, false, true);
-	        }
-	    });
-	}
-	    
-	
-	var btn = $("#buttonFilter");
-	resetQueryButton(btn);
-	fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, bNoTruncate);
-	selectTab(g_iTabCur); //select again to adjust height
-	if (g_bNeedSetLastRowViewed) {
-	    g_bNeedSetLastRowViewed = false;
-	    configureLastViewedRowButton();
-	    g_bAddParamSetLastRowViewedToQuery = true;
-	}
+        var btn = $("#buttonFilter");
+        resetQueryButton(btn);
+        fillPivotTables(rowsOrig, $(".agile_report_container_byUser"), $(".agile_report_container_byBoard"), urlParams, bNoTruncate);
+        selectTab(g_iTabCur); //select again to adjust height
+        if (g_bNeedSetLastRowViewed) {
+            g_bNeedSetLastRowViewed = false;
+            configureLastViewedRowButton();
+            g_bAddParamSetLastRowViewedToQuery = true;
+        }
+    }
 }
 
 function indexedToNamedSortList(list, table) {
@@ -1993,7 +2231,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort) {
 	return ret;
 }
 
-function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
+function getHtmlDrillDownTooltip(rows, mapCardsToLabels, headersSpecial, bNoTruncate, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
 	var bOrderR = (orderBy == "remain");
 	var header = [];
 
@@ -2019,7 +2257,7 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	var bShowBoard = (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || groupBy.indexOf("idCardH") >= 0);
 	var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0);
 	var bShowTeam = (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
-
+	var bShowLabels = bShowCard && g_bShowLabelsFilter;
 	var bShowList = ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
 	var bPushedCard = false;
 
@@ -2067,6 +2305,9 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 	    bPushedCard = true;
 	}
 
+	if (bShowLabels)
+	    header.push({ name: "Labels" });
+	
 	var bShowSE = true;
 
 	if (bOrderR && groupBy != "idCardH-user" && bByROpt)
@@ -2168,6 +2409,11 @@ function getHtmlDrillDownTooltip(rows, headersSpecial, bNoTruncate, groupBy, ord
 		    bPushedCard = true;
 		}
 
+		if (bShowLabels) {
+		    assert(mapCardsToLabels);
+		    var labels = (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
+		    rgRet.push({ name: labels, bNoTruncate: bNoTruncate });
+		}
 		var sPush = parseFixedFloat(row.spent);
 		var estPush = parseFixedFloat(row.est);
 		if (bShowSE) {

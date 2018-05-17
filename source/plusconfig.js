@@ -104,7 +104,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
                 });
 		    }
 
-		    sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+		    sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
 		        if (response.status == STATUS_OK && response.granted)
 		            worker();
 		    });
@@ -129,7 +129,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		    if (url == "")
 		        worker();
 		    else {
-		        sendExtensionMessage({ method: "requestWebRequestPermission" }, function (response) {
+		        sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
 		            if (response.status == STATUS_OK && response.granted)
 		                worker();
 		        });
@@ -285,23 +285,19 @@ function restartPlus(message) {
 function clearAllStorage(callback) {
 	chrome.storage.sync.clear(function () {
 	    chrome.storage.local.clear(function () {
-	        if (!g_strServiceUrl) {
+	        var keyUrlLast = "serviceUrlLast";
+	        var pairsLocal = {};
+	        if (g_strServiceUrl)
+	            pairsLocal["serviceUrlLast"] = g_strServiceUrl; //restore it to  prevent the "spreadsheet permissions" preface dialog from showing after a reset 
+	        pairsLocal[LOCALPROP_PRO_VERSION] = g_bProVersion;
+	        chrome.storage.local.set(pairsLocal, function () {
+	            if (chrome.runtime.lastError) {
+	                console.log(chrome.runtime.lastError.message);
+	                alert(chrome.runtime.lastError.message);
+	            }
 	            continueClear();
-	        }
-	        else {
-	            var keyUrlLast = "serviceUrlLast";
-
-	            var pairkeyUrlLast = {}; //restore it to  prevent the "spreadsheet permissions" preface dialog from showing after a reset 
-	            pairkeyUrlLast["serviceUrlLast"] = g_strServiceUrl;
-	            chrome.storage.local.set(pairkeyUrlLast, function () {
-	                if (chrome.runtime.lastError) {
-	                    //do nothing. plus recovers later
-	                    console.log(chrome.runtime.lastError.message);
-	                }
-	                continueClear();
-	            });
-	        }
-		});
+	        });
+	    });
 	});
 
 	function continueClear() {

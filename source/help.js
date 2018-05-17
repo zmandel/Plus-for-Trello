@@ -153,8 +153,8 @@ var Help = {
 	        return true; //do default action for this element
 	    });
 	    helpWin.m_container = container;
-	    var elemClose = helpWin.raw('<div style="float:right;width:18px;"><img class="agile_help_close" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
-	    elemClose = elemClose.find(".agile_help_close");
+	    var elemClose = helpWin.raw('<div style="float:right;width:18px;"><img id="agile_help_close" class="agile_close_button" src="' + chrome.extension.getURL("images/close.png") + '"></img></div>');
+	    elemClose = elemClose.find("#agile_help_close");
 	    elemClose.click(function () {
 	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
 	            var msgAlert = "You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.";
@@ -274,6 +274,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        setEDColor(checkDisablePlus);
 	        checkDisablePlus.click(function () {
 	            var bValue = checkDisablePlus.is(':checked');
+	            if (bValue && !confirm("Are you sure you want to disable changing trello.com pages?\n\nPlus will not show S/E, timers, hashtags and other Plus elements inside Trello.")) {
+	                checkDisablePlus[0].checked = false;
+	                return;
+	            }
 	            localStorage[g_lsKeyDisablePlus] = (bValue?"true":"false"); //make this explicit even thout js would convert it
 	            if (!bAddedRefresh) {
 	                bAddedRefresh = true;
@@ -378,6 +382,49 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpWin.para('&nbsp');
 	    }
 
+	    helpWin.para('<h2>Plus Pro version</h2>');
+	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
+	    var checkEnablePro = paraPro.children('input:checkbox:first');
+	    helpWin.para('<b>Card labels</b> in reports and burn-downs is our first "Pro" feature.');
+	    helpWin.para('Many more "Pro" <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">features are planned</a> including "Ping" and "Time in lists".');
+
+	    checkEnablePro[0].checked = g_bProVersion;
+
+	    checkEnablePro.click(function () {
+	        var bValue = checkEnablePro.is(':checked');
+	        var pair = {};
+	        
+	        if (!bValue) {
+	            if (!confirm('Are you sure you want to turn off "Pro"?')) {
+	                checkEnablePro[0].checked = true;
+	                return;
+	            }
+	            saveCheck();
+	            sendExtensionMessage({ method: "hitAnalyticsEvent", category: "ProCheckbox", action: "disabled" }, function (response) { });
+	        }
+	        else {
+	            checkEnablePro[0].checked = false; //temporarily while we authorize
+	            handleProAproval(function (status) {
+	                if (status != STATUS_OK)
+	                    bValue = false;
+	                saveCheck();
+	                if (bValue)
+	                    sendExtensionMessage({ method: "hitAnalyticsEvent", category: "ProCheckbox", action: "enabled" }, function (response) { });
+	            });
+	        }
+
+	        function saveCheck() {
+	            pair[LOCALPROP_PRO_VERSION] = bValue;
+	            chrome.storage.local.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bProVersion = bValue;
+	                checkEnablePro[0].checked = g_bProVersion;
+	            });
+	        }
+	    });
+
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
 	    helpWin.para("<h2>Contents</h2><ul id='tocAgileHelp'></ul>");
 	    helpWin.para('&nbsp');
 	    var bSpentBackendCase = isBackendMode();
@@ -475,7 +522,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    divCur = syncSectionsMap[SYNCMETHOD.trelloComments];
 	    helpWin.para('This is the recommended sync method, even if you do not use S/E.', divCur);
-	    helpWin.para('Plus syncs all boards you have joined.', divCur);
+	    helpWin.para('Plus syncs all boards which you are a <b>member</b>.', divCur);
 	    helpWin.para('Enter S/E using the card plus bar or directly as card comments.', divCur);
 	    helpWin.para('Enter S/E from mobile or other browsers as a card comment. Users can view all S/E of their joined boards.',divCur);
 	    if (g_strServiceUrl)
@@ -484,9 +531,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
 	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
+	    txtSEByCardComments = txtSEByCardComments + '<br><br>Find all boards that you are not a member (thus Plus wont sync their S/E):<br><input type="button" value="Find boards" />';
 	    var paraEnterSEByCardComments = helpWin.para(txtSEByCardComments, divCur);
 	    var inputKeywords = paraEnterSEByCardComments.children('input:text:first');
 	    var buttonSaveKeywords = paraEnterSEByCardComments.children('input:button:first');
+	    var buttonshowNonMemberBoardsDialog = paraEnterSEByCardComments.children('input:button:last');
 	    helpWin.para("&nbsp;", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetStealth];
@@ -655,6 +704,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        doSaveKeywords(true);
 	    });
 
+	    buttonshowNonMemberBoardsDialog.click(function () {
+	        showNonMemberBoardsDialog();
+	    });
 
 	    function setEnableTrelloSyncValue(bValue, bValueSyncByComments, bDisabled, bStealthSEMode) {
 	        worker();
@@ -772,7 +824,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_hashtags">Card Hashtags #</h2></b>');
 	    helpWin.para('Add #tags to cards. Use the hashtag list inside cards or type them directly in card titles.');
 	    helpWin.para('Hashtags are similar to Trello labels with the advantage of viewing them in the card back and shared across all boards.');
-	    helpWin.para('Search cards by hashtag in the Chrome Plus menu or reports (Plus does not currently support reports by labels.)');
+	    helpWin.para('Search cards by hashtag in the Chrome Plus menu or reports.');
 	    helpWin.para('A card with title "This is a card <b>#review #sales #urgent!</b>" shows as:');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/cardht.png") + '"/>');
 	    helpWin.para('Tags containing "!" are highlighted in yellow.');
@@ -1167,11 +1219,15 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    else {
 	        helpWin.para('Removal of S/E from card titles is only allowed in "Trello card comments" or "stealth" sync mode.');
 	    }
+
+	    helpWin.para('&nbsp');
+	    helpWin.para('&bull; When using "card comments sync", you may find all boards that you are not a member from the "Sync" section above.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy and security</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and licence agreement</h2></b>');
 	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
+	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user licence agreement (EULA)</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -1244,7 +1300,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	            }
 	            if (objHelp.bStartSyncOnClose) {
 	                setTimeout(function () {
-	                    doSyncDB(null, false, false, true);
+	                    doSyncDB(null, true, false, true);
 	                }, 1000);
 	            } else {
 	                //when bStartSyncOnClose, avoid showing the bubble before the first sync note
@@ -1264,4 +1320,67 @@ function setupPlusConfigLink(bParam, bStealth) {
         PlusConfig.display(bParam, bStealth);
     });
     return span;
+}
+
+var g_cProtectMultiNonMemberBoardsDialog = 0;
+function showNonMemberBoardsDialog() {
+    g_cProtectMultiNonMemberBoardsDialog++;
+    var cProtect = g_cProtectMultiNonMemberBoardsDialog;
+    var divDialog = $(".agile_dialog_showNonMemberBoards");
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog class="agile_dialog_showNonMemberBoards agile_dialog_DefaultStyle"> \
+<h2>You are not a member of these boards:</h2> \
+<br> \
+<p>Plus compares your boards (since your last sync) with all boards in all organizations.</p>\
+<p>Thus when you make yourself a member of a board, it will still appear here until Plus does a sync.</p>\
+<br> \
+<div id="agile_nonmemberListContents"></div>\
+<br \>\
+<br \>\
+<button style="float:right;" id="agile_dialog_showNonMemberBoards_OK">OK</button> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_showNonMemberBoards");
+    }
+
+    divDialog.find("#agile_dialog_showNonMemberBoards_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        divDialog[0].close();
+    });
+
+    var div = divDialog.find("#agile_nonmemberListContents");
+    div.empty();
+    div.text("Finding...");
+    divDialog[0].showModal();
+    sendExtensionMessage({ method: "getBoardsWithoutMe"},
+                function (response) {
+                    if (cProtect != g_cProtectMultiNonMemberBoardsDialog)
+                        return;
+                    div.empty();
+
+                    if (response.status != STATUS_OK) {
+                        div.text(response.status);
+                        return;
+                    }
+                    if (response.boards.length == 0) {
+                        div.text("no boards found.");
+                        return;
+                    }
+
+                    var ul = $("<ul>");
+                    ul.appendTo(div);
+                    response.boards.forEach(function (board) {
+                        var li = $("<li>");
+                        var a = $("<A target='_blank'>").prop("href", "https://trello.com/b/" + board.idBoardLong).text(board.name);
+                        var text = " ";
+                        if (board.closed)
+                            text += "[Closed] ";
+                        if (board.dateLastActivity)
+                            text += makeDateCustomString(new Date(board.dateLastActivity));
+                        var span=$("<span>").text(text);
+                        a.appendTo(li);
+                        span.appendTo(li);
+                        li.appendTo(ul);
+                    });
+                });
 }

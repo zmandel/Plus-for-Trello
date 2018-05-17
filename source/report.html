@@ -16,7 +16,7 @@
     <div id="divMain" style="margin:0;padding:0;display:none;">
         <iframe id="remember" name="remember" class="agile_hidden" src="about:blank"></iframe>
         <div class="agile_toplevel_report_container">
-            <div id= "report_top_section" align="center" style="margin-bottom:10px;">
+            <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
                 <div style="width:100%" id="agile_title_header_report">
                 <span>Report - Plus</span>
                 <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
@@ -37,10 +37,14 @@ Press 'Query' to reflect changes." style="margin-right: 0px;">
                     </p>
                     <button disabled style="height: 20px; width:70px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                 </div>
-                
-                <div style="display:none" title="Pick keyword" class="agile_report_filter agile_keyword_report_section">
+
+                <div style="display:none" class="agile_report_filter" title="
+Filter by Plus keywords.
+
+To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Keyword</p>
-                    <select id="keyword"></select>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="keyword" name="keyword" /><input type="submit" class="agile_hidden" />
                 </div>
 
                 <div title="
@@ -210,6 +214,22 @@ Example: !#low finds cards without a '#low' hashtag.
 Supports multiple AND/OR. See reports help top-right.">
                     <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
                 </form>
+                <div style="display:none" class="agile_report_filter" title="
+Filter by card labels.
+
+To find NOT containing, start with !
+Partially supports AND/OR:
+When using OR, no term can be negated: label1 OR label2 OR label3 
+When using AND, all terms must be negated: !label1 AND !label2 AND !label3
+
+Labels sync note: Plus automatic sync does not always detect all card labeling changes that happened within
+the last two minutes before sync, or label names on boards where the only change was a renamed label.
+To force fresh card label results in those cases, click on sync from the Chrome Plus menu or the top weekly report in Trello.
+
+See reports help top-right.">
+                    <p class="agile_report_filter_label">Label</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="label" name="label" /><input type="submit" class="agile_hidden" />
+                </div>
                 <form target="remember" method="post" action="about:blank" autocomplete="on" class="agile_report_filter"
                       title="
 To find NOT containing, start with !

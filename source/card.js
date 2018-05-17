@@ -1833,8 +1833,9 @@ function loadCardTimer(idCard) {
 		updateTimerTooltip(timerElem, timerStatus.bRunning, false, true);
 		timerElem.removeAttr('disabled');
 		timerElem.click(function (evt) {
+		    var msEvent = Date.now(); //workarround dont rely on evt.timeStamp (possibly https://code.google.com/p/chromium/issues/detail?id=578243)
 		    testExtension(function () {
-		        handleCardTimerClick(evt.timeStamp, hash, timerElem, timerStatus, idCard);
+		        handleCardTimerClick(msEvent, hash, timerElem, timerStatus, idCard);
 		    });
 		});
 	});
@@ -2148,7 +2149,7 @@ function doEnterSEIntoCard(s, e, commentBox, comment, idBoard, idCard, strDays, 
 	            titleCardNew = "(" + spent + "/" + estimation + ") " + cleanTitle;
 	    } else {
 	        commentEnter = comment;
-	        if (false && cleanTitle != titleCur) { //disable this until a better way is implemented
+	        if (false && cleanTitle != titleCur) { //review: disabled this until a better way is implemented
 	            titleCardNew = cleanTitle;
 	            commentEnter = commentEnter + " [plus removed " + parseFixedFloat(se.spent) + "/" + parseFixedFloat(se.estimate) + " from title]";
 	        }

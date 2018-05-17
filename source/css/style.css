@@ -6,15 +6,45 @@
     }
 }
 
+.agile_dialog_showAprovePro {
+    width:41em;
+    background-color:#E4FFFF;
+    padding-left:2em !important;
+    padding-right:2em !important;
+}
+
+#agile_dialog_showAprovePro_OK {
+    background: #61BD4F !important;
+    color: white !important;
+}
+
+#agile_dialog_showAprovePro_Cancel {
+    color: white !important;
+}
+
+.agile_help_Pro_ol {
+list-style:decimal !important;
+padding:1em !important;
+}
+
+.agile_help_Pro_ul {
+padding-left:1em !important;
+list-style-type:disc !important;
+}
+
 .agile_color_warning {
  color:red !important;
 }
 
 .agile_report_minSize {
- height:450px !important;
- width:620px !important;
- min-height:450px !important;
- min-width:620px !important;
+ height:470px !important;
+ width:685px !important;
+ min-height:470px !important;
+ min-width:685px !important;
+}
+
+#agile_nonmemberListContents {
+    max-width:40em !important;
 }
 
 #agile_globalkeywordlist {
@@ -511,9 +541,13 @@ div#agile_help_container h1 {
 	margin-top: 10px;
 }
 
-.agile_help_close {
+.agile_close_button {
 	cursor: pointer;
     position:fixed !important;
+}
+
+.agile_close_button:hover {
+    opacity:1 !important;
 }
 
 .agile_help_top {
@@ -534,9 +568,6 @@ div#agile_help_container h1 {
     margin-bottom:5px !important;
 }
 
-.agile_help_close:hover {
-    opacity:1 !important;
-}
 
 .agile_force_no_opacity {
      opacity:1 !important;

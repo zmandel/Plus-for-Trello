@@ -19,15 +19,15 @@ var estimationTotal = null;
 var remainingTotal = null;
 
 var g_boardName = null;
-var g_bUpdatingGlobalSums= null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
+var g_bUpdatingGlobalSums = null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
 var g_rgExcludedUsers = []; //users exluded from the S/E bar
 
 function getSpentSpecialUser() { //review zig: unused
-	//review zig: wrap g_configData futher as it can be null
-	if (g_configData)
-		return g_configData.spentSpecialUser;
-	return "";
+    //review zig: wrap g_configData futher as it can be null
+    if (g_configData)
+        return g_configData.spentSpecialUser;
+    return "";
 }
 
 //insertCardTimer
@@ -36,35 +36,35 @@ function insertCardTimer(containerBar) {
 
     tryInsert();
 
-	function tryInsert() {
-	    if (!inserted())
-	        setTimeout(tryInsert, 200);
-	}
+    function tryInsert() {
+        if (!inserted())
+            setTimeout(tryInsert, 200);
+    }
 
-	function inserted() {
-	    if (!g_bReadGlobalConfig)
-	        return false;
+    function inserted() {
+        if (!g_bReadGlobalConfig)
+            return false;
 
-	    var url = document.URL;
-	    var idCardCur = getIdCardFromUrl(url);
+        var url = document.URL;
+        var idCardCur = getIdCardFromUrl(url);
 
-	    if (!idCardCur)
-	        return true;
+        if (!idCardCur)
+            return true;
 
-	    var sidebars = $(".window-sidebar");
-	    if (sidebars.length == 0)
-	        return false;
+        var sidebars = $(".window-sidebar");
+        if (sidebars.length == 0)
+            return false;
 
-	    var actions = sidebars.find($(".other-actions h3")).first();
-	    if (actions.length == 0)
-	        return false;
-	    var divInsert = actions.next();
-	    if (divInsert.find($("#agile_timer")).size() != 0)
-	        return true;
+        var actions = sidebars.find($(".other-actions h3")).first();
+        if (actions.length == 0)
+            return false;
+        var divInsert = actions.next();
+        if (divInsert.find($("#agile_timer")).size() != 0)
+            return true;
 
-	    divInsert.prepend(loadCardTimer(idCardCur, containerBar));
-	    return true;
-	}
+        divInsert.prepend(loadCardTimer(idCardCur, containerBar));
+        return true;
+    }
 }
 
 function getXFromUrl(url, prefix) {
@@ -123,12 +123,12 @@ function showExtensionUpgradedError(e) {
         divDialog.find("#agile_dialog_ExtensionUpgraded_Ignore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault(); //link click would navigate otherwise
             divDialog.removeClass("agile_dialog_ExtensionUpgraded_animate");
-            setTimeout(function () { divDialog[0].close();}, 400); //wait for animation to complete
+            setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
         });
     }
     $("#agile_dialog_ExtensionUpgraded_message").text(message);
     divDialog[0].show();
-    setTimeout(function () {divDialog.addClass("agile_dialog_ExtensionUpgraded_animate");},200); //some dialog conflict prevents animation from working without timeout
+    setTimeout(function () { divDialog.addClass("agile_dialog_ExtensionUpgraded_animate"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 
 
@@ -162,21 +162,21 @@ function showFatalError(message) {
 function testExtension(callback) {
     if (g_bErrorExtension)
         return;
-    
-    try {
-		var rgLog=g_plusLogMessages;
 
-		sendExtensionMessage({ method: "testBackgroundPage", logMessages: rgLog},
+    try {
+        var rgLog = g_plusLogMessages;
+
+        sendExtensionMessage({ method: "testBackgroundPage", logMessages: rgLog },
 		function (response) {
-			if (response.status == STATUS_OK) { //status of log write
-                g_plusLogMessages = [];
-			}
-			if (callback)
-				callback();
+		    if (response.status == STATUS_OK) { //status of log write
+		        g_plusLogMessages = [];
+		    }
+		    if (callback)
+		        callback();
 		}, true); //true to rethrow exceptions
-	} catch (e) {
-	    showExtensionUpgradedError(e);
-	}
+    } catch (e) {
+        showExtensionUpgradedError(e);
+    }
 }
 
 function loadExtensionVersion(callback) {
@@ -231,10 +231,10 @@ $(function () {
 });
 
 function entryPoint() {
-	//note: this also does setInterval on the callback which we use to do sanity checks and housekeeping
-	setCallbackPostLogMessage(testExtensionAndcommitPendingPlusMessages); //this allows all logs (logPlusError, logException) to be written to the database
-	HelpButton.display(); //inside is where the fun begins
-	checkEnableMoses();
+    //note: this also does setInterval on the callback which we use to do sanity checks and housekeeping
+    setCallbackPostLogMessage(testExtensionAndcommitPendingPlusMessages); //this allows all logs (logPlusError, logException) to be written to the database
+    HelpButton.display(); //inside is where the fun begins
+    checkEnableMoses();
 }
 
 //review zig: merge with loadSharedOptions
@@ -260,9 +260,10 @@ function loadOptions(callback) {
     var keyClosePlusHomeSection = "bClosePlusHomeSection";
     var keybDontShowTimerPopups = "bDontShowTimerPopups";
     var keyServiceUrl = 'serviceUrl'; //note we only get but not set. Code later will set it
+
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
-            sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message,20000);
+            sendDesktopNotification("Plus for Trello cannot load\n" + chrome.runtime.lastError.message, 20000);
             return true;
         }
         return false;
@@ -299,14 +300,20 @@ function loadOptions(callback) {
                                  g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
                                  if (g_bAcceptPFTLegacy === undefined)
                                      g_bAcceptPFTLegacy = true; //defaults to true to not break legacy users
-                                 
+
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;
                                  g_bChangeCardColor = objSync[keybChangeCardColor] || false;
                                  g_bCheckedbSumFiltered = objSync[keyPropbSumFilteredCardsOnly] || false;
                                  //alert("g_bEnableTrelloSync : " + g_bEnableTrelloSync + "\ncomments sync : " + g_optEnterSEByComment.bEnabled + "\ndisabled sync : " + g_bDisableSync);
-								callback();
+
+                                 chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
+                                    if (BLastErrorDetected())
+                                        return;
+                                    g_bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
+                                    callback();
+                                });
                              });
 }
 
@@ -314,7 +321,7 @@ function doAllUpdates() {
     markForUpdate();
     if (isPlusDisplayDisabled())
         return;
-	addCardCommentHelp();
+    addCardCommentHelp();
 }
 
 
@@ -329,14 +336,14 @@ var g_bNeedsUpdate = false;
  * Waits until changes stabilize to make an update
  **/
 function markForUpdate() {
-	var strPageHtml = document.body.innerHTML;
-	if (!g_bForceUpdate  && strPageHtml != g_strPageHtmlLast) {
-		g_bNeedsUpdate = true;
-		g_strPageHtmlLast = strPageHtml;
-	} else if (g_bNeedsUpdate || g_bForceUpdate) {
-		g_strPageHtmlLast = strPageHtml;
-		update(true);
-	}
+    var strPageHtml = document.body.innerHTML;
+    if (!g_bForceUpdate && strPageHtml != g_strPageHtmlLast) {
+        g_bNeedsUpdate = true;
+        g_strPageHtmlLast = strPageHtml;
+    } else if (g_bNeedsUpdate || g_bForceUpdate) {
+        g_strPageHtmlLast = strPageHtml;
+        update(true);
+    }
 }
 
 
@@ -348,15 +355,15 @@ function update(bShowBoardTotals) {
 
 
 function updateSsLinksDetector(globalTotalSpent, globalTotalEstimation) {
-	var user = getCurrentTrelloUser();
+    var user = getCurrentTrelloUser();
 
-	if (user != null && globalTotalSpent == g_globalTotalSpent && globalTotalEstimation == g_globalTotalEstimation)
-		updateSsLinks();
-	else {
-		var gTSLocal = g_globalTotalSpent;
-		var gTELocal = g_globalTotalEstimation;
-		setTimeout(function () { updateSsLinksDetector(gTSLocal, gTELocal); }, 500); //try later until it stabilizes
-	}
+    if (user != null && globalTotalSpent == g_globalTotalSpent && globalTotalEstimation == g_globalTotalEstimation)
+        updateSsLinks();
+    else {
+        var gTSLocal = g_globalTotalSpent;
+        var gTELocal = g_globalTotalEstimation;
+        setTimeout(function () { updateSsLinksDetector(gTSLocal, gTELocal); }, 500); //try later until it stabilizes
+    }
 }
 
 

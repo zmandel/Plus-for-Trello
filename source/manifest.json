@@ -1,7 +1,7 @@
 ﻿{
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "3.5.2",
+  "version": "3.6.0",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -20,7 +20,8 @@
     "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
     "scopes": [
       "https://spreadsheets.google.com/feeds",
-      "https://www.googleapis.com/auth/drive.file"
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/chromewebstore.readonly"
     ]
   },
 
@@ -71,6 +72,6 @@
     "manifest.json",
     "css/images/*.gif"
   ],
-  "optional_permissions": [ "webRequest", "https://spreadsheets.google.com/", "http://www.plusfortrello.com/" ],
-  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "https://trello.com/", "webRequest", "https://trello.com/1/*", "https://www.googleapis.com/" ]
+  "optional_permissions": ["https://spreadsheets.google.com/", "http://www.plusfortrello.com/", "https://www.plusfortrello.com/", "https://ssl.google-analytics.com/", "alarms", "gcm" ],
+  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "webRequest", "https://trello.com/", "https://trello.com/1/*", "https://www.googleapis.com/" ]
 }

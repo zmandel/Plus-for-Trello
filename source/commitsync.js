@@ -66,7 +66,9 @@ function commitBoardSyncData(tx, alldata) {
             if (board.orig.idTeam == board.idTeam && board.orig.name == board.name && board.orig.bArchived == board.bArchived &&
                 board.orig.idLong == board.idLong && board.orig.idBoard == board.idBoard && board.orig.verDeepSync == board.verDeepSync) {
                 thisChanged = false;
-                if (board.orig.dateSzLastTrello == board.dateSzLastTrello && board.orig.idActionLast == board.idActionLast)
+                if (board.orig.dateLastActivity == board.dateLastActivity &&
+                    board.orig.dateSzLastTrello == board.dateSzLastTrello &&
+                    board.orig.idActionLast == board.idActionLast)
                     continue;
             }
         }
@@ -77,13 +79,56 @@ function commitBoardSyncData(tx, alldata) {
             assert(!board.orig);
             //could use this for both cases, but maybe sqlite optimizes for update
             //using "replace" as the board could have been alreadt created during sync (by user entering S/E into a card)
-            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, verDeepSync, idTeam, idBoard) VALUES (?,?,?,?,?,?,?,?)";
+            sql = "INSERT OR REPLACE INTO BOARDS (name, dateSzLastTrello, idActionLast, bArchived, idLong, verDeepSync, idTeam, dateLastActivity, idBoard) VALUES (?,?,?,?,?,?,?,?,?)";
         }
         else {
             assert(board.orig);
-            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=?,verDeepSync=?, idTeam=? WHERE idBoard=?";
+            sql = "UPDATE BOARDS SET name=?, dateSzLastTrello=?, idActionLast=?,bArchived=?,idLong=?,verDeepSync=?, idTeam=?, dateLastActivity=? WHERE idBoard=?";
         }
-        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.verDeepSync || 0, board.idTeam || null, board.idBoard],
+        tx.executeSql(sql, [board.name, board.dateSzLastTrelloNew || null, board.idActionLastNew || null, board.bArchived ? 1 : 0, board.idLong, board.verDeepSync || 0, board.idTeam || null, board.dateLastActivity || earliest_trello_date(), board.idBoard],
+                null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+    }
+    return bChanged;
+}
+
+function commitBoardLabelsSyncData(tx, alldata) {
+    var idLabel = null;
+    var sql = "";
+    var bChanged = false;
+
+    if (alldata.dateLastLabelsSyncStrOrig && alldata.dateLastLabelsSyncStrNew && alldata.dateLastLabelsSyncStrOrig != alldata.dateLastLabelsSyncStrNew) {
+        //bChanged = true; simple changes dont cause a changed
+        sql = "UPDATE GLOBALS SET dateLastLabelsSync=?";
+        tx.executeSql(sql, [alldata.dateLastLabelsSyncStrNew],
+                null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+    }
+
+    for (idLabel in alldata.labels) {
+        var thisChanged = true;
+        var label = alldata.labels[idLabel];
+        if (!label.name)
+            label.name = STR_UNKNOWN_LABEL;
+        assert(label.idBoardShort);
+
+        if (label.orig) {
+            if (label.orig.idLabel == idLabel && label.orig.name == label.name && label.orig.idBoardShort == label.idBoardShort) {
+                continue;
+            }
+        }
+
+        if (thisChanged)
+            bChanged = true;
+
+        sql = "INSERT OR REPLACE INTO LABELS (idLabel, name, idBoardShort, color) VALUES (?,?,?,?)";
+        tx.executeSql(sql, [idLabel, label.name, label.idBoardShort, label.color],
                 null,
 				function (tx2, error) {
 				    logPlusError(error.message);
@@ -143,7 +188,7 @@ function commitCardSyncData(tx, alldata) {
 
     for (idCard in alldata.cards) {
         var thisChanged = true;
-        //idBoard, name, dateSzLastTrello, idList, idLong, bArchived
+        
         //review zig: verify if it can be unknown
         var card = alldata.cards[idCard];
         if (!card.dateSzLastTrello) {
@@ -159,8 +204,17 @@ function commitCardSyncData(tx, alldata) {
 
         var name = parseSE(card.name, true).titleNoSE;
 
+        if (card.idLabels)
+            card.idLabels.sort();
+
         if (card.orig) {
-            if (card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&            
+            if (card.orig.idLabels)
+                card.orig.idLabels.sort();
+
+            var strLabelsOrig = JSON.stringify(card.orig.idLabels || []);
+            var strLabels = JSON.stringify(card.idLabels || []);
+
+            if (strLabelsOrig == strLabels && card.orig.idCard == card.idCard && card.orig.name == name && card.orig.idBoard == card.idBoard &&
    				card.orig.idList == card.idList && card.orig.bArchived == card.bArchived && card.orig.bDeleted == card.bDeleted &&
                 card.orig.dateDue==card.dateDue && card.orig.idLong == card.idLong) {
                 thisChanged = false;
@@ -170,14 +224,43 @@ function commitCardSyncData(tx, alldata) {
         }
         if (thisChanged)
             bChanged = true;
+
+
         //review zig: for performance, this should update when orig exists, using INSERT OR IGNORE, then UPDATE (unless it must be there because there is an orig)
         sql = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name, dateSzLastTrello, idList, bArchived, bDeleted, idLong, dateDue) VALUES (?,?,?,?,?,?,?,?,?)";
-        tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue],
-                null,
-				function (tx2, error) {
-				    logPlusError(error.message);
-				    return true; //stop
-				});
+        handleInsertCard(sql, idCard, card);
+
+        //a function is needed here so idCard, card are retained for use in callbacks
+        function handleInsertCard(sql, idCard, card) {
+            tx.executeSql(sql, [idCard, card.idBoard, name, card.dateSzLastTrello, card.idList, (card.bArchived || card.bDeleted) ? 1 : 0, card.bDeleted ? 1 : 0, card.idLong, card.dateDue],
+                    function onOkInsert(tx2, resultSet) {
+                        if (g_bDummyLabel && !card.orig && !card.idLabels) {
+                            //could be a newly created card. check if it has no dummy.
+                            //in theory, if !card.orig means a new card, but is more robust to check here
+                            tx2.executeSql("SELECT COUNT(*) as total FROM LABELCARD WHERE idCardShort=?", [idCard],
+                                function onResult(tx3, results) {
+                                    assert(results.rows.length == 1);
+                                    var row = results.rows.item(0);
+                                    if (row.total == 0) {
+                                        tx3.executeSql("INSERT OR REPLACE INTO LABELCARD (idCardShort,idLabel) VALUES (?,?)", [idCard, IDLABEL_DUMMY],
+                                            null,
+                                            function (tx4, error) {
+                                                logPlusError(error.message);
+                                                return true; //stop
+                                            });
+                                    }
+                                },
+                                function (tx3, error) {
+                                    logPlusError(error.message);
+                                    return true; //stop
+                                });
+                        }
+                    },
+                    function (tx2, error) {
+                        logPlusError(error.message);
+                        return true; //stop
+                    });
+        }
 
         if (card.orig) {
             if (card.orig.idBoard != card.idBoard) {
@@ -195,6 +278,83 @@ function commitCardSyncData(tx, alldata) {
                 //card renamed. handle [R] change
                 handleRecurringChange(tx, card.idCard, card.orig.name, name);
             }
+        }
+
+        //handle labels
+        if (card.idLabels) {
+            var idLabelsAdd = [];
+            var idLabelsRemove = [];
+
+            if (card.orig && card.orig.idLabels) {
+                for (var iCard = 0, iCardOrig = 0; ;) {
+                    var bOrigInRange = (iCardOrig < card.orig.idLabels.length);
+                    var bInRange = (iCard < card.idLabels.length);
+
+                    var val = null;
+                    if (bInRange)
+                        val = card.idLabels[iCard];
+                    var valOrig = null;
+
+                    if (bOrigInRange)
+                        valOrig= card.orig.idLabels[iCardOrig];
+                    if (bOrigInRange && bInRange) {
+                        if (val == valOrig) {
+                            iCard++;
+                            iCardOrig++;
+                        }
+                        else if (val < valOrig) {
+                            idLabelsAdd.push(val);
+                            iCard++;
+                        }
+                        else {
+                            assert(val > valOrig);
+                            idLabelsRemove.push(valOrig);
+                            iCardOrig++;
+                        }
+                    }
+                    else if (bOrigInRange) {
+                        idLabelsRemove.push(valOrig);
+                        iCardOrig++;
+                    }
+                    else if (bInRange) {
+                        idLabelsAdd.push(val);
+                        iCard++;
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+            else {
+                idLabelsAdd = card.idLabels;
+            }
+
+            if (g_bDummyLabel) {
+                if (card.idLabels.length > 0) {
+                    idLabelsRemove.push(IDLABEL_DUMMY);
+                }
+                else {
+                    idLabelsAdd.push(IDLABEL_DUMMY);
+                }
+            }
+
+            idLabelsAdd.forEach(function (idLabel) {
+                tx.executeSql("INSERT OR REPLACE INTO LABELCARD (idCardShort,idLabel) VALUES (?,?)", [idCard, idLabel],
+                null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+            });
+
+            idLabelsRemove.forEach(function (idLabel) {
+                tx.executeSql("DELETE FROM LABELCARD WHERE idCardShort=? AND idLabel=?", [idCard, idLabel],
+                null,
+				function (tx2, error) {
+				    logPlusError(error.message);
+				    return true; //stop
+				});
+            });
         }
     }
     return bChanged;

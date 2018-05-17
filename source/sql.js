@@ -1,6 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
 
 var g_db = null;
+var STR_UNKNOWN_LABEL = "";
 var STR_UNKNOWN_TEAM = "Unknown team";
 var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
@@ -15,8 +16,9 @@ var VERDEEPSYNC = {
     MINVALID: 0,
     NOTMEMBER: -1 //hackinsh way to keep a special board state when user is no longer a member of the board. needed to distinguish from zero in first-sync case with existing db data
 };
+
 function isDbOpened() {
-    if (typeof (g_db) == "undefined") //in case its called from a global object
+    if (typeof (g_db) == "undefined") //in case its called from a global object during construction
         return false;
 
     return (!g_bOpeningDb && g_db);
@@ -382,7 +384,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
         if (!bEnterSEByComments)
             handleSSsync(sendResponse);
         else
-            handleSyncBoards({ tokenTrello: request.tokenTrello }, sendResponse);
+            handleSyncBoards({ tokenTrello: request.tokenTrello, bUserInitiated: request.bUserInitiated }, sendResponse);
     });
 }
 
@@ -718,10 +720,10 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 		if (bCardCreated) {
 		    //since its the first time we encounter the card, idBoard should be OK
 		    rowCard = { idCard: row.idCard, idBoard: row.idBoard, name: row.strCard }; //for consistency
-		    alldata.cards[row.idCard]=rowCard;
-		    strExecute2 = "INSERT INTO CARDS (idCard, idBoard, name) \
+		    alldata.cards[row.idCard] = rowCard;
+		    strExecute2 = "INSERT OR REPLACE INTO CARDS (idCard, idBoard, name) \
 						   VALUES (? , ? , ?)";
-		    tx2.executeSql(strExecute2, [row.idCard, row.idBoard, row.strCard], 
+		    tx2.executeSql(strExecute2, [row.idCard, row.idBoard, row.strCard],
                 function onOkInsert(tx3, resultSet) {
                     var x = 1; //for debug breakpoint
                 },
@@ -729,6 +731,15 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 				    logPlusError(error.message);
 				    return true; //stop
 				});
+		    if (g_bDummyLabel) {
+		        //since we are just creating the card, it needs a dummy label as it has no labels
+		        tx2.executeSql("INSERT OR REPLACE INTO LABELCARD (idCardShort,idLabel) VALUES (?,?)", [row.idCard, IDLABEL_DUMMY], null,
+                    function (tx3, error) {
+                        logPlusError(error.message);
+                        return true; //stop
+                    });
+		    }
+
 		}
 
 		assert(rowCard);
@@ -1287,6 +1298,8 @@ function handleDeleteDB(request, sendResponseParam) {
 		t.executeSql('DROP TABLE IF EXISTS LISTS');
 		t.executeSql('DROP TABLE IF EXISTS CARDS');
 		t.executeSql('DROP TABLE IF EXISTS BOARDS');
+		t.executeSql('DROP TABLE IF EXISTS LABELCARD');
+		t.executeSql('DROP TABLE IF EXISTS LABELS');
 		t.executeSql('DROP TABLE IF EXISTS TEAMS');
 		t.executeSql('DROP TABLE IF EXISTS GLOBALS');
 		t.executeSql('DROP TABLE IF EXISTS USERS'); //review zig: used to keep the non-custom in 2.12.1 but I removed as it could cause problems if somehow users table is not created
@@ -1952,6 +1965,41 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 
             t.executeSql("ALTER TABLE BOARDS ADD COLUMN idTeam TEXT DEFAULT '" + IDTEAM_UNKNOWN + "'"); //idTeam can also be null for boards without team
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardsByIdTeam ON BOARDS(idTeam ASC)');
+        });
+
+        M.migration(36, function (t) {
+            t.executeSql("ALTER TABLE BOARDS ADD COLUMN dateLastActivity TEXT DEFAULT '"+earliest_trello_date()+"' NOT NULL"); //same (usually) as trello's board.dateLastActivity
+
+            t.executeSql("ALTER TABLE GLOBALS ADD COLUMN dateLastLabelsSync TEXT DEFAULT '" + earliest_trello_date() + "' NOT NULL");
+
+            //LABELS.idBoardShort is named "short" to be explicit, but note that the other table's "idBoard" is also a short trello id.
+            //idBoardShort can be IDBOARD_UNKNOWN
+            t.executeSql('CREATE TABLE IF NOT EXISTS LABELS ( \
+							idLabel TEXT PRIMARY KEY NOT NULL, \
+							name TEXT NOT NULL, \
+                            idBoardShort TEXT NOT NULL, \
+                            color TEXT \
+							)');
+            
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_labelsByIdBoard ON LABELS(idBoardShort ASC)'); //index by board for quick filtering in case of many labels
+
+            t.executeSql('CREATE TABLE IF NOT EXISTS LABELCARD ( \
+							idCardShort TEXT NOT NULL, \
+							idLabel TEXT NOT NULL, \
+                            PRIMARY KEY (idCardShort, idLabel) \
+							)');
+
+            //PRIMARY KEY (idCardShort, idLabel) gives unique and an index (for reports)
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_labelcardByLabel ON LABELCARD(idLabel ASC,idCardShort ASC)'); //for reports
+
+            if (g_bDummyLabel) { //Note: if reactivated, this needs to move as a new version upgrade
+                t.executeSql("INSERT OR REPLACE INTO LABELS (idLabel, name, idBoardShort, color) VALUES (?,?,?,?)",
+                    [IDLABEL_DUMMY, "", IDBOARD_UNKNOWN, ""]);
+
+                //doing this here ensures all cards, even those we can no longer reach, have an initial dummy. thus we can later assume no labels -> has dummy label
+                t.executeSql("INSERT OR REPLACE INTO LABELCARD (idCardShort,idLabel) SELECT idCard,'" + IDLABEL_DUMMY + "' FROM CARDS", []);
+            }
+
         });
         M.doIt();
     }
