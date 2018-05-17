@@ -205,6 +205,7 @@ function handleSyncBoards(request, sendResponseParam) {
         //and sync only maintains the history table, not the queuehistory
         insertPendingSERows(function (responseInsertSE) {
             if (responseInsertSE.status != STATUS_OK) {
+                g_syncStatus.setStage("", 0);
                 sendResponseParam({ status: responseInsertSE.status });
                 return;
             }

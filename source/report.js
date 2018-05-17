@@ -2961,7 +2961,7 @@ function chartStacked(type, bForce, callbackCancel) {
     domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    if (type == g_chartViews.r || type == g_chartViews.e) {
+    if (type == g_chartViews.r) {
         if (g_dataChart.params["sinceSimple"]) {
             hiliteOnce($("#sinceSimple"));
             textMessage += "To make this chart, do not filter by Date.";

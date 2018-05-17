@@ -223,6 +223,7 @@ function loadExtensionVersion(callback) {
 }
 
 $(function () {
+
     loadExtensionVersion(function () {
         setTimeout(function () { //in timeout so we can safely reference globals and give a little time for trello load itself since we  "run_at": "document_start"
 
