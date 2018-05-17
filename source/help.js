@@ -1,6 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
 
 var g_bNeedStartTourBubble = false;
+var g_bNeedShowPro = false;
 
 var SYNCMETHOD = {
     disabled:0,
@@ -127,6 +128,8 @@ var Help = {
 	    }
 	},
 	displayWorker: function () {
+	    var bShowPro = g_bNeedShowPro;
+	    g_bNeedShowPro = false;
 	    var helpWin = this;
 	    var comboSync = null;
 	    var spanButtonGS = null;
@@ -145,6 +148,22 @@ var Help = {
 	        }
 	    }
 
+	    if (bShowPro) {
+	        setTimeout(function () {
+	            var step = {
+	                selector: $("#agile_plus_checkPro").parent(),
+	                text: 'Enable "Pro"<br />from here!<br /><br />Thanks for<br />giving back!',
+	                angle: 0,
+	                distance: 5,
+	                size: 150,
+	                hiliteTime: 10000
+	            };
+	            showBubbleFromStep(step, true, true, 0);
+	            setTimeout(function () {
+	                removeAllGrumbleBubbles();
+	            }, 5000);
+	        },1000);
+	    }
 	    keepSyncPaused(true);
 
 	    var container = $('<div id="agile_help_container" tabindex="0"></div>').height($(window).height());
@@ -385,10 +404,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpWin.para('&nbsp');
 	    }
 
-	    helpWin.para('<h2>Plus Pro version</h2>');
+	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = '<b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more!';
+	    var textEnablePro = 'View <b>Card labels</b> in reports and burn-downs, extra report options useful for integrations and more!';
 	    if (!g_bProVersion)
 	        textEnablePro += '<br />Check for more details.';
 	    helpWin.para(textEnablePro);

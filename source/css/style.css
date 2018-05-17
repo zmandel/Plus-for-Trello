@@ -6,6 +6,18 @@
     }
 }
 
+.labelGetPro {
+        font-size: 10px !important;
+        margin-bottom: 3px !important;
+        cursor:pointer !important;
+}
+
+.agile_section_comboTitle {
+font-weight:bold !important;
+font-size:16px !important;
+background-color: #EEEEEE !important;
+}
+
 .chart-tooltip-custom {
 text-align:center;
 pointer-events:none;
@@ -638,6 +650,19 @@ div#agile_help_container h3 {
 
 .agile_spent_item_newTrello {
 	margin-left: 45px !important;
+}
+
+.agile_spent_item_combo_optionselectable {
+    line-height: 34px !important;
+    text-indent: 15px !important;
+}
+
+.agile_spent_item_combo {
+	width:6em !important;
+    border:none !important;
+    -webkit-appearance: none;
+    cursor: pointer;
+    margin-right:1em !important;
 }
 
 .agile_spent_item_lastRow {

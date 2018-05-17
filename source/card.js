@@ -326,8 +326,7 @@ function isRecurringCard() {
     return bRecurring;
 }
 
-function fillComboKeywords(comboKeywords, rg, kwSelected, classItem) {
-
+function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependNonDisabled) {
     function add(elem, kwSelected) {
         var str;
         var val;
@@ -344,6 +343,8 @@ function fillComboKeywords(comboKeywords, rg, kwSelected, classItem) {
             disabled = elem.disabled || false;
         }
 
+        if (!disabled && strPrependNonDisabled)
+            str = strPrependNonDisabled + str;
         var item = new Option(str, val);
         if (val == kwSelected)
             item.selected = true;

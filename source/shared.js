@@ -27,6 +27,7 @@ var g_bIncreaseLogging = false;
 var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
 var g_language = "en";
 var g_bProVersion = false;
+const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
 
 //thanks http://stackoverflow.com/a/12034334
 var g_entityMap = {

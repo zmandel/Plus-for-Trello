@@ -70,6 +70,12 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="idBoardH-week">Board-Week</option>
+                        <option value="idBoardH-month">Board-Month</option>
+                        <option value="user-week">User-Week</option>
+                        <option value="user-month">User-Month</option>
                         <option value="dateString">Date</option>
                         <option value="dateString-user">Date-User</option>
                         <option value="dateString-idBoardH">Date-Board</option>
@@ -78,7 +84,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="user-keyword">User-Keyword</option>
                         <option value="idBoardH-keyword">Board-Keyword</option>
                         <option value="idTeamH-keyword">Team-Keyword</option>
-                        
+                        <option value="custom">Custom...</option>
                     </select>
                 </div>
                 <div title="Pick a pivot to change the columns in the 'Spent by ...' tabs.
@@ -146,6 +152,7 @@ Otherwise it uses the date of the card's last create, move or rename." class="ag
                         <option value="w-5">5 weeks</option>
                         <option value="w-10">10 weeks</option>
                         <option value="w-15">15 weeks</option>
+                        <option value="w-30">30 weeks</option>
                         <option value="w-53">53 weeks</option>
                         <option value="">All dates</option>
                         <option value="advanced">Advanced</option>
@@ -365,21 +372,24 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                 <div id="tabs-3" style="display:none;padding-left:6px;padding-right:6px;padding-top:6px;margin-bottom:1em;" class="agile_report_tab">
                     <div style="height:2em;">
                         <select id="chartView" >
+                            <option value="s">Spent</option>
                             <option value="ser">Spent and Remaining. E=S+R</option>
                             <option value="e1vse">E1ˢᵗ versus E</option>
                             <option value="echange">E change</option>
                             <option value="cardcount">Card count</option>
                         </select>
-                        <select id="stackCount" style="display:none;">
+                        <select id="stackBy" style="display:none;">
                             <option value="">No stacking</option>
                             <option value="user">Stack by S/E user</option>
                             <option value="nameList">Stack by list</option>
                             <option value="hashtagFirst">Stack by first hashtag</option>
                             <option value="keyword">Stack by keyword</option>
+                            <option value="week">Stack by week</option>
+                            <option value="month">Stack by month</option>
                         </select>
-                        <span  style="display:none;" class="report_options_item" id="spancheckNoColorsChartCount" title="Check to use white for stacks with value and gray otherwise.">
-                            <input class="agile_report_checkbox" style="margin-left:1em;" type="checkbox" value="checked" id="checkNoColorsChartCount" />
-                            <label class="agile_unselectable" for="checkNoColorsChartCount">No colors</label>
+                        <span class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
+                            <input class="agile_report_checkbox" style="margin-left:1em;" type="checkbox" value="checked" id="checkNoColorsChart" />
+                            <label class="agile_unselectable" for="checkNoColorsChart">No colors</label>
                         </span>
                         <img class="agile_drilldown_select"/>
                     </div>

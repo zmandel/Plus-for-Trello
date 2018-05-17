@@ -1871,16 +1871,14 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(28, function (t) {
-            t.executeSql("delete from lists where idList like '[%'"); //fix trello bug with corrupted idLists in trello board actions
+            t.executeSql("delete from LISTS where idList like '[%'"); //fix trello bug with corrupted idLists in trello board actions
             t.executeSql("update cards set idList='" + IDLIST_UNKNOWN + "' where idList LIKE '[%'"); //ditto
         });
 
         M.migration(29, function (t) {
             t.executeSql('ALTER TABLE CARDS ADD COLUMN dateDue INT DEFAULT NULL');
-            //t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByDueDate ON CARDS(dateDue ASC) where dateDue IS NOT NULL');
 
             t.executeSql("drop INDEX IF EXISTS idx_cardbalanceByCardUserDiff_new"); //improve index by excluding zero diff entries
-            //t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardbalanceByCardUserDiff_new2 ON CARDBALANCE(user ASC, diff ASC) where diff!=0'); //for updating rows on insert,reports and verifications
             });
 
         M.migration(30, function (t) {
@@ -2027,6 +2025,14 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
 
         M.migration(37, function (t) {
             t.executeSql("ALTER TABLE CARDS ADD COLUMN idShort TEXT DEFAULT NULL"); //not shortLink. idShort is unique per board
+        });
+
+        M.migration(38, function (t) {
+            //version 4.0.0
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_boardsByArchived ON BOARDS(bArchived ASC)'); //for hashtags global list and reports
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_listsByArchived ON LISTS(bArchived ASC)');
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByArchivedDeleted ON CARDS(bArchived ASC, bDeleted ASC)');
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_listsByBoard ON LISTS(idBoard ASC)'); 
         });
 
         M.doIt();

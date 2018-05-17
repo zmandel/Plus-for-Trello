@@ -12,7 +12,7 @@ var HelpButton = {
 		var spanTour = $('<span class="agile_tour_link agile_plus_header_link">Tour</span>');
 		hookTour(spanTour);
 		var icon = $("<img>").attr("src", chrome.extension.getURL(bPlusDisplayDisabled ? "images/iconspenthelpwarn.png" : "images/iconspenthelp.png"));
-		icon.addClass("agile-spent-icon-header");
+		icon.addClass("agile-spent-icon-header agile-main-plus-help-icon");
 		icon.attr("title", "Plus Help");
 		if (!bPlusDisplayDisabled)
 		    b.append(spanTour);

@@ -645,10 +645,15 @@ function checkFirstTimeUse() {
 	            });
 	        }
 	    }
-	    chrome.storage.local.get([keyDateLastSetupCheck, keySyncWarn], function (obj) {
+	    chrome.storage.local.get([KEY_LS_NEEDSHOWPRO, keyDateLastSetupCheck, keySyncWarn], function (obj) {
 	        var valuekeySyncWarn = obj[keySyncWarn];
 	        var bForceShowHelp = false;
 	        var msDateLastSetupCheck = obj[keyDateLastSetupCheck];
+	        g_bNeedShowPro = obj[KEY_LS_NEEDSHOWPRO];
+	        if (g_bNeedShowPro) {
+	            bShowHelp = true;
+	            bForceShowHelp = true;
+	        }
 	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled() && !g_bDisableSync) { //sync not set up
 	            if (msDateLastSetupCheck !== undefined) {
 	                if (totalDbRowsHistory > 0) {
@@ -684,7 +689,11 @@ function checkFirstTimeUse() {
 			    if (!valuekeySyncWarn || bForceShowHelp) {
 					var pair = {};
 					pair[keyDateLastSetupCheck] = msDateNow;
+					pair[KEY_LS_NEEDSHOWPRO] = "";
 					chrome.storage.local.set(pair, function () { });
+					setTimeout(function () {
+					    hiliteOnce($(".agile-main-plus-help-icon"),4000);
+					}, 1500);
 					setTimeout(function () { Help.display(); }, 2000);
 				}
 			}
@@ -1107,12 +1116,12 @@ function getKeywordsViewList() {
 
     if (rgItems.length >= 1) {
         rgItems.unshift({ str: "➖ Board Dimensions ➖", val: VAL_COMBOVIEWKW_HEADER, disabled: true });
-        rgItems.push({ str: "All S/E", val: VAL_COMBOVIEWKW_ALL });
+        rgItems.push({ str: '\u00A0'+"All S/E", val: VAL_COMBOVIEWKW_ALL });
         rgItems.push({ str: "───────────────", val: VAL_COMBOVIEWKW_SEP, disabled: true });
         if (bMultipleKeywords)
             rgItems.push({ str: "↗ Report by keyword", val: VAL_COMBOVIEWKW_REPORTKW });
-        rgItems.push({ str: "↗ Dimensions help", val: VAL_COMBOVIEWKW_HELP });
-        fillComboKeywords(combo, rgItems, g_dimension, "agile_weeks_combo_element");
+        rgItems.push({ str:  "↗ Dimensions help", val: VAL_COMBOVIEWKW_HELP });
+        fillComboKeywords(combo, rgItems, g_dimension, "agile_weeks_combo_element", '\u00A0\u00A0\u00A0');
         if (combo.val() != g_dimension) { //keyword no longer in use, default to all
             combo.val(VAL_COMBOVIEWKW_ALL);
             doComboChange();
@@ -1484,10 +1493,12 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		row2.append(cellC);
 		row2.append(cellD);
 		waiter.SetWaiting(true);
-		chartModuleLoader(waiter, divSpentItems, cellA, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left");
-		chartModuleLoader(waiter, divSpentItems, cellB, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left");
-		var divItemDashboardRecent = addModuleSection(false, cellC, "Recent card S/E", idRecentModule, true, "left", true);
-		var divItemDashboardUnspent = addModuleSection(false, cellD, "Remaining balance cards", idPendingModule, true, "left", true);
+		var divItemDashboardRecent = addModuleSection(true, false, cellA, "", idRecentModule, true, "left", false);
+		divItemDashboardRecent.addClass("agile_spent_item_title  agile_spent_item_combo");
+		var divItemDashboardUnspent = addModuleSection(true, false, cellA, "", idPendingModule, true, "left", false);
+		divItemDashboardUnspent.addClass("agile_spent_item_combo");
+		chartModuleLoader(waiter, divSpentItems, cellC, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left", true);
+		chartModuleLoader(waiter, divSpentItems, cellD, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left", true);
 		loadDashboards(waiter, divItemDashboardRecent, divItemDashboardUnspent, user);
 	} else {
 		var divItemDashboardRecent2 = $("#" + idRecentModule);
@@ -1500,7 +1511,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 }
 
 function chartModuleLoader(waiter, divSuperContainer, divSpentItems, title, idChartModule, idElemChartStatus, data, callback, strFloat) {
-	var divItem = addModuleSection(true, divSpentItems, title, idChartModule, false, strFloat);
+    var divItem = addModuleSection(false, true, divSpentItems, title, idChartModule, false, strFloat);
 	divItem.attr("align", "center");
 
 	var nameLocal = idChartModule + "-Height";
@@ -1536,55 +1547,62 @@ function cancelZoomin(callback, bQuick) {
         callback();
 }
 
-function addModuleSection(bEnableZoom, div, name, id, bHidden, strFloat, bLastRow) {
-	if (bHidden === undefined)
-		bHidden = false;
-	var divModule = $("<DIV>");
-	var divTitleContainer = $("<DIV>").addClass("agile_spent_item_title");
+function addModuleSection(bCombobox, bEnableZoom, div, name, id, bHidden, strFloat, bLastRow) {
+    if (bHidden === undefined)
+        bHidden = false;
 
-	if (g_bNewTrello) {
-		divTitleContainer.addClass("agile_spent_item_title_newTrello"); //fix width
-		divModule.addClass("agile_module_newtrello");
+    if (bCombobox) {
+        var combo = $('<select id="' + id + '" />');
+        div.append(combo);
+        return combo;
+    }
+    var divItem = null;
 
-		if (strFloat)
-			divModule.css("float", strFloat);
-	}
+    var divModule = $("<DIV>");
+    var divTitleContainer = $("<DIV>").addClass("agile_spent_item_title");
 
-	
-	var titleModule = $('<h3>').addClass("classid_"+id+" sectionTitleFont");
-	if (bEnableZoom) {
-	    titleModule.addClass("agile_spent_item_title_zoomable");
-	    titleModule.attr("title", "Click to zoom in/out");
-	    titleModule.css("cursor", "-webkit-zoom-in");
-	    titleModule.click(function (evt) {
-	        if (divModule.hasClass("agile_zoomedElement")) {
-	            titleModule.css("cursor", "-webkit-zoom-in");
-	            cancelZoomin();
-	        }
-	        else {
-	            function onFinishZoom() {
-	                //need to change cursor here, else will change during animation on top of chart.
-	                titleModule.css("cursor", "-webkit-zoom-out");
-	            }
-	            removeAllGrumbleBubbles();
-	            divModule.zoomTo({ targetsize: 1, duration: 600, animationendcallback: onFinishZoom });
-	            divModule.addClass("agile_zoomedElement");
-	        }
-	        evt.stopPropagation();
-	    });
-	}
-	divTitleContainer.append(titleModule.text(name));
-	divModule.append(divTitleContainer);
-	var divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item notranslate");
-	if (g_bNewTrello)
-	    divItem.addClass("agile_spent_item_newTrello");
-	if (bLastRow)
-	    divItem.addClass("agile_spent_item_lastRow");
-	divModule.append(divItem);
-	if (bHidden)
-		divModule.hide();
-	div.append(divModule);
-	return divItem;
+    if (g_bNewTrello) {
+        divTitleContainer.addClass("agile_spent_item_title_newTrello"); //fix width
+        divModule.addClass("agile_module_newtrello");
+
+        if (strFloat)
+            divModule.css("float", strFloat);
+    }
+    var titleModule = $('<h3>').addClass("classid_" + id + " sectionTitleFont");
+    if (bEnableZoom) {
+        titleModule.addClass("agile_spent_item_title_zoomable");
+        titleModule.attr("title", "Click to zoom in/out");
+        titleModule.css("cursor", "-webkit-zoom-in");
+        titleModule.click(function (evt) {
+            if (divModule.hasClass("agile_zoomedElement")) {
+                titleModule.css("cursor", "-webkit-zoom-in");
+                cancelZoomin();
+            }
+            else {
+                function onFinishZoom() {
+                    //need to change cursor here, else will change during animation on top of chart.
+                    titleModule.css("cursor", "-webkit-zoom-out");
+                }
+                removeAllGrumbleBubbles();
+                divModule.zoomTo({ targetsize: 1, duration: 600, animationendcallback: onFinishZoom });
+                divModule.addClass("agile_zoomedElement");
+            }
+            evt.stopPropagation();
+        });
+    }
+    divTitleContainer.append(titleModule.text(name));
+    divModule.append(divTitleContainer);
+    divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item notranslate");
+
+    if (g_bNewTrello)
+        divItem.addClass("agile_spent_item_newTrello");
+    if (bLastRow)
+        divItem.addClass("agile_spent_item_lastRow");
+    divModule.append(divItem);
+    if (bHidden)
+        divModule.hide();
+    div.append(divModule);
+    return divItem;
 }
 
 function doRecentReport(waiter, elemRecent, user) {
@@ -1602,13 +1620,9 @@ function doRecentReport(waiter, elemRecent, user) {
 	var values = [user];
 	getSQLReport(sql, values,
 		function (response) {
-			elemRecent.find($("ul")).remove();
-			var list = $("<ul>");
-			if (!g_bNewTrello)
-				list.addClass("board-list");
-			elemRecent.append(list);
-
-			handleLoadRecent(list, response.rows);
+		    elemRecent.empty();
+		    elemRecent.append($(new Option("► Recent", "")).addClass("agile_section_comboTitle"));
+		    handleLoadRecent(elemRecent, response.rows);
 			elemRecent.parent().show();
 			if (waiter)
 			    waiter.Decrease();
@@ -1632,13 +1646,9 @@ function doPendingReport(waiter, elemPending, user) {
 	var values = [user];
 	getSQLReport(sql, values,
 		function (response) {
-			elemPending.find($("ul")).remove();
-			var list = $("<ul>");
-			if (!g_bNewTrello)
-				list.addClass("board-list");
-			elemPending.append(list);
-
-			handleLoadPending(list, response.rows);
+		    elemPending.empty();
+		    elemPending.append($(new Option("► Remain", "")).addClass("agile_section_comboTitle"));
+		    handleLoadPending(elemPending, response.rows);
 			elemPending.parent().show();
 			if (waiter)
 			    waiter.Decrease();
@@ -1655,39 +1665,23 @@ function loadDashboards(waiter, elemRecent, elemUnspent, user) {
 	doPendingReport(waiter, elemUnspent, user);
 }
 
-function addDashboardListItem(list, name, url, badge, tooltip, color) {
-	var li = $("<li>");
-	var a = $("<a>").addClass("agile-card-listitem").attr("href", url);
-	if (!g_bNewTrello)
-		a.addClass("js-open-board");
-	else
-		a.css("text-decoration", "none");
+function addDashboardListItem(list, name, url, tooltip) {
+    name = '\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0' + name + '\u00A0\u00A0'; //thanks http://stackoverflow.com/a/24847659/2213940
+    var option = $(new Option(name, url)).addClass("agile_spent_item_combo_optionselectable");
+    list.append(option);
 
-	var span = $("<span>").addClass("item-name").text(name);
-	if (g_bNewTrello)
-		span.addClass("agile-lineitem_newTrello");
-	if (color !== undefined && color != null)
-		span.css('color', color);
-	if (badge !== undefined && badge != null) {
-		badge.css('color', color);
-		a.append(badge);
-	}
 	if (tooltip !== undefined)
-		a.attr('title', tooltip);
-	a.append(span);
-	li.append(a);
-	list.append(li);
-	return span;
+	    option.attr('title', tooltip);
+	return option;
 }
 
-function handleLoadRecent(listElem, data) {
+function handleLoadRecent(combo, data) {
     var i = 0;
     var dateNow = new Date();
 	for (; i < data.length; i++) {
 		var row = data[i];
 		if (row.dateLocal == null)
 			break;
-		var url = "https://trello.com/c/" + row.idCard;
 		var comment = row.comment || ""; //review zig: cant find how a user reported this was null. I added this and a colalesce into the report, but cant see how it can happen.
 		var commentNew = "";
 		do {
@@ -1719,18 +1713,22 @@ function handleLoadRecent(listElem, data) {
 		if (comment)
 		    tooltip=tooltip+ "\n" + (row.cGrouped > 1 ? "Comments:\n" : "Comment: ") + comment;
 
-		addDashboardListItem(listElem, strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), url, null, tooltip);
+		addDashboardListItem(combo, strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), row.idCard, tooltip);
 	}
+	combo.off("change").on("change", function (ev) {
+	    var id = combo.val();
+	    if (id)
+	        window.location.href = "https://trello.com/c/" + id;
+	});
 }
 
-function handleLoadPending(listElem, data) {
+function handleLoadPending(combo, data) {
     var i = 0;
     var dateNow = new Date();
 	for (; i < data.length; i++) {
 		var row = data[i];
 		if (row.dateLocal == null)
 			break;
-		var url = "https://trello.com/c/" + row.idCard;
 		var cDays = dateDiffInDays(dateNow, new Date(row.msDate));
 		var tooltip = "Last S/E " + cDays;
 
@@ -1751,15 +1749,15 @@ function handleLoadPending(listElem, data) {
 			bError = true;
 		}
 
-		var badge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_home");
-		badge.contents().last()[0].textContent = parseFixedFloat(row.diff);
-		var color = null;
-		if (cDays > 7 && !bError)
-			color = "darkgray";
-		var span = addDashboardListItem(listElem, strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), url, badge, tooltip, color);
+		var span = addDashboardListItem(combo, parseFixedFloat(row.diff) + " \u00A0\u00A0\u00A0" + strTruncate(row.nameBoard) + " - " + strTruncate(row.nameCard), row.idCard, tooltip);
 		if (bError)
 			span.addClass("agile_card_error");
 	}
+	combo.off("change").on("change", function (ev) {
+	    var id = combo.val();
+	    if (id)
+	        window.location.href = "https://trello.com/c/" + id;
+	});
 }
 
 
