@@ -617,7 +617,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1st option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
         helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
-        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into chrome</A>', divCur);
+        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>', divCur);
         helpWin.para('&bull; Enter S/E using the "card S/E bar", never as card comments nor from mobile or other browsers.', divCur);
 	    helpWin.para('&bull; No "multiple keywords" feature.', divCur);
 	    helpWin.para('&bull; No board-based permissions. Share the private spreadsheet using Google permissions.', divCur);
@@ -643,7 +643,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    if (!bDisplayedLegacyNote)
 	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
 	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
-	    helpWin.para('Disadvantages: Requires chrome sign-in, no multiple keywords, no board-based permissions, no mobile app support.', divCur);
+	    helpWin.para('Disadvantages: Requires Chrome sign-in, no multiple keywords, no board-based permissions, no mobile app support.', divCur);
 	    helpWin.para('Advantages: Permission is based on using the same spreadsheet url, regardless of board membership. Also, card titles are renamed to include total S/E thus you can see total card S/E from mobile or other browsers.', divCur);
 	    helpWin.para('S/E is not synced from card comments, only from the spreadsheet even thou it does add a card S/E comment.', divCur);
 	    helpWin.para('Thus in this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
@@ -874,7 +874,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
 	    helpWin.para("&bull; Timers always fill Spent using 'decimal format' and not 'colon format'. See more under 'Best practices'.");
 		helpWin.para("&bull; Minimize a timer by clicking on '↓'");
-		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277'>signed-into chrome</A>.");
+		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277'>signed-into Chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Pause the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
 	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
@@ -1098,7 +1098,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        comboWeekDeltaStart.appendTo(pComboWeekDelta);
 	        pComboWeekDelta.append("<span> </span>");
 	        pComboWeekDelta.append($('<a href="">Tell me more.</a>')).children('a').click(function (ev) {
-	            helpTooltip(ev, "Example: Start weeks on thursday by selecting 'monday' and a shift of +3, or previous thursday with a shift of -4.<br />Plus Supports  <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO weeks</A> starting sunday or monday. The ISO standard has special rules for numbering weeks at the beginning or end of a year. A non-zero value first shifts the date, then applies the ISO rules to calculate the week number. -7 and 7 are provided if you wish to shift by a whole week.");
+	            helpTooltip(ev, "Example: Start weeks on thursday by selecting 'monday' and a shift of +3, or previous thursday with a shift of -4.<br />Plus Supports  <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO weeks</A> starting sunday or monday. The 'ISO standard' has special rules for numbering weeks at the start or end of a year. A non-zero value first shifts the date, then applies the ISO rules. -7 and +7 shift by a whole week.");
 	        });
 	        elemEffectiveDow = $('<p />');
 	        pComboWeekDelta.append(elemEffectiveDow);
@@ -1374,7 +1374,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    //global user
 	    if (true) {
-	        var paraGlobalUser = helpWin.para('Global estimates user name: <input style="display:inline;width:15em;" type="text" spellcheck="false" maxlength="20"/>&nbsp;<input type="button" value="Save"/>');
+	        var paraGlobalUser = helpWin.para('Global estimates name (not a real Trello user): <input style="display:inline;width:15em;" type="text" spellcheck="false" maxlength="20"/>&nbsp;<input type="button" value="Save"/>');
 	        var inputGlobalUser = paraGlobalUser.children('input:text:first');
 	        var buttonSaveGlobalUser = paraGlobalUser.children('input:button:first');
 
@@ -1385,6 +1385,10 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	            function doSave(bShowSavedMessage) {
 	                var val = inputGlobalUser.val().toLowerCase().trim() || DEFAULTGLOBAL_USER;
 	                inputGlobalUser.val(val);
+	                if (val.indexOf("@") >= 0 || val.indexOf(" ") >= 0 || val.indexOf(",") >= 0 || val.indexOf("'") >= 0 || val.indexOf('"') >= 0) {
+	                    alert("The username cannot contain @, spaces, quotes or commas.");
+	                    return;
+	                }
 	                chrome.storage.sync.set({ SYNCPROP_GLOBALUSER: val }, function () {
 	                    if (chrome.runtime.lastError !== undefined) {
 	                        alert(chrome.runtime.lastError.message);
@@ -1501,7 +1505,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    }
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('&bull; Find all boards that you are not a member in the "Sync" section above (only if using the "card comments" sync mode)');
+	    helpWin.para('&bull; To find all boards where you are not a member, see the <A href="#agile_help_trellosync">"Sync" section</A> above (only if using the "card comments" sync mode)');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

@@ -12,6 +12,8 @@ var g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
 var TAG_RECURRING_CARD = "[R]";
 var DEFAULTGLOBAL_USER = "global";
+var g_strUserOtherOption = "other user...";
+var g_strDateOtherOption = "other date...";
 
 var MAP_UNITS = {
     "m": 1000 * 60,
@@ -25,7 +27,7 @@ var UNITS = {
     hours: "h",
     days: "d",
     current: "h", //current units, hours by default
-	callbackOnSet: null, 
+    callbackOnSet: null,
 
     getCurrentShort: function (bDisplayPointUnits) {
         if (bDisplayPointUnits)
@@ -59,7 +61,11 @@ var UNITS = {
     },
     FormatWithColon: function (f) {
         assert(typeof f == "number");
-        assert(f >= 0); //floor would need to change
+        var pre = "";
+        if (f < 0) {
+            f = -f;
+            pre = "-";
+        }
         if (f == 0)
             return "";
         var units = Math.floor(f);
@@ -69,7 +75,7 @@ var UNITS = {
             str = "" + units;
         else
             str = "" + (units == 0 ? "" : units) + ":" + subunits;
-        return str;
+        return pre+str;
     },
     ColonFactor: function () {
         return (this.current == "d" ? 24 : 60);
@@ -177,7 +183,7 @@ var g_currentCardSEData = {
             callback();
         });
     },
-    saveToStorage: function (bForce) {
+    saveToStorage: function () {
         assert(this.idCard);
         var stringified = JSON.stringify({
             idCard: this.idCard,
@@ -189,10 +195,7 @@ var g_currentCardSEData = {
             note: this.note,
             msTime: this.msTime
         });
-        if (!bForce) {
-            if (this.strLastSaved == stringified)
-                return;
-        }
+
         var key = this.keyStoragePrefix + this.idCard;
         var thisLocal = this;
         g_storage.set(key, stringified, function (strError) {
@@ -250,12 +253,12 @@ var g_currentCardSEData = {
 
     msTime: 0,
     keyStoragePrefix: "cardSEDraft:",
-    strLastSaved: "",
+    strLastSaved: "", //note: because it contains the idCard, its OK to not clear this cache when the card changes
     idCard: "",
     keyword: "",
     user: "",
     delta: "",
-    s: "",
+    s: "", //NOTE: s/e stored as strings. could contain ":"
     e: "",
     note: ""
 };

@@ -263,8 +263,12 @@ function handlePlusMenuSync(sendResponse) {
 function handleRequestProPermission(sendResponse) {
     chrome.permissions.request({
         permissions: ["alarms","gcm"],
-        origins: ['http://www.plusfortrello.com/', 'https://www.plusfortrello.com/', 'https://ssl.google-analytics.com/']
+        origins: ['http://www.plusfortrello.com/', 'https://www.plusfortrello.com/', 'https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
     }, function (granted) {
+        if (chrome.runtime.lastError) {
+            sendResponse({ status: chrome.runtime.lastError.message || "Error" });
+            return;
+        }
         if (!granted) {
             sendResponse({ status: "error: permission not granted by the user." });
             return;
@@ -277,9 +281,12 @@ function handleRequestProPermission(sendResponse) {
 function handleGoogleSyncPermission(sendResponse) {
     chrome.permissions.request({
         permissions: [],
-        origins: ['https://spreadsheets.google.com/']
+        origins: ['https://spreadsheets.google.com/', 'https://www.googleapis.com/']
     }, function (granted) {
-        // The callback argument will be true if the user granted the permissions.
+        if (chrome.runtime.lastError) {
+            sendResponse({ status: chrome.runtime.lastError.message || "Error", granted:false });
+            return;
+        }
         sendResponse({ status: STATUS_OK, granted: granted || false });
     });
 }
@@ -1970,26 +1977,16 @@ function handleGetPlusFeed(msLastPostRetrieved, sendResponse) {
 			var i = 0;
 			var msDateMax = 0;
 			var itemsRet = [];
-			for (; i < obj.items.length; i++){
-				var item = obj.items[i];
-				var msDate = Date.parse(item.published);
-				if (msDate <= msLastPostRetrieved || item.verb != "post") //review zig: lowerCase before check
-					continue;
-				item.msDatePublish = msDate; //save caller from having to parse it
-				itemsRet.push(item);
-				if (msDate > msDateMax)
-					msDateMax = msDate;
+			if (obj.length && obj.length > 0) {
+			    var dateParsed = new Date(obj[0].date);
+			    msDateMax = dateParsed.getTime();
 			}
-
-			itemsRet.sort(function (a, b) {
-			    return b.msDatePublish - a.msDatePublish;
-			});
 			sendResponse({ status: STATUS_OK, items: itemsRet, msLastPostRetrieved: msDateMax });
 			return;
 		}
 	};
-
-	var url = "https://www.googleapis.com/plus/v1/people/109669748550259696558/activities/public?key=AIzaSyAKvksXJUQSqv9R9hJ4f7drfbBVyo4-7Tk&maxResults=50&fields=items(published%2Ctitle%2Curl%2Cverb)";
+    //get the date of the last created card in the Plus for Trello public board https://trello.com/b/OpVbnPB4/plus-for-trello-public-board list "News"
+	var url = "https://trello.com/1/lists/588790142d87061b84b7353c/actions?filter=createCard&fields=date&limit=1&memberCreator=false";
 
 	xhr.open("GET", url, true);
 	xhr.send();

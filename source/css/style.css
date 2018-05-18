@@ -1320,6 +1320,10 @@ table#tableMarkers td {
 	vertical-align: middle;
 }
 
+.agile_tablecellItemStatus {
+    	vertical-align: top !important;
+}
+
 .agile_tablecellItemLast {
 	border: 0px !important;
 	border-width: 0px !important;
@@ -1340,7 +1344,7 @@ table#tableMarkers td {
 }
 
 .agile_usersComboContainer {
-    width: 3em !important;
+    width: 3.3em !important;
 }
 
 .agile_keywordsComboContainer {
@@ -1396,6 +1400,14 @@ table#tableMarkers td {
 
 .agile_card_error {
 	background-color: #FF00FF !important;
+}
+
+.agile_SER_negative *  {
+    color:#D16C6C !important;
+}
+
+.agile_SER_normal * {
+    color: #8c8c8c !important;
 }
 
 .agile_users_combo {
@@ -2076,4 +2088,8 @@ float:left;
     padding-bottom:1.5em;
     border-radius:6px;
     background-color: #FFEB3B !important;
+}
+
+.agile-se-bar-status {
+    font-size: 12px !important;
 }

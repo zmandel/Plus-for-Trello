@@ -74,7 +74,7 @@ function showAproveGoogleSyncPermissions(callback) {
 <dialog class="agile_dialog_showAproveGSP agile_dialog_DefaultStyle"> \
 <h2>Plus for Trello - Google Sync permissions</h2><br> \
 <p>Your configuration was synced to this device. Plus may ask</p>\
-<p>you to approve permissions after pressing OK.</p>\
+<p>you to approve Google permissions after pressing OK.</p>\
 <br>\
 <button style="float:right;" id="agile_dialog_GSP_OK">OK</button> \
 </dialog>');
@@ -137,7 +137,7 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
 <\p>\
 <br>Once you click "Approve", Plus also asks your approval for:\
 <ul class="agile_help_Pro_ul">\
-<li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store: To verify your "Pro" licence once free trial is over.</p></li>\
+<li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store, googleapis.com: To verify your "Pro" licence once free trial is over.</p></li>\
 <li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and help us shape the future of Plus. Our mobile app already does this.</p></li>\
 <li><p align="justify">plusfortrello.com: So our help pages can talk with the extension to better help you.</p></li>\
 </ul>\
@@ -241,8 +241,10 @@ function configureSsLinks(bParam) {
                         //review zig multiple calls to continueConfig can be simplified with promises (need to add polyfill for older chromes)
 				        showAproveGoogleSyncPermissions(function () {
 				            sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
-				                if (response.status != STATUS_OK)
+				                if (response.status != STATUS_OK) {
+				                    alert(response.status);
 				                    return;
+				                }
 
 				                if (!response.granted) {
 				                    //here so user doesnt get stuck in a loop if no longer wants to use google sync

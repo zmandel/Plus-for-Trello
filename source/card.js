@@ -4,23 +4,13 @@ var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
 var g_bShowSEBar = false;
 
-var g_strDateOtherOption = "other date...";
+
 var g_valDayExtra = null; //for "other" date in S/E bar
-
-var g_strUserOtherOption = "other user...";
 var g_valUserExtra = null; //for "other" added user in S/E bar
-
-var g_strNoteBase = "type note.";
 var g_regexValidateSEKey = /[0-9]|\.|\:|\-/;
 const g_iLastComboDays = 9;
 var g_timeoutComboDaysUpdate = null;
 var g_msdateFillDaysList = 0;
-
-/* g_currentCardSEData 
- * 
- * keeps track of the card s/e row data to save in storage.local as a draft. cleared when user enters the row.
- *
-**/
 
 
 function validateSEKey(evt) {
@@ -54,9 +44,9 @@ function updateEOnSChange(cRetry) {
     var comboUsers = $("#plusCardCommentUsers");
     var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
 
-    setTimeout(function () {
+    setTimeout(function ()  {
         var valS = spinS.val() || "";
-        bHilite = false;
+        var bHilite = false;
         if (isRecurringCard()) {
             spinE.val(valS);
             bHilite = true;
@@ -106,13 +96,15 @@ function updateEOnSChange(cRetry) {
 }
 
 function updateNoteR() {
-    var comment = $("#plusCardCommentComment");
     var spinS = $("#plusCardCommentSpent");
     var spinE = $("#plusCardCommentEstimate");
     var userElem = $("#plusCardCommentUsers");
     var comboKeywords = $("#plusCardCommentKeyword"); //can be empty
-
-    if (comment.length == 0 || spinS.length == 0 || spinE.length == 0 || userElem.length==0)
+    var statusPre = $("#agile-se-bar-status-pre");
+    var statusS = $("#agile-se-bar-status-s");
+    var statusE = $("#agile-se-bar-status-e");
+    var statusR = $("#agile-se-bar-status-r");
+    if (statusPre.length == 0 || spinS.length == 0 || spinE.length == 0 || userElem.length == 0)
         return;
 
     var userCur = getUserFromCombo(userElem);
@@ -123,18 +115,38 @@ function updateNoteR() {
     if (mapSe == null)
         return; // table not loaded yet. this will be called when table loads
 
-    function done() {
-        updateCurrentSEData();
-    }
-
+    var strLinkHelp = "&nbsp;&nbsp;<a class='agile_linkSoftColor no-print agile_unselectable' href='' target='_blank'>Help</a>";
     var sRaw = spinS.val();
     var eRaw = spinE.val();
 
-    var sParsed = parseSEInput(spinS, false, true);
-    var eParsed = parseSEInput(spinE, false, true);
+    function done() {
+        updateCurrentSEData();
+        var link = statusR.find("A");
+        link.click(function (e) {
+            e.preventDefault();
+            showSEHelpDialog();
+        });
+    }
 
-    if ((sRaw.length == 0 && eRaw.length == 0) || sParsed == null || eParsed == null) {
-        comment.attr("placeholder", g_strNoteBase);
+    function clearAll() {
+        statusPre.html("&nbsp;");
+        statusS.html("");
+        statusE.html("");
+        statusR.html(strLinkHelp);
+    }
+
+    var sParsed = parseSEInput(spinS, false, true, true);
+    var eParsed = parseSEInput(spinE, false, true, true);
+
+    if (sParsed == null) {
+        clearAll();
+        statusPre.html("Bad S format!");
+        done();
+        return;
+    }
+    if (eParsed == null) {
+        clearAll();
+        statusPre.html("Bad E format!");
         done();
         return;
     }
@@ -142,15 +154,35 @@ function updateNoteR() {
     var sumS = sParsed + mapSe.s;
     var sumE = eParsed + mapSe.e;
     var rDiff = parseFixedFloat(sumE - sumS);
-    var noteFinal=g_strNoteBase + " R will be " + rDiff + "."+(rDiff!=0? "":" Increase E if not done.");
-    comment.attr("placeholder", noteFinal);
-    comment.attr("title", noteFinal);
+
+    var rDiffFormatted = rDiff;
+    var sSumFormatted = parseFixedFloat(sumS);
+    var eSumFormatted = parseFixedFloat(sumE);
+    var prefixNote = "sums will be:";
+    if (sParsed == 0 && eParsed == 0) {
+        if (sumE == 0 && sumS == 0) {
+            clearAll();
+            done();
+            return;
+        }
+        prefixNote = "sums are:";
+    }
+
+    if (sumS < 0 || sumE < 0 || (!g_bAllowNegativeRemaining && rDiff < 0))
+        statusPre.closest("tr").addClass("agile_SER_negative").removeClass("agile_SER_normal");
+    else
+        statusPre.closest("tr").addClass("agile_SER_normal").removeClass("agile_SER_negative");
+
+    var noteS = sSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E&nbsp;<b>" + eSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R&nbsp;<b>" + rDiffFormatted + "</b>";
+    statusPre.html(prefixNote);
+    statusS.html("S=&#8203;" + sSumFormatted); //see http://stackoverflow.com/a/41913332/2213940 about the zero-width space so it line-breaks on long strings
+    statusE.html("E=&#8203;" + eSumFormatted);
+    statusR.html("&nbsp;&nbsp;R=" + rDiffFormatted + (g_bAllowNegativeRemaining || rDiff != 0 ? "" : ". Increase E if not done.") + strLinkHelp);
     done();
 }
 
 
 var g_timeoutUpdateCurrentSEData = null;
-
 function updateCurrentSEData(bForceNow) {
     if (g_timeoutUpdateCurrentSEData) {
         clearTimeout(g_timeoutUpdateCurrentSEData);
@@ -158,7 +190,7 @@ function updateCurrentSEData(bForceNow) {
     }
 
     function worker() {
-        idCardCur = getIdCardFromUrl(document.URL);
+        var idCardCur = getIdCardFromUrl(document.URL);
         if (!idCardCur)
             return;
         var comment = $("#plusCardCommentComment");
@@ -187,7 +219,7 @@ function updateCurrentSEData(bForceNow) {
 
         g_timeoutUpdateCurrentSEData = setTimeout(function () {
             worker();
-        }, 300);
+        }, 300); //fast-typing users shall not suffer
     }
 }
 
@@ -460,13 +492,17 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	var containerStats = $("<div></div>");
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry no-print'></table>");
+	
 	if (!g_bShowSEBar)
         containerBar.hide();
 	containerStats.append(tableStats);
 	container.append(containerStats);
 	container.append(containerBar);
 	var row = $("<tr></tr>").addClass("agile-card-background");
-	containerBar.append(row);
+	var rowStatus = $("<tr>").addClass("agile-card-background");
+	var rowPad = $("<tr>").addClass("agile-card-background").append($("<td style='font-size:50%;'>&nbsp;</td>").addClass("agile_tablecellItem"));
+
+	containerBar.append(row).append(rowStatus).append(rowPad);
 
 	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_general_box_input"));
 	comboUsers.attr("title", "Click to select the user for this new S/E row.");
@@ -551,7 +587,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	spinE[0].onkeypress = function (e) { validateSEKey(e); checkEnterKey(e); };
 	spinE.bind("input", function (e) { updateNoteR(); });
 	var slashSeparator = setSmallFont($("<span />").text("/"));
-	var comment = setNormalFont($('<input type="text" maxlength="250" name="Comment" placeholder="' + g_strNoteBase + '"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input agile_placeholder_small"));
+	var comment = setNormalFont($('<input type="text" maxlength="250" name="Comment" placeholder="note"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input agile_placeholder_small"));
 
 	spinS.focus(function () { $(this).select(); });
 	spinE.focus(function () { $(this).select(); }); //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
@@ -565,11 +601,12 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	var buttonEnter = setSmallFont($('<button id="plusCardCommentEnterButton"/>').addClass("agile_enter_box_input").text("Enter"));
 	buttonEnter.attr('title', 'Click to enter this S/E.');
 	row.append($('<td />').addClass("agile_tablecellItem").append(spanIcon));
-    
+	var bAppendKW = false;
 	var comboKeyword = null; //stays null when the user only uses one keyword
 	if (g_optEnterSEByComment.IsEnabled()) {
 	    var rgkeywords = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
 	    if (rgkeywords.length > 1) {
+	        bAppendKW = true;
 	        comboKeyword = setSmallFont($('<select id="plusCardCommentKeyword"></select>').addClass("agile_general_box_input"));
 	        comboKeyword.attr("title", "Click to pick a different keyword for this new S/E row.");
 	        fillComboKeywords(comboKeyword, rgkeywords, null);
@@ -580,6 +617,26 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	    }
 	}
 	
+	rowStatus.append($("<td>").addClass("agile_tablecellItem agile_tablecellItemStatus")); //space for the icon on above it
+	var tdStatusPre = $("<td  style='text-align: right;' colspan='" + (bAppendKW ? "3" : "2") + "'>").addClass("agile_tablecellItem agile_tablecellItemStatus");
+	var elemStatusPre = $("<div id='agile-se-bar-status-pre' class='agile-se-bar-status'>").html("");
+	tdStatusPre.append(elemStatusPre);
+
+	var tdStatusS = $("<td style='text-align: center;'>").addClass("agile_tablecellItem agile_tablecellItemStatus");
+	var elemStatusS = $("<div id='agile-se-bar-status-s' class='agile-se-bar-status'>").html("");
+	tdStatusS.append(elemStatusS);
+
+	var tdStatusSep = $("<td>").addClass("agile_tablecellItem agile_tablecellItemStatus"); //space for the icon on above it
+	var tdStatusE = $("<td style='text-align: center;'>").addClass("agile_tablecellItem agile_tablecellItemStatus");
+	var elemStatusE = $("<div id='agile-se-bar-status-e' class='agile-se-bar-status'>").html("");
+	tdStatusE.append(elemStatusE);
+
+	var tdStatusR = $("<td>").addClass("agile_tablecellItem agile_tablecellItemStatus");
+	var elemStatusR = $("<div id='agile-se-bar-status-r' class='agile-se-bar-status'>").html("");
+	tdStatusR.append(elemStatusR);
+
+	rowStatus.append(tdStatusPre).append(tdStatusS).append(tdStatusSep).append(tdStatusE).append(tdStatusR);
+
 	row.append($('<td />').addClass("agile_tablecellItem").append($("<div>").addClass("agile_usersComboContainer").append(comboUsers)));
 	row.append($('<td />').addClass("agile_tablecellItem").append(comboDays));
 	row.append($('<td />').addClass("agile_tablecellItem").append(spinS));
@@ -595,8 +652,8 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        var keyword = null;
 	        if (comboKeyword)
 	            keyword = comboKeyword.val() || "";
-	        var s = parseSEInput(spinS);
-	        var e = parseSEInput(spinE);
+	        var s = parseSEInput(spinS, false, false, true);
+	        var e = parseSEInput(spinE, false, false, true);
 	        if (s == null) {
 	            hiliteOnce(spinS, 500);
 	            return;
@@ -869,6 +926,7 @@ function getSEDate(callback) {
     showModalDialog(divDialog[0]);
 }
 
+
 function verifyValidInput(sTotal, eTotal) {
     var rTotal = parseFixedFloat(eTotal - sTotal);
     var err = null;
@@ -876,8 +934,8 @@ function verifyValidInput(sTotal, eTotal) {
         err = "Spent total will go negative.";
     else if (eTotal < 0)
         err = "Estimate total will go negative.";
-    else if (rTotal < 0 && !g_bAllowNegativeRemaining) 
-        err = "Spent total will be larger than estimate total.\nIf you dont need to track remaining, set it in Preferences, 'Allow negative Remaining' (Plus help.)";
+    else if (rTotal < 0 && !g_bAllowNegativeRemaining)
+        err = "Spent total will be larger than estimate total.\nTo avoid this see Plus Preferences 'Allow negative Remaining'";
 
     if (err != null) {
         err = err + "\n\nAre you sure you want to enter this S/E row?";
@@ -1262,7 +1320,7 @@ function showSETotalEdit(idCardCur, user) {
 
         if (note && note.length > 0 && note.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
             alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from here.");
-            hiliteOnce(elemNote, 500);
+            hiliteOnce(elemNote, 1500);
             return;
         }
 
@@ -1433,16 +1491,23 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 
 
 //bExact is only for preserving values entered with colon format
-function parseSEInput(ctl, bHiliteError, bExact) {
+function parseSEInput(ctl, bHiliteError, bExact, bDontZeroNan) {
 	if (bHiliteError===undefined)
 		bHiliteError = true;
 	if (bHiliteError)
 		ctl.removeClass("agile_box_input_hilite");
-	var val = ctl[0].value;
-	if (val.indexOf(":") < 0)
-	    return parseFixedFloat(val);
-
-	var retVal = parseColonFormatSE(val, bExact);
+	var val = (ctl[0].value || "").trim();
+	var retVal;
+	if (val.indexOf(":") < 0) {
+	    if (val.length == 0)
+	        retVal = 0;
+        else
+	        retVal = parseFixedFloat(val, bDontZeroNan);
+	    if (bDontZeroNan && isNaN(retVal))
+	        retVal = null;
+    }
+	else
+	    retVal = parseColonFormatSE(val, bExact);
 	if (retVal === null) {
 	    if (bHiliteError)
 	        ctl.addClass("agile_box_input_hilite");
@@ -2038,7 +2103,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                 var sCur = null;
                 var bClearSpentBox = false;
                 if (elemSpent.length == 1) {
-                    sCur = parseSEInput(elemSpent, false, true);
+                    sCur = parseSEInput(elemSpent, false, true, true);
                     if (sCur != null) {
                         if (parseFixedFloat(g_sTimerLastAdd) == sCur)
                             sCur = g_sTimerLastAdd;
@@ -2124,8 +2189,8 @@ var g_sTimerLastAdd = 0; //used for improving timer precision (because of roundi
 function addSEFieldValues(s) {
 	var elemSpent = $("#plusCardCommentSpent");
 	var elemEst = $("#plusCardCommentEstimate");
-	var sCur = parseSEInput(elemSpent,false,true);
-	var eCur = parseSEInput(elemEst, false);
+	var sCur = parseSEInput(elemSpent,false,true, true);
+	var eCur = parseSEInput(elemEst, false, false, true);
 	if (sCur == null)
 		sCur=0;
 	if (eCur == null)
@@ -2156,7 +2221,8 @@ function addSEFieldValues(s) {
 }
 
 //review rename commentBox to noteBox
-function setNewCommentInCard(idCardCur, keywordUse, s, e, commentBox,
+function setNewCommentInCard(idCardCur, keywordUse, //blank uses default (first) keyword
+    s, e, commentBox,
     prefix, //blank uses default (first) keyword
     member, //null means current user
     memberTransferTo, //when not null, creates a transfer estimate command
@@ -2636,9 +2702,10 @@ function showSEHelpDialog(section) {
 <img style="margin-left:5em;" src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>\
 &nbsp;<br>\
 &nbsp;<br>\
+<p><b>Each entry in the S/E bar adds to the sums per user (or substracts when negative)</b></p>\
 <p><b>R</b>emain = <b>E</b>stimate - <b>S</b>pent</p>\
 <p><b>E</b>stimate = <b>S</b>pent + <b>R</b>emain</p>\
-<p><b>E</b>stimate = <b>E 1ˢᵗ</b> + "E changes" (<b>+E</b> & <b>-E</b> "E. type" in Reports)\
+<p><b>E</b>stimate = <b>E 1ˢᵗ</b> + "E changes" (<b>+E</b> & <b>-E</b> "E. type" in Reports)</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_addannotation">\
 <p>To add an annotation, first pick the annotation date in the S/E bar, then type type your annotation as a note starting with "<b>!</b>" and Enter.</p>\
@@ -2654,7 +2721,6 @@ function showSEHelpDialog(section) {
 <p>Plus keeps track of the first estimate (E 1ˢᵗ) per user to compare with their current E. See the "Modify total estimate" and "Transfer from a global estimate" topics above.</p>\
 <br>\
 <p><b>Add a global estimate</b> by assigning it to the "global" user. Useful to later transfer E to specific users.</p>\
-<p><b>NOTE: All your team must have Plus version 4.3.1 or above before transferring estimates.</b></p>\
 <p>When transferring estimates, Plus always transfers E 1ˢᵗ. This can cause "global" to reach negative E 1ˢᵗ when its estimate was increased and later transferred to a user.</p>\
 <p>Change the "global" name in Plus Preferences.</p>\
 </div>\
@@ -2689,7 +2755,6 @@ function showSEHelpDialog(section) {
 <p>Do not modify S/E comments you already entered (or sheet rows for stealth sync users). Use "modify" or see the "Modify mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_transfere">\
-<p><b>NOTE: All your team must have Plus version 4.3.1 or above before using this command.</b></p>\
 <p>Pick "transfer Estimate" from the "Spent / Estimate" menu in the card front.<\p>\
 <p>Transfer E 1ˢᵗ between users, usually from a "global" estimate to an actual user.<\p>\
 <br>\

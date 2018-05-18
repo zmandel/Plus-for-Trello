@@ -1634,6 +1634,7 @@ function showTimerPopup(idCard) {
                 });
 }
 
+var g_cTimesZeroTimeout = 0;
 
 /* processThreadedItems
  *
@@ -1694,8 +1695,12 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
 
         item.bPendingQuery = true;
         //timeout is to reduce chances of a trello quota. Note that even if we get a quota issue, it will be retried.
-        if (needsProcessItemDelay && !needsProcessItemDelay(item, iitem))
+        if (needsProcessItemDelay && !needsProcessItemDelay(item, iitem)) {
             ms = 0;
+            g_cTimesZeroTimeout++;
+            if ((g_cTimesZeroTimeout % 50) == 0)
+                ms = 50; //breath in case of consecutive zero waits. doesnt hurt when not consecutive
+        }
         setTimeout(function () {
             try {
                 onProcessItem(tokenTrello, item, iitem, postProcessItem);

@@ -105,6 +105,10 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		    }
 
 		    sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
+		        if (response.status != STATUS_OK) {
+		            alert(response.status);
+		            return;
+		        }
 		        if (response.status == STATUS_OK && response.granted)
 		            worker();
 		    });
@@ -135,6 +139,10 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		        worker();
 		    else {
 		        sendExtensionMessage({ method: "requestGoogleSyncPermission" }, function (response) {
+		            if (response.status != STATUS_OK) {
+		                alert(response.status);
+		                return;
+		            }
 		            if (response.status == STATUS_OK && response.granted)
 		                worker();
 		        });
