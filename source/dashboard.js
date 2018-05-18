@@ -722,8 +722,12 @@ function setChartData(rows, idBoard, params) {
 	var remainTotalDisplay = 0;
 	var spentTotalDisplay = 0;
 	var estTotalDisplay = 0;
-	for (; i < rows.length; i++) {
+	const lengthRows = rows.length;
+	var cSkipElemInTimeline = 0;
+
+	for (; i < lengthRows; i++) {
 		var row = rows[i];
+
 
 		var date = new Date(row.date * 1000); //db is in seconds
 		var spent = row.spent;
@@ -732,6 +736,19 @@ function setChartData(rows, idBoard, params) {
 		var comment = row.comment;
 		var card = row.nameCard;
 		var user = row.user;
+
+	    //detect transfers. this is not 100% perfect because a comment or due date from another card could happen to fall just in between the transfers (which have a 1second difference).
+		//rowid -1
+		if (cSkipElemInTimeline == 0 && row.rowid != ROWID_REPORT_CARD && row.comment && row.comment.indexOf(g_prefixCommentTransferTo) >= 0 && i + 1 < lengthRows && spent == 0) {
+		    var rowNext = rows[i + 1];
+		    if (rowNext.rowid && row.rowid + 1 == rowNext.rowid &&
+                rowNext.comment && rowNext.comment.indexOf(g_prefixCommentTransferFrom) >= 0 &&
+                rowNext.spent == 0 &&
+                parseFixedFloat(Math.abs(rowNext.est + est)) == 0) {
+		        cSkipElemInTimeline=2; //this and next one
+		    }
+		}
+
 		if (user) { //!user when row is a card due date
 		    if (totalByUser[user] === undefined)
 		        totalByUser[user] = { s: 0, e: 0, sNotR: 0, eNotR: 0, data: [] };
@@ -743,8 +760,12 @@ function setChartData(rows, idBoard, params) {
 		        totalsUser.eNotR += est;
 		    }
 		    totalsUser.data.push(row); //for drill-down tooltip
-		    spentTotal += spent;
-		    estTotal += est;
+		    if (cSkipElemInTimeline == 0) {
+		        spentTotal += spent;
+		        estTotal += est;
+		    } else {
+		        cSkipElemInTimeline--;
+		    }
 		    remainTotalDisplay = parseFixedFloat(estTotal - spentTotal);
 		    spentTotalDisplay = parseFixedFloat(spentTotal);
 		    estTotalDisplay = parseFixedFloat(estTotal);
@@ -761,7 +782,7 @@ function setChartData(rows, idBoard, params) {
 		    seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
 		    seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
 		    if (annotation)
-		        seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation?"":shortenString(annotation), tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		        seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation ? "" : shortenString(annotation), tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
 		}
 		else {
 		    if (row.dateDue) {

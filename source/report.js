@@ -1834,10 +1834,9 @@ function buildSql(elems) {
         && !bOrderByR) {
         bHasUnion = true;
         //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
-        //note: use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
         //note: dashboard (g_bBuildSqlMode) setChartData relies on special-case of dateDue
         sql += " UNION ALL \
-                select -1 as rowid, '' as keyword, '' as user, '' as week, " +
+                select " + ROWID_REPORT_CARD + " as rowid, '' as keyword, '' as user, '' as week, " +
                 (g_bBuildSqlMode ? "strftime('%Y',datetime(dateDue, 'unixepoch'))||'-'||strftime('%m',datetime(dateDue, 'unixepoch'))" : "case when C.dateSzLastTrello is null then '' else substr(C.dateSzLastTrello,0,8) end") + " as month, 0 as spent, 0 as est, \
                 0 as estFirst, "+
                 (g_bBuildSqlMode? "C.dateDue" : "CASE when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end")+" as date " +
@@ -1855,8 +1854,8 @@ function buildSql(elems) {
         sql += buildAllParams(state, false, true, g_bBuildSqlMode);
     }
 
-
-    sql += " ORDER BY date " + (g_bBuildSqlMode ? "ASC" : "DESC"); //REVIEW: by date is needed for g_bBuildSqlMode, but otherwise remove once I add smarter order defaults
+    var direction = (g_bBuildSqlMode ? "ASC" : "DESC");
+    sql += " ORDER BY date " + direction + ", rowid " + direction; //REVIEW: by date is needed for g_bBuildSqlMode, but otherwise remove once I add smarter order defaults
 
     return { sql: sql, values: state.values, bByROpt: bByROpt, bHasUnion: bHasUnion };
 }
@@ -2030,7 +2029,7 @@ function transformAndMarkSkipCardRows(rows, transformRow) {
         if (row.bSkip)
             continue;
         assert(row.idCardH);
-        if (row.rowid !== -1) {
+        if (row.rowid !== ROWID_REPORT_CARD) {
             if (!mapIdCards[row.idCardH])
                 mapIdCards[row.idCardH] = {};
             mapIdCards[row.idCardH].bSE = true;
@@ -3940,7 +3939,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
             title += " - " + row.nameList;
             title += " - " + row.nameCard;
             title += " - " + row.comment;
-            if (row.rowid == -1)
+            if (row.rowid == ROWID_REPORT_CARD)
                 title += "\n(no s/e)";
             rgRet.title = title;
         } else {

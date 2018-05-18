@@ -171,7 +171,7 @@ list-style-type:disc !important;
     margin-top:0.5em !important;
 }
 
-.agile_mtse_note {
+.agile_se_note {
     width:25em !important;
     background:white !important;
 }
@@ -185,6 +185,24 @@ list-style-type:disc !important;
     height:2em;
 }
 
+.agile_transfere_alsospend {
+    line-height: 1em !important;
+    min-height:  1em !important;
+}
+
+.agile_transferEMessage  {
+ padding-top: 0.5em;
+}
+
+.agile_transferE_e {
+	text-align: center !important;
+	margin-top: 0px !important;
+	margin-bottom: 0px !important;
+	min-height: 10px !important;
+	padding: 1px !important;
+	background-color: white !important;
+	width: 4em;
+}
 
 .agile_seTotalTable {
 border:none !important;
@@ -310,11 +328,6 @@ div.agile_total_box {
 
 .agile_sehelpsection {
     padding:1em;
-}
-
-#agile_dialog_SEHelp_OK {
-    position:absolute;
-    bottom:0.5em;
 }
 
 #agile_sehelp_combotopic {
@@ -464,7 +477,7 @@ a.agile_close_button {
 
 
 .agile_plus_header_error {
-	background-color: #D64141 !important;
+	background-color: #D16C6C !important;
 }
 
 .agile_plus_burndown_link {
@@ -958,12 +971,60 @@ table#tableMarkers td {
 	line-height: 0.7em !important;
 }
 
+.agile-etransfer-tcel-header {
+    padding-bottom: 0px !important;
+}
+
+.agile_dialog_transferE {
+    width: 28em;
+}
+
+.agile_dialog_transferE::backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+
+.agile_dialog_editSETotal::backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+
+.agile-etransfer-stats {
+	border: 1px !important;
+	width: 200px;
+	margin-bottom: 10px !important;
+	margin-left: 40px !important;
+	padding: 0px !important;
+	margin: 0px !important;
+}
+
+
+.agile-etransfer-cell {
+    white-space: nowrap !important;
+	line-height: 0.7em !important;
+}
+
+
 .agile-spent-icon-cardtimer {
 	width: 14px;
 	height: 14px;
 	margin-right: 6px;
 	margin-left: 2px;
 	margin-bottom: -2px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
+}
 }
 
  .report_class_white_text {
@@ -983,6 +1044,9 @@ table#tableMarkers td {
     margin-top:0.7em !important;
     float:left !important;
     cursor:default !important;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
 }
 
 .agile-spent-icon-shifted {
@@ -1007,6 +1071,10 @@ table#tableMarkers td {
 	margin-left: -2px;
 	margin-bottom: -6px;
     cursor:help !important;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
+}
 }
 
 .agile-spent-icon-header_cardwindow {
@@ -1206,6 +1274,10 @@ table#tableMarkers td {
 	margin-right: 19px;
 	margin-left: 18px;
 	margin-bottom: -3px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
+}
 }
 
 .agile_plus_addCardSE {
@@ -1235,7 +1307,13 @@ table#tableMarkers td {
 	vertical-align: middle;
 }
 
-.agile_mtse_keywords {
+
+.agile_combo_regular {
+    width:auto !important;
+    min-width: 9em !important;
+}
+
+.agile_combo_smaller {
     width:auto !important;
     min-width: 5em !important;
 }
@@ -1544,6 +1622,9 @@ table#tableMarkers td {
     font-size:12px !important;
     cursor: pointer;
     margin-right:1em;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
 }
 
 .agile_linkSoftColor:hover {

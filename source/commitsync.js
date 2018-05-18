@@ -367,13 +367,13 @@ function commitSESyncData(tx, alldata) {
     tx.executeSql(sql, [], function (tx2, results) {
         var i = 0;
         var usersMap = {};
-        var usersMapByName = {};
+        var idMemberMapByName = {};
         for (; i < results.rows.length; i++) {
             var row =  cloneObject(results.rows.item(i));
             usersMap[row.idMemberCreator] = row;
-            usersMapByName[row.username] = row.idMemberCreator;
+            idMemberMapByName[row.username] = row.idMemberCreator;
         }
-        commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName);
+        commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName);
     },
             function (tx2, error) {
                 logPlusError(error.message);
@@ -383,7 +383,43 @@ function commitSESyncData(tx, alldata) {
     return bChanges;
 }
 
-function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
+function preprocessUsersInAllData(rgCommentsSE, usersMap, idMemberMapByName) {
+    //hash idMemberCreator -> last memberCreator data. Useful to have a quick list of users without having to query HISTORY
+    //review zig: doesnt handle well deleted users, only renamed
+    rgCommentsSE.forEach(function (action) {
+        processUser(action.date, action.memberCreator, action.idMemberCreator); //idMemberCreator is always set
+        if (action.member && action.member.id && action.member.id != action.idMemberCreator) {
+            processUser(action.date, action.member, action.member.id); //can happen in copyCommentCard action
+        }
+    });
+
+
+    function processUser(dateAction, member, idMember) {
+        assert(idMember);
+        var mc = member; //may be undefined
+        var mcOld = usersMap[idMember];
+        var bOldIsFake = false;
+        if (!mc)
+            return; //review zig when can this happen?
+        if (!mcOld) {
+            //might be there already by name
+            var idMemberFakeExisting = idMemberMapByName[mc.username];
+            if (idMemberFakeExisting) {
+                mcOld = usersMap[idMemberFakeExisting];
+                if (mcOld && idMemberFakeExisting.indexOf(g_prefixCustomUserId) == 0)
+                    bOldIsFake = true;
+            }
+        }
+        if (!mcOld || mcOld.dateSzLastTrello <= dateAction || bOldIsFake) {
+            if (bOldIsFake)
+                mcOld.bDelete = true;
+            usersMap[idMember] = { dateSzLastTrello: dateAction, bEdited: true, idMemberCreator: idMember, username: mc.username };
+            idMemberMapByName[mc.username] = idMember;
+        }
+    }
+}
+
+function commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName) {
     var rows = [];
     //sort before so usersMap is correct and we insert in date order. date is comment date, without yet applying any delta (-xd)
     //review zig ideally it should merge individual board sorted items without destruction or original orders in each array,
@@ -393,39 +429,14 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
         return (a.date.localeCompare(b.date));
     });
 
-    var idMemberCreator = null;
-
     //once sorted, process all users to update their data
-    //hash idMemberCreator -> last memberCreator data. Useful to have a quick list of users without having to query HISTORY
-    //review zig: doesnt handle well deleted users, only renamed
-    alldata.rgCommentsSE.forEach(function (action) {
-        var mc = action.memberCreator; //may be undefined
-        var mcOld = usersMap[action.idMemberCreator]; //idMemberCreator is always set
-        var bOldIsFake = false;
-        if (!mc)
-            return; //review zig when can this happen?
-        if (!mcOld) {
-            //might be there already by name
-            var idMemberFakeExisting=usersMapByName[mc.username];
-            if (idMemberFakeExisting) {
-                mcOld = usersMap[idMemberFakeExisting];
-                if (mcOld && idMemberFakeExisting.indexOf(g_prefixCustomUserId) == 0)
-                    bOldIsFake = true;
-            }
-        }
-        if (!mcOld || mcOld.dateSzLastTrello <= action.date || bOldIsFake) {
-            if (bOldIsFake)
-                mcOld.bDelete = true;
-            usersMap[action.idMemberCreator] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: action.idMemberCreator, username: mc.username };
-            usersMapByName[mc.username] = action.idMemberCreator;
-        }
-    });
+    preprocessUsersInAllData(alldata.rgCommentsSE, usersMap, idMemberMapByName);
 
     alldata.rgCommentsSE.forEach(function (action) {
         if (action.ignore)
             return; //can get here when there is a card reset command, and generates duplicate actions ignored here
 
-        var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName);
+        var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, idMemberMapByName);
         rowsAdd.forEach(function (rowCur) {
             rows.push(rowCur);
         });
@@ -472,6 +483,8 @@ function commitSESyncDataWorker(tx, alldata, usersMap, usersMapByName) {
         sql = "DELETE FROM BOARDMARKERS WHERE idCard=?";
     });
     
+    var idMemberCreator = null;
+
     for (idMemberCreator in usersMap) {
         var userCur = usersMap[idMemberCreator];
         if (userCur.bDelete) {
@@ -503,7 +516,7 @@ var g_dateMinCommentSE = new Date(2013, 6, 30); //exclude S/E before this (regul
 var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -xd will be ignored on x<-2 for non spent-backend admins, like the backend used to do
 
 //code taken from spent backend
-function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName) {
+function readTrelloCommentDataFromAction(action, alldata, usersMap, idMemberMapByName) {
     var tableRet = [];
     var id = action.id; 
     var from = null;
@@ -650,7 +663,6 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
                 }
             }
             date.setDate(date.getDate() + deltaParsed);
-            comment = "[" + deltaParsed + "d] " + comment;
         }
 
         var rgUsersProcess = parseResults.rgUsers; //NOTE: >1 when reporting multiple users on a single comment
@@ -662,34 +674,27 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         tableRet = []; //remove possible previous errors (when another keyword before matched partially and failed)
         for (iRowPush = 0; iRowPush < rgUsersProcess.length; iRowPush++) {
             var idForSsUse = idForSs;
-            var commentPush = comment;
+            var commentPush = appendCommentBracketInfo(deltaParsed, comment, from, rgUsersProcess, iRowPush, bETransfer);
             var datePush = date;
             if (iRowPush > 0)
-                idForSsUse = idForSs + "." + iRowPush;
+                idForSsUse = idForSs + SEP_IDHISTORY_MULTI + iRowPush;
             if (action.idPostfix)
                 idForSsUse = idForSsUse + action.idPostfix;
             var userCur = rgUsersProcess[iRowPush];
             
             if (userCur != from) {
-                commentPush = "[by " + from + "] " + commentPush;
                 //update usersMap to fake users that may not be real users
                 //note checking for prefix g_deletedUserIdPrefix fails if user actually starts with "deleted", but its not a real scenario
-                if (!usersMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
+                if (!idMemberMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
                     var idMemberFake = g_prefixCustomUserId + userCur;
                     usersMap[idMemberFake] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: idMemberFake, username: userCur };
-                    usersMapByName[userCur] = idMemberFake;
+                    idMemberMapByName[userCur] = idMemberFake;
                 }
             }
 
             var bSpecialETransferFrom = (bETransfer && iRowPush === 0);
-            var bSpecialETransferTo = (bETransfer && iRowPush === 1);
             
-            if (bSpecialETransferFrom) {
-                commentPush = g_prefixCommentTransfer + " to " + rgUsersProcess[1] + "] " + commentPush;
-            } else if (bSpecialETransferTo) {
-                commentPush = g_prefixCommentTransfer + " from " + rgUsersProcess[0] + "] " + commentPush;
-                datePush = new Date(date.getTime() + 1000); //TO is a litte after, so reports sort correctly. note we use 1000 because its later rounded to seconds.
-            }
+            //note that for transfers both are entered with the same date. code should sort by date,rowid to get the right timeline
 
             var idCardForRow = idCardShort;
             if (bPlusBoardCommand)

@@ -8,7 +8,8 @@ var IDLIST_UNKNOWN = "//"; //list idLong. deals with missing idList in convertTo
 //however it was limited and a similar effect can be achieved using idCard NOT in (list)
 var IDLABEL_DUMMY = "//"; //the one dummy label cards share.
 var g_bDummyLabel = false; //not used. just kept to keep the code as it inserts itself in interesting spots
-
+const SEP_IDHISTORY_MULTI = ".";
+const ROWID_REPORT_CARD = -1; // "fake" rowid on reports that join card with history. use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
 var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
 var PREFIX_COMMAND_SE_RESETCOMMAND = "[^resetsync";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
@@ -28,6 +29,14 @@ var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage 
 var g_language = "en";
 var g_bProVersion = false;
 const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
+
+const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
+const PLUSCOMMAND_RESET = "^resetsync";
+const PLUSCOMMAND_ETRANSFER = "^etransfer";
+const PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
+const g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
+const g_prefixCommentTransferTo = g_prefixCommentTransfer + " to ";
+const g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";
 
 //thanks http://stackoverflow.com/a/12034334
 var g_entityMap = {
@@ -184,7 +193,7 @@ function setOptAlwaysShowSpentChromeIcon(opt) {
 }
 
 var STATUS_OK = "OK"; //for messaging status with background page. all responses should have response.status=STATUS_OK when ok
-var COLOR_ERROR = "#D64141";
+var COLOR_ERROR = "#D16C6C";
 var MS_TRELLOAPI_WAIT = (1000 / 30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
 var CMAX_THREADS = 4;
 var g_callbackOnAssert = null;
@@ -195,10 +204,7 @@ var g_bAcceptPFTLegacy = true;
 
 var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
-var ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
-var PLUSCOMMAND_RESET = "^resetsync";
-var PLUSCOMMAND_ETRANSFER = "^etransfer";
-var PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
+
 var g_regexWords = /\S+/g; //parse words from an s/e comment. kept global in hopes of increasing perf by not having to parse the regex every time
 
 //regex is easy to break. check well your changes. consider newlines in comments. NOTE command could also be in the note. For historical reasons, the command here only covers ^resetsync
@@ -2004,9 +2010,9 @@ function replaceBrackets(str) {
 function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userCur, s, e, comment, idHistoryRowUse, keyword) {
     //console.log(dateNow + " idCard:" + idCard + " idBoard:" + idBoard + " card:" + strCard + " board:" + strBoard);
     var obj = {};
-    var userForId = replaceString(userCur,/-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username.
+    var userForId = replaceString(userCur, /-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username. see makeRowAtom
     if (idHistoryRowUse) {
-        idHistoryRowUse = replaceString(idHistoryRowUse,/-/g, '~'); //replace dashes just in case
+        idHistoryRowUse = replaceString(idHistoryRowUse,/-/g, '~'); //replace dashes just in case. we use them to store more info later
         obj.idHistory = 'idc' + idHistoryRowUse; //make up a unique 'notification' id across team users. start with string so it never confuses the spreadsheet, and we can also detect the ones with comment ids
     }
     else {
@@ -2155,7 +2161,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
                 group.est += row.est;
                 group.estFirst += row.estFirst;
 
-                if (row.rowid !== undefined && row.rowid != -1 && (group.rowid === undefined || row.rowid > group.rowid)) {
+                if (row.rowid !== undefined && row.rowid != ROWID_REPORT_CARD && (group.rowid === undefined || row.rowid > group.rowid)) {
                     group.rowid = row.rowid; //maintanin rowid so that a "mark all read" on a grouped report will still find the largest rowid
                 }
             }
@@ -2220,6 +2226,8 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
             var cmp = compareItems(a, b);
             if (cmp === 0) {
                 cmp = b.date - a.date;
+                if (cmp == 0 && b.rowid !== undefined && a.rowid !== undefined)
+                    cmp = b.rowid - a.rowid; //use entry order. covers transfers (and sometimes immediate spent, when it also falls on the same second) having same date
             }
             return cmp;
         }
@@ -2246,4 +2254,28 @@ function getIdCardFromUrl(url) {
 
 function getIdBoardFromUrl(url) {
     return getXFromUrl(url, "https://trello.com/b/");
+}
+
+//prepends [by user] [^etransfer from/to user] to comments, returns new string 
+function appendCommentBracketInfo(deltaParsed, comment, from, rgUsersProcess, iRowPush, bETransfer) {
+    var commentPush = comment;
+    var userCur = rgUsersProcess[iRowPush] || from;
+    var bSpecialETransferFrom = (bETransfer && iRowPush === 0);
+    var bSpecialETransferTo = (bETransfer && iRowPush === 1);
+
+    if (deltaParsed)
+        commentPush = "[" + deltaParsed + "d] " + commentPush;
+
+
+    if (userCur != from)
+        commentPush = "[by " + from + "] " + commentPush;
+
+    if (bSpecialETransferFrom) {
+        assert(rgUsersProcess[1]);
+        commentPush = g_prefixCommentTransferTo + rgUsersProcess[1] + "] " + commentPush;
+    } else if (bSpecialETransferTo) {
+        assert(rgUsersProcess[0]);
+        commentPush = g_prefixCommentTransferFrom + rgUsersProcess[0] + "] " + commentPush;
+    }
+    return commentPush;
 }

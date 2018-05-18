@@ -7,8 +7,6 @@ var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var STR_UNKNOWN_CARD = "Unknown card";
 
-var g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
-
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
 
@@ -97,7 +95,7 @@ function handleInsertHistoryRowFromUI(request, sendResponseParam) {
             sendResponse({ status: responseInsertSE.status });
             return;
         }
-        insertIntoDB([request.row], sendResponse);
+        insertIntoDB(request.rows, sendResponse);
     },
     false); //dont allow calling while db is open (will wait and retry)
 }
@@ -882,7 +880,7 @@ function insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet) {
 function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTrelloComments) {
     assert(g_db);
     var i = 0;
-    var usersMapByName = {}; //populated at the beginning with all existing users by name
+    var idMemberMapByName = {}; //populated at the beginning with all existing users by name
 	var cProcessedTotal = 0;
 	var cInsertedTotal = 0;
 	var cRows = rows.length;
@@ -972,8 +970,8 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                     var rowInner = row;
                     //console.log("idBoard history:"+rowInner.idBoard);
                     var rowidInner = resultSet.insertId;
-                    if (!usersMapByName[row.user] && row.user.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
-                        usersMapByName[row.user] = g_prefixCustomUserId+row.user; //add it so we dont keep adding it for next rows
+                    if (!idMemberMapByName[row.user] && row.user.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
+                        idMemberMapByName[row.user] = g_prefixCustomUserId + row.user; //add it so we dont keep adding it for next rows
                         createNewUser(row.user, tx2);
                     }
                     //must do this only when history is created, not updated, thus its in here and not outside the history insert.
@@ -1081,7 +1079,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                 }
                 for (var i=0; i < response.rows.length; i++) {
                     var row =  response.rows[i];
-                    usersMapByName[row.username] = row.idMemberCreator;
+                    idMemberMapByName[row.username] = row.idMemberCreator;
                 }
                 g_db.transaction(processBulkInsert, errorTransaction, okTransaction);
             },
@@ -1899,7 +1897,9 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
         });
 
         M.migration(32, function (t) {
-            //for future consistency, normalize rare-case ids that could have been generated a few days before this code
+            //for future consistency, normalize rare-case ids that could have been generated a few days before this code was added.
+            //this is so code can now always assume a pattern of %~%[.%] so move those that already looked like that so the dot is to the left of ~
+            //thus one can always split on "~", then split the right side by "." SEP_IDHISTORY_MULTI
             t.executeSql("select rowid,idHistory from HISTORY where idHistory like '%~%.%'", [],
                    function (tx2, results) {
                        if (!results || !results.rows || results.rows.length == 0)
@@ -1909,10 +1909,10 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
                            var partsHist = row.idHistory.split("~");
                            if (partsHist.length != 2) //should always happens
                                return;
-                           var partsRight = partsHist[1].split(".");
+                           var partsRight = partsHist[1].split(SEP_IDHISTORY_MULTI);
                            if (partsRight.length != 2) //should always happens
                                return;
-                           var idHistoryNew = partsHist[0] + "." + partsRight[1] + "~" + partsRight[0];
+                           var idHistoryNew = partsHist[0] + SEP_IDHISTORY_MULTI + partsRight[1] + "~" + partsRight[0];
                            tx2.executeSql("update HISTORY set idHistory=? where rowid=?",
                                                    [idHistoryNew, row.rowid],
                                function (tx3, results) {
@@ -1942,7 +1942,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
                            var partsHist = row.idHistory.split("~");
                            if (partsHist.length != 2) //should always happens
                                return;
-                           var idTrelloCommentCommand = partsHist[1].split(".")[0]; //could be in the form of idHist~idHistCommand.number
+                           var idTrelloCommentCommand = partsHist[1].split(SEP_IDHISTORY_MULTI)[0]; //could be in the form of idHist~idHistCommand.number
                            map=mapCards[row.idCard];
                            if (!map) {
                                map={idCommand:idTrelloCommentCommand,nameCard:row.nameCard, bModified:false};

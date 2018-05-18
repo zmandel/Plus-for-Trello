@@ -902,7 +902,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
 	if (weekCur != getCurrentWeekNum(dateToday))
 		sToday = null; //means we are not tracking "today" because the week selection is not the current week.
 
-	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,B.idBoard, H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc";
+	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,B.idBoard, H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc, H.rowid desc";
 	var values = [weekCur];
 	g_cRowsWeekByUser = 0;
 	getSQLReport(sql, values,
@@ -1041,12 +1041,12 @@ function useWeeklyReportData(dataWeek, topbarElem, user, bUpdateErrorState) {
 }
 
 
-function insertHistoryRowFromUI(row) {
-	sendExtensionMessage({ method: "insertHistoryRowFromUI", row: row }, function (response) {
-		if (response.status != STATUS_OK) {
+function insertHistoryRowFromUI(rows, callback) {
+	sendExtensionMessage({ method: "insertHistoryRowFromUI", rows: rows }, function (response) {
+		if (response.status != STATUS_OK)
 			alert("Insert error: " + response.status);
-			return;
-		}
+		
+		callback(response.status);
 	});
 }
 
@@ -1616,7 +1616,7 @@ function doRecentReport(waiter, elemRecent, user) {
 				JOIN BOARDS AS B ON H.idBoard=B.idBoard \
 				JOIN CARDS AS C ON H.idCard=C.idCard \
 				WHERE H.user=? \
-				ORDER BY date DESC LIMIT 10) \
+				ORDER BY date DESC, H.rowid DESC LIMIT 10) \
                 GROUP BY nameBoard,nameCard,idCard \
                 ORDER BY dateLocal DESC \
                 ";

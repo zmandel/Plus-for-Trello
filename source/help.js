@@ -1242,7 +1242,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	            doSave(true);
 
 	            function doSave(bShowSavedMessage) {
-	                var val = inputGlobalUser.val().trim() || DEFAULTGLOBAL_USER;
+	                var val = inputGlobalUser.val().toLowerCase().trim() || DEFAULTGLOBAL_USER;
 	                inputGlobalUser.val(val);
 	                chrome.storage.sync.set({ SYNCPROP_GLOBALUSER: val }, function () {
 	                    if (chrome.runtime.lastError !== undefined) {

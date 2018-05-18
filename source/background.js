@@ -763,7 +763,7 @@ function animateFlip() {
 
 function updatePlusIcon(bTooltipOnly) {
     setTimeout(function () {
-        updatePlusIconWorker(bTooltipOnly); //review zig: ugly workarround because code sets storage props and inmediately calls updatePlusIcon
+        updatePlusIconWorker(bTooltipOnly); //review zig: ugly workarround because code sets storage props and immediately calls updatePlusIcon
     }, 100);
 }
 

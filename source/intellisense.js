@@ -18,6 +18,7 @@
 /// <reference path="burndown.js" />
 /// <reference path="buttons.js" />
 /// <reference path="card.js" />
+/// <reference path="cardetransfer.js" />
 /// <reference path="dashboard.js" />
 /// <reference path="translations.js" />
 

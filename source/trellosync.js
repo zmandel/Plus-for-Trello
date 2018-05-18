@@ -2,6 +2,8 @@
 
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
+var g_bProcessCardCommentCopies = false; //Trello optionally copies card comment when making a card copy REVIEW must handle in comment parser
+
 
 var SQLQUERY_PREFIX_CARDDATA = "select dateCreated, dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, idShort, bArchived, bDeleted ";
 var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
@@ -1581,7 +1583,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             }
 
         }
-        if (typeAction == "commentCard" && bProcessCommentSE)
+        if ((typeAction == "commentCard" || (g_bProcessCardCommentCopies && typeAction == "copyCommentCard")) && bProcessCommentSE)
             queue.push(processCommentSEAction);
 
         stepDone(STATUS_OK); //start chain of functions
@@ -1640,7 +1642,7 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
                         //when reseting a card, we will zero s/e of entered items (not delete them) thus we must use
                         //a different action id by adding a postfix
                         assert(cardData.idActionReset);
-                        item.idPostfix = "~" + cardData.idActionReset; //use ~ as - is reserved in makeHistoryRowObject
+                        item.idPostfix = "~" + cardData.idActionReset; //use ~ as - is reserved in makeRowAtom etc
                         //just add all comments. later we will check if its really an S/E comment
                         var comment = item.data.text.toLowerCase();
                         if (comment.indexOf(PLUSCOMMAND_RESET)<0) //note: this isnt perfect as user could include the string anywhere. but good enough to prevent duplication of resetsyncs
@@ -1793,7 +1795,13 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
     xhr.send();
 }
 
-var BOARD_ACTIONS_LIST = "updateList,deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard";
+var BOARD_ACTIONS_LIST_BASE = "updateList,deleteCard,commentCard,createList,convertToCardFromCheckItem,createCard,copyCard,emailCard,moveCardToBoard,moveCardFromBoard,updateBoard,moveListFromBoard,moveListToBoard,updateCard";
+function buildBoardActionsList() {
+    var ret = BOARD_ACTIONS_LIST_BASE;
+    if (g_bProcessCardCommentCopies)
+        ret += ",copyCommentCard";
+    return ret;
+}
 
 function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefore, actionsSkip, callback, waitRetry) {
     //https://trello.com/docs/api/card/index.html
@@ -1803,6 +1811,9 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
 
     if (true) {
         url = url + "&filter=commentCard";
+        if (g_bProcessCardCommentCopies)
+            url = url + ",copyCommentCard";
+
         if (strDateBefore && strDateBefore.length > 0)
             url = url + "&before=" + strDateBefore;
     }
@@ -1894,7 +1905,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
     var url = "https://trello.com/1/boards/" + idBoard + "/actions?action_member=true&action_memberCreator=true&action_member_fields=username&action_memberCreator_fields=username&limit=" + limit; //review zig trello promised to add filtering of memberCreator fields. currently causes excess download
     
     if (bFilter) {
-        url = url + "&filter=" + BOARD_ACTIONS_LIST;
+        url = url + "&filter=" + buildBoardActionsList();
         if (strDateBefore && strDateBefore.length > 0)
             url = url + "&before=" + strDateBefore;
 
@@ -2280,7 +2291,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                             else if (b.type != a.type) {
                                 //sometimes an updateCard happens at the same time as others. in plus case, in old versions
                                 //it would add a comment and in paralel it would rename the card. we want updateCard to win
-                                //and since "updateCard" > "commentCard", this works like the order we want
+                                //and since "updateCard" > "commentCard" or "copyCommentCard", this works like the order we want
                                 //this also gives order consistency.
 
                                 return a.type.localeCompare(b.type);
@@ -2614,7 +2625,7 @@ function getBoardsLastInfo(tokenTrello, callback) {
 
 function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
     //https://developers.trello.com/advanced-reference/member#get-1-members-idmember-or-username-boards
-    var url = "https://trello.com/1/members/me/boards?organization=true&organization_fields=displayName,name&fields=idOrganization,name,closed,shortLink,dateLastActivity&actions=" + BOARD_ACTIONS_LIST + "&actions_limit=1&action_fields=date&action_memberCreator=false";
+    var url = "https://trello.com/1/members/me/boards?organization=true&organization_fields=displayName,name&fields=idOrganization,name,closed,shortLink,dateLastActivity&actions=" + buildBoardActionsList() + "&actions_limit=1&action_fields=date&action_memberCreator=false";
 	var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {
