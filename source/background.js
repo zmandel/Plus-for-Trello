@@ -548,7 +548,7 @@ var g_loaderDetector = {
                 });
             }, 1000);
             //g_bPlusExtensionLoadedOK remains false
-            return;
+            return this;
         }
 
         setTimeout(function () { //avoid global dependencies. however, this timeout could cause content script to call before we are ready. in messaging we handle it.
@@ -558,6 +558,7 @@ var g_loaderDetector = {
                 g_bPlusExtensionLoadedOK = true;
             });
         }, 1); //to force-test timing-related issues, change this 1 to a larger number so that other places will retry. those places also need larger setTimeouts to test.
+        return this;
     },
     init: function () {
         g_bOffline = !navigator.onLine;
@@ -689,7 +690,6 @@ function checkAnalyticsActive() {
     var strNow = makeDateCustomString(dateNow);
     var strLast = makeDateCustomString(dateLast);
     if (strNow != strLast) {
-        //category: "ProCheckbox", action: "disabled" 
         handleHitAnalyticsEvent("ActiveDay", "active");
         localStorage["ms-last-usage"] = "" + msNow;
     }
@@ -2102,12 +2102,27 @@ var g_analytics = {
         msDelay = msDelay || 1000;
         this.init();
         var payload = "v=1&tid=" + this.idGlobalAnalytics + "&cid=" + encodeURIComponent(this.idAnalytics);
-        for (p in params) {
+        for (var p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
+        }
+        const PROP_LS_CD1LAST = "CD1LAST";
+
+        var valCD1Prev = localStorage[PROP_LS_CD1LAST] || "";
+        var cslCD1Cur = (g_bProVersion ? "Pro" : "Basic");
+        if (valCD1Prev != cslCD1Cur) { //analytics docs recommend to only send the parameter when it changed, for performance.
+            payload = payload + "&cd1=" + cslCD1Cur;
+
         }
         setTimeout(function () {
             var xhr = new XMLHttpRequest();
             var url = "https://ssl.google-analytics.com/collect";
+
+            xhr.onreadystatechange = function (e) {
+                if (xhr.readyState == 4 && xhr.status == 200) {
+                    if (valCD1Prev != cslCD1Cur)
+                        localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
+                }
+            };
 
             xhr.open("POST", url, true);
             //xhr.setRequestHeader("Content-length", payload.length); //unsafe in chrome

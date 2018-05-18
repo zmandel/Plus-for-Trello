@@ -3,6 +3,7 @@
 var g_minutesExpireBoardTotalCache = (60 * 24 * 7 * 2);	//after this many, board total cache is deleted.
 var g_totalSpentAllBoards = 0;
 var g_totalEstimateAllBoards = 0;
+var g_regexRecurringTitleReplace = /\[R\]/g;
 
 function updateBoardPageTotals() {
     if (false) { //review: feature no longer used as it can confuse showing the old cached values, and it works based on board name, not id.
@@ -200,7 +201,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
                 var cleanTitle = se.titleNoSE;
                 if (bRecurring)
-                    cleanTitle = replaceString(cleanTitle,/\[R\]/g, "");
+                    cleanTitle = replaceString(cleanTitle,g_regexRecurringTitleReplace, "");
                 
                 var ctlContents = cloneTitleTag.contents();
                 var ctlUpdate = null;

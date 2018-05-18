@@ -1699,6 +1699,8 @@ function addDashboardListItem(list, name, url, tooltip) {
 	return option;
 }
 
+var g_regexDoubleLines = /\n\n/gm;
+
 function handleLoadRecent(combo, data, user) {
     var i = 0;
     var dateNow = new Date();
@@ -1709,7 +1711,7 @@ function handleLoadRecent(combo, data, user) {
 		var comment = row.comment || ""; //review zig: cant find how a user reported this was null. I added this and a colalesce into the report, but cant see how it can happen.
 		var commentNew = "";
 		do {
-		    commentNew = replaceString(comment,/\n\n/gm, "\n");
+		    commentNew = replaceString(comment, g_regexDoubleLines, "\n");
 		    if (commentNew == comment)
 		        break;
 		    comment = commentNew;
@@ -2291,12 +2293,23 @@ function checkCreateRecentFilter(header) {
 	updateShowAllButtonState(elem,true);
 	elem.click(function (e) {
 		e.preventDefault();
-		//after set, we get again because set might have failed (over quota)
-		chrome.storage.sync.set({ 'bShowAllItems': !g_bShowAllItems }, function () {
-			if (chrome.runtime.lastError === undefined)
-				updateShowAllButtonState(elem);
+	    //after set, we get again because set might have failed (over quota)
+		var bShowAllItemsNew = !g_bShowAllItems;
+		chrome.storage.sync.set({ 'bShowAllItems': bShowAllItemsNew }, function () {
+		    if (chrome.runtime.lastError === undefined) {
+		        updateShowAllButtonState(elem);
+		    }
 		});
 	});
+}
+
+var g_cShownHiddenCardsAlert = 0;
+
+function showHiddenCardsAlert() {
+    if (g_cShownHiddenCardsAlert > 0)
+        return;
+    g_cShownHiddenCardsAlert++;
+    sendDesktopNotification("Aged cards are hidden. Click on 'More' in the Plus header to show all cards.",7000);
 }
 
 function updateShowAllButtonState(elem, bFirstTime) {
@@ -2317,7 +2330,8 @@ function updateShowAllButtonState(elem, bFirstTime) {
 			elem.addClass("agile_all_unpressed");
 			elem.attr("title", "Click to show old boards and cards.");
 			if (bFirstTime)
-				hiliteOnce(elem,0,"agile_box_more_hilite");
+			    hiliteOnce(elem, 0, "agile_box_more_hilite");
+			showHiddenCardsAlert();
 		}
 		doShowAgedCards(bShow);
 		setTimeout(function () {
@@ -2363,3 +2377,4 @@ function testModifySyncStorageUrl(url) {
         }
     });
 }
+

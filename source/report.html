@@ -19,6 +19,8 @@
     <script type="text/javascript" src="libs/d3.min.js"></script>
     <script type="text/javascript" src="libs/plottable.min.js"></script>
     <script type="text/javascript" src="shared.js"></script>
+    <script type="text/javascript" src="sharedmobile.js"></script>
+    <script type="text/javascript" src="sharedsync.js"></script>
     <script type="text/javascript" src="report.js"></script>
 </head>
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
@@ -384,17 +386,18 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                 </div>
                 <div id="tabs-0" style="display:none;padding-top:6px;" class="agile_report_container agile_report_tab"></div>
                 <div id="tabs-1" style="display: none;" class="agile_report_tab">
-                    <div class="agile_format_container">
-                        <span title="Leave blank to remove format.">under </span>
-                        <input class="agile_format_under" type="number" title="Leave blank to remove format." />
-                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Click to change color." value="#E8EBEE" />
-                        <span title="Leave blank to remove format." style="margin-left:15px;">over </span>
-                        <input class="agile_format_over" type="number" title="Leave blank to remove format." />
-                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Click to change color." value="#E8EBEE" />
+                    <div class="agile_format_container" title="To remove colors, pick 'No format or leave fields blank.
+Note: current week always ignores 'under' format.">
+                        <span>under </span>
+                        <input class="agile_format_under" type="number"  />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <span style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
                         <select class="agile_report_optionsFormat" style="margin-left: 15px;">
-                            <option value="smooth" title="note: current week always ignores 'under' format.">Smooth format</option>
-                            <option value="strict" title="note: current week always ignores 'under' format.">Strict format</option>
-                            <option value="off">No format</option>
+                            <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
+                            <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
+                            <option value="off" title="No coloring.">No format</option>
                         </select>
                         <img class="agile_drilldown_select agile_fixed" />
 
@@ -402,17 +405,18 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                     <div class="agile_report_container_byUser agile_report_containerScroll" style="overflow: auto;"></div>
                 </div>
                 <div id="tabs-2" style="display: none;" class="agile_report_tab">
-                    <div class="agile_format_container">
-                        <span title="Leave blank to remove format.">under </span>
-                        <input class="agile_format_under" type="number" title="Leave blank to remove format." />
-                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Click to change color." value="#E8EBEE" />
-                        <span title="Leave blank to remove format." style="margin-left:15px;">over </span>
-                        <input class="agile_format_over" type="number" title="Leave blank to remove format." />
-                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Click to change color." value="#E8EBEE" />
-                        <select class="agile_report_optionsFormat" style="margin-left: 15px;" title="current week always ignores 'under' format.">
-                            <option value="smooth">Smooth format</option>
-                            <option value="strict">Strict format</option>
-                            <option value="off">No format</option>
+                    <div class="agile_format_container" title="To remove colors, pick 'No format or leave fields blank.
+Note: current week always ignores 'under' format.">
+                        <span>under </span>
+                        <input class="agile_format_under" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <span style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
+                        <select class="agile_report_optionsFormat" style="margin-left: 15px;">
+                            <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
+                            <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
+                            <option value="off" title="No coloring.">No format</option>
                         </select>
                         <img class="agile_drilldown_select" />
                     </div>

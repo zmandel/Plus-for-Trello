@@ -41,3 +41,4 @@ function translateTour(flow,name,lang) {
     }
     return flowNew;
 }
+

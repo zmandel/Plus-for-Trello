@@ -81,3 +81,4 @@ document.addEventListener('DOMContentLoaded', function () {
     update();
     setInterval(update, 1000); //review this could be re-done with timeouts with minute-step as now the windows is always minimized
 });
+

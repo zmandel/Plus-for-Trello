@@ -21,126 +21,7 @@ var g_msdateFillDaysList = 0;
  * keeps track of the card s/e row data to save in storage.local as a draft. cleared when user enters the row.
  *
 **/
-var g_currentCardSEData = { 
-    loadFromStorage : function (idCard,callback) {
-        assert(idCard);
-        var key=this.keyStoragePrefix+idCard;
-        this.idCard = idCard;
-        this.clearValues();
 
-        var thisLocal = this;
-        chrome.storage.local.get(key, function (obj) {
-            var value = obj[key];
-            if (chrome.runtime.lastError || !value) {
-                if (chrome.runtime.lastError)
-                    console.log(chrome.runtime.lastError.message);
-                callback();
-                return;
-            }
-            value = JSON.parse(value);
-            assert(idCard==value.idCard);
-            if (thisLocal.idCard != idCard) {
-                //should never happen but handle possible rare timing
-                callback();
-                return;
-
-            }
-            thisLocal.msTime = value.msTime;
-            thisLocal.keyword = value.keyword;
-            thisLocal.user = value.user;
-            thisLocal.delta = value.delta;
-            thisLocal.s = value.s;
-            thisLocal.e = value.e;
-            thisLocal.note = value.note;
-            callback();
-        });
-    },
-    saveToStorage: function (bForce) {
-        assert(this.idCard);
-        var stringified = JSON.stringify({
-            idCard: this.idCard,
-            keyword: this.keyword,
-            user: this.user,
-            delta: this.delta,
-            s: this.s,
-            e: this.e,
-            note: this.note,
-            msTime: this.msTime
-        });
-        if (!bForce) {
-            if (this.strLastSaved == stringified)
-                return;
-        }
-        var pair = {};
-        var key = this.keyStoragePrefix + this.idCard;
-        pair[key] = stringified;
-        var thisLocal = this;
-        chrome.storage.local.set(pair, function () {
-            if (chrome.runtime.lastError) {
-                console.log(chrome.runtime.lastError.message);
-                return;
-            }
-            thisLocal.strLastSaved = stringified;
-        });
-    },
-
-    setValues: function (idCard, keyword, user, delta, s, e, note) {
-        if (this.idCard == idCard &&
-            this.keyword == keyword &&
-            this.user == user &&
-            this.delta == delta &&
-            this.s == s &&
-            this.e == e &&
-            this.note == note) {
-            return;
-        }
-
-        this.idCard = idCard;
-        this.keyword = keyword;
-        this.user = user;
-        this.delta = delta;
-        this.s = s;
-        this.e = e;
-        this.note = note;
-        this.msTime = Date.now();
-        this.saveToStorage();
-    },
-
-    removeValue: function (idCardCur) {
-        if (!idCardCur)
-            idCardCur = this.idCard;
-
-        if (!idCardCur)
-            return;
-        var key = this.keyStoragePrefix + idCardCur;
-        chrome.storage.local.remove(key);
-        if (this.idCard == idCardCur)
-            this.clearValues();
-    },
-
-    //ALL BELOW ARE PRIVATE
-
-    clearValues: function () {
-        this.msTime = 0;
-        this.keyword = "";
-        this.user = "";
-        this.delta = "";
-        this.s = "";
-        this.e = "";
-        this.note = "";
-    },
-
-    msTime: 0,
-    keyStoragePrefix:"cardSEDraft:",
-    strLastSaved : "",
-    idCard : "",
-    keyword: "",
-    user: "",
-    delta: "",
-    s: "",
-    e: "",
-    note: ""
-};
 
 function validateSEKey(evt) {
 	var theEvent = evt || window.event;
@@ -156,13 +37,13 @@ function validateSEKey(evt) {
 var g_seCardCur = null; //null means not yet initialized review zig cleanup into a class
 function getSeCurForUser(user,keyword) { //note returns null when not loaded yet
     assert(user);
-    if (!g_seCardCur)
+    if (g_seCardCur===null)
         return null;
-    var retZero = { s: 0, e: 0 };
+    var retZero = { s: 0, e: 0, kw: {} };
     var map = g_seCardCur[user] || retZero;
     if (!keyword)
         return map;
-    return (map[keyword] || retZero);
+    return (map.kw[keyword] || retZero);
     }
 
 function updateEOnSChange(cRetry) {
@@ -181,7 +62,7 @@ function updateEOnSChange(cRetry) {
             bHilite = true;
         }
         else if (!g_bAllowNegativeRemaining) {
-            if (g_seCardCur == null) { //user report not loaded yet
+            if (g_seCardCur === null) { //user report not loaded yet
                 if (cRetry < 3) {
                     setTimeout(function () {
                         if (spinS.is(":focus"))
@@ -573,7 +454,7 @@ function promptNewUser(combo, idCardCur, callbackParam) {
 function createCardSEInput(parentSEInput, idCardCur, board) {
     assert(idCardCur);
 	var bHasSpentBackend = isBackendMode();
-	g_seCardCur = {}; //reset totals
+	g_seCardCur = null; //remains null for a short time, until card report is loaded. code must check for ===null
 
 	var container = $("<div class='notranslate'></div>").addClass(g_inputSEClass).hide();
 	var containerStats = $("<div></div>");
@@ -726,7 +607,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	            return;
 	        }
 
-	        if (g_seCardCur == null) {
+	        if (g_seCardCur === null) {
 	            alert("Not ready. Try in a few seconds.");
 	            return;
 	        }
@@ -1053,7 +934,7 @@ function fillCardSEStats(tableStats,callback) {
             function (response) {
                 tableStats.empty();
                 containerStats.hide();
-                //reset totals
+                //start building by resetting it
                 g_seCardCur = {};
                 var elemRptLink = containerStats.find(".agile_card_report_link");
                 var estimateBadge = containerStats.find(".agile_badge_estimate");
@@ -1131,8 +1012,8 @@ function fillCardSEStats(tableStats,callback) {
                             mapCur = {
                                 s: rowData.spent,
                                 e: rowData.est,
-                                dateLast: rowData.date, //take advantage of order by date DESC in query above
-                                rowData:rowData //stores the latest row (because of sort order DESC)
+                                rowData: rowData, //stores the latest row (because of sort order DESC)
+                                kw: {}
                             };
                             g_seCardCur[rowData.user] = mapCur;
                             rgReportRows.push(mapCur);
@@ -1142,13 +1023,13 @@ function fillCardSEStats(tableStats,callback) {
                         }
                         var keyword=rowData.keyword;
                         if (keyword) {
-                            mapKW = mapCur[keyword];
+                            var mapKW = mapCur.kw[keyword];
                             if (!mapKW) {
                                 mapKW = {
                                     s: rowData.spent,
                                     e: rowData.est
                                 };
-                                mapCur[keyword] = mapKW;
+                                mapCur.kw[keyword] = mapKW;
                             } else {
                                 mapKW.s = mapKW.s + rowData.spent;
                                 mapKW.e = mapKW.e + rowData.est;
@@ -1709,7 +1590,7 @@ function createRecurringCheck() {
         if (bChecked)
             titleCur = titleCur + " " + TAG_RECURRING_CARD;
         else {
-            titleCur = replaceString(titleCur,/\[R\]/g, "").trim();
+            titleCur = replaceString(titleCur, g_regexRecurringTitleReplace, "").trim();
         }
 
         check.attr('disabled', 'disabled');

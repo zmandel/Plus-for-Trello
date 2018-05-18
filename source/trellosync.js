@@ -2732,82 +2732,6 @@ function earliest_trello_date() {
     return g_etDateCache;
 }
 
-//code based on spent backend
-function matchCommentParts(text,date, bRecurringCard, userFrom) {
-    //note that comment gets cropped to 200 characters
-    //? is used to force non-greedy
-    var i_users = 1;
-    var i_days = 4;
-    
-    var i_spent = 6;
-    var i_command = 7;
-    var i_sep = 8;
-    var i_est = 9;
-    var i_spacesPreComment = 10;
-    var i_note = 11;
-    var preComment = "";
-
-    var rgResults = g_regexSEFull.exec(text);
-    if (rgResults == null)
-        return null;
-
-    //standarize regex quirks
-    rgResults[i_users] = rgResults[i_users] || "";
-    rgResults[i_command] = (rgResults[i_command] || "").toLowerCase();
-    rgResults[i_est] = rgResults[i_est] || "";
-    rgResults[i_note] = (rgResults[i_note] || ""); //note there is no limit. The user could in theory add millions of characters here.
-    rgResults[i_note].split("\n")[0]; //note is up to newline if any
-
-    assert(rgResults[i_command] == "" || (rgResults[i_command].length > 0 && rgResults[i_command].charAt(0) == PREFIX_PLUSCOMMAND));
-
-    if (!rgResults[i_sep]) { //separator
-        if (date && date < g_dateMinCommentSERelaxedFormat) {
-            console.log("S/E legacy row with new format ignored "+date);
-            return null;
-        }
-        if (rgResults[i_est]) {
-            //when no separator, assume there is only spent. add any possible E matches to the comment (in case note started with a number)
-            rgResults[i_note] = rgResults[i_est] + rgResults[i_spacesPreComment] + rgResults[i_note];
-            rgResults[i_est] = "";
-            rgResults[i_spacesPreComment] = "";
-            preComment = "[warning: possibly missing /] ";
-        }
-        if (rgResults[i_est].length == 0 && bRecurringCard) { //special case for recurring cards
-            rgResults[i_est] = rgResults[i_spent];
-        }
-    }
-
-    rgResults[i_note] = rgResults[i_note].trim();
-    if (!rgResults[i_command] && rgResults[i_note].indexOf(PREFIX_PLUSCOMMAND) == 0) {
-        //for historical compatibility reasons, command in regex is only parsed when no S/E (resetsync case), but we need to manually parse it out of the comment otherwise.
-        var words = rgResults[i_note].split(" ");
-        rgResults[i_command] = words[0];
-        rgResults[i_note] = rgResults[i_note].substring(words[0].length).trim();
-    }
-    var ret = {};
-    var users = rgResults[i_users].trim();
-    var rgUsers = [];
-    if (users.length > 0) {
-        var listUsers = users.split("@");
-        var i = 0;
-        for (; i < listUsers.length; i++) {
-            var item = listUsers[i].trim().toLowerCase();
-            if (item.length != 0) {
-                item = item.toLowerCase();
-                if (item == g_strUserMeOption)
-                    item = userFrom; //allow @me shortcut (since trello wont autocomplete the current user)
-                rgUsers.push(item);
-            }
-        }
-    }
-    ret.rgUsers = rgUsers;
-    ret.days = rgResults[i_days] || "";
-    ret.strSpent = rgResults[i_spent] || "";
-    ret.strEstimate = rgResults[i_est] || "";
-    ret.strCommand = rgResults[i_command] || "";
-    ret.comment = preComment + replaceBrackets(rgResults[i_note] || "");
-    return ret;
-}
 
 var g_bDisplayedDSCWarning = false;
 
@@ -3035,3 +2959,4 @@ function processBoardNames(boards,callback) {
         callback(status);
     }
 }
+

@@ -476,3 +476,4 @@ function getSQLReport(sql, values, callback) {
 		showError(status);
 	});
 }
+

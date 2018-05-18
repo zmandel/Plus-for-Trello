@@ -2162,12 +2162,19 @@ function makeRowGsxField(name, value) {
 	return "<gsx:" + name + ">" + value + "</gsx:" + name + ">";
 }
 
+var g_regexXmlEscapeAmp = /&/g;
+var g_regexXmlEscapeLt = /</g;
+var g_regexXmlEscapeGt = />/g;
+var g_regexXmlEscapeQ = /"/g;
+var g_regexXmlEscapeApos = /'/g;
+
 function xmlEscape(str) {
-	return str.replace(/&/g, '&amp;').
-				  replace(/</g, '&lt;').
-				  replace(/>/g, '&gt;').
-				  replace(/"/g, '&quot;').
-				  replace(/'/g, '&apos;');
+    str = replaceString(str, g_regexXmlEscapeAmp, '&amp;');
+    str = replaceString(str, g_regexXmlEscapeLt, '&lt;');
+    str = replaceString(str, g_regexXmlEscapeGt, '&gt;');
+    str = replaceString(str, g_regexXmlEscapeQ, '&quot;');
+    str = replaceString(str, g_regexXmlEscapeApos, '&apos;');
+    return str;
 }
 
 function makeRowAtom(date, board, card, spenth, esth, who, week, month, comment, idBoard, idCard, idtrello) {
@@ -2220,3 +2227,4 @@ function getRowSSEndLastData(defaults) {
         data = JSON.parse(data);
     return data;
 }
+

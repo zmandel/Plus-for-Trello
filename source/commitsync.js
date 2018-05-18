@@ -1,8 +1,5 @@
 /// <reference path="intellisense.js" />
 
-var g_prefixCustomUserId = "customUser:";
-var g_deletedUserIdPrefix = "deleted"; //prefix for user id and user (when making up a username on deleted users)
-
 function commitTeamSyncData(tx, alldata) {
     var idTeam = null;
     var sql = "";
@@ -421,6 +418,7 @@ function preprocessUsersInAllData(rgCommentsSE, usersMap, idMemberMapByName) {
 
 function commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName) {
     var rows = [];
+    var rgKeywords=g_optEnterSEByComment.rgKeywords;
     //sort before so usersMap is correct and we insert in date order. date is comment date, without yet applying any delta (-xd)
     //review zig ideally it should merge individual board sorted items without destruction or original orders in each array,
     //but im not sure if it would really make a difference as there is only dependency between cards not boards (currently)
@@ -436,7 +434,7 @@ function commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName) {
         if (action.ignore)
             return; //can get here when there is a card reset command, and generates duplicate actions ignored here
 
-        var rowsAdd = readTrelloCommentDataFromAction(action, alldata, usersMap, idMemberMapByName);
+        var rowsAdd = readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, idMemberMapByName);
         rowsAdd.forEach(function (rowCur) {
             rows.push(rowCur);
         });
@@ -511,212 +509,6 @@ function commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName) {
 
     return bCommited;
 }
-
-var g_dateMinCommentSE = new Date(2013, 6, 30); //exclude S/E before this (regular users didnt have this available back then), excludes my testing data from spent backend
-var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -xd will be ignored on x<-2 for non spent-backend admins, like the backend used to do
-
-//code taken from spent backend
-function readTrelloCommentDataFromAction(action, alldata, usersMap, idMemberMapByName) {
-    var tableRet = [];
-    var id = action.id; 
-    var from = null;
-    var memberCreator = action.memberCreator; //may be undefined
-
-    if (action.idMemberCreator) { //should be set always. but just in case handle it
-        var cached = usersMap[action.idMemberCreator];
-        if (cached)
-            memberCreator = cached; //review zig: shouldnt be needed. trello renames all actions users when a user is renamed. but this protects us from possible trello failures.
-    }
-
-    if (memberCreator && memberCreator.username)
-        from = memberCreator.username;
-    else
-        from = g_deletedUserIdPrefix + action.idMemberCreator; //keep the username as a regex word
-
-    from = from.toLowerCase(); //shouldnt be necessary but just in case
-    var idCardShort = alldata.cardsByLong[action.data.card.id];
-    var cardObj = alldata.cards[idCardShort];
-    var idBoardShort = (cardObj || {}).idBoard; //this one is more up to date than the one in the action
-
-
-    if (!idBoardShort || !idCardShort || idBoardShort == IDBOARD_UNKNOWN) {
-        //idBoardShort can be unknown. ignore those.
-        if (!idBoardShort || !idCardShort)
-            logPlusError("error: unexpected card comment from unknown board/card");
-        return tableRet;
-    }
-
-    if (!alldata.boards[idBoardShort]) {
-        //review zig: this happens rarely. the card could have moved to a board that the user no longer has access, but if so the comments should have moved there too.
-        //might be timing-related to trello db.
-        //if the board is not mapped by plus, this card comment should be processed when the user becomes a member or on next sync.
-        return tableRet;
-        //logPlusError("error: idBoardShort:" + idBoardShort + " action:" + JSON.stringify(action) + " cardObj:" + JSON.stringify(cardObj));
-        //assert(false);
-    }
-    var strBoard = alldata.boards[idBoardShort].name;
-    var strCard = cardObj.name;
-    var textNotifyOrig = action.data.text.trim();
-    var date = new Date(action.date); //convert from ISO-8601 to js date
-
-    if (date < g_dateMinCommentSE)
-        return tableRet;
-
-    g_optEnterSEByComment.rgKeywords.every(function (keywordParam) {
-        var bPlusBoardCommand = false;
-        var keyword = keywordParam.toLowerCase();
-        var txtPre = keyword + " ";
-        var i = textNotifyOrig.toLowerCase().indexOf(txtPre);
-        if (i < 0 || (i > 0 && textNotifyOrig.charAt(i - 1) != " ")) //whole word keyword
-            return true; //continue
-
-        var textNotify = textNotifyOrig.substr(txtPre.length + i).trim(); //remove keyword
-        var idForSs = "" + id; //clone it
-        var cardTitle = action.data.card.name;
-        var parseResults = matchCommentParts(textNotify, date, cardTitle.indexOf(TAG_RECURRING_CARD)>=0, from);
-        var comment = "";
-
-        function pushErrorObj(strErr) {
-            if (tableRet.length != 0)
-                return;
-            var obj = makeHistoryRowObject(date, idCardShort, idBoardShort, strBoard, strCard, from, 0, 0, PREFIX_ERROR_SE_COMMENT + strErr + "] " + replaceBrackets(textNotify), idForSs, keyword);
-            obj.bError = true;
-            tableRet.push(obj);
-        }
-
-
-        if (!parseResults) {
-            pushErrorObj("bad format");
-            return true; //continue
-        }
-
-        if (i > 0) {
-            if (date > g_dateMinCommentSEWithDateOverBackend) {
-                pushErrorObj("keyword not at start");
-                return true;
-            }
-            //allow legacy S/E entry format for old spent backend rows
-        }
-
-        var s = 0;
-        var e = 0;
-        comment = parseResults.comment;
-
-        if (parseResults.strSpent)
-            s = parseFixedFloat(parseResults.strSpent, false);
-
-        if (parseResults.strEstimate)
-            e = parseFixedFloat(parseResults.strEstimate, false);
-
-        var bETransfer = false;
-        if (parseResults.strCommand) {
-            //note before v3.2.13 there were "board commands", (markboard, unmarkboard) no longer used
-            bPlusBoardCommand = (parseResults.strCommand.indexOf("markboard") == 1 || parseResults.strCommand.indexOf("unmarkboard") == 1);
-            
-            function failCommand() {
-                pushErrorObj("bad command format");
-            }
-            
-            //general fields not allowed in commands
-            if (s!=0 || parseResults.days) {
-                failCommand();
-                return true; //continue
-            }
-            
-            if (bPlusBoardCommand || parseResults.strCommand.indexOf(PLUSCOMMAND_RESET) == 0) {
-                if (e!=0 || parseResults.rgUsers.length > 0) {
-                    failCommand();
-                    return true; //continue
-                }
-                comment = "["+parseResults.strCommand + " command] " + comment; //keep command in history row for traceability
-            } else {
-                if (parseResults.strCommand.indexOf(PLUSCOMMAND_ETRANSFER) == 0) {
-                    bETransfer = true;
-                    //note: do not yet modify the comment. we include the command later only on the first history row
-                    if (e<0 || parseResults.rgUsers.length != 2) {
-                        failCommand();
-                        return true; //continue
-                    }
-                } else {
-                    failCommand();
-                    return true; //continue
-                }
-            }
-        }
-
-        var deltaDias = parseResults.days;
-        var deltaParsed = 0;
-        if (deltaDias) {
-            deltaParsed = parseInt(deltaDias, 10) || 0;
-            if (deltaParsed > 0 || deltaParsed < g_dDaysMinimum) { //sane limits
-                //note this is really not possible to enter here because the parser guarantees that deltaParsed will be negative
-                pushErrorObj("bad d");
-                return true; //continue
-            }
-
-            var deltaMin = (keyword == "@tareocw"? -2 : -10);
-            //support spent backend legacy rules for legacy rows
-            if (deltaParsed < deltaMin && date < g_dateMinCommentSEWithDateOverBackend) {
-                if (from != "zigmandel" && from != "julioberrospi" && from != "juanjoserodriguez2") {
-                    pushErrorObj("bad d for legacy entry"); //used to say "bad d for non-admin"
-                    return true; //continue
-                }
-            }
-            date.setDate(date.getDate() + deltaParsed);
-        }
-
-        var rgUsersProcess = parseResults.rgUsers; //NOTE: >1 when reporting multiple users on a single comment
-        var iRowPush = 0;
-
-        if (rgUsersProcess.length == 0)
-            rgUsersProcess.push(from);
-
-        tableRet = []; //remove possible previous errors (when another keyword before matched partially and failed)
-        for (iRowPush = 0; iRowPush < rgUsersProcess.length; iRowPush++) {
-            var idForSsUse = idForSs;
-            var commentPush = appendCommentBracketInfo(deltaParsed, comment, from, rgUsersProcess, iRowPush, bETransfer);
-            var datePush = date;
-            if (iRowPush > 0)
-                idForSsUse = idForSs + SEP_IDHISTORY_MULTI + iRowPush;
-            if (action.idPostfix)
-                idForSsUse = idForSsUse + action.idPostfix;
-            var userCur = rgUsersProcess[iRowPush];
-            
-            if (userCur != from) {
-                //update usersMap to fake users that may not be real users
-                //note checking for prefix g_deletedUserIdPrefix fails if user actually starts with "deleted", but its not a real scenario
-                if (!idMemberMapByName[userCur] && userCur.indexOf(g_deletedUserIdPrefix) != 0) { //review zig duplicated. consolidate
-                    var idMemberFake = g_prefixCustomUserId + userCur;
-                    usersMap[idMemberFake] = { dateSzLastTrello: action.date, bEdited: true, idMemberCreator: idMemberFake, username: userCur };
-                    idMemberMapByName[userCur] = idMemberFake;
-                }
-            }
-
-            var bSpecialETransferFrom = (bETransfer && iRowPush === 0);
-            
-            //note that for transfers both are entered with the same date. code should sort by date,rowid to get the right timeline
-
-            var idCardForRow = idCardShort;
-            if (bPlusBoardCommand)
-                idCardForRow = ID_PLUSBOARDCOMMAND;
-            var obj = makeHistoryRowObject(datePush, idCardForRow, idBoardShort, strBoard, strCard, userCur, s, e, commentPush, idForSsUse, keyword);
-            obj.bError = false;
-            if (parseResults.strCommand)
-                obj.command = parseResults.strCommand.substring(1); //review: unused
-            if (idCardForRow != idCardShort)
-                obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time. review: seems only used in the unused handleBoardCommand
-            if (bSpecialETransferFrom) {
-                assert(e > 0);
-                obj.est = -obj.est;
-            }
-            tableRet.push(obj);
-        }
-        return false; //stop
-    }); //end every keyword
-
-    return tableRet;
-}
-
 
 function insertPendingSERows(callback, bAllowWhileOpeningDb) {
     var request = { sql: "select iRow, obj FROM QUEUEHISTORY order by iRow ASC", values: [] };

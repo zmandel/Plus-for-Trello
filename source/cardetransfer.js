@@ -10,6 +10,11 @@ function showTransferEDialog() {
     if (!idCardCur)
         return;
     var seData = g_seCardCur;
+    if (!seData) {
+        sendDesktopNotification("Still loading. Try again in a few seconds.");
+        return;
+    }
+
     var divDialog = $(".agile_dialog_transferE");
     if (divDialog.length == 0) {
         divDialog = $('\

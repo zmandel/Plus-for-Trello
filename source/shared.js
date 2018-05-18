@@ -8,9 +8,7 @@ var IDLIST_UNKNOWN = "//"; //list idLong. deals with missing idList in convertTo
 //however it was limited and a similar effect can be achieved using idCard NOT in (list)
 var IDLABEL_DUMMY = "//"; //the one dummy label cards share.
 var g_bDummyLabel = false; //not used. just kept to keep the code as it inserts itself in interesting spots
-const SEP_IDHISTORY_MULTI = ".";
 const ROWID_REPORT_CARD = -1; // "fake" rowid on reports that join card with history. use -1 as rowid so when doing a "new s/e rows" report and a group is used, this union wont appear.
-var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
 var PREFIX_COMMAND_SE_RESETCOMMAND = "[^resetsync";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
@@ -31,12 +29,6 @@ var g_bProVersion = false;
 const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
 
 const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
-const PLUSCOMMAND_RESET = "^resetsync";
-const PLUSCOMMAND_ETRANSFER = "^etransfer";
-const PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
-const g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
-const g_prefixCommentTransferTo = g_prefixCommentTransfer + " to ";
-const g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";
 
 //thanks http://stackoverflow.com/a/12034334
 var g_entityMap = {
@@ -55,9 +47,6 @@ function replaceString(string, regex, replace) {
         string = String(string);
 
     regex.lastIndex = 0;
-    if (!regex.test(string))
-        return string; //prevent recreating string in the most common case
-
     return string.replace(regex, replace);
 }
 
@@ -81,10 +70,12 @@ function commonBuildUrlFromParams(params, doc) {
     return url;
 }
 
+var g_regexEscapeHtml = /[&<>"'\/]/g;
+
 function escapeHtml(string) {
     if (!string)
         return "";
-    return replaceString(string, /[&<>"'\/]/g, function (s) {
+    return replaceString(string, g_regexEscapeHtml, function (s) {
         return g_entityMap[s];
     });
 }
@@ -113,6 +104,8 @@ function bStatusXhrDeleted(status) {
     return (status == 404);
 }
 
+var g_regexParserFormat = /<.*?>/;
+
 function addTableSorterParsers() {
     $.tablesorter.addParser({
         // set a unique id 
@@ -123,7 +116,7 @@ function addTableSorterParsers() {
         },
         format: function (s) {
             // format your data for normalization 
-            return replaceString(s,/<.*?>/, "");
+            return replaceString(s, g_regexParserFormat, "");
         },
         // set type, either numeric or text
         type: 'text'
@@ -207,13 +200,8 @@ var g_userTrelloBackground = null;
 
 var g_regexWords = /\S+/g; //parse words from an s/e comment. kept global in hopes of increasing perf by not having to parse the regex every time
 
-//regex is easy to break. check well your changes. consider newlines in comments. NOTE command could also be in the note. For historical reasons, the command here only covers ^resetsync
-//                          users               days           spent                      command           /        estimate              spaces   note
-var g_regexSEFull= new RegExp("^((\\s*@\\w+\\s+)*)((-[0-9]+)[dD]\\s+)?(([+-]?[0-9]*[.:]?[0-9]*)|(\\^[a-zA-Z]+))?\\s*(/?)\\s*([+-]?[0-9]*[.:]?[0-9]*)?(\\s*)(\\s[\\s\\S]*)?$");
-
 var PROP_TRELLOUSER = "plustrellouser";
 var PROP_SHOWBOARDMARKERS = "showboardmarkers";
-var TAG_RECURRING_CARD = "[R]";
 var COLUMNNAME_ETYPE = "E. type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
@@ -226,19 +214,14 @@ var SYNCPROP_GLOBALUSER = "global_user";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 
-var DEFAULTGLOBAL_USER = "global";
-
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
 var SEKEYWORD_DEFAULT = "plus!";
-var g_strUserMeOption = "me";
 var SEKEYWORD_LEGACY = "plus s/e";
 var g_bEnableTrelloSync = false; //review zig this and g_bDisableSync must be initialized by caller (like loadSharedOptions)
 var g_bDisableSync = false; // 'bDisabledSync' sync prop. note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
 var g_bCheckedTrelloSyncEnable = false; //review zig must be initialized by caller 
-var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
 var g_hackPaddingTableSorter = "&nbsp;&nbsp;"; //because we remove many tablesorter css styles, appending spaces to header text was the easiest way to avoid overlap with sort arrow
 var g_dateMinCommentSELegacy = new Date(2014, 11, 12);
-var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
 
 function IsStealthMode() {
     return (!g_bDisableSync && g_bStealthSEMode && !g_optEnterSEByComment.IsEnabled() && g_strServiceUrl);
@@ -325,68 +308,6 @@ var EVENTS = {
     START_SYNC: "startsync",
     DB_CHANGED: "dbchanged",
     FIRST_SYNC_RUNNING : "firstsyncrunning"
-};
-
-var UNITS = {
-    minutes: "m",
-    hours: "h",
-    days: "d",
-    current: "h", //current units, hours by default
-    getCurrentShort: function (bDisplayPointUnits) {
-        if (bDisplayPointUnits)
-            return "p";
-        return this.current;
-    },
-    getLongFormat: function (u, bDisplayPointUnits) {
-        u = u || this.current;
-        if (bDisplayPointUnits)
-            return "points";
-
-        if (u == this.minutes)
-            return "minutes";
-
-        if (u == this.hours)
-            return "hours";
-
-        if (u == this.days)
-            return "days";
-
-        logPlusError("unknown units");
-        return "unknown";
-    },
-    FormatWithColon: function (f) {
-        assert(typeof f == "number");
-        assert(f >= 0); //floor would need to change
-        if (f == 0)
-            return "";
-        var units = Math.floor(f);
-        var str = "";
-        var subunits = Math.round((f - units) * this.ColonFactor());
-        if (subunits == 0)
-            str = "" + units;
-        else
-            str = "" + (units == 0 ? "" : units) + ":" + subunits;
-        return str;
-    },
-    ColonFactor: function () {
-        return (this.current == "d" ? 24 : 60);
-    },
-    TimeToUnits: function (time) {
-        var mult=MAP_UNITS[this.current];
-        assert(mult);
-        return time/mult;
-    },
-    UnitsToTime: function (units) {
-        var mult = MAP_UNITS[this.current];
-        assert(mult);
-        return units * mult;
-    }
-};
-
-var MAP_UNITS = {
-    "m": 1000 * 60,
-    "h": 1000 * 60 * 60,
-    "d": 1000 * 60 * 60 * 24
 };
 
 
@@ -1816,6 +1737,8 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
 }
 
 var g_regexParseSE = null;
+var g_regexRemoveHashtags = /#[\S-]+/g;
+
 /* parseSE
 *
 * bKeepHashTags defaults to false
@@ -1855,7 +1778,7 @@ function parseSE(title, bKeepHashTags) {
     }
     // Strip hashtags
     if (bKeepHashTags === undefined || bKeepHashTags == false) //review zig cleanup by initializing to bKeepHashTags = bKeepHashTags || false and testing !bKeepHashTags
-        se.titleNoSE = replaceString(se.titleNoSE,/#[\S-]+/g, "");
+        se.titleNoSE = replaceString(se.titleNoSE,g_regexRemoveHashtags , "");
     return se;
 }
 
@@ -2036,39 +1959,16 @@ function renameCard(tokenTrello, idCard, title, callback, statusNoAccessCustom, 
     xhr.send();
 }
 
-function replaceBrackets(str) {
-    var strRet = replaceString(str, /\[/g, '*');
-	if (strRet != str)
-    	strRet = replaceString(strRet, /\]/g, '*').trim();
-    return strRet;
-}
+var g_regexBracketOpen = /\[/g;
+var g_regexBracketClose = /\]/g;
 
-function makeHistoryRowObject(dateNow, idCard, idBoard, strBoard, strCard, userCur, s, e, comment, idHistoryRowUse, keyword) {
-    //console.log(dateNow + " idCard:" + idCard + " idBoard:" + idBoard + " card:" + strCard + " board:" + strBoard);
-    var obj = {};
-    var userForId = replaceString(userCur, /-/g, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username. see makeRowAtom
-    if (idHistoryRowUse) {
-        idHistoryRowUse = replaceString(idHistoryRowUse,/-/g, '~'); //replace dashes just in case. we use them to store more info later
-        obj.idHistory = 'idc' + idHistoryRowUse; //make up a unique 'notification' id across team users. start with string so it never confuses the spreadsheet, and we can also detect the ones with comment ids
-    }
-    else {
-        assert(IsStealthMode() || (s == 0 && e == 0)); //without an id, must be 0/0 to not mess up the totals on reset. plus commands fall here
-        obj.idHistory = 'id' + dateNow.getTime() + userForId; //make up a unique 'notification' id across team users. start with a string so it will never be confused by a number in the ss. user added to prevent multiple users with dup id
-    }
-    obj.idCard = idCard;
-    obj.idBoard = idBoard;
-    obj.keyword = keyword || null; //null will be handled later when is entered into history
-    var date = Math.floor(dateNow.getTime() / 1000); //seconds since 1970
-    obj.date = date;
-    obj.strBoard = strBoard;
-    obj.strCard = strCard;
-    obj.spent = s;
-    obj.est = e;
-    obj.user = userCur;
-    obj.week = getCurrentWeekNum(dateNow);
-    obj.month = getCurrentMonthFormatted(dateNow);
-    obj.comment = comment;
-    return obj;
+function replaceBrackets(str) {
+    if (typeof (str) == "string" && str.indexOf("[") < 0)
+        return str;
+
+    var strRet = replaceString(str, g_regexBracketOpen, '*');
+    strRet = replaceString(strRet, g_regexBracketClose, '*').trim();
+    return strRet;
 }
 
 //return example: "1 hour ago" "7 days ago"
@@ -2292,26 +2192,4 @@ function getIdBoardFromUrl(url) {
     return getXFromUrl(url, "https://trello.com/b/");
 }
 
-//prepends [by user] [^etransfer from/to user] to comments, returns new string 
-function appendCommentBracketInfo(deltaParsed, comment, from, rgUsersProcess, iRowPush, bETransfer) {
-    var commentPush = comment;
-    var userCur = rgUsersProcess[iRowPush] || from;
-    var bSpecialETransferFrom = (bETransfer && iRowPush === 0);
-    var bSpecialETransferTo = (bETransfer && iRowPush === 1);
 
-    if (deltaParsed)
-        commentPush = "[" + deltaParsed + "d] " + commentPush;
-
-
-    if (userCur != from)
-        commentPush = "[by " + from + "] " + commentPush;
-
-    if (bSpecialETransferFrom) {
-        assert(rgUsersProcess[1]);
-        commentPush = g_prefixCommentTransferTo + rgUsersProcess[1] + "] " + commentPush;
-    } else if (bSpecialETransferTo) {
-        assert(rgUsersProcess[0]);
-        commentPush = g_prefixCommentTransferFrom + rgUsersProcess[0] + "] " + commentPush;
-    }
-    return commentPush;
-}

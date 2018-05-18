@@ -21,6 +21,8 @@
 /// <reference path="cardetransfer.js" />
 /// <reference path="dashboard.js" />
 /// <reference path="translations.js" />
+/// <reference path="sharedsync.js" />
+/// <reference path="sharedmobile.js" />
 
 //https://msdn.microsoft.com/en-us/library/bb385682.aspx
 

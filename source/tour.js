@@ -673,6 +673,7 @@ function handleTourStart(bFromClick) {
 }
 
 var g_bOutputTourFlow = false; //for developer
+var g_regexDoubleQuotes = /"/g;
 
 function startTourFlow(flow, name, bPaused) {
     //review zig translations https://docs.google.com/spreadsheets/d/1pB7XSAFM8MjE4HpxX7LQ4rrfrlCm9Yd9euvSsbd7sVY/edit
@@ -681,7 +682,7 @@ function startTourFlow(flow, name, bPaused) {
         flow.forEach(function (step) {
             var text = step.text;
             if (text.indexOf('"') >= 0)
-                text = text.replace(/"/g, '""'); //escape any existing double quotes.
+                text = replaceString(text, g_regexDoubleQuotes, '""'); //escape any existing double quotes.
             log = log + (log?"\r\n":"") + '"'+step.size+'"\t"'+ step.id + '"\t"' + text + '"';
         });
         console.log(log);
@@ -830,3 +831,4 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
         }, 0);
     },0);
 }
+

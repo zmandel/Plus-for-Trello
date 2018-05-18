@@ -1,7 +1,7 @@
 ﻿{
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "4.3.3",
+  "version": "4.3.4",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -49,6 +49,7 @@
         "libs/jquery.tablesorter.js",
         "libs/select2.full.min.js",
         "shared.js",
+        "sharedmobile.js",
         "app.js",
         "card.js",
         "cardetransfer.js",
