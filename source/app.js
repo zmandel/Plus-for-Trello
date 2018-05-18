@@ -30,6 +30,17 @@ function isTabVisible() {
     return !(document.hidden || document.webkitHidden || document.msHidden || document.mozHidden);
 }
 
+function showHideSEFeatures(bNoSE) {
+    if (!bNoSE) {
+        $("." + CLASS_onlyNonPlusSE).hide();
+        $("." + CLASS_onlyPlusSE).show();
+    }
+    else {
+        $("." + CLASS_onlyPlusSE).hide();
+        $("." + CLASS_onlyNonPlusSE).show();
+    }
+}
+
 document.addEventListener('visibilitychange', function () {
     if (!isTabVisible())
         return;
@@ -162,10 +173,10 @@ function showFirstLicDialog(bExpanded, bShowWSOption, callback) {
         //focus on h2 so it doesnt go to the first link
         divDialog = $('\
 <dialog id="agile_dialog_FirstLic" style="cursor:pointer;text-align: center;width:33em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_Lic">\
-    <div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly license.</div> \
+    <div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Click here to activate your "Plus for Trello Pro" yearly license.</div> \
     <div id="agile_FirstLic_content" style="display:none;"><br><b>"Plus for Trello Pro" yearly license</b><br>\
         <br>\
-        <p>Purchase a single or group license with our <A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html#agile_stripe_payments" target="_blank">secure stripe.com payments</A>.</p>\
+        <p>Purchase a single or group license with Stripe.com payments.</p>\
         <p>Click "Activate" to enter payment details now.</p><br>\
         <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp;\
         <a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br>\
@@ -173,7 +184,7 @@ function showFirstLicDialog(bExpanded, bShowWSOption, callback) {
         <p><b>Please give back and support over four years of active development!</b></p>\
         <br>\
         <div style="text-align: left;">\
-        <p><a href="" id="agile_stripe_tellmore">Click here</a> for more payment options (Google Payments)</p>\
+        <p><a href="" id="agile_stripe_tellmore">Click here</a> to use Google Payments instead.</p>\
         <div style="display:none;" id="agile_stripe_tellmore_content">\
             <hr>\
             <p>Or purchase a single license (your own) using Google Payments.</p>\
@@ -504,7 +515,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyUseLastSEBarUser, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybHideTour,
@@ -517,14 +528,14 @@ function loadOptions(callback) {
                                  } catch (e) {
                                      logException(e);
                                  }
-
+                                 g_bNoSE = objSync[SYNCPROP_NO_SE] || false;
                                  g_serViews = (objSync[SYNCPROP_SERVIEWS] || g_serViews);
                                  g_globalUser = objSync[SYNCPROP_GLOBALUSER] || DEFAULTGLOBAL_USER;
                                  g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
                                  g_language = objSync[SYNCPROP_language] || "en";
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  g_bDontShowSpentPopups = objSync[keybDontShowSpentPopups] || false;
-                                 g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false);
+                                 g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false) && !g_bNoSE;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bDontWarnParallelTimers = objSync[keyDontWarnParallelTimers] || false;
                                  g_bEnableTrelloSync = objSync[keybEnableTrelloSync] || false;
@@ -577,6 +588,14 @@ function doAllUpdates(bFromInterval) {
             return; //prevent frequent calls (we pretend bFromInterval in some situations)
         g_msLastAllUpdatesInterval = msNow;
     }
+
+    chrome.storage.sync.get(SYNCPROP_NO_SE, function (obj) {
+        var bNoSE = obj[SYNCPROP_NO_SE];
+        if (!bNoSE != !g_bNoSE) {
+            g_bNoSE = bNoSE;
+            showHideSEFeatures(bNoSE);
+        }
+    });
 
     var url = document.URL;
     var urlLower = url.toLowerCase();

@@ -110,8 +110,8 @@ list-style-type:disc !important;
 
 #agile_globalkeywordlist {
    float:right !important;
-   margin-right:5px !important;
-   margin-top:6px !important;
+   margin-right:11px !important;
+   margin-top:8px !important;
    width:8em !important;
 }
 
@@ -1521,7 +1521,7 @@ table#tableMarkers td {
     margin-top:5px !important;
     width:auto;
 	height: 20px;
-	display: inline !important;
+	display: inline;
 	-webkit-appearance: none;
     border-width: 1px !important;
     border-radius: 3px !important;

@@ -1051,7 +1051,7 @@ function fillCardSEStats(tableStats,callback) {
                 var estimateBadge = containerStats.find(".agile_badge_estimate");
                 var spentBadge = containerStats.find(".agile_badge_spent");
                 var remainBadge = containerStats.find(".agile_badge_remaining");
-                if (response.status == STATUS_OK && (response.rows.length > 0 || isTourRunning())) {
+                if (response.status == STATUS_OK && (response.rows.length > 0 || (isTourRunning() && !g_bNoSE))) {
                     containerStats.show();
                     if (elemRptLink.length == 0) {
                         estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront").attr('title', 'E sum\nall users');
@@ -1102,7 +1102,7 @@ function fillCardSEStats(tableStats,callback) {
                         }
                     }
 
-                    if (isTourRunning())
+                    if (isTourRunning() && !g_bNoSE)
                         addDataRow({ //ensure at least one row exists and it has est != estOrig
                             user: 'sample user',
                             spent: 6, estOrig: 11,
@@ -1895,7 +1895,7 @@ Useful to transfer from a global estimate to a specific user.'));
 
     if (g_tour.bAutoShowTour)
         setTimeout(function () { handleTourStart(false); }, 2500);
-    else if (!isTourRunning()) {
+    else if (!isTourRunning() && !g_bNoSE) {
         chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
             if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
                 showSEButtonBubble(comboSE);
@@ -2120,7 +2120,7 @@ var Card = {
 
 
 function loadCardTimer(idCard) {
-    var timerElem = $("<a></a>").addClass("button-link").attr("id", "agile_timer").attr('disabled', 'disabled');
+    var timerElem = $("<a></a>").addClass("button-link").addClass(CLASS_onlyPlusSE).attr("id", "agile_timer").attr('disabled', 'disabled');
 	var spanIcon = $("<span>");
 	var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
 	icon.addClass("agile-spent-icon-cardtimer");
@@ -2161,6 +2161,8 @@ function loadCardTimer(idCard) {
 		    });
 		});
 	});
+	if (g_bNoSE)
+	    timerElem.hide();
 	return timerElem;
 }
 

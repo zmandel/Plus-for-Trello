@@ -1256,7 +1256,7 @@ function getKeywordsViewList() {
         combo = g_bheader.comboSEView;
 
     if (combo.length == 0) {
-        combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo"); //review: rename agile_weeks_combo to generic
+        combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo onlyPlusSE"); //review: rename agile_weeks_combo to generic
         combo.css('cursor', 'pointer');
         combo.attr("title", "Plus - Click to change the S/E view");
     }
@@ -1290,6 +1290,9 @@ function getKeywordsViewList() {
     } else {
         combo.hide();
     }
+
+    if (g_bNoSE)
+        combo.hide();
 
     combo.change(doComboChange);
 
@@ -1451,7 +1454,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 		return false;
 
 	if (burndownLink.length == 0) {
-	    burndownLink = $("<img title='Plus - Board Burndown & Projections'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
+	    burndownLink = $("<img title='Plus - Board Burndown & Projections' style='display:none;'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link onlyPlusSE");
 	    burndownLink.insertAfter(g_spentTotal);
 	    burndownLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
@@ -1462,7 +1465,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	        return false;
 	    });
 
-	    reportLink = $("<img title='Plus - Board Reports & Charts'>").attr("src", chrome.extension.getURL("images/report-sm.png")).addClass("agile_img_boardheader agile_plus_report_link");
+	    reportLink = $("<img title='Plus - Board Reports & Charts' style='display:none;'>").attr("src", chrome.extension.getURL("images/report-sm.png")).addClass("agile_img_boardheader agile_plus_report_link");
 	    reportLink.insertAfter(burndownLink);
 	    reportLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
@@ -1504,7 +1507,8 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	    });
 	}
 
-	burndownLink.show();
+    if (!g_bNoSE)
+	    burndownLink.show();
 	reportLink.show();
 
 	if (!g_bheader.comboSEView) {
@@ -2622,7 +2626,7 @@ function insertStripeDialog(liDataStripe) {
     </div>\
     <div style="display:none;" id="agile_stripe_licence_info" >\
         <p><b>Done! License processed OK.</b> You will receive an email shortly.</p>\
-        Activate other computers with this address or forward them the email: <input readonly id="agile_stripe_licence"  style="width:100%;" />\
+        Activate other computers with this URL or forward them the email: <input readonly id="agile_stripe_licence"  style="width:100%;" />\
         Start date: <span id="agile_stripe_startdate"></span>. Edit the license from the Plus help pane.\
     </div>\
     <button id="agile_stripe_ok" style="display:none;">OK</button>\

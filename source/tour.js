@@ -76,7 +76,8 @@ function handleHomeTour() {
             text: "<br>This report<br>shows your total daily <b>S</b>pent breakdown<br>",
             angle: 180,
             distance: 0,
-            size: 150
+            size: 150,
+            bSEOnly: true
         },
          {
              id: 4,
@@ -84,7 +85,8 @@ function handleHomeTour() {
              text: "<br>Change<br>the report view by clicking on the week<br>",
              angle: 180,
              distance: 0,
-             size: 150
+             size: 150,
+             bSEOnly: true
          },
          {
              id: 5,
@@ -100,7 +102,8 @@ function handleHomeTour() {
             text: "This section shows <br>Spent charts, your recent S/E and cards with Remaining balance.<br><br>Click to show or hide.",
             angle: 90,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
          {
@@ -114,7 +117,8 @@ function handleHomeTour() {
              },
              angle: 90,
              distance: 0,
-             size: 200
+             size: 200,
+             bSEOnly: true
          },
 
           {
@@ -123,7 +127,8 @@ function handleHomeTour() {
               text: "<br>Your last ten<br>card S/E entries.<br><br>Click one to open<br>the card<br><br>",
               angle: 135, //considers case where there are no fav. boards
               distance: 20,
-              size: 150
+              size: 150,
+              bSEOnly: true
           },
             {
                 id: 10,
@@ -131,7 +136,8 @@ function handleHomeTour() {
                 text: "Cards with<br><b>S</b>pent not equal <b>E</b>stimate<br>show here.<br><br>Cards should not have S bigger than E, those are painted pink",
                 angle: 135, //considers case where there are no fav. boards
                 distance: 20,
-                size: 200
+                size: 200,
+                bSEOnly: true
             },
             {
                 id: 11,
@@ -174,7 +180,8 @@ function handleCardTour() {
         text: "check 'Recurring'<br>so cards (like weekly meetings) will not have a '1ˢᵗ estimate' and wont inflate changed estimate reports.",
         angle: 180,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
 
     {
@@ -201,7 +208,8 @@ function handleCardTour() {
           text: "To show the<br>card 'S/E bar'<br>when hidden<br>click here.",
           angle: 180,
           distance: 0,
-          size: 150
+          size: 150,
+          bSEOnly: true
       },
 
     {
@@ -211,7 +219,8 @@ function handleCardTour() {
         text: "<b>card S/E bar</b><br> here you enter<br> <b>S</b>pent and <b>E</b>stimate rows.<br><br>Each <b>S/E row</b> entered shows as a card comment and in reports.",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
     {
         id: 7,
@@ -220,7 +229,8 @@ function handleCardTour() {
         text: "<b>S</b>pent and <b>E</b>stimate<br>units default to 'hours'.<br>If you prefer minutes or days, change it from Preferences in Plus help before entering S/E.",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
       {
           id: 8,
@@ -229,7 +239,8 @@ function handleCardTour() {
           text: "To track changed estimates, the first <b>S/E row</b><br>entered per user<br>needs an initial <b>E</b>stimate.",
           angle: 90,
           distance: 0,
-          size: 200
+          size: 200,
+          bSEOnly: true
       },
       {
           id: 9,
@@ -238,7 +249,8 @@ function handleCardTour() {
           text: "That first S/E row<br>entered per user is<br>their <b>1ˢᵗ Estimate</b><br>and cannot be modified.<br><br>Useful to detect<br>and compare changed estimates using reports.<br>",
           angle: 90,
           distance: 0,
-          size: 200
+          size: 200,
+          bSEOnly: true
       },
     {
         id: 10,
@@ -247,7 +259,8 @@ function handleCardTour() {
         text: "If you never want to track changed estimates tell Plus in Preferences to 'Allow negative <b>R</b>emaining'",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
     {
         id: 11,
@@ -256,7 +269,8 @@ function handleCardTour() {
         text: "<b>Spend</b> units by<br>entering more 'S/E rows' with positive <b>S</b>pend and<br>empty <b>E</b>stimate.<br><br>",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
 
         {
@@ -266,7 +280,8 @@ function handleCardTour() {
             text: "You may<br>type both S and E<br>in the same row.<br><br>An empty cell means zero.",
             angle: 90,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
      {
@@ -276,7 +291,8 @@ function handleCardTour() {
          text: "<b>S and E<br>are cummulative</b>.<br><br>Their current sum per user is shown in the table above.<br><br>See the example in Plus help.",
          angle: 90,
          distance: 0,
-         size: 200
+         size: 200,
+         bSEOnly: true
      },
     {
         id: 14,
@@ -285,7 +301,8 @@ function handleCardTour() {
         text: "The best practice is to<br>enter <b>S</b>pent until <b>R</b> is zero<br>(<b>S sum</b> equals <b>E sum</b>).",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
     {
         id: 15,
@@ -294,7 +311,8 @@ function handleCardTour() {
         text: "If your Spent would<br>go over the estimate<br>enter more <b>E</b> so <b>R</b><br>doesn't go negative.<br><br>The Plus bar defaults <b>E</b><br>automatically in that case.",
         angle: 90,
         distance: 0,
-        size: 200
+        size: 200,
+        bSEOnly: true
     },
         {
             id: 16,
@@ -303,7 +321,8 @@ function handleCardTour() {
             text: "Likewise<br>if you finish a card and<br>still has <b>R</b>emaining,<br>reduce your Estimate<br>(enter negative <b>E</b>)<br>so <b>R</b> gets to zero.<br><br>",
             angle: 90,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
         {
             id: 17,
@@ -311,7 +330,8 @@ function handleCardTour() {
             text: "Its easier<br>to make those modifications from here so it does that math for you.",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
         {
             id: 18,
@@ -319,7 +339,8 @@ function handleCardTour() {
             text: "For example,<br>if the card is done but there is still <b>R</b>, just zero or empty <b>R</b> to reduce the estimate.",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
         {
@@ -328,7 +349,8 @@ function handleCardTour() {
             text: "Always use this or<br>the S/E bar to modify.<br><br><b>Do not edit or delete the card comment</b><br><br><a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand' target='_blank'>oups too late</a>",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
         {
@@ -337,7 +359,8 @@ function handleCardTour() {
             text: "<br>Read:<br><br><a style='color:white;' href='http://www.plusfortrello.com/p/s-e-entry-methods.html' target='_blank'>Which S/E entry method to use?</a><br><br>",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
         {
@@ -346,7 +369,8 @@ function handleCardTour() {
             text: "To enter an <b>S/E row</b><br>pick the user<br>(you by default).<br>If using multiple keywords, you can also pick one from another list.",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
      {
          id: 21,
@@ -354,7 +378,8 @@ function handleCardTour() {
          text: "then pick the date it happened,<br><br>'now', -3d for '3 days ago', or 'other' to pick from a calendar.",
          angle: 180,
          distance: 0,
-         size: 200
+         size: 200,
+         bSEOnly: true
      },
       {
           id: 22,
@@ -362,7 +387,8 @@ function handleCardTour() {
           text: "type <b>Spent</b><br><br>Also accepts<br>hours<b>:</b>minutes format.<br><br>Leave blank to enter only an <b>E</b>stimate.<br>",
           angle: 180,
           distance: 0,
-          size: 200
+          size: 200,
+          bSEOnly: true
       },
            {
                id: 23,
@@ -370,7 +396,8 @@ function handleCardTour() {
                text: "type <b>Estimate</b><br><br>Leave blank<br>to enter only <b>S</b>pent<br><br>The first row entered will be the 1ˢᵗ estimate (<b>E 1ˢᵗ</b>) in the table above.",
                angle: 180,
                distance: 0,
-               size: 200
+               size: 200,
+               bSEOnly: true
            },
 
            {
@@ -379,7 +406,8 @@ function handleCardTour() {
                text: "Type an<br>optional note here and press the Enter key or button.",
                angle: 180,
                distance: 0,
-               size: 150
+               size: 150,
+               bSEOnly: true
            },
                {
                    id: 25,
@@ -388,7 +416,8 @@ function handleCardTour() {
                    text: "For advanced S/E entry see<br><a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>S/E comment format</a>.",
                    angle: 90,
                    distance: 0,
-                   size: 200
+                   size: 200,
+                   bSEOnly: true
                },
        {
            id: 26,
@@ -396,7 +425,8 @@ function handleCardTour() {
            text: "Once there are<br>S/E rows entered, this report shows a breakdown<br>per user.<br><br>Click this to drill-down on the card.",
            angle: 180,
            distance: 0,
-           size: 200
+           size: 200,
+           bSEOnly: true
        },
 
        {
@@ -405,7 +435,8 @@ function handleCardTour() {
            text: "Users with positive <b>R</b><br>have remaining work.<br><br>Mouse-over the user<br>to see their last S/E date.<br><br>Click the user to drill-down.<br>",
            angle: 180,
            distance: 0,
-           size: 200
+           size: 200,
+           bSEOnly: true
        },
         {
             id: 28,
@@ -413,7 +444,8 @@ function handleCardTour() {
             text: "<br><b>E Sum</b> is the current estimate per user.<br><br>Calculated as the sum of all E in S/E rows for the user.",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
        {
            id: 29,
@@ -421,7 +453,8 @@ function handleCardTour() {
            text: "<b>(E 1ˢᵗ)</b> shows (in<br>parenthesis) when<br>the current estimate has been modified.<br><br>Once entered, the 1ˢᵗ estimate cannot be modified (except with <a style='color:white;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand' target='_blank'>resetsync</a>)",
            angle: 180,
            distance: 0,
-           size: 200
+           size: 200,
+           bSEOnly: true
        },
         {
             id: 30,
@@ -429,7 +462,8 @@ function handleCardTour() {
             text: "1ˢᵗ estimates<br>appear also in reports<br>to compare at the board/user/date level.",
             angle: 180,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
     
        {
@@ -438,7 +472,8 @@ function handleCardTour() {
            text: "<b>Card Timer</b><br><br>Start, Pause or Stop a timer.<br><br>",
            angle: (180 + 45),
            distance: 0,
-           size: 150
+           size: 150,
+           bSEOnly: true
        }
        ,
 
@@ -449,7 +484,8 @@ function handleCardTour() {
             angle: (180 + 45),
             distance: 0,
             size: 200,
-            bScrollToView: false
+            bScrollToView: false,
+            bSEOnly: true
         }
        ,
 
@@ -459,7 +495,8 @@ function handleCardTour() {
            text: "Once paused<br>it pre-fills <b>S</b>pent<br>in the card S/E bar.<br><br>It wont show in reports<br>until you 'Enter' the s/e row.",
            angle: (180 + 45),
            distance: 0,
-           size: 200
+           size: 200,
+           bSEOnly: true
        }
        ,
 
@@ -469,7 +506,8 @@ function handleCardTour() {
            text: "The timer pre-fills <b>S</b>pent here.<br><br>Enter it right away or keep starting/pausing the timer.",
            angle: 180-45,
            distance: 0,
-           size: 200
+           size: 200,
+           bSEOnly: true
        },
 
         {
@@ -478,7 +516,8 @@ function handleCardTour() {
             text: "If you forgot<br>to start a timer, type here the Spent so far and start the timer<br>to start at that value.<br>",
             angle: 180 - 45,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
          {
@@ -487,7 +526,8 @@ function handleCardTour() {
              text: "Also,<br>if you type Spent here once the timer is running, pausing the timer will add to it.",
              angle: 180 - 45,
              distance: 0,
-             size: 200
+             size: 200,
+             bSEOnly: true
          },
 
          {
@@ -496,7 +536,8 @@ function handleCardTour() {
              text: "Once a timer pre-fills Spent,<br>you need to Enter it.",
              angle: 180 - 45,
              distance: 0,
-             size: 200
+             size: 200,
+             bSEOnly: true
          },
         {
             id: 38,
@@ -504,7 +545,8 @@ function handleCardTour() {
             text: "If you dont enter it,<br>Plus will remember your Draft row and remind you next time you open the card from the same computer.",
             angle: 180 - 45,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
     {
         id: 39,
@@ -535,7 +577,8 @@ function handleBoardTour() {
             text: "Total<br><b>S</b>pent, <b>E</b>stimate and <b>R</b>emaining.<br><br>Mouse-over<br>for <b>% complete.</b><br><br>Only shows in boards with non-zero S/E",
             angle: 180+45,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
 
         {
@@ -544,7 +587,8 @@ function handleBoardTour() {
             text: "Check to<br>sum only filtered cards.<br><br>Only shows<br>when you have filtered cards using the sidebar or 'Less'",
             angle: 180 + 45,
             distance: 0,
-            size: 200
+            size: 200,
+            bSEOnly: true
         },
         {
             id: 7,
@@ -552,7 +596,8 @@ function handleBoardTour() {
             text: "<br><a style='color:white;' href='http://www.plusfortrello.com/p/board-dimensions.html' target='_blank'>Board Dimensions</a><br><br>",
             angle: 180 + 45,
             distance: 0,
-            size: 150
+            size: 150,
+            bSEOnly: true
         },
          {
              id: 3,
@@ -568,7 +613,8 @@ function handleBoardTour() {
               text: "Board<br>Burndown",
               angle: 180 + 45,
               distance: 0,
-              size: 100
+              size: 100,
+              bSEOnly: true
           },
            {
                id: 5,
@@ -577,7 +623,8 @@ function handleBoardTour() {
                angle: -(180+45),
                distance: 0,
                size: 200,
-               noFocus: true
+               noFocus: true,
+               bSEOnly: true
            },
            {
                id: 6,
@@ -622,7 +669,7 @@ function handleTourStart(bFromClick) {
         }, 2000); 
         return;
     }
-    if (!g_bShowHomePlusSections) {
+    if (!g_bShowHomePlusSections && !g_bNoSE) {
         var seHeader = $("#headerSEActivities");
         if (seHeader.length != 0)
             seHeader.click();
@@ -741,10 +788,11 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
 
     //timeout in case the grumble code doesnt finish right away
     setTimeout(function () {
-        if (step.bHideOnTrelloSync && g_bEnableTrelloSync) {
+        if ((step.bHideOnTrelloSync && g_bEnableTrelloSync) || (g_bNoSE && step.bSEOnly)) {
             showNextBubble(delta);
             return;
         }
+
         var textStep = step.text;
         if (step.addText) {
             var textNotify = step.addText();

@@ -46,7 +46,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
     var mapKeysTimersData = {};
     var bFilteredCard = false;
     var bHasHiddenCard = false;
-    var bTourRunning = isTourRunning();
+    var bTourRunning = isTourRunning() && !g_bNoSE;
 
     function forEachList(i, el) {
         if (bResetHtmlLast)
