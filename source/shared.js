@@ -2292,5 +2292,5 @@ function elemShowHide(elem, bShow) {
 }
 
 function isLicException() {
-    return (navigator && navigator.userAgent && navigator.userAgent.indexOf("Opera")>=0);
+    return (navigator && navigator.userAgent && (navigator.userAgent.indexOf("Opera")>=0 || navigator.userAgent.indexOf("OPR/")>=0));
 }

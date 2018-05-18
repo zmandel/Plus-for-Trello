@@ -52,7 +52,7 @@ function isSpecialPayTestUser() {
     } else
         randUser = parseInt(randUser, 10);
 
-    return (randUser%5 == 0);
+    return ((randUser % 5 == 0) || ((randUser+1) % 5 == 0));
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
