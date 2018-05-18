@@ -145,21 +145,29 @@ function showFirstLicDialog(bExpanded, callback) {
 <div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly license.</div> \
 <div id="agile_FirstLic_content" style="display:none;"><br><b>Your "Plus for Trello Pro" yearly license</b><br>\
 <br>\
-Click "Activate" to show the Chrome store license screen.<br>\
-You will then have a 7-day trial until the store charges you.<br><br> \
-The payment goes 100% to keep improving "Plus" for you.<br>\
-<br>If you already paid, Plus will re-use that license without extra charges.<br>\
+<p>Pay with the Chrome Web Store. It uses <A href="https://www.google.com/chrome/browser/signin.html"  target="_blank">Chrome sign-in</A>.</p>\
+Click "Activate" to show the Chrome store license screen.<br><br>\
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp; \
-<a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br><br> \
-<span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello Inc.\
+<a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br><br><hr> \
+<div style="text-align: left;">\
+<p>&bull; The Chrome store is currently failing for some users. <a href="" id="agile_storeerrors_tellmore">More</a>\
+<span style="display:none;" id="agile_storeerrors_tellmore_content">If it shows an error: Dont worry, you can keep using "Pro" and will not be charged. Google is currently working on fixing these Chrome Store issues.</span></p>\
+<p>&bull; Already paid, reinstalled Plus? Activate to find your license. You will never be double-charged.</p>\
+<p>&bull; <a href="" id="agile_stripe_tellmore">More payment options?</a></p>\
+<p style="display:none;" id="agile_stripe_tellmore_content">&bull; Soon we will add single & group licenses without needing Chrome sign-in or a Google account. We will use <A href="https://stripe.com/about" target="_blank">stripe.com</A> licenses based on Trello usernames, not Google accounts.\
+The current Chrome Web Store payments will still be supported.</p>\
+</div><br>\
+<span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.\
 </span>\
-<span style="float:right;"><A href="https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Your%20%22Plus%20for%20Trello%20Pro%22%20yearly%20license.%0AClick%20%22Activate%22%20to%20show%20the%20Chrome%20store%20license%20screen.%0AYou%20will%20then%20have%20a%207-day%20trial%20until%20the%20store%20charges%20you.%0AThe%20payment%20goes%20100%25%20to%20keep%20improving%20%22Plus%22%20for%20you.%0A%0AIf%20you%20already%20paid%2C%20Plus%20will%20re-use%20that%20license%20without%20extra%20charges.%0A%0AButtons%3A%20Activate%2C%20Later" \
-target="_blank">Translate</A></span>\
+<span style="float:right;"><A href="\
+https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Pay%20with%20the%20%22Chrome%20Web%20Store%22.%20It%20uses%20Chrome%20sign-in.%0A%0AClick%20%22Activate%22%20to%20show%20the%20Chrome%20store%20license%20screen.%0A%0AButtons%3A%20Activate%2C%20Later%0A%0A%E2%80%A2%20The%20Chrome%20store%20is%20currently%20failing%20for%20some%20users.%20If%20it%20shows%20an%20error%3A%20Dont%20worry%2C%20you%20can%20keep%20using%20%22Pro%22%20and%20will%20not%20be%20charged.%20Google%20is%20currently%20working%20on%20fixing%20these%20Chrome%20Store%20issues.%0A%0A%E2%80%A2%20Already%20paid%2C%20reinstalled%20Plus%3F%20Activate%20to%20find%20your%20license.%20You%20will%20never%20be%20double-charged.%0A%0A%E2%80%A2%20More%20payment%20options%3A%20Soon%20we%20will%20add%20single%20%26%20group%20licenses%20without%20needing%20Chrome%20sign-in%20or%20a%20Google%20account.%20We%20will%20use%20stripe.com%20licenses%20based%20on%20Trello%20usernames%2C%20not%20Google%20accounts.The%20current%20Chrome%20Web%20Store%20payments%20will%20still%20be%20supported.%0A%0ANote%3A%20%22Plus%20for%20Trello%22%20is%20not%20associated%20with%20%22Trello%22%20or%20%22Atlassian%22.\
+" target="_blank">Translate</A></span>\
 <\div>\
 </dialog>');
         $("body").append(divDialog);
         divDialog = $("#agile_dialog_FirstLic");
-        hiliteOnce(divDialog, 3000);
+        if (!bExpanded)
+            hiliteOnce(divDialog, 3000);
         divDialog.click(function (e) {
             var content = divDialog.find("#agile_FirstLic_content");
             if (content.is(":visible"))
@@ -179,7 +187,18 @@ target="_blank">Translate</A></span>\
             }, 300); //wait for animation to complete
         }
 
+        divDialog.find("#agile_storeerrors_tellmore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault();
+            divDialog.find("#agile_storeerrors_tellmore").hide();
+            divDialog.find("#agile_storeerrors_tellmore_content").show();
+        });
 
+        divDialog.find("#agile_stripe_tellmore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault();
+            divDialog.find("#agile_stripe_tellmore").parent().hide();
+            divDialog.find("#agile_stripe_tellmore_content").show();
+        });
+        
         divDialog.find("#agile_dialog_FirstLic_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault();
             doCloseDialog(function () {
@@ -202,6 +221,7 @@ target="_blank">Translate</A></span>\
         divDialog.find("#agile_FirstLic_content").hide();
     }
     showModlessDialog(divDialog[0]);
+    divDialog.find("#agile_dialog_FirstLic_OK").focus();
     setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 

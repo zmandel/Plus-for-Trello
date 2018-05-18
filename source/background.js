@@ -297,21 +297,10 @@ function handlePlusMenuSync(sendResponse) {
 }
 
 function handleRequestProPermission(sendResponse) {
-    chrome.permissions.request({
-        permissions: ["alarms","gcm"],
-        origins: ['https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
-    }, function (granted) {
-        if (chrome.runtime.lastError) {
-            sendResponse({ status: chrome.runtime.lastError.message || "Error" });
-            return;
-        }
-        if (!granted) {
-            sendResponse({ status: "error: permission not granted by the user." });
-            return;
-        }
-
-        handleCheckChromeStoreToken(sendResponse);
-    });
+    //review: handleCheckChromeStoreToken not used anymore here. we used to check for webstore permissions here
+    g_bProVersion = true; //this global is only for background. caller will update storage
+    sendResponse({ status: STATUS_OK });
+  
 }
 
 function handleGoogleSyncPermission(sendResponse) {
@@ -724,9 +713,6 @@ var g_loaderDetector = {
 }.initLoader();
 
 function checkAnalyticsActive() {
-    if (!g_bProVersion)
-        return;
-
     var dateNow = new Date();
     var msShift = (dateNow.getTimezoneOffset() - 60 * 5) * 60000; //GMT-5 aprox standarization
     var msNow = dateNow.getTime() + msShift;
@@ -1222,6 +1208,9 @@ If you instead want to disable timer popups do so from Plus preferences.");
         }
         else if (request.method == "checkLi") {
             handleCheckLi(sendResponse);
+        }
+        else if (request.method == "checkStripeLi") {
+            handleCheckStripeLi(idTabSender, sendResponse);
         }
         else if (request.method == "queryTrelloDetectionCount") {
             handleQueryTrelloDetectionCount(sendResponse);
@@ -1986,68 +1975,6 @@ href="'+ feedUrl + '/version"/> \
 	return ret;
 }
 
-function handleCheckChromeStoreToken(sendResponse) {
-    if (chrome.identity === undefined) {
-        sendResponse({ status: "Please sign-in to Chrome." });
-        return;
-    }
-
-    if (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf") {
-       g_bProVersion = true; //development version
-       sendResponse({ status: STATUS_OK });
-       return;
-    }
-
-    var idWait = handleShowDesktopNotification({
-        notification: "Please wait a few seconds for additional permission screens the first time you enable 'Pro'.",
-        timeout: 9000
-    });
-
-
-
-    chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
-        chrome.notifications.clear(idWait, function (wasCleared) { });
-        if (token) {
-            g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
-            sendResponse({ status: STATUS_OK });
-            return;
-        } else {
-            var message = "";
-            if (chrome.runtime.lastError)
-                message = chrome.runtime.lastError.message;
-            chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
-                if (chrome.runtime.lastError) {
-                    console.error(chrome.runtime.lastError.message);
-                    sendResponse({ status: chrome.runtime.lastError.message });
-                    return;
-                }
-                var liData = obj[SYNCPROP_LIDATA];
-                if (liData && liData.li) {
-                    //this can happen if this browser (like Opera once it supports storage.sync) does not support the webstore, but user purchased the license from another Chrome browser
-                    g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
-                    sendResponse({ status: STATUS_OK });
-                    return;
-                }
-
-                if (isLicException()) {
-                    handleShowDesktopNotification({
-                        notification: "Dear Opera user, please pay for the Pro license from a Chrome browser.",
-                        timeout: 10000
-                    });
-                    g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
-                    sendResponse({ status: STATUS_OK });
-                    return;
-                }
-
-                var msgReturn =  "Not signed into Chrome, network error or no permission.\n" + message;
-
-                g_bProVersion = false; //caller will update storage
-                sendResponse({ status: msgReturn });
-            });
-        }
-    });
-}
-
 
 function handleApiCall(url, params, bRetry, sendResponse, postBody, contentType, bAddIfMatchStar) {
 	if (chrome.identity === undefined) {
@@ -2055,7 +1982,9 @@ function handleApiCall(url, params, bRetry, sendResponse, postBody, contentType,
 		return;
 	}
 
-	chrome.identity.getAuthToken({ interactive: true, scopes: ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive.file"] }, function (token) {
+	getExtensionOauthToken("To continue, approve the Google permissions. If not signed-in to Chrome, do so now.",
+        ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive.file"], function (token) {
+	    
 		if (token) {
 			onAuthorized(url, params, sendResponse, token, bRetry, postBody, contentType, bAddIfMatchStar);
 		} else {
@@ -2342,6 +2271,24 @@ function handlenotifyBoardTab(idBoard, tabid) {
     g_mapBoardToTab[idBoard] = { tabid: tabid, ms: Date.now() };
 }
 
+/* handleCheckStripeLi
+**/
+function handleCheckStripeLi(idTabSender, sendResponse) {
+    /*
+    chrome.permissions.request({
+        permissions: [],
+        origins: ['https://js.stripe.com/*', 'https://*.cloudfunctions.net/']
+    }, function (granted) {
+        if (chrome.runtime.lastError) {
+            sendResponse({ status: chrome.runtime.lastError.message || "Error" });
+            return;
+        }
+        sendResponse({ status: STATUS_OK });
+    });
+    */
+    sendResponse({ status: STATUS_OK });
+}
+
 /* handleCheckLi
  * can return in status:
  * STATUS_OK
@@ -2357,7 +2304,8 @@ function handleCheckLi(sendResponse) {
     }
 
     //Note: store api does not require this getAuthToken. its an attempt to fix many errors when users try to pay
-    chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
+    getExtensionOauthToken("To continue, approve the Chrome web store permissions. If not signed-in to Chrome, do so now.",
+        ["https://www.googleapis.com/auth/chromewebstore.readonly"], function (token) {
         if (token) {
             checkPurchased(false);
             return;
@@ -2387,7 +2335,7 @@ function handleCheckLi(sendResponse) {
     }
 
     function checkPurchased(bJustPurchased, strErrorCustom, licCustom, onError) {
-        //onError is used to let the caller retry (as it usually expects the licence to be there)
+        //onError is used to let the caller retry (as it usually expects the license to be there)
         google.payments.inapp.getPurchases({
             'parameters': { 'env': 'prod' },
             'success': onLicenseUpdate,
@@ -2487,7 +2435,7 @@ function handleCheckLi(sendResponse) {
 
             function showProgressNotification() {
                 handleShowDesktopNotification({
-                    notification: "Getting your licence...Almost done!",
+                    notification: "Getting your license...Almost done!",
                     timeout: 5100
                 });
             }
@@ -2535,4 +2483,38 @@ function handleReloadExtension() {
             chrome.runtime.reload();
         });
     }, 1000);
+}
+
+
+function getExtensionOauthToken(strNotification, scopes, callback) {
+    
+    var idWait = null;
+    var bWaiting = true;
+    setTimeout(function () {
+        if (!bWaiting)
+            return;
+        idWait = handleShowDesktopNotification({
+            notification: strNotification,
+            timeout: 12000
+        });
+    }, 4000);
+
+    chrome.identity.getAuthToken({ interactive: true, scopes: scopes }, function (token) {
+        if (chrome.runtime.lastError)
+            console.log(chrome.runtime.lastError.message);
+
+        bWaiting = false;
+        if (idWait)
+            chrome.notifications.clear(idWait, function (wasCleared) { });
+
+        if (token)
+            callback(token);
+        else {
+            //since we removed explicit manifest permissions for webstore (and maybe others), we can get a "Authorization page could not be loaded"
+            //but it is fixed by getting the token again.
+            chrome.identity.getAuthToken({ interactive: false, scopes: scopes }, function (token) {
+                callback(token);
+            });
+        }
+    });
 }

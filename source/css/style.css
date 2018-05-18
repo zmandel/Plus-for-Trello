@@ -156,7 +156,7 @@ list-style-type:disc !important;
 }
 
 .agile_dialog_Postit_Anim_Lic {
-    margin-top: -21em;
+    margin-top: -26em;
     -webkit-transition: all 0.3s ease-out;
     transition: all 0.3s ease-out;  
 }
@@ -1033,6 +1033,15 @@ table#tableMarkers td {
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.4);
+}
+
+.agile_dialog_stripe_pay::backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 

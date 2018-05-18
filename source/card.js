@@ -2322,7 +2322,11 @@ function setNewCommentInCard(idCardCur, keywordUse, //blank uses default (first)
 		return; //should never happen
 
 	FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
-		if (idBoardFound) {
+	    if (idBoardFound) {
+	        if (idBoardFound == "0jHOl1As") {
+	            alert("Enter Spent & Estimates in your boards. You cannot enter S/E in this public help board.");
+	            return;
+	        }
 		    idBoardUse = idBoardFound;
 		    assert(idBoardUse && board);
 		    doEnterSEIntoCard(s, e, commentBox, comment, idBoardUse, idCardCur, prefix, board, keywordUse, member, memberTransferTo, onBeforeStartCommit, onFinished);

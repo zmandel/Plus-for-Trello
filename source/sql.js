@@ -114,13 +114,13 @@ function handleIsSyncing(sendResponse) {
 }
 
 function handleUnpause(sendResponse) {
-    if (g_msRequestedSyncPause == 0)
-        return;
-    g_cFullSyncLock -= 1;
-    g_msRequestedSyncPause = 0;
-    updatePlusIcon(true);
+    if (g_msRequestedSyncPause != 0) {
+        g_cFullSyncLock -= 1;
+        g_msRequestedSyncPause = 0;
+        updatePlusIcon(true);
+    }
     if (sendResponse)
-    sendResponse({ status: STATUS_OK });
+        sendResponse({ status: STATUS_OK });
 }
 
 function handlePause(sendResponse) {

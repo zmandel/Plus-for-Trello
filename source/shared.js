@@ -27,6 +27,7 @@ var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage 
 var g_language = "en";
 var g_bProVersion = false;
 var g_bFromBackground = false;
+var g_bStripeMode = false;
 
 const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
 
@@ -2311,11 +2312,19 @@ function getIdBoardFromUrl(url) {
     return getXFromUrl(url, "https://trello.com/b/");
 }
 
-function elemShowHide(elem, bShow) {
-    if (bShow)
-        elem.show();
-    else
+function elemShowHide(elem, bShow, ms) {
+    if (bShow) {
+        if (ms)
+            elem.slideDown(ms);
+        else
+            elem.show();
+    }
+    else {
+        if (ms)
+            elem.slideUp(ms);
+            else
         elem.hide();
+    }
 }
 
 function isLicException() {
