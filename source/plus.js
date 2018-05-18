@@ -40,7 +40,19 @@ var g_dimension = VAL_COMBOVIEWKW_ALL;
 var g_bPreventChartDraw = true;
 
 function isSpecialPayTestUser() {
-    return (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel" || g_userTrelloCurrent == "solangechrem" || g_userTrelloCurrent == "zigmandel"));
+    if (!g_userTrelloCurrent)
+        return false;
+    if (g_userTrelloCurrent == "zmandel")
+        return true;
+    var prop="randUserPayStage1";
+    var randUser = localStorage[prop];
+    if (!randUser) {
+        randUser = Math.round(Math.random()*1000);
+        localStorage[prop]= ""+randUser;
+    } else
+        randUser = parseInt(randUser, 10);
+
+    return (randUser%100 == 0);
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
