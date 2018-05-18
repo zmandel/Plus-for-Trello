@@ -10,6 +10,11 @@ var SYNCMETHOD = {
     googleSheetStealth: 3
 };
 
+function helpTooltip(ev, html) {
+    var target = $(ev.target);
+    target.replaceWith("<p>" + html + "</p>");
+}
+
 
 var Help = {
     m_bShowing: false, //necessary to catch the possibility of null m_container on a consecutive display call
@@ -290,8 +295,12 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
 	        
 	        helpWin.para('In the rare case you have issues with the display of trello pages:');
-	        var paraCheckDisable = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDisablePlus">Disable changing trello.com pages.</input>');
+	        var paraCheckDisable = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDisablePlus">Disable changing trello.com pages. </input>\
+<a href="">Tell me more.</a>');
 	        var checkDisablePlus = paraCheckDisable.children('input:checkbox:first');
+	        paraCheckDisable.children('a').click(function (ev) {
+	            helpTooltip(ev,"If checked, Plus will still sync and reports will continue working.<br>This is an emergency option so you can keep using Trello in the unlikely case of a conflict.");
+	        });
 	        var bAddedRefresh = false;
 	        if (isPlusDisplayDisabled())
 	            checkDisablePlus[0].checked = true;
@@ -480,39 +489,59 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Boxes display <b>S</b>pent / <b>E</b>stimate / <b>R</b>emaining totals of all visible cards. Mouse-over them to see <b>% complete</b>.');
         helpWin.para('&nbsp');
 
-        helpWin.para('<b>Plus card S/E bar</b>');
-        helpWin.para('Open any card and click the Plus icon inside the card comment.');
+        helpWin.para('<b>Plus card "S/E bar"</b>');
+        helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
+        helpWin.para('Open any card and click "Add S/E" or the little Plus icon inside the card comment.');
         helpWin.para('<img src="' + chrome.extension.getURL("images/showsebar.png") + '"/>');
         helpWin.para('&nbsp');
-        helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusbar.png") + '"/>');
-        helpWin.para('<b>E</b>stimate the units needed to finish a card, for "me" (you) or any user.');
+        
         helpWin.para('<b>S</b>pend units from your estimate.');
-        helpWin.para('Units (days, hours or minutes) can be configured in Preferences. Do so before entering any S/E.');
-        helpWin.para('<b>card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('<b>E</b>stimate the units needed to finish a card, for "me" (you) or other users.');
+
+        helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
+        helpWin.para('&nbsp');
+        helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:');
+        helpWin.para('Using the Plus "Card S/E bar" is like adding new rows to the table below and moving the running total down:');
+        helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-table.png") + '"/>');
+        helpWin.para('&nbsp');
+        helpWin.para('Plus does the same, except the "rows" are entered inside Trello cards as special card comments (or as Google spreadsheet rows, when using stealth sync mode).');
+        helpWin.para('In the sample above, the current Spent is 13, the sum of all spend history.');
+        helpWin.para('Plus uses the same concept for estimates: Enter a "first estimate" on the first row, then increase or decrease it in later rows if needed:');
+        helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-est-table.png") + '"/>');
+        helpWin.para('This gives much more information that just the previous "spent history" table because it shows a first estimate of 11, which was later increased by 2 hours.');
+        helpWin.para('Plus reports and charts can show you these estimate changes per user, board, label, hashtag and much more. Knowing the actual estimate gives you burn-downs and projected end dates as Plus knows how much work Remains and how it changed over time.');
+        helpWin.para('Plus automatically fills the "Estimate" column as you type "Spent" or stop timers, calculating any Estimate increases needed (which you can overwrite.)');
+        helpWin.para('The difference in Trello is that Plus shows the rows from latest to earliest because that is how Trello displays card comments, and Plus also has an extra "User" column for each S/E row as Plus keeps Spent and Estimates per user.');
+        helpWin.para('Use the Plus "Card S/E bar" or directly modify the running totals using "Modify".');
+        helpWin.para('&nbsp');
+
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
+
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
         helpWin.para('The table above the card S/E bar shows totals per user.');
-        helpWin.para('Ideally you first enter an estimate as in 0/2 and later spend it with 2/0.');
-        helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it.');
+        helpWin.para('Ideally you first enter an estimate as in 0/2 (S:blank, E:2) and later spend it with 2/0 (S:2, E:blank)');
+        helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it on the same "row".');
         helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R is zero.');
-        helpWin.para('Your first S/E row per card becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) used to compare with the current estimate <b>E sum</b>.');
+        helpWin.para('Your first S/E row per card becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) used to compare to the current estimate <b>E sum</b>.');
         helpWin.para('If you type <b>S</b> that would cause <b>S sum</b> to be greated than <b>E sum</b>, Plus automatically pre-fills more <b>E</b> to make <b>R</b> zero.');
         helpWin.para('To turn that off or to never use estimates, "allow negative <b>R</b>emaining" in Preferences.');
         helpWin.para('When you enter S/E for another user (not "me") Plus generates a special note in that S/E row: "[by user]."');
-        helpWin.para('All special notes that Plus generates with [brackets] are secure and cannot be faked or removed by other users.');
+        helpWin.para('All special notes that Plus generates with [brackets] are secure and cannot be faked or removed by other users making Plus actions fully traceable.');
 
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
-	    helpWin.para('Example starting from the bottom (oldest) card comment:');
+	    helpWin.para('Easily enter Spent with card timers, or manually enter S/E with the Plus card bar.');
+	    helpWin.para('Example of entering S/E starting from the bottom (oldest) card comment:');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" to the right of the Card report.');
+	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" in the card front report.');
 	    helpWin.para('&bull; Also use "modify" if you prefer to think about total S/E instead of adding/substracting with the card S/E bar.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do that math for you and enter the needed S/E as a new row.');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;For example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do the math for you and enter the needed S/E as a new row.');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
 	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
 	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
 	    helpWin.para('<b>More:</b> <A target="_blank" href="http://www.plusfortrello.com/p/s-e-entry-methods.html">Which S/E entry method should you use?</A>');
@@ -804,8 +833,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Soon Plus will have a preference to always show in "colon format". Currently Plus always converts to "decimal format".');
 	    helpWin.para('&bull; Add <b>[exclude]</b> to list names to exclude them from board sums on the trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
-	    helpWin.para('&bull; Renaming a Trello user does not rename her in Plus, she will appear as a new user until you "Reset sync".');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;Deleted Trello users may lose their username in reports and show a user number instead.');
+	    helpWin.para('&bull; Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more.</a>').children('a').click(function (ev) {
+	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
+	    });;
 		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 

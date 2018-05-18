@@ -1832,6 +1832,10 @@ float:left;
     color: #10B731 !important;
 }
 
+.agile_showall_timers {
+    margin-bottom: 3px;
+}
+
 .agile_popup_topLinks {
     color: black;
     text-decoration: none;

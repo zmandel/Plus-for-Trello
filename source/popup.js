@@ -105,6 +105,13 @@ function configureTimerElem(callback) {
 
         if (idCardTimer) {
             $("#agile_active_timer").show();
+            var elemSAT = $("#agile_showall_timers");
+            elemSAT.show();
+            elemSAT.click(function (ev) {
+                ev.preventDefault();
+                sendExtensionMessage({ method: "showAllActiveTimerNotifications" }, function (response) { });
+                return false;
+            });
             var button = $(".agile_timer_button_popup");
             var hash = getCardTimerSyncHash(idCardTimer);
             updateButtonTitle(button,idCardTimer);

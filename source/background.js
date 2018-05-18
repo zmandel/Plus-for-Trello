@@ -282,6 +282,14 @@ function handleGoogleSyncPermission(sendResponse) {
 
 var g_idCardTimerLast = null;
 
+function handleShowAllActiveTimers() {
+    findAllActiveTimers(function (rgIdCards) {
+        rgIdCards.forEach(function (idCard) {
+            doShowTimerWindow(idCard);
+        });
+    });
+}
+
 function processTimerCounter(bLoadingExtension) {
 
     var bChangedIdCard = false;
@@ -300,9 +308,21 @@ function processTimerCounter(bLoadingExtension) {
                 if (g_idCardTimerLast == null && bLoadingExtension) {
                     //done only when bLoadingExtension as other times will be taken care from content.
                     //otherwise, if the user closes the popup, it would come back again
+
+                    //open the last active timer. do it a little later since chrome is just starting up
                     setTimeout(function () {
-                        //open the last active timer. do it a little later since chrome is just starting up
-                        doShowTimerWindow(idCardTimer);
+                        //show the active timer. wait for it otherwise timing issues can cause rare paths as db is being opened while the other timers are reached below.
+                        doShowTimerWindow(idCardTimer, function (status) {
+                            if (status != STATUS_OK)
+                                return;
+                            findAllActiveTimers(function (rgIdCards) {
+                                rgIdCards.forEach(function (idCard) {
+                                    if (idCard != idCardTimer)
+                                        doShowTimerWindow(idCard);
+                                });
+                            });
+                        });
+                        
                     }, 2000);
                 }
                 g_idCardTimerLast = idCardTimer;
@@ -1006,6 +1026,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             handlenotifyBoardTab(request.idBoard, sender.tab.id);
             sendResponse({ status: STATUS_OK });
         }
+        else if (request.method == "showAllActiveTimerNotifications") {
+            handleShowAllActiveTimers();
+            sendResponse({ status: STATUS_OK });
+        }
         else if (request.method == "openCardWindow") {
             doOpenCardInBrowser(request.idCard);
             sendResponse({ status: STATUS_OK });
@@ -1570,7 +1594,6 @@ function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
     hookNotificationActions();
     g_mapTimerWindows[idCard] = { idWindow: null, nameCard: nameCard, nameBoard: nameBoard };
     var idNotification = idNotificationForTimer(idCard);
-    
     var notification = chrome.notifications.create(idNotification,
         {
             type: "basic",
@@ -1589,9 +1612,18 @@ function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
         );
 }
 
-function doShowTimerWindow(idCard) {
+function doShowTimerWindow(idCard, callbackParam) {
     
     var data = g_mapTimerWindows[idCard];
+    var bCalledCallback = false;
+
+    function callback(status) {
+        if (bCalledCallback)
+            return;
+        bCalledCallback = true;
+        if (callbackParam)
+            callbackParam(status);
+    }
 
     if (data === undefined)
         create(idCard);
@@ -1608,7 +1640,11 @@ function doShowTimerWindow(idCard) {
                 if (!data || data.idWindow === idWindow) {
                     delete g_mapTimerWindows[idCard];
                     create(idCard);
+                } else {
+                    callback(STATUS_OK);
                 }
+            } else {
+                callback("Error");
             }
         });
     }
@@ -1619,6 +1655,8 @@ function doShowTimerWindow(idCard) {
             if (!notifications[idNotification]) {
                 delete g_mapTimerWindows[idCard];
                 create(idCard);
+            } else {
+                callback(STATUS_OK);
             }
         });
     }
@@ -1626,13 +1664,16 @@ function doShowTimerWindow(idCard) {
     function create(idCard) {
         handleOpenDB(null, function (responseOpen) {
             if (responseOpen.status != STATUS_OK) {
+                callback(responseOpen.status);
                 return;
             }
             var request = { sql: "SELECT cards.name as nameCard, boards.name as nameBoard FROM cards JOIN boards on cards.idBoard=boards.idBoard WHERE idCard=?", values: [idCard] };
             handleGetReport(request,
                 function (responseReport) {
-                    if (responseReport.status != STATUS_OK)
+                    if (responseReport.status != STATUS_OK) {
+                        callback(responseReport.status);
                         return;
+                    }
                     var nameCard = null;
                     var nameBoard = null;
                     if (responseReport.rows.length == 0) {
@@ -1646,10 +1687,12 @@ function doShowTimerWindow(idCard) {
 
                     if (g_mapTimerWindows[idCard]) {
                         //very hard (impossible?) to happen, but it takes time (open db, make report) since last map check. windows could have been created from a previous request.
+                        callback(STATUS_OK);
                         return;
                     }
 
                     showTimerWindowAsNotification(idCard, nameCard, nameBoard);
+                    callback(STATUS_OK);
                     return;
                 });
         });

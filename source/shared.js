@@ -1571,6 +1571,25 @@ function findNextActiveTimer() {
     });
 }
 
+function findAllActiveTimers(callback) {
+    chrome.storage.sync.get(null, function (items) {
+        var rgIdCards = [];
+        var szTimerPattern = "timer:";
+        var idCardFoundLast = null;
+        //find the last active timer
+        for (var item in items) {
+            if (typeof item == "string" && item.indexOf(szTimerPattern) == 0) {
+                var data = items[item];
+                var idCard = item.substr(szTimerPattern.length);
+                if (data.msStart && data.msEnd == null) {
+                    rgIdCards.push(idCard);
+                }
+            }
+        }
+        callback(rgIdCards);
+    });
+}
+
 function removeTimerForCard(idCardParsed) {
     var hash = getCardTimerSyncHash(idCardParsed);
     chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, hash], function (obj) {
