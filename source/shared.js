@@ -215,6 +215,8 @@ var SYNCPROP_KEYWORDS_HOME = "keywords_home";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var SYNCPROP_MSLICHECK = "msLiCheck";
 var SYNCPROP_LIDATA = "LiData";  // {  msLastCheck, msCreated, li}
+var SYNCPROP_SERVIEWS = "SERViews";  // see g_serViews
+var LOCALPROP_EXTENSION_VERSIONSTORE = "chromeStoreExtensionVersion";
 
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
@@ -310,7 +312,8 @@ var EVENTS = {
     NEW_ROWS: "newrows",
     START_SYNC: "startsync",
     DB_CHANGED: "dbchanged",
-    FIRST_SYNC_RUNNING : "firstsyncrunning"
+    FIRST_SYNC_RUNNING: "firstsyncrunning",
+    EXTENSION_RESTARTING: "extensionRestarting"
 };
 
 
@@ -2279,4 +2282,9 @@ function getIdBoardFromUrl(url) {
     return getXFromUrl(url, "https://trello.com/b/");
 }
 
-
+function elemShowHide(elem, bShow) {
+    if (bShow)
+        elem.show();
+    else
+        elem.hide();
+}

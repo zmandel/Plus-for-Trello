@@ -135,7 +135,7 @@ function showApproveProTrialDialog(callback) {
 <br>\
 <h3>Why?</h3>\
 <p align="justify">\
-We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 60K daily users and 200+ updates since 2013!<br>\
+We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 70+ thousand daily users and 200+ updates since 2013!<br>\
 We have never sacrificed quality but without charging we can only go so fast.<br />\
 <br \>Can\'t pay? No problem! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them.<\p>\
 <\p>\
@@ -444,9 +444,9 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 var g_bDidInitialIntervalsSetup = false;
 
 function initialIntervalsSetup() {
-	spentTotal = InfoBoxFactory.makeTotalInfoBox(SPENT,true).hide();
-	estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, true).hide();
-	remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
+	g_spentTotal = InfoBoxFactory.makeTotalInfoBox(SPENT,true).hide();
+	g_estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, true).hide();
+	g_remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
 
 	doAllUpdates();
 
@@ -793,7 +793,11 @@ function onDbOpened() {
 	                   doWeeklyReport(g_configData, user, false, true);
 	               }
 	           }
-	       }
+	        } else if (msg.event == EVENTS.EXTENSION_RESTARTING) {
+	            setTimeout(function () {
+	                location.reload();
+	            }, 2000);
+	        }
 	    });
 	}
 }
@@ -1320,7 +1324,7 @@ function updateSsLinks() {
 
 function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	var board = getCurrentBoard();
-	if (board == null || remainingTotal === undefined)
+	if (board == null || g_remainingTotal === undefined)
 	    return false;
 
 	if (!bShowHeaderStuff)
@@ -1335,7 +1339,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 
 	if (burndownLink.length == 0) {
 	    burndownLink = $("<img title='Plus - Board Burndown & Projections'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
-	    burndownLink.insertAfter(spentTotal);
+	    burndownLink.insertAfter(g_spentTotal);
 	    burndownLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
 	        if (idBoardCur == null)
@@ -2356,7 +2360,6 @@ function updateShowAllButtonState(elem, bFirstTime) {
 		    updateCards(getCurrentBoard(), null, true, false);
 		}, 50);
 
-		updateBoardPageTotals();
 		var classAgileFilter = "agile_plus_filter_old";
 
 		if (bShow) {

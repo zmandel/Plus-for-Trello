@@ -323,6 +323,24 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    comboLang.val(g_language);
 	    onComboLangChange();
 	    comboLang.change(function () { onComboLangChange();});
+	    var bNeedUpgrade = newerStoreVersion();
+
+	    if (bNeedUpgrade) {
+	        helpWin.para("<h3>New version available!</h3>");
+	        helpWin.para("There is a new version of Plus for Trello. Click below to install now version " + g_verStore + ".");
+	        helpWin.para("If you dont install now, Chrome will eventually install the upgrade automatically.");
+	        var paraUpgrade = helpWin.para("Installing now will close any open Plus chart/reports and refresh all Trello pages.<br><input type='button' value='Install now' />");
+	        var buttonUpgrade = paraUpgrade.children('input:button:first');
+	        helpWin.para('&nbsp');
+	        helpWin.para('&nbsp');
+	        buttonUpgrade.click(function () {
+	            buttonUpgrade.val("Installing...");
+	            buttonUpgrade.prop('disabled', true);
+	            sendExtensionMessage({ method: "reloadExtension" }, function (response) {
+	                //do nothing. we catch EXTENSION_RESTARTING and reload all trello windows
+	            });
+	        });
+	    }
 
 	    if (true) {
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
@@ -407,7 +425,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro! View, filter and stack by <b>Card labels</b> in reports and burn-downs, <b>custom columns</b> and extra export options useful for integrations. Check for more details.';
+	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro!<br>\
+&bull; <b>Card labels</b> in charts and reports (view, group, filter, stack).<br>\
+&bull; <b>Custom report columns</b> and extra export options useful for integrations.<br>\
+&bull; <b>Custom board views</b>. Pick which S, E, R boxes to show in boards, lists and cards (see Preferences.)';
 	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>';
 
 	    var paraProEnable = helpWin.para(textEnablePro);
@@ -480,6 +501,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bProVersion = bValue;
 	                checkEnablePro[0].checked = g_bProVersion;
+	                setTimeout(updateBoardUI,100);
 	            });
 	        }
 	    });
@@ -963,7 +985,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
 	    if (true) { //units
-	        var pComboUnits = helpWin.raw('<p><span>Work units: </span></p>');
+	        var pComboUnits = helpWin.raw('<p><span>&bull; Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');
 	        pComboUnits.append(comboUnits).append($('<span> Card timers measure time in your units. When changing units, S/E already entered is assumed in the new units so set your units here before entering any S/E.</span>'));
 	        comboUnits.append($(new Option(UNITS.getLongFormat(UNITS.minutes), UNITS.minutes)));
@@ -1006,7 +1028,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        });
 	    }
 
-	    helpWin.raw('<p><b>Week numbering</b>. All users must have the same week settings.</p>');
+	    helpWin.raw('<p><br>&bull; <b>Week numbering</b>. All users must have the same week settings.</p>');
 	    const idNotificationWeekUpgrade = "upgradeWeekNumbering";	    //option to change week start day
 
 	    var comboDowStart = null;
@@ -1106,7 +1128,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    //enable support for custom weeks
 	    if (true) {
-	        var pComboWeekDelta = helpWin.raw('<p><span>Support any start day by shifting the week +forward or -backwards: </span></p>').addClass('agile_help_indent1');
+	        var pComboWeekDelta = helpWin.raw('<p><span>Support any start day by shifting the week -back or +forward: </span></p>').addClass('agile_help_indent1');
 	        comboWeekDeltaStart = $('<select style="width:auto">');
 	        comboWeekDeltaStart.appendTo(pComboWeekDelta);
 	        pComboWeekDelta.append("<span> </span>");
@@ -1177,6 +1199,60 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            });
 	        });
 	    }
+
+
+        //custom SER views
+	    if (true) {
+	        helpWin.para('&bull; Customize your <b>S</b>pent, <b>E</b>stimate, <b>R</b>emaining board views: ("Pro" version only)');
+	        var strTable = '<table style="width:auto !important;margin-left:1em !important;">\
+<tbody style="background: transparent !important;"><tr>\
+<td align="middle"></td>\
+<td align="middle">&emsp;S&emsp;</td>\
+<td align="middle">&emsp;E&emsp;</td>\
+<td align="middle">&emsp;R&emsp;</td>';
+	        function buildSER(type) {
+	            var row = '<tr>\
+<td>' + type + ':</td>\
+<td align="middle"><input style="margin-bottom:0px;" type="checkbox" class="agile_checkHelp"></input></td>\
+<td align="middle"><input style="margin-bottom:0px;" type="checkbox" class="agile_checkHelp"></input></td>\
+<td align="middle"><input style="margin-bottom:0px;" type="checkbox" class="agile_checkHelp"></input></td></tr>';
+	            return row;
+	        }
+
+	        strTable += buildSER("Boards") + buildSER("Lists") + buildSER("Card backs");
+	        strTable += '</tbody></table><br>';
+	        var paraCustomSer = helpWin.para(strTable);
+	        var checks = paraCustomSer.find("input");
+	        var types = ["board", "list", "card"];
+	        var props = ["s", "e", "r"];
+	        var i = 0;
+	        var timeoutChangeSERView = null;
+	        types.forEach(function (type) {
+	            props.forEach(function (prop) {
+	                var check = checks.eq(i);
+	                i++;
+	                check[0].checked = g_serViews[type][prop];
+	                check.click(function () {
+	                    if (!g_bProVersion)
+	                        sendDesktopNotification('To use custom board views, enable the "Pro" version at the top of this help pane.');
+	                    g_serViews[type][prop] = check.is(':checked');
+	                    if (timeoutChangeSERView)
+	                        clearTimeout(timeoutChangeSERView);
+	                    setTimeout(updateBoardUI,100);
+                        //timeout prevents users from overwhelming sync write quotas
+	                    timeoutChangeSERView = setTimeout(function () {
+	                        var pair = {};
+	                        pair[SYNCPROP_SERVIEWS] = g_serViews;
+	                        chrome.storage.sync.set(pair, function () {
+	                            if (chrome.runtime.lastError)
+	                                alert(chrome.runtime.lastError.message);
+	                        });
+	                    }, 1000);
+	                });
+	            });
+	        });
+	    }
+
 
 	    if (true) {
 	        var paraPreventEstMod = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedPreventEstMod" \
@@ -1400,7 +1476,7 @@ Set the card background based on its first label color.</input>').children('inpu
 	        });
 	    }
 
-	    helpWin.para("<br>The next two settings let Plus read S/E from card and checklist titles for board dimensions, pre-estimation and those migrating from other scrum tools.");
+	    helpWin.para("<br>&bull; The next two settings let Plus read S/E from card and checklist titles for board dimensions, pre-estimation and those migrating from other scrum tools.");
 	    helpWin.para("Plus uses card title S/E in board dimensions only when the card has no S/E rows entered yet.");
 	    helpWin.para("All users should have the same setting. S/E entered this way will only appear in the board and checklists, not in reports or burndowns.");
 	    helpWin.para("See more about <A target='_blank' href='http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html'>S/E in card titles</A> and <A target='_blank' href='http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates'>pre-estimations</A>.");
@@ -1448,7 +1524,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    //global user
 	    if (true) {
-	        var paraGlobalUser = helpWin.para('Global estimates name (not a real Trello user): <input style="display:inline;width:15em;" type="text" spellcheck="false" maxlength="20"/>&nbsp;<input type="button" value="Save"/>');
+	        var paraGlobalUser = helpWin.para('&bull; Global estimates name (not a real Trello user): <input style="display:inline;width:15em;" type="text" spellcheck="false" maxlength="20"/>&nbsp;<input type="button" value="Save"/>');
 	        var inputGlobalUser = paraGlobalUser.children('input:text:first');
 	        var buttonSaveGlobalUser = paraGlobalUser.children('input:button:first');
 
@@ -1480,7 +1556,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    //ignore these users in the users dropdown
 	    if (true) {
-	        var paraExcludeUsers = helpWin.para('Exclude these users from the card bar. Separate users with comma:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="500"/>&nbsp;<input type="button" value="Save list"/>');
+	        var paraExcludeUsers = helpWin.para('&bull; Exclude these users from the card bar. Separate users with comma:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="500"/>&nbsp;<input type="button" value="Save list"/>');
 	        var inputExcludeUsers = paraExcludeUsers.children('input:text:first');
 	        var buttonSaveExcludeUsers = paraExcludeUsers.children('input:button:first');
 
@@ -1525,7 +1601,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
         //keywords filter in home and header
 	    if (true) {
-	        var paraKWHome = helpWin.para('Only include these <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">keywords</A> (separated by comma) in the Trello header report and home charts:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="200"/>&nbsp;<input type="button" value="Save list"/>');
+	        var paraKWHome = helpWin.para('&bull; Only include these <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">keywords</A> (separated by comma) in the Trello header report and home charts:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="200"/>&nbsp;<input type="button" value="Save list"/>');
 	        var inputKWHome = paraKWHome.children('input:text:first');
 	        var buttonKWHome = paraKWHome.children('input:button:first');
 	        putKeywordsStringInUi(g_rgKeywordsHome, inputKWHome);
@@ -1626,8 +1702,9 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr><br>');
 
-	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/faq.html" >see FAQ or submit a new question or request</a>.');
+	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Support & Frequently Asked Questions</h2></b>');
+	    helpWin.para('Read the most <A target="_blank" href="http://www.plusfortrello.com/p/faq.html">Frequenty Asked Questions</a>.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/support.html">Plus Support</a>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr><br>');
 
@@ -1769,7 +1846,8 @@ function showNonMemberBoardsDialog() {
                     ul.appendTo(div);
                     response.boards.forEach(function (board) {
                         var li = $("<li>");
-                        var a = $("<A target='_blank'>").prop("href", "https://trello.com/b/" + board.idBoardLong).text(board.name);
+                        var idBoard=board.idBoardLong;
+                        var a = $("<A>").prop("href", "").text(board.name);
                         var text = " ";
                         if (board.dateLastActivity)
                             text += makeDateCustomString(new Date(board.dateLastActivity)) + " ";
@@ -1780,6 +1858,14 @@ function showNonMemberBoardsDialog() {
                         var span = $("<span style='margin-right:1em;'>").text(text);
                         span.appendTo(li);
                         a.appendTo(li);
+                        //must manually capture click. used to be a regular anchor, but as of 2017 trello captures those navigations and ignores target _blank so
+                        //we bypass with window.open
+                        a.click(function (ev) {
+                            var targetWin = 'plusBoardToJoin'; //single target avoids many windows
+                            if ((ev && (ev.ctrlKey || ev.shiftKey)) || window.name == targetWin)
+                                targetWin= '_blank'; //force many windows
+                            window.open("https://trello.com/b/" + idBoard, targetWin);
+                        });
                         li.appendTo(ul);
                     });
                 });

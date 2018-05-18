@@ -134,7 +134,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 	var bShowRecentIcon = false;
 	var pathImgRecent = "images/newgray.png";
 	var msNow = Date.now();
-	var dmsOldestShow = 1000 * 60 * 60 * 24 * 8; //8 days
+	var dmsOldestShow = 1000 * 60 * 60 * 24 * 6; //6 days
 	var titleTipBase = "New Plus features!";
 
 	if (stateFeed.msLastPostReadByUser < stateFeed.msLastPostRetrieved) {
@@ -178,6 +178,8 @@ function insertPlusFeedWorker(stateFeed, key) {
 				icon.attr("src", chrome.extension.getURL(pathImgRecent));
 				icon.attr("title", titleTipBase);
 				window.open('https://plus.google.com/collection/khxOc', '_blank');
+				if (newerStoreVersion())
+				    sendDesktopNotification("Open the Plus help pane to update to the latest version now.");
 			});
 		} else {
 			spanIcon = icon.parent();

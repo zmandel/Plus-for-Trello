@@ -1,12 +1,12 @@
 ﻿/// <reference path="intellisense.js" />
 
-var UPDATE_STEP = 1000;
+var UPDATE_STEP = 1300;
 var ESTIMATION = 'estimation';
 var SPENT = 'spent';
 var REMAINING = 'remaining';
 
 var g_bheader = {
-    //review: move spentTotal etc here
+    //review: move g_spentTotal etc here
     comboSEView: null,
     hide: function () {
         if (this.comboSEView)
@@ -14,15 +14,17 @@ var g_bheader = {
     }
 };
 
-var spentTotal = null;
-var estimationTotal = null;
-var remainingTotal = null;
+var g_spentTotal = null;
+var g_estimationTotal = null;
+var g_remainingTotal = null;
 
 var g_boardName = null;
 var g_bUpdatingGlobalSums = null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
 var g_rgExcludedUsers = []; //users exluded from the S/E bar
 var g_bDontShowSpentPopups = false;
+var g_serViews = { board: { s: true, e: true, r: true }, list: { s: true, e: true, r: false }, card: { s: true, e: true, r: false } };
+var g_verStore = ""; //only set when chrome calls us with an available update. might be outdated after update
 
 function showModlessDialog(elem) {
     if (!elem.show) {
@@ -251,29 +253,36 @@ function testExtension(callback) {
 }
 
 function loadExtensionVersion(callback) {
-    //review use chrome.runtime.getManifest() from background
     if (g_manifestVersion != "")
         return;
     g_manifestVersion = "unknown"; //prevent loading again and handle error case
-    var url = chrome.extension.getURL("manifest.json");
+    sendExtensionMessage({ method: "getManifestVersion"}, function (response) {
+        if (response.status!= STATUS_OK)
+            return;
+        g_manifestVersion = response.version;
+        callback();
+    });
+}
 
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function (e) {
-        if (xhr.readyState == 4 && xhr.status == 200) {
-            try {
-                g_manifestVersion = JSON.parse(xhr.responseText).version;
+function newerStoreVersion() {
+    var bNeedUpgrade = false;
+    if (g_verStore && g_verStore != g_manifestVersion) {
+        var partsCurrent = g_manifestVersion.split(".");
+        var partsStore = g_verStore.split(".");
+        if (partsStore.length != partsCurrent.length)
+            bNeedUpgrade = true;
+        else {
+            for (var iPartsVersion = 0; iPartsVersion < partsStore.length; iPartsVersion++) {
+                var vCur = parseInt(partsCurrent[iPartsVersion], 10);
+                var vStore = parseInt(partsStore[iPartsVersion], 10);
+                if (vStore > vCur) {
+                    bNeedUpgrade = true;
+                    break;
+                }
             }
-            catch (e) {
-                console.log("error: cant parse manifest.");
-                if (url.indexOf("/gddgnpbmkhkpnnhkfheojeiceofcnoem/") >= 0) //developer url
-                    alert("error");
-            }
-            callback();
         }
-    };
-
-    xhr.open("GET", url);
-    xhr.send();
+    }
+    return bNeedUpgrade;
 }
 
 $(function () {
@@ -371,7 +380,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
@@ -384,6 +393,8 @@ function loadOptions(callback) {
                                  } catch (e) {
                                      logException(e);
                                  }
+
+                                 g_serViews = (objSync[SYNCPROP_SERVIEWS] || g_serViews);
                                  g_globalUser = objSync[SYNCPROP_GLOBALUSER] || DEFAULTGLOBAL_USER;
                                  g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
                                  g_language = objSync[SYNCPROP_language] || "en";
@@ -422,9 +433,10 @@ function loadOptions(callback) {
                                  g_bCheckedbSumFiltered = objSync[keyPropbSumFilteredCardsOnly] || false;
                                  //alert("g_bEnableTrelloSync : " + g_bEnableTrelloSync + "\ncomments sync : " + g_optEnterSEByComment.bEnabled + "\ndisabled sync : " + g_bDisableSync);
 
-                                 chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
+                                 chrome.storage.local.get([LOCALPROP_PRO_VERSION, LOCALPROP_EXTENSION_VERSIONSTORE], function (obj) {
                                     if (BLastErrorDetected())
                                         return;
+                                    g_verStore = obj[LOCALPROP_EXTENSION_VERSIONSTORE] || "";
                                     g_bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
                                     callback();
                                 });

@@ -23,6 +23,20 @@ chrome.runtime.onInstalled.addListener(function (details) {
     }
 });
 
+function handleUpdateExtension(details) {
+    var versionNew = (details || { version: "" }).version || "";
+    if (!versionNew)
+        return;
+    var pair = {};
+    pair[LOCALPROP_EXTENSION_VERSIONSTORE] = versionNew;
+    chrome.storage.local.set(pair, function () {});
+}
+
+chrome.runtime.onUpdateAvailable.addListener(function (details) {
+    handleUpdateExtension(details);
+});
+
+
 
 
 window.onerror = function (msg, url, lineNo, columnNo, error) {
@@ -1025,7 +1039,7 @@ function updatePlusIconWorker(bTooltipOnly) {
 
 var g_rgPorts = [];
 
-function broadcastMessage(message) {
+function broadcastMessage(message, callback) {
     setTimeout(function () {
         var i = 0;
         for (; i < g_rgPorts.length; i++) {
@@ -1036,6 +1050,8 @@ function broadcastMessage(message) {
                 logException(ex);
             }
         }
+        if (callback)
+            callback();
     }, 50);
 }
 
@@ -1118,6 +1134,10 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
                     handleRawSync(true);
                 }, 100);
             }
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "reloadExtension") {
+            handleReloadExtension();
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "notifyCardTab") {
@@ -1204,6 +1224,9 @@ If you instead want to disable timer popups do so from Plus preferences.");
         }
         else if (request.method == "getAllHashtags") {
             handleGetAllHashtags(sendResponse);
+        }
+        else if (request.method == "getManifestVersion") {
+            sendResponse({ status: STATUS_OK, version: chrome.runtime.getManifest().version });
         }
         else if (request.method == "updatePlusIcon") {
             if (request.bOnlyTimer) {
@@ -2257,13 +2280,15 @@ function handlenotifyBoardTab(idBoard, tabid) {
 function handleCheckLi(sendResponse) {
 
     function respond(status) {
+        console.log("handleCheckLi respond: " + status);
         sendResponse({ status: status });
     }
 
-    checkPurchased();
+    checkPurchased(false);
 
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.message);
             handleShowDesktopNotification({
                 notification: "Error: "+chrome.runtime.lastError.message,
                 timeout: 10000
@@ -2273,7 +2298,8 @@ function handleCheckLi(sendResponse) {
         return false;
     }
 
-    function checkPurchased(bJustPurchased, strErrorCustom) {
+    function checkPurchased(bJustPurchased, strErrorCustom, licCustom, onError) {
+        //onError is used to let the caller retry (as it usually expects the licence to be there)
         google.payments.inapp.getPurchases({
             'parameters': { 'env': 'prod' },
             'success': onLicenseUpdate,
@@ -2281,13 +2307,18 @@ function handleCheckLi(sendResponse) {
         });
 
         function onLicenseUpdateFail(data) {
+            console.log("onLicenseUpdateFail");
             var strError = "onPurchaseFail:" + JSON.stringify(data);
             console.error(data);
-            respond(strError);
+            if (onError)
+                onError();
+            else
+                respond(strError);
             return;
         }
 
         function onLicenseUpdate(data) {
+            console.log("onLicenseUpdate");
             var licenses = data.response.details;
             var count = licenses.length;
             var liData = { msLastCheck: Date.now(), msCreated:0, li: "" };
@@ -2295,8 +2326,13 @@ function handleCheckLi(sendResponse) {
                 var license = licenses[i];
                 if (license.sku == 'plus_pro_single' && license.state == "ACTIVE") {
                     liData.msCreated = parseInt(license.createdTime, 10);
-                    liData.li = license.itemId;
+                    liData.li = licCustom || license.itemId;
                 }
+            }
+
+            if (onError && !liData.li) {
+                onError();
+                return;
             }
 
             var objNew = {};
@@ -2330,24 +2366,50 @@ function handleCheckLi(sendResponse) {
 
         function onPurchaseFail(data) {
             var strError = "onPurchaseFail";
+            var licCustom = null;
             if (data && data.response && data.response.errorType)
                 strError = data.response.errorType;
 
-            console.error(data); //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}}
-            if (strError == "PURCHASE_CANCELED")
-                respond(strError);
+            console.log("onPurchaseFail:");
+            console.log(data);
+            //http://stackoverflow.com/questions/38043180/
+            //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}} when user cancels the window (and maybe in other cases)
+            // {checkoutOrderId: "10370910874874185126.76a0c57c6ea342e79b0d9a97b91d29ee", integratorData: "EMeilfWBBQ=="}
+            if (data && data.checkoutOrderId)
+                licCustom = JSON.stringify(data);
             else {
-                //http://stackoverflow.com/questions/38043180/
-                setTimeout(function () { //take some API breath
-                    checkPurchased(true, strError);
-                }, 1000);
+                if (strError == "PURCHASE_CANCELED") {
+                    respond(strError);
+                    return;
+                }
             }
+
+
+            function showProgressNotification() {
+                handleShowDesktopNotification({
+                    notification: "Getting your licence...Almost done!",
+                    timeout: 5100
+                });
+            }
+
+            showProgressNotification();
+            setTimeout(function () { //take some API breath
+                checkPurchased(true, strError, licCustom, function () {
+                    showProgressNotification();
+                    console.log("Retry checkPurchased.");
+                    setTimeout(function () { //retry once: take some API breath
+                        checkPurchased(true, strError, licCustom, null);
+                    }, 5000);
+                });
+            }, 5000);
+            
             return;
         }
 
         function onPurchased(data) {
             var liData = { msLastCheck: Date.now(), msCreated: 0, li: "" };
-
+            console.log("onPurchased:");
+            console.log(data);
             if (data && data.response) {
                 liData.msCreated = liData.msLastCheck;
                 liData.li = data.response.orderId;
@@ -2364,4 +2426,12 @@ function handleCheckLi(sendResponse) {
             });
         }
     }
+}
+
+function handleReloadExtension() {
+    setTimeout(function () {
+        broadcastMessage({ event: EVENTS.EXTENSION_RESTARTING, status: STATUS_OK }, function () {
+            chrome.runtime.reload();
+        });
+    }, 1000);
 }

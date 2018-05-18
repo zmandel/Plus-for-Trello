@@ -1,27 +1,11 @@
 ﻿/// <reference path="intellisense.js" />
 
-var g_minutesExpireBoardTotalCache = (60 * 24 * 7 * 2);	//after this many, board total cache is deleted.
-var g_totalSpentAllBoards = 0;
-var g_totalEstimateAllBoards = 0;
 var g_regexRecurringTitleReplace = /\[R\]/g;
 
-function updateBoardPageTotals() {
-    if (false) { //review: feature no longer used as it can confuse showing the old cached values, and it works based on board name, not id.
-        if (!bAtTrelloHome()) //other pages, like org. boards also shows the board elements (thanks MarkF!)
-            return;
-        g_totalSpentAllBoards = 0;
-        g_totalEstimateAllBoards = 0;
-        var boardContainers = $("#content").find(".js-open-board");
-        var i = 0;
-        for (; i < boardContainers.length; i++) {
-            var elem = null;
-            if (g_bNewTrello)
-                elem = $(boardContainers[i]).find(".board-list-item-name")[0];
-            else
-                elem = $(boardContainers[i]).children(".item-name")[0];
-            updateBoardUIElem($(elem));
-        }
-    }
+function updateBoardUI() {
+    var boardCur = getCurrentBoard();
+    if (boardCur)
+        updateCards(boardCur, null, true, false);
 }
 
 //review zig: cleanup naming convention for callbacks, responses, sendResponse, etc. needs to be clear when its data, when its a function, and what params the function takes
@@ -85,6 +69,8 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
         var totalSpentFiltered = 0;
         var estimationBox = null;
         var spentBox = null;
+        var remainBox = null;
+
         function forEachCard(k, card) {
             try {
                 if (bResetHtmlLast)
@@ -227,55 +213,77 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             updateSE();
 
             //
-            // Badges
+            // Card Badges
             //
             var badges = $(card).children('.list-card-details').eq(0).children('div.badges');
             var bNoBadges = (spent == 0 && estimation == 0);
+            var remain = parseFixedFloat(estimation - spent);
             var szClassSEFromTitle="agile_seFromTitle";
 
-            if (bNoBadges && bTourRunning && k == 0)
+            if (bNoBadges && bTourRunning)
                 bNoBadges = false;
 
-            // Estimate
+        // Card Remaining
+            var remainBadge = badges.children('div.' + BadgeFactory.remainingBadgeClass());
+            if (remainBadge.size() == 0) {
+                if (!bNoBadges) {
+                    remainBadge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_cardback").attr('title', 'R');
+                    badges.prepend(remainBadge);
+                }
+            }
+
+            if (remainBadge.size() > 0)
+                remainBadge.contents().last()[0].textContent = remain;
+            if (bSEFromTitle)
+                remainBadge.addClass(szClassSEFromTitle);
+            else
+                remainBadge.removeClass(szClassSEFromTitle);
+
+
+       // Card Estimate
             var estimateBadge = badges.children('div.' + BadgeFactory.estimateBadgeClass());
             if (estimateBadge.size() == 0) {
                 if (!bNoBadges) {
-                    estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardback").attr('title','E');
+                    estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardback").attr('title', 'E');
                     badges.prepend(estimateBadge);
                 }
             }
-            else {
-                if (bNoBadges)
-                    estimateBadge.remove();
-            }
-            if (!bNoBadges) {
-                estimateBadge.contents().last()[0].textContent = estimation;
-                if (bSEFromTitle)
-                    estimateBadge.addClass(szClassSEFromTitle);
-                else
-                    estimateBadge.removeClass(szClassSEFromTitle);
-            }
 
-            // Spent
+            if (estimateBadge.size()>0)
+                estimateBadge.contents().last()[0].textContent = estimation;
+            if (bSEFromTitle)
+                estimateBadge.addClass(szClassSEFromTitle);
+            else
+                estimateBadge.removeClass(szClassSEFromTitle);
+            
+
+        // Card Spent
             var spentBadge = badges.children('div.' + BadgeFactory.spentBadgeClass());
 
             if (spentBadge.size() == 0) {
                 if (!bNoBadges) {
-                    spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardback").attr('title','S');
+                    spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardback").attr('title', 'S');
                     badges.prepend(spentBadge);
                 }
             }
-            else {
-                if (bNoBadges)
-                    spentBadge.remove();
-            }
-            if (!bNoBadges) {
+            
+            if (spentBadge.size() > 0)
                 spentBadge.contents().last()[0].textContent = spent;
-                if (bSEFromTitle)
-                    spentBadge.addClass(szClassSEFromTitle);
-                else
-                    spentBadge.removeClass(szClassSEFromTitle);
+
+            if (bSEFromTitle)
+                spentBadge.addClass(szClassSEFromTitle);
+            else
+                spentBadge.removeClass(szClassSEFromTitle);
+
+            if (bTourRunning && !bNoBadges) {
+                spentBadge.show();
+                estimateBadge.show();
+            } else {
+                elemShowHide(spentBadge, bNoBadges ? false : (!g_bProVersion ? true : g_serViews.card.s));
+                elemShowHide(estimateBadge, bNoBadges ? false : (!g_bProVersion ? true : g_serViews.card.e));
             }
+            elemShowHide(remainBadge, bNoBadges ? false : (!g_bProVersion ? false : g_serViews.card.r));
+
 
             //Recurring
             if (true) {
@@ -285,7 +293,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                     var imgRecurring = $("<img class='agile_image_recurring_back'>").attr("src", chrome.extension.getURL("images/recurring.png"));
                     imgRecurring.attr("title", "Recurring card");
                     elRecurring = $("<span>").addClass("agile_recurring").hide();
-                    elRecurring.append(imgRecurring);
+                     elRecurring.append(imgRecurring);
                     badges.append(elRecurring);
                 }
 
@@ -320,33 +328,38 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             }
         }
 
+
         //
-        // Estimation box
-        //
-        var h2SiblingsEstimationBox = listCur.find('.agile_estimation_box');
-        if (h2SiblingsEstimationBox.size() < 1) {
-            estimationBox = InfoBoxFactory.makeInfoBox(ESTIMATION).addClass("agile_badge_list");
+        // List Remaining box
+        //	
+        var h2SiblinsRemainBox = listCur.find('.agile_remaining_box');
+        if (h2SiblinsRemainBox.size() == 0) {
+            remainBox = InfoBoxFactory.makeInfoBox(REMAINING).hide().addClass("agile_badge_list");
             divSE = $("<span class='agile_listboard_header'>");
-            divSE.append(estimationBox);
+            divSE.append(remainBox);
         } else {
-            estimationBox = h2SiblingsEstimationBox.eq(0);
-            divSE = estimationBox.parent();
+            remainBox = h2SiblinsRemainBox.eq(0);
+            divSE = remainBox.parent();
         }
 
         //
-        // Spent box
+        // List Estimation box
+        //
+        var h2SiblingsEstimationBox = listCur.find('.agile_estimation_box');
+        if (h2SiblingsEstimationBox.size() < 1) {
+            estimationBox = InfoBoxFactory.makeInfoBox(ESTIMATION).hide().addClass("agile_badge_list");
+            divSE.prepend(estimationBox);
+        } else {
+            estimationBox = h2SiblingsEstimationBox.eq(0);
+        }
+
+        //
+        // List Spent box
         //	
         var h2SiblinsSpentBox = listCur.find('.agile_spent_box');
         if (h2SiblinsSpentBox.size() == 0) {
-            spentBox = InfoBoxFactory.makeInfoBox(SPENT).addClass("agile_badge_list");
-            //adding the boxes changes the list height, trello doesnt catch this until you resize the window, so we adjust it here.
-            //if we dont do this, the bottom of the list (with the 'add card' link) goes too low.
-            //we use estimation height because is the one already visible.
+            spentBox = InfoBoxFactory.makeInfoBox(SPENT).hide().addClass("agile_badge_list");
             divSE.prepend(spentBox);
-            if (false) { //trello live list name edit now captures all clicks, tried a little to workarround it without success so bye +
-                var linkCreateCard = $("<a href='#' title='Add a card...'>").addClass("js-open-card-composer agile-open-card-composer").text("+"); //js-open-card-composer makes it open the trello box
-                listCur.append(linkCreateCard);
-            }
             listCur.find(".list-header-extras").prepend(divSE); //not h2.after(divSE) because that would cause the "subscribed to list" icon to drop below
 
         } else {
@@ -364,12 +377,18 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             estimationBox.html(totalEstimationFiltered);
             spentBox.html(totalSpentFiltered);
             var diffR = parseFixedFloat(totalEstimationFiltered - totalSpentFiltered);
+            remainBox.html(diffR);
             var titleSE = "R:" + diffR;
             if (totalEstimationFiltered > 0 && totalSpentFiltered >= 0)
                 titleSE = titleSE + " (" + Math.round(totalSpentFiltered * 100 / totalEstimationFiltered) + "% complete)";
             divSE.prop("title", titleSE);
             divSE.show();
         }
+
+        elemShowHide(spentBox, bTourRunning || !g_bProVersion? true : g_serViews.list.s);
+        elemShowHide(estimationBox, bTourRunning|| !g_bProVersion ? true : g_serViews.list.e);
+        elemShowHide(remainBox, !g_bProVersion ? false : g_serViews.list.r);
+        
         if (!bExcludeList) {
             globalTotalEstimation += totalEstimation;
             globalTotalSpent += totalSpent;
@@ -391,9 +410,9 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
     var bShowHeaderStuff = bTourRunning; //when a tour runs, show all elements
     var spanFilter = $(".agile_plus_filter_span");
     if (!bShowHeaderStuff && globalTotalEstimation == 0 && globalTotalSpent == 0) {
-        remainingTotal.hide();
-        spentTotal.hide();
-        estimationTotal.hide();
+        g_remainingTotal.hide();
+        g_spentTotal.hide();
+        g_estimationTotal.hide();
         spanFilter.hide();
     }
     else {
@@ -406,31 +425,32 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
         }
         var difference = parseFixedFloat(estimationValueSet - spentValueSet);
 
-        estimationTotal.html(Card.estimationLabelText(estimationValueSet));
-        spentTotal.html(Card.spentLabelText(spentValueSet));
-        remainingTotal.html(Card.remainingLabelText(difference));
+        g_estimationTotal.html(Card.estimationLabelText(estimationValueSet));
+        g_spentTotal.html(Card.spentLabelText(spentValueSet));
+        g_remainingTotal.html(Card.remainingLabelText(difference));
 
 
         var classPartialTotals = 'agile_box_partialUpdate';
         if (bShowBoardTotals) {
-            estimationTotal.removeClass(classPartialTotals);
-            spentTotal.removeClass(classPartialTotals);
-            remainingTotal.removeClass(classPartialTotals);
+            g_estimationTotal.removeClass(classPartialTotals);
+            g_spentTotal.removeClass(classPartialTotals);
+            g_remainingTotal.removeClass(classPartialTotals);
         } else {
-            estimationTotal.addClass(classPartialTotals);
-            spentTotal.addClass(classPartialTotals);
-            remainingTotal.addClass(classPartialTotals);
+            g_estimationTotal.addClass(classPartialTotals);
+            g_spentTotal.addClass(classPartialTotals);
+            g_remainingTotal.addClass(classPartialTotals);
         }
 
         if (globalTotalEstimationFiltered > 0 && globalTotalSpentFiltered >= 0) {
             var titleR = Math.round(globalTotalSpentFiltered * 100 / globalTotalEstimationFiltered) + "% complete";
-            remainingTotal.prop("title", titleR);
-            estimationTotal.prop("title", titleR);
-            spentTotal.prop("title", titleR);
+            g_remainingTotal.prop("title", titleR);
+            g_estimationTotal.prop("title", titleR);
+            g_spentTotal.prop("title", titleR);
         }
-        estimationTotal.show();
-        spentTotal.show();
-        remainingTotal.show();
+
+        elemShowHide(g_spentTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.s);
+        elemShowHide(g_estimationTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.e);
+        elemShowHide(g_remainingTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.r);
         bShowHeaderStuff = true;
     }
     setupBurnDown(bShowHeaderStuff, bHasHiddenCard || bTourRunning);
@@ -553,7 +573,7 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
             responseParam();
     }
     var elemDetect = null;
-    if (boardCur == null || remainingTotal == null) {
+    if (boardCur == null || g_remainingTotal == null) {
         var idCardParsed = getIdCardFromUrl(document.URL);
         if (!boardCur && !idCardParsed && document.URL.toLowerCase() == "https://trello.com/plusreset") {
             var linkReset = $("#plusEmergencyReset");
@@ -698,58 +718,7 @@ function getKeySEFromBoard(board) {
 	return "b:" + board;
 }
 
-function updateBoardUIElem(boardElem) {
-	var board = boardElem.text();
-	var parent = boardElem.parent();
-	if (g_bNewTrello)
-		parent = parent.parent();
 
-	if (parent.hasClass("agile-card-listitem"))
-		return;
-	var key = getKeySEFromBoard(board);
-	chrome.storage.local.get(key, function (obj) {
-		var value = obj[key];
-		var bHide = true;
-		if (value !== undefined) {
-		    if (((Date.now()) - value.t) / 1000 / 60 < g_minutesExpireBoardTotalCache) {
-				addBadgesToBoardElem(boardElem, value);
-				bHide = false;
-			}
-			else
-				chrome.storage.local.remove(key);
-		}
-		if (g_bShowAllItems)
-			bHide = false;
-
-		if (bHide)
-			parent.parent().hide();
-		else
-			parent.parent().show();
-	});
-}
-
-function addBadgesToBoardElem(boardElem, value) {
-	var container = boardElem.parent();
-	var list = container.find(".agile_spent_box");
-	var spentBadge = null;
-	if (list.size() == 0)
-	    spentBadge = InfoBoxFactory.makeTotalInfoBox(SPENT, false).attr('title', 'S');
-	else
-		spentBadge = list;
-
-	spentBadge.html(parseFixedFloat(value.s, false, true)); //one decimal
-	g_totalSpentAllBoards += value.s;
-	list = container.find(".agile_estimation_box");
-	var estimateBadge = null;
-	if (list.size() == 0)
-	    estimateBadge = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, false).attr('title', 'E');
-	else
-		estimateBadge = list;
-	estimateBadge.html(parseFixedFloat(value.e, false, true)); //one decimal
-	var divSE = $("<div>").append(spentBadge).append(estimateBadge);
-	container.append(divSE);
-	g_totalEstimateAllBoards += value.e;
-}
 
 function updateBoardSEStorage(boardCur, spent, estimate) {
 	var date = new Date();
@@ -816,18 +785,18 @@ var InfoBoxManager = {
         if (boardHeader.length == 0)
             return;
 
-        if (remainingTotal.parent()[0] === boardHeader[0]) //optimize
+        if (g_remainingTotal.parent()[0] === boardHeader[0]) //optimize
             return;
 
         //migrate elements to new parent
 
-        remainingTotal.hide();
-        estimationTotal.hide();
-        spentTotal.hide();
+        g_remainingTotal.hide();
+        g_estimationTotal.hide();
+        g_spentTotal.hide();
         g_bheader.hide();
-        boardHeader.append(remainingTotal);
-        boardHeader.append(estimationTotal);
-        boardHeader.append(spentTotal);
+        boardHeader.append(g_remainingTotal);
+        boardHeader.append(g_estimationTotal);
+        boardHeader.append(g_spentTotal);
 
         var burndownLink = $(".agile_plus_burndown_link");
         if (burndownLink.length != 0)
@@ -855,6 +824,8 @@ var InfoBoxFactory = {
             return box.addClass('agile_estimation_box').html('0');
         } else if (type == SPENT) {
             return box.addClass('agile_spent_box').html('0');
+        } else if (type == REMAINING) {
+            return box.addClass('agile_remaining_box').html('0');
         }
     },
     makeTotalInfoBox: function (type, bBoardTotals) {

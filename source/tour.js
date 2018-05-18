@@ -95,16 +95,6 @@ function handleHomeTour() {
              size: 200
          },
         {
-            id: 6,
-            selector: ".board-list .starred .js-open-board",
-            selectorAlt: ".boards-page-board-section .js-open-board",
-            text: "<br><br>Recently visited boards<br>show <b>S</b>pent and <b>E</b>stimate<br>from the <b>last time</b> you entered the board<br><br>",
-            angle: 180-45,
-            distance: 0,
-            size: 200
-        },
-
-        {
             id: 7,
             selector: "#headerSEActivities",
             text: "This section shows <br>Spent charts, your recent S/E and cards with Remaining balance.<br><br>Click to show or hide.",
