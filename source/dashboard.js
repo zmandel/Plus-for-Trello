@@ -186,7 +186,7 @@ function updateBoardLinks(params) {
 
     if (idBoard) {
         delete params["board"]; //dont pass it back to the report. it was historically just for title display purposes (june  2016)
-        $("#reportLink").attr("href", chrome.extension.getURL("report.html?idBoard=") + paramIdBoard + "&weekStartRecent=true").show();
+        $("#reportLink").attr("href", chrome.extension.getURL("report.html?chartView=s&idBoard=") + paramIdBoard + "&weekStartRecent=true").show();
         $("#boardLink").attr("href", "https://trello.com/b/" + paramIdBoard).show();
     }
     else {

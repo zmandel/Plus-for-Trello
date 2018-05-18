@@ -1528,7 +1528,7 @@ function loadReport(params) {
     }
 
     var elems = {
-        stackBy: "", checkNoColorsChart: "false", checkBGColorChart: "false", colorChartBackground: "#FFFFFF", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
+        stackBy: "", checkNoColorsChart: "false", checkBGColorChart: "false", colorChartBackground: "#FFFFFF", chartView: g_chartViews.cardcount, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkNoBracketNotes: false, checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",

@@ -26,10 +26,10 @@ var PlusConfig = {
 		container.append($('<H2 text-align="center"><b>Setup Google sync</b></H2>'));
 		if (!bStealth)
 		    container.append(setFont($('<p><b>Google sync (legacy) renames card titles to include total S/E.</b></p>')));
-		container.append(setFont($('<p>If you have not <A target="_blank" href="https://www.google.com/chrome/browser/signin.html">signed-into Chrome</A>, \
+		container.append(setFont($('<p>If you have not <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>, \
 Chrome will prompt you to do so. <b><br><i>This is not the same as being signed into your Gmail</i>. </b>\
-You need to be signed-into Chrome to use this sync mode.</p>')));
-		container.append(setFont($('<p>Configure one device only. Your other devices signed-into Chrome will automatically pick up the new configuration. <b>')));
+You need to sign-in to Chrome to use this sync mode.</p>')));
+		container.append(setFont($('<p>Configure one device only. Your other devices that sign-in to Chrome will automatically pick up the new configuration. <b>')));
 		container.append(setFont($('<p><A target="_blank" href="http://www.plusfortrello.com/p/google-sync-configuration-options.html">Read here</A> to compare "Google sync" with "card comments sync"<b>')));
 		container.append($('<p>&nbsp</p>'));
 		var btnCreate = setFont($('<button id="buttonCreateSs"></button>')).css('margin-bottom', '5px');
@@ -37,7 +37,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		var bAppendTeamSpreadsheetText = false;
 		btnCreate.text(strCreate);
 		if (!g_strServiceUrl) {
-		    container.append(setFont($('<p>For team mode, the team manager should create the spreadsheet here and share it with write permissions to team users.</p>')));
+		    container.append(setFont($('<p>For team mode, the team manager should use "create" below and share the resulting spreadsheet URL to all team users (with write permissions for those entering S/E).</p>')));
 		    btnCreate.show();
 		    bAppendTeamSpreadsheetText = true;
 		}
@@ -49,10 +49,10 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 
 		container.append(btnCreate);
 		if (bAppendTeamSpreadsheetText)
-		    container.append(setFont($('<span > or put the team spreadsheet url from your team administrator.</span>')));
+		    container.append(setFont($('<span > or put the team spreadsheet URL from your team administrator.</span>')));
 		divInput.append(setFont(input));
 		container.append(divInput);
-		container.append(setFont($('<p>Example: https://docs.google.com/spreadsheets/d/abcabydo/edit#gid=0</p>')));
+		//container.append(setFont($('<p>Example: https://docs.google.com/spreadsheets/d/abcabydo/edit#gid=0</p>')));
 		if (g_strServiceUrl != null && g_strServiceUrl != "") {
 		    var urlClean = g_strServiceUrl.split("#")[0];
 		    var strSharingNote = " <A target='_blank' href='" + urlClean + (urlClean.indexOf("?")<0 ? "?" : "&") + "usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
@@ -192,7 +192,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
                                 }
 
                                 if (g_strServiceUrl && g_strServiceUrl.length > 0 && response.cRowsTotal > 0) {
-                                    if (!confirm("You have pending S/E rows that havent yet synced to the spreadsheet.\n\nPress OK if you are you sure you want to loose those rows. Otherwise press Cancel and reload the page to start sync."))
+                                    if (!confirm("You have pending S/E rows not yet saved to the spreadsheet, and will be lost if you press OK.\n\nPress OK if you are sure you want to loose those rows. Otherwise press Cancel and reload the page to start sync."))
                                         return;
                                 }
 

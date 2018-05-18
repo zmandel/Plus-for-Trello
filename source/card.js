@@ -1064,7 +1064,7 @@ function fillCardSEStats(tableStats,callback) {
                         });
                         containerStats.prepend(elemTransferE);
 
-                        containerStats.prepend($('<a class="agile_card_report_link agile_linkSoftColor no-print" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank" title="Open a detailed S/E rows report">Report</a>'));
+                        containerStats.prepend($('<a class="agile_card_report_link agile_linkSoftColor no-print" href="' + chrome.extension.getURL("report.html?chartView=s&idCard=") + encodeURIComponent(idCard) + '" target="_blank" title="Open a detailed S/E rows report">Report</a>'));
                         containerStats.prepend(remainBadge);
                         containerStats.prepend(estimateBadge);
                         containerStats.prepend(spentBadge);
@@ -1286,7 +1286,7 @@ function showSETotalEdit(idCardCur, user) {
     }
     else {
         var idCard = getIdCardFromUrl(document.URL);
-        elemKwLink.attr("href", chrome.extension.getURL("report.html?idCard=" + encodeURIComponent(idCard) + "&orderBy=keyword&user=" + user+"&sortList=%5B%5B%22Keyword%22%2C0%5D%2C%5B%22Date%22%2C1%5D%5D"));
+        elemKwLink.attr("href", chrome.extension.getURL("report.html?chartView=s&idCard=" + encodeURIComponent(idCard) + "&orderBy=keyword&user=" + user + "&sortList=%5B%5B%22Keyword%22%2C0%5D%2C%5B%22Date%22%2C1%5D%5D"));
     }
     
     var elemTitle = divDialog.find(".agile_mtse_title");
@@ -1496,7 +1496,7 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	    u = $(td).html(rowData.user + g_hackPaddingTableSorter);
 	}
 	else {
-	    var urlReport = '<a class="agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCardCur) + '&user=' + rowData.user + '" target="_blank">' + rowData.user + '</a>';
+	    var urlReport = '<a class="agile_link_noUnderline" href="' + chrome.extension.getURL("report.html?chartView=s&idCard=") + encodeURIComponent(idCardCur) + '&user=' + rowData.user + '" target="_blank">' + rowData.user + '</a>';
 	    u = $(td).html(urlReport);
 	}
 

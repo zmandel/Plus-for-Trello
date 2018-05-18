@@ -169,23 +169,26 @@ function showFirstLicDialog(bExpanded, bShowWSOption, callback) {
         <p>Click "Activate" to enter payment details now.</p><br>\
         <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp;\
         <a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br>\
-        <br><br>\
+        <br>\
+        <p><b>Please give back and support over four years of active development!</b></p>\
+        <br>\
         <div style="text-align: left;">\
-        <p><a href="" id="agile_stripe_tellmore">More payment options?</a></p>\
+        <p><a href="" id="agile_stripe_tellmore">Click here</a> for more payment options (Google Payments)</p>\
         <div style="display:none;" id="agile_stripe_tellmore_content">\
             <hr>\
-            <p>You can also purchase a single license (your own) using Chrome Web Store payments through Google.</p>\
-            <p>Requires <A href="https://www.google.com/chrome/browser/signin.html"  target="_blank">Chrome sign-in</A> and is tied to your Google account.<\p>\
-            <p>The Chrome Web Store is currently failing for some users, thus we recommend to instead use stripe payments (above) which also supports group licenses.</p>\
-        <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OKWebstore">Activate with the \"Chrome Web Store\" instead</a>\
+            <p>Or purchase a single license (your own) using Google Payments.</p>\
+            <p>Requires you use <A href="https://support.google.com/chrome/answer/185277"  target="_blank">Chrome sign-in</A>.<\p>\
+            <p>This method is for a single license. To purchase a group license use the other method above (Stripe).</p>\
+        <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OKWebstore">Activate with the Google \"Chrome Web Store\"</a>\
         </div>\
         </div>\
         <br>\
-        <span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.\
+        <span style="font-size:80%;color:#909090;float:left;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.\
         </span>\
         <span style="float:right;">\<A href="\
-        https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Purchase%20a%20single%20or%20group%20license%20with%20our%20secure%20%22stripe.com%22%20payments.%0A%0AClick%20%22Activate%22%20to%20enter%20payment%20details%20now.%0A%0AButtons%3A%20Activate%2C%20Later%0A%0A______________________________________________________________%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22Chrome%20Web%20Store%22%20payments%0A%0AYou%20can%20also%20purchase%20a%20single%20license%20(your%20own)%20using%20%22Chrome%20Web%20Store%22%20payments%20through%20Google.%0A%0ARequires%20Chrome%20sign-in%20and%20is%20tied%20to%20your%20Google%20account.%0A%0AThe%20Chrome%20Web%20Store%20is%20currently%20failing%20for%20some%20users%2C%20thus%20we%20recommend%20stripe%20payments%20which%20also%20supports%20group%20licenses.%0A%0AButton%3A%20Activate%20with%20the%20Chrome%20Web%20Store%20%0A%0ANote%3A%20%22Plus%20for%20Trello%22%20is%20not%20associated%20with%20%22Trello%22%20or%20%22Atlassian%22.\
-        " target="_blank">Translate</A></span>\
+        https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Purchase%20a%20single%20or%20group%20license%20with%20our%20secure%20%22stripe.com%22%20payments.%0A%0AClick%20%22Activate%22%20to%20enter%20payment%20details%20now.%0A%0AButtons%3A%20Activate%2C%20Later%0A%0A______________________________________________________________%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22Chrome%20Web%20Store%22%20payments%0A%0AYou%20can%20also%20purchase%20a%20single%20license%20(your%20own)%20using%20Google%20payments.%0A%0ARequires%20you%20use%20Chrome%20sign-in.%0A%0AThis%20method%20is%20for%20a%20single%20license.%20To%20purchase%20a%20group%20license%20use%20the%20other%20method%20above.%0A%0AButton%3A%20Activate%20with%20the%20Chrome%20Web%20Store%20%0A%0ANote%3A%20%22Plus%20for%20Trello%22%20is%20not%20associated%20with%20%22Trello%22%20or%20%22Atlassian%22.\
+" target="_blank">Translate</A></span>\
+<span style="float:right;margin-right:1em;">\<A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">Help</A></span>\
     <\div>\
 </dialog>');
         $("body").append(divDialog);

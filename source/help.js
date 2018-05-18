@@ -483,7 +483,8 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 &bull; Card labels in charts and reports (view, group, filter, stack).<br>\
 &bull; Custom report columns, extra export options useful for integrations.<br>\
 &bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).<br>\
-&bull; Priority support and many planned "Pro" features.';
+&bull; Priority support and many planned "Pro" features.<br>\
+<A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">More</A>';
 	        textEnablePro += '<br /></div></div><div id="sectionPayProNow" style="display:none;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
 <a href="" id="agile_showLiDetails">Show license details</a> \
 <div id="agile_showLiDetails_contents" style="display:none;"><div id="sectionLiDetailsCS" style="display:none;">\
@@ -571,7 +572,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	                bShowPay = false;
 
 	            if (bShowLicDetailsCS)
-	                sectionLiDetailsCS.find(".agile_cs_licData").html("<b>Chrome store License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataCS.msCreated)));
+	                sectionLiDetailsCS.find(".agile_cs_licData").html("<b>Chrome store License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataCS.msCreated)) + " <A target='_blank' href='https://payments.google.com/#subscriptionsAndServices'>View</A>");
 
 	            if (bShowLicDetailsStripe) {
 	                sectionLiDetailsStripe.find(".agile_stripe_licData").html("<b>stripe.com License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataStripe.msCreated)) + " for " + (helpWin.liDataStripe.quantity || "0") + " Trello users.");
@@ -824,7 +825,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1ˢᵗ sync option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
         helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
-        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://www.google.com/chrome/browser/signin.html">signed-into Chrome</A>', divCur);
+        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>', divCur);
         helpWin.para('&bull; Enter S/E using the "card S/E bar", not as card comments nor from mobile, power-up or other browsers.', divCur);
         helpWin.para('&bull; No <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">multiple keywords</A> feature.', divCur);
 	    helpWin.para('&bull; No board-based permissions. Share the private spreadsheet using Google permissions.', divCur);
@@ -850,7 +851,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    if (!bDisplayedLegacyNote)
 	        helpWin.para('Legacy "Google spreadsheet sync" users <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
 	    helpWin.para('This legacy mode was how Plus initially worked, before the other two modes existed. Choose it if your team still hasn\'t <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">upgraded</A>.', divCur);
-	    helpWin.para('Disadvantages: Requires <A href="https://www.google.com/chrome/browser/signin.html" target="_blank">Chrome sign-in</A>, no <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">multiple keywords</A>, no board-based permissions, no <A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">mobile/powerup</A> support.', divCur);
+	    helpWin.para('Disadvantages: Requires <A href="https://support.google.com/chrome/answer/185277" target="_blank">Chrome sign-in</A>, no <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">multiple keywords</A>, no board-based permissions, no <A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">mobile/powerup</A> support.', divCur);
 	    helpWin.para('Advantages: Permission is based on the spreadsheet\'s permissions, regardless of board membership.', divCur);
 	    helpWin.para('S/E is not stored in card comments thou it does add a card S/E comment as well.', divCur);
 	    helpWin.para('This legacy mode also renames card titles to append total S/E.', divCur);
@@ -1075,7 +1076,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
 	    helpWin.para("&bull; Timers always fill Spent using 'decimal format' and not 'colon format'. See more under 'Best practices'.");
 		helpWin.para("&bull; Minimize a timer by clicking on '↓'");
-		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://www.google.com/chrome/browser/signin.html'>signed-into Chrome</A>.");
+		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277'>signed-into Chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Pause the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
 	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
@@ -1617,10 +1618,10 @@ Do not show daily spent total popup notifications every time you enter spent.</i
 
         //Options to show mini-me card popups
 	    if (true) { 
-	        var comboCardPopupStyle = helpWin.para('Use <A href="https://trello.com/c/ZduasRWD/138-mini-me-card-popups" target="_blank">mini-me card popups</A> in reports? <select style="width:auto"></select>').children('select:first');
+	        var comboCardPopupStyle = helpWin.para('Use <A href="https://trello.com/c/ZduasRWD/138-mini-me-card-popups" target="_blank">mini-me card popups</A> in reports and Chrome menu? <select style="width:auto"></select>').children('select:first');
 	        comboCardPopupStyle.append($(new Option("Yes, as small card popups (limited funcionality)", CARDPOPUPTYPE.POPUP_NOACTIONS)));
-	        comboCardPopupStyle.append($(new Option("Yes, as medium card popups (with more functionality)", CARDPOPUPTYPE.POPUP_SOMEACTIONS)));
-	        comboCardPopupStyle.append($(new Option("No, instead open the Trello card in a Chrome tab", CARDPOPUPTYPE.NO_POPUP)));
+	        comboCardPopupStyle.append($(new Option("Yes, as medium card popups (more functionality)", CARDPOPUPTYPE.POPUP_SOMEACTIONS)));
+	        comboCardPopupStyle.append($(new Option("No, open Trello cards in a Chrome tab", CARDPOPUPTYPE.NO_POPUP)));
 	        comboCardPopupStyle.val(helpWin.cardPopupType);
 
 	        comboCardPopupStyle.change(function () {

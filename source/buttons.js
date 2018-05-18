@@ -119,22 +119,19 @@ function insertPlusFeedWorker(stateFeed, key) {
 	var icon = $(".agile-icon-new-header");
 	var spanIcon = null;
 	var bShowNewIcon= false;
-	var bShowRecentIcon = false;
+	var bShowRecentIcon = false; //review: this can go away
 	var pathImgRecent = "images/newgray.png";
 	var msNow = Date.now();
 	var dmsOldestShow = 1000 * 60 * 60 * 24 * 6; //6 days
 	var titleTipBase = "New Plus features!";
 
 	if (stateFeed.msLastPostReadByUser < stateFeed.msLastPostRetrieved) {
-		if (msNow - stateFeed.msLastPostRetrieved < dmsOldestShow)
-			bShowNewIcon = true;
-		else
-			bShowRecentIcon = true;
-	}
-	else {
-	    var now = Date.now();
-		if (stateFeed.msUserClicked > 0 && now - stateFeed.msUserClicked < 1000 * 60 * 60) //show read icon for 1 hour since last clicked
-			bShowRecentIcon = true;
+	    if (msNow - stateFeed.msLastPostRetrieved < dmsOldestShow) {
+	        if (g_msStartPlusUsage && stateFeed.msLastPostRetrieved<g_msStartPlusUsage)
+	            bShowNewIcon = false;
+            else
+	            bShowNewIcon = true;
+	    }
 	}
 
 	if (bShowNewIcon || bShowRecentIcon) {

@@ -340,7 +340,7 @@ var CARDPOPUPTYPE = {
     POPUP_NOACTIONS: "noactions",
     POPUP_SOMEACTIONS: "someactions",
     NO_POPUP: "nopopup",
-    DEFAULT: "someactions"
+    DEFAULT: "nopopup"
 };
 
 

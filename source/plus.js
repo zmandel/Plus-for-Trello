@@ -1301,7 +1301,7 @@ function getKeywordsViewList() {
             if (val == VAL_COMBOVIEWKW_REPORTKW) {
                 var idBoardCur = getIdBoardFromUrl(document.URL);
                 if (idBoardCur) {
-                    var url = chrome.extension.getURL("report.html") + "?groupBy=keyword&orderBy=date&sortList=%5B%5B%22Keyword%22%2C0%5D%5D&idBoard=" + encodeURIComponent(idBoardCur);
+                    var url = chrome.extension.getURL("report.html") + "?chartView=s&groupBy=keyword&orderBy=date&sortList=%5B%5B%22Keyword%22%2C0%5D%5D&idBoard=" + encodeURIComponent(idBoardCur);
                     window.open(url, '_blank');
                 }
             }

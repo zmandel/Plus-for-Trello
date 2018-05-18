@@ -156,7 +156,7 @@ function showTransferEDialogWorker(userLast) {
     }
     else {
         var idCard = getIdCardFromUrl(document.URL);
-        var href = chrome.extension.getURL("report.html?idCard=" + encodeURIComponent(idCard) + '&groupBy=user-keyword&orderBy=keyword&archived=-1&deleted=-1&sortList=%5B%5B"User"%2C0%5D%2C%5B"Keyword"%2C0%5D%5D');
+        var href = chrome.extension.getURL("report.html?chartView=s&idCard=" + encodeURIComponent(idCard) + '&groupBy=user-keyword&orderBy=keyword&archived=-1&deleted=-1&sortList=%5B%5B"User"%2C0%5D%2C%5B"Keyword"%2C0%5D%5D');
         if (g_bProVersion)
             href += '&customColumns=user%2Ckeyword%2Cs%2Ce1st%2Ce%2Cr';
         elemKwLink.attr("href", href);
