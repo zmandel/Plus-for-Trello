@@ -5,21 +5,22 @@ var g_totalSpentAllBoards = 0;
 var g_totalEstimateAllBoards = 0;
 
 function updateBoardPageTotals() {
-    return; //review: feature no longer used as it can confuse showing the old cached values, and it works based on board name, not id.
-    if (!bAtTrelloHome()) //other pages, like org. boards also shows the board elements (thanks MarkF!)
-        return;
-	g_totalSpentAllBoards = 0;
-	g_totalEstimateAllBoards = 0;
-	var boardContainers = $("#content").find(".js-open-board");
-	var i = 0;
-	for (; i < boardContainers.length; i++) {
-		var elem = null;
-		if (g_bNewTrello)
-			elem = $(boardContainers[i]).find(".board-list-item-name")[0];
-		else
-			elem = $(boardContainers[i]).children(".item-name")[0];
-		updateBoardUIElem($(elem));
-	}
+    if (false) { //review: feature no longer used as it can confuse showing the old cached values, and it works based on board name, not id.
+        if (!bAtTrelloHome()) //other pages, like org. boards also shows the board elements (thanks MarkF!)
+            return;
+        g_totalSpentAllBoards = 0;
+        g_totalEstimateAllBoards = 0;
+        var boardContainers = $("#content").find(".js-open-board");
+        var i = 0;
+        for (; i < boardContainers.length; i++) {
+            var elem = null;
+            if (g_bNewTrello)
+                elem = $(boardContainers[i]).find(".board-list-item-name")[0];
+            else
+                elem = $(boardContainers[i]).children(".item-name")[0];
+            updateBoardUIElem($(elem));
+        }
+    }
 }
 
 //review zig: cleanup naming convention for callbacks, responses, sendResponse, etc. needs to be clear when its data, when its a function, and what params the function takes

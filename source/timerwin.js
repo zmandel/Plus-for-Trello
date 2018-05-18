@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 window.close();
             }
             else {
-                document.title = getTimerElemText(stored.msStart, Date.now(), false, true);;
+                document.title = getTimerElemText(stored.msStart, Date.now(), false, true);
             }
         });
     }

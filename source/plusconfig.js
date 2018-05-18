@@ -323,7 +323,8 @@ function clearAllStorage(callback) {
                         'bSyncOutsideTrello': g_bSyncOutsideTrello,
                         'bChangeCardColor': g_bChangeCardColor,
                         'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
-                        'units': UNITS.current
+                        'units': UNITS.current,
+                        'bDisplayPointUnits': g_bDisplayPointUnits
                     };
 
                     objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync)? true :  false;

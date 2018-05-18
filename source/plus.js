@@ -621,6 +621,7 @@ function programUnZoom(userElem) {
 
 var g_cRowsHistoryLast = 0;
 var g_bFirstTimeUse = false;
+var g_bDisplayPointUnits = false;
 var g_bAllowNegativeRemaining = false;
 var g_bDontWarnParallelTimers = false;
 var g_bUserDonated = false;
@@ -2102,11 +2103,11 @@ function drawSpentWeekChart(chartParams) {
 			useFormatFromData: false,
 			formatOptions: {
 				source: "inline",
-				suffix: UNITS.current
+				suffix: UNITS.getCurrentShort(g_bDisplayPointUnits)
 			},
 			slantedText: false,
 			minValue: null,
-			format: "0.##'"+UNITS.current+"'",
+			format: "0.##'" + UNITS.getCurrentShort(g_bDisplayPointUnits) + "'",
 			viewWindow: {
 				max: null,
 				min: null

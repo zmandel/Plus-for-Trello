@@ -482,8 +482,9 @@ function doShowBoardCardOfflineNotification(url) {
             if (responseOpen.status != STATUS_OK) {
                 return;
             }
+            var request = null;
             if (idBoard) {
-                var request = { sql: "SELECT idBoard,name FROM boards WHERE idBoard=?", values: [idBoard] };
+                request = { sql: "SELECT idBoard,name FROM boards WHERE idBoard=?", values: [idBoard] };
                 handleGetReport(request,
                     function (responseReport) {
                         if (responseReport.status == STATUS_OK && responseReport.rows.length > 0) {
@@ -492,7 +493,7 @@ function doShowBoardCardOfflineNotification(url) {
                     });
             }
             else if (idCard) {
-                var request = { sql: "SELECT idBoard,name FROM cards WHERE idCard=?", values: [idCard] };
+                request = { sql: "SELECT idBoard,name FROM cards WHERE idCard=?", values: [idCard] };
                 handleGetReport(request,
                     function (responseReport) {
                         if (responseReport.status == STATUS_OK && responseReport.rows.length > 0) {
@@ -1494,9 +1495,7 @@ function makeTimerPopupWindow(notificationId, bMinimized) {
             if (map)
                 map.idWindow = window.id;
 
-        } else {
-            //alert("error");
-        }
+        } 
     }
     );
 }
@@ -1780,7 +1779,7 @@ function handleShowDesktopNotification(request) {
             iconUrl: chrome.extension.getURL("images/icon128.png"),
             title: 'Plus for Trello',
             message: request.notification,
-            requireInteraction: true,
+            requireInteraction: true
         }, function (notificationId) {
             if (timeout) {
                 clearPendingTimeout();
@@ -2142,8 +2141,7 @@ function injectTrelloFrame() {
                 urls: ['https://trello.com/b/nC8QJJoZ*'],
                 types: ['sub_frame']
             },
-            ['blocking', 'responseHeaders']
-        );
+            ['blocking', 'responseHeaders']);
         g_bInstalledHeadersRequest = true;
     }
 

@@ -836,7 +836,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
 	    helpWin.para('&bull; Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more.</a>').children('a').click(function (ev) {
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
-	    });;
+	    });
 		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -967,6 +967,25 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                    UNITS.current = valCombo;
 	                    updateTimerChromeIcon();
 	                }
+	            });
+	        });
+	    }
+
+	    if (true) {
+	        var checkPointUnits = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedPointUnits" \
+>Call units "Points" instead of the selection above.</input>').children('input:checkbox:first');
+
+	        if (g_bDisplayPointUnits)
+	            checkPointUnits[0].checked = true;
+
+	        checkPointUnits.click(function () {
+	            var bValue = checkPointUnits.is(':checked');
+	            var pair = {};
+	            pair["bDisplayPointUnits"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bDisplayPointUnits = bValue;
+	                checkPointUnits[0].checked = g_bDisplayPointUnits;
 	            });
 	        });
 	    }

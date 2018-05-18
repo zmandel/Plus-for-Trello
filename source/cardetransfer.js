@@ -21,7 +21,7 @@ function showTransferEDialog() {
 <tr> \
 <td align="left" class="agile-etransfer-tcel-header">From</td> \
 <td align="left" class="agile-etransfer-tcel-header">To</td> \
-<td align="left" class="agile-etransfer-tcel-header" style="white-space: nowrap;">E ' + UNITS.getLongFormat() + '</td> \
+<td align="left" class="agile-etransfer-tcel-header" style="white-space: nowrap;">E ' + UNITS.getLongFormat(UNITS.current,g_bDisplayPointUnits) + '</td> \
 </tr> \
 <tr> \
 <td align="left"><select class="agile_transferE_user_from agile_combo_regular" title="Pick the \'from\' user."></select></td> \
@@ -30,7 +30,7 @@ function showTransferEDialog() {
 </tr> \
 </table> \
 <input class="agile_se_note agile_placeholder_small" placeholder="type an optional note"  maxlength="250"></input> \
-<label class="agile_unselectable" style="vertical-align: middle;font-weight:normal;line-height:1em;"><input type="checkbox" class="agile_transfere_alsospend" style="vertical-align: middle;margin-bottom:4px;margin-top:4px;" /> Immediately spend the transferred ' + UNITS.getLongFormat() + '.</label>\
+<label class="agile_unselectable" style="vertical-align: middle;font-weight:normal;line-height:1em;"><input type="checkbox" class="agile_transfere_alsospend" style="vertical-align: middle;margin-bottom:4px;margin-top:4px;" /> Immediately spend the transferred ' + UNITS.getLongFormat(UNITS.current, g_bDisplayPointUnits) + '.</label>\
 <button id="agile_enter_transferE">Enter</button> \
 <button id="agile_cancel_transferE">Cancel</button> \
 <A style="float:right;margin-top:1.5em;" class="agile_linkSoftColor" href="http://www.plusfortrello.com/p/transfer-estimates-between.html" target="_blank">help</A> \

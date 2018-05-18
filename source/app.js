@@ -262,6 +262,7 @@ function entryPoint() {
 
 //review zig: merge with loadSharedOptions
 function loadOptions(callback) {
+    var keyDisplayPointUnits = "bDisplayPointUnits";
     var keyAllowNegativeRemaining = "bIgnoreZeroECards";
     var keyDontWarnParallelTimers = "bDontWarnParallelTimers";
     var keyAcceptSFT = "bAcceptSFT";
@@ -294,7 +295,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
@@ -329,7 +330,7 @@ function loadOptions(callback) {
                                  g_bAcceptPFTLegacy = objSync[keyAcceptPFTLegacy];
                                  if (g_bAcceptPFTLegacy === undefined)
                                      g_bAcceptPFTLegacy = true; //defaults to true to not break legacy users
-
+                                 g_bDisplayPointUnits = objSync[keyDisplayPointUnits] || false;
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;

@@ -245,9 +245,9 @@ function loadBurndown() {
 	    setSql(g_sql, g_valuesSql, params); //repeat last query
 	});
     //review ugly
-	if (!idBoard && !boardName && !params["keyword"] && !params["sinceSimple"] && !params["weekStart"] && !params["weekEnd"]
-        && !params["monthStart"] && !params["monthEnd"] && !params["user"] && !params["team"] && !params["list"] && !params["card"]
-        && !params["label"] && !params["comment"] && !params["eType"] && !params["idCard"]) {
+	if (!idBoard && !boardName && !params["keyword"] && !params["sinceSimple"] && !params["weekStart"] && !params["weekEnd"] &&
+         !params["monthStart"] && !params["monthEnd"] && !params["user"] && !params["team"] && !params["list"] && !params["card"] &&
+         !params["label"] && !params["comment"] && !params["eType"] && !params["idCard"]) {
         $("#filtersContainer").show();
 	    g_bDontQuery = true;
 	}
@@ -576,7 +576,7 @@ function loadTimeline(series) {
 
 var g_projectionData = {
     x1: 0,
-    y1: 0,
+    y1: 0
 };
 
 function createProjectionLine(plot, xFormatter, xScale, yScale) {
@@ -586,7 +586,7 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
     projection.circleStart = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "white").attr("r", 6);
     projection.circleMid = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "black").attr("r", 3);
     projection.circleEnd = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", g_colorRemaining).attr("r", 6).style("visibility", "hidden");
-    projection.labelBackground = container.append("rect").attr({ width: 0, height: 0, fill: "white", rx: 3, ry: 3, stroke: g_colorRemainingDark, "stroke-width":1 }).style("visibility", "hidden");;
+    projection.labelBackground = container.append("rect").attr({ width: 0, height: 0, fill: "white", rx: 3, ry: 3, stroke: g_colorRemainingDark, "stroke-width":1 }).style("visibility", "hidden");
     projection.labelEnd = container.append("text").attr("stroke", g_colorRemainingDark).attr("stroke-width", 1).attr("stroke-opacity", 1);
     projection.bProjectionFirstClick = true;
 
@@ -749,6 +749,7 @@ function setChartData(rows, idBoard, params) {
 		    }
 		}
 
+		var objHtml;
 		if (user) { //!user when row is a card due date
 		    if (totalByUser[user] === undefined)
 		        totalByUser[user] = { s: 0, e: 0, sNotR: 0, eNotR: 0, data: [] };
@@ -774,7 +775,7 @@ function setChartData(rows, idBoard, params) {
 		    if (iAnnotation == 0 || comment.indexOf("] !") > 0) //needs to start with ! (] happens when Spent autoinserts markers like [+E] in the comment
 		        annotation = comment.slice(iAnnotation + 1);
 
-		    var objHtml = {
+		    objHtml = {
 		        user: user, card: card, date: date, spent: parseFixedFloat(spent), est: parseFixedFloat(est), spentSum: spentTotalDisplay,
 		        estSum: estTotalDisplay, remainSum: remainTotalDisplay, idCard: idCard, note: comment
 		    };
@@ -798,7 +799,7 @@ function setChartData(rows, idBoard, params) {
 		        }
 		        if (!bSkip) {
 
-		            var objHtml = {
+		            objHtml = {
 		                user: user, card: card, date: date, spent: 0, est: 0, spentSum: spentTotalDisplay,
 		                estSum: estTotalDisplay, remainSum: remainTotalDisplay, idCard: idCard, note: "Card with due date."
 		            };

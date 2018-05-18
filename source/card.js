@@ -193,7 +193,7 @@ function updateEOnSChange(cRetry) {
             var userCur = getUserFromCombo(comboUsers);
             if (!userCur)
                 return; //timing related. card window could be gone thus no combo
-            var keyword = comboKeywords.val(); //can be empty
+            var keyword = comboKeywords.val() || ""; //can be empty
             var mapSeCur = getSeCurForUser(userCur, keyword);
             if (!mapSeCur)
                 return; //shouldt happen
@@ -237,7 +237,7 @@ function updateNoteR() {
     var userCur = getUserFromCombo(userElem);
     if (!userCur)
         return; //user not loaded yet
-	var keyword = comboKeywords.val();
+    var keyword = comboKeywords.val() || "";
 	var mapSe = getSeCurForUser(userCur, keyword);
     if (mapSe == null)
         return; // table not loaded yet. this will be called when table loads
@@ -290,8 +290,8 @@ function updateCurrentSEData(bForceNow) {
         var valComment = comment.val();
         var valS = spinS.val();
         var valE = spinE.val();
-        var valUser = comboUsers.val();
-        var valDays = comboDays.val();
+        var valUser = comboUsers.val() || "";
+        var valDays = comboDays.val() || "";
         var valKeyword = (comboKeywords.length==0?"": comboKeywords.val()); //can be empty if combo doesnt exist
 
         if (valUser == g_strUserOtherOption || valDays == g_strDateOtherOption)
@@ -312,7 +312,7 @@ function updateCurrentSEData(bForceNow) {
 
 
 function getUserFromCombo(combo) {
-    var userCur = combo.val();
+    var userCur = combo.val() || "";
     if (userCur == g_strUserMeOption)
         userCur = getCurrentTrelloUser();
     return userCur || ""; //prevent null
@@ -713,7 +713,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        buttonEnter.removeClass("agile_box_input_hilite");
 	        var keyword = null;
 	        if (comboKeyword)
-	            keyword = comboKeyword.val();
+	            keyword = comboKeyword.val() || "";
 	        var s = parseSEInput(spinS);
 	        var e = parseSEInput(spinE);
 	        if (s == null) {
@@ -743,7 +743,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	        if (!verifyValidInput(sTotal, eTotal))
 	            return;
-	        var prefix = comboDays.val();
+	        var prefix = comboDays.val() || "";
 	        if (!prefix || prefix == g_strDateOtherOption) {
 	            hiliteOnce(comboDays, 500);
 	            return;
@@ -1344,7 +1344,7 @@ function showSETotalEdit(idCardCur, user) {
             return null;
         var kw = null;
         if (!bHideComboKeyword)
-            kw = comboKeyword.val();
+            kw = comboKeyword.val() || "";
         return { s: sDiff, e: eDiff, keyword:kw };
     }
 
@@ -1396,7 +1396,7 @@ function showSETotalEdit(idCardCur, user) {
     elemS.unbind().bind("input", function (e) { updateMessage(true); });
     elemE.unbind().bind("input", function (e) { updateMessage(true); });
     elemR.unbind().bind("input", function (e) { updateEFromR(); updateMessage(false); });
-    $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current));
+    $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current, g_bDisplayPointUnits));
     showModalDialog(divDialog[0]);
     setTimeout(function () {
         elemR.focus();
@@ -1645,7 +1645,9 @@ function addCardCommentHelp() {
 				while (!elemWindowTop.hasClass("window-wrapper"))
 				    elemWindowTop = elemWindowTop.parent();
 				var div = $("<div class='no-print'></div>");
-				div.append(createRecurringCheck()).append(createHashtagsList()).append(createSEMenu());
+				div.append(createRecurringCheck());
+				createHashtagsList(div);
+				createSEMenu(div);
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
 				createCardSEInput(elemParent, idCardCur, board);
@@ -1739,39 +1741,50 @@ function updateRecurringCardImage(bRecurring, icon) {
         icon.hide();
 }
 
-function createSEMenu() {
+function createSEMenu(divParent) {
     var comboSE = $("<select class='agile_AddSELink agile_card_combo agile_linkSoftColor'></select>");
     comboSE.prop("title", "Plus Spent and Estimates.");
-    comboSE.append($(new Option("Spent / Estimate", "", false, true)).attr('disabled', 'disabled'));
+    //comboSE.append($(new Option("Spent / Estimate", "", false, true)).attr('disabled', 'disabled'));
     comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
     comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
     comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", "transfer E 1ˢᵗ between users.\n\
 Useful to transfer from a global estimate to a specific user."));
     comboSE.append($(new Option("S/E Help", "help")));
+    comboSE.val(""); //unselect
+    divParent.append(comboSE);
+    comboUpdateView();
+
+    function comboUpdateView() {
+        comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "Spent / Estimate", width: 'auto', dropdownAutoWidth: true });
+    }
+
+    function clearSelection() {
+        comboSE.val("").trigger("change");
+    }
 
     comboSE.on("change", function () {
-        var val = comboSE.val();
+        var val = comboSE.val() || "";
         if (val == "S") {
-            comboSE.val("");
+            clearSelection();
             showSEBarContainer(false, true);
             return false; //handled
         }
 
         if (val == "E") {
-            comboSE.val("");
+            clearSelection();
             showSEBarContainer(false, false, true);
             return false; //handled
         }
 
         if (val == "TE") {
-            comboSE.val("");
+            clearSelection();
             showTransferEDialog();
             return false; //handled
         }
 
         if (val == "help") {
             showSEHelpDialog();
-            comboSE.val("");
+            clearSelection();
             return false; //handled
         }
     });
@@ -1788,19 +1801,21 @@ Useful to transfer from a global estimate to a specific user."));
             }
         });
     }
-
-    return comboSE;
 }
 
-function createHashtagsList() {
-    var comboK = $("<select class='agile_hashtags_list agile_card_combo agile_linkSoftColor'></select>");
-    comboK.prop("title", "Add Plus #tags which are searchable from Reports.");
+function createHashtagsList(divParent) {
+    var comboK = $("<select class='agile_hashtags_list agile_card_combo'></select>");
+    comboK.prop("title", "Add Plus #tags to later filter by in Reports and charts.");
     var txtOther = "other...";
     var elemOther = null;
 
+
+    function triggerChange() {
+        comboK.trigger('change');
+    }
+
     function addFirst() {
-        //disabled selected
-        comboK.append($(new Option("Add #tags", "", false, true)).attr('disabled', 'disabled').prop("title", "Click to add #tags"));
+       //select2 uses placeholders instead
     }
 
     function addOther() {
@@ -1823,41 +1838,70 @@ function createHashtagsList() {
     addFirst();
     var bLoaded = false;
     var listCached = [];
-   
-    comboK.on("mousedown", function (e) {
-        if (bLoaded)
-            return;
-        //ignore click. load the list then fake a click again. not perfect
-        //since list can be dropped with the keyboard and wont be loaded.
-        //those users prob prefer to rename card titles directly so there.
+    var bFromOpening = false;
+
+    comboK.on("select2:opening", function (e) {
+        var bNeedsLoading = !bLoaded;
+        if (bFromOpening) {
+            bFromOpening = false;
+            return; //dont recurse
+        }
+        //we always prevent the default load for two reasons:
+        //1: to delay-load the list as loading the hashtag list could be a perf hit.
+        //2: bugs in select2 prevent it from focusing on the search term. but manually displaying the dropdown does work.
+        //select2 lets us use search and delay-load.
+        //Chrome 53 stopped allowing fake clicks to do async loading. https://productforums.google.com/forum/#!msg/chrome/Q4Rt6d0C4Qo/DhQdubVCAwAJ
         e.preventDefault();
         bLoaded = true;
+        function loadAllAndOpen() {
+            comboK.empty();
+            addFirst();
+            listCached.forEach(function (k) {
+                addKeyword(k);
+            });
+            addOther();
+            selectFirst();
+            comboUpdateView();
+            bFromOpening = true;
+            comboK.select2("open");
+        }
+
+        if (!bNeedsLoading) {
+            setTimeout(function () {
+                loadAllAndOpen();
+            }, 100);
+
+            return;
+        }
         sendExtensionMessage({ method: "getAllHashtags" }, function (response) {
             if (response.status != STATUS_OK) {
                 alert(response.status);
                 return;
             }
-            comboK.empty();
-            addFirst();
+            
             listCached = cloneObject(response.list);
-            listCached.forEach(function (k) {
-                addKeyword("#" + k);
-            });
-            addOther();
-            var event;
-            event = document.createEvent('MouseEvents');
-            event.initMouseEvent('mousedown', true, true, window);
-            comboK[0].dispatchEvent(event);
+            loadAllAndOpen();
         });
     });
 
     //review fix selectFirst mess with promises
     function selectFirst() {
         comboK.val("");
+        comboK.trigger('change');
     }
 
+    function comboUpdateView() {
+        comboK.select2({
+            tags: true, //https://github.com/select2/select2/issues/4088
+            insertTag: function (data, tag) {
+                tag.text = "Add new: #" + tag.text;
+                data.push(tag);
+            },
+            minimumResultsForSearch: 0, placeholder: "Add #tags", width: 'auto', dropdownAutoWidth: true,
+        });
+    }
     comboK.on("change", function () {
-        var val = comboK.val();
+        var val = comboK.val() || "";
         if (val == "")
             return;
         if (val == txtOther) {
@@ -1867,15 +1911,21 @@ function createHashtagsList() {
                 return;
             }
             newHash = newHash.trim();
-            if (newHash.indexOf("#") < 0)
-                newHash = "#" + newHash;
+            var iHash = newHash.indexOf("#");
+            if (iHash == 0)
+                newHash = newHash.substring(1);
+            else if (iHash > 0) {
+                alert("Type a single hashtag without spaces or #.");
+                selectFirst();
+                return;
+            }
             if (newHash.indexOf(" ") >= 0) {
                 alert("Type a single hashtag without spaces.");
                 selectFirst();
                 return;
             }
             if (!listCached.every(function (k) {
-                if (("#" + k).toLowerCase() == newHash.toLowerCase())
+                if (k.toLowerCase() == newHash.toLowerCase())
                     return false;
                 return true;
             })) {
@@ -1889,7 +1939,17 @@ function createHashtagsList() {
             listCached.push(newHash);
             addOther();
             comboK.val(newHash);
+            triggerChange();
             val = newHash;
+        } else {
+            //might be the "add new item"
+            if (listCached.every(function (k) {
+                if (k.toLowerCase() == val.toLowerCase())
+                    return false;
+            return true;
+            })) {
+                listCached.push(val);
+            }
         }
         var idCardCur = getIdCardFromUrl(document.URL);
         elem = $(".card-detail-title-assist");
@@ -1901,13 +1961,14 @@ function createHashtagsList() {
         var titleCur = elem.text().trim();
         var rgHash = getHashtagsFromTitle(titleCur);
         for (var iHash = 0; iHash < rgHash.length;iHash++) {
-            if ("#" + rgHash[iHash].toLowerCase() == val.toLowerCase()) {
+            if (rgHash[iHash].toLowerCase() == val.toLowerCase()) {
                 //silently ignore
+                sendDesktopNotification("hashtag #"+val+" is already in the card.");
                 selectFirst();
                 return;
             }
         }
-        titleCur = titleCur + " " + val;
+        titleCur = titleCur + " " + "#"+val;
         renameCard($.cookie("token"), idCardCur, titleCur, function (response) {
             if (response.status != STATUS_OK) {
                 alert("Failed to rename card.\n" + response.status);
@@ -1915,7 +1976,8 @@ function createHashtagsList() {
             selectFirst();
         });
     });
-    return comboK;
+    divParent.append(comboK);
+    comboUpdateView();
 }
 
 var Card = {
@@ -2151,7 +2213,7 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                         addSEFieldValues(sCalc);
                     }
                     else {
-                        sendDesktopNotification("Ellapsed time too small (under 0.01 "+UNITS.getLongFormat()+"). Timer ignored\n.", 10000);
+                        sendDesktopNotification("Ellapsed time too small (under 0.01 " + UNITS.getLongFormat() + "). Timer ignored\n.", 10000);
                     }
                     if (bRemoveActive)
                         findNextActiveTimer();

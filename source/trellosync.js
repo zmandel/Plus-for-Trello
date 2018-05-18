@@ -1663,7 +1663,7 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
                     }
                     
                     var actionLast = response.items[response.items.length - 1];
-                    var dateLast = new Date(actionLast.date);
+                    dateLast = new Date(actionLast.date);
                     //see "Why skip an item and query with a date 1 millisecond  after the last item"
                     dateLast.setTime(dateLast.getTime() + 1);
 
@@ -2805,7 +2805,7 @@ function doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDay
                         try {
                             injectTrelloFrame();
                         } catch (e) {
-                            console.log("Error: could not insert trello iframe to fix expired auth.")
+                            console.log("Error: could not insert trello iframe to fix expired auth.");
                         }
                         objRet.status = "Error: Trello authentication error. Will retry in a few seconds.";
                         g_cErrorSync++;

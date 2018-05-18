@@ -7,6 +7,23 @@
 }
 
 
+.select2-search { background-color: #EDEFF0 !important; }
+.select2-search input { background-color: #EDEFF0 !important; }
+.select2-results { background-color: #EDEFF0 !important; }
+.select2-selection { background-color: #EDEFF0 !important; }
+.select2-selection--single {
+    background-color: #EDEFF0 !important;
+    border: none !important;
+    font-size:12px !important;
+
+}
+
+.select2-selection__rendered {
+        color:#8C8C8C !important;
+}
+
+.select2-container--default { background-color: #EDEFF0 !important; }
+
 .bsmListCustomColumns {
   width: 14em;
   margin: 0.25em 0 1em 0;

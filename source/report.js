@@ -10,7 +10,6 @@ var ITAB_CHART = 3;
 var g_colorDefaultOver = "#B9FFA9";
 var g_colorDefaultUnder = "#FFD5BD";
 var g_bShowKeywordFilter = false;
-var g_bShowLabelsFilter = false;
 var KEY_FORMAT_PIVOT_USER = "formatPivotUser";
 var KEY_FORMAT_PIVOT_BOARD = "formatPivotBoard";
 var KEY_bEnableTrelloSync = "bEnableTrelloSync";
@@ -79,7 +78,7 @@ const g_columnData = {
     labels: ["idCardH"],
     note: ["note"],
     r: ["r"],
-    s: ["s"],
+    s: ["s"]
 };
 
 var g_colours = { //thanks http://stackoverflow.com/a/1573141/2213940
@@ -1335,7 +1334,6 @@ function loadReport(params) {
     });
 
 
-    g_bShowLabelsFilter = g_bProVersion;
     if (g_bProVersion)
         $("#labelOptionsProOnly").hide();
 
@@ -1409,15 +1407,6 @@ function loadReport(params) {
     } else if (!params["groupBy"]) {
         elemChartMessage.text(g_strMessageNoGroupChart);
         g_bNoGroupChart = true;
-    }
-
-
-    if (g_bShowLabelsFilter) {
-        editLabels.parent().show();
-    }
-    else {
-        editLabels.parent().hide();
-        $("#groupBy option[value*='label']").remove();
     }
 
     if (g_bShowKeywordFilter)
@@ -1782,8 +1771,8 @@ function buildSql(elems) {
         if (bOnlyWithDueDates || elems["orderBy"] == "dateDue")
             sql += buildSqlParam("dateDue", { dateDue: null }, "", "dateDue", "IS NOT", state);
 
-        if (g_bShowLabelsFilter) {
-            if (elems["label"]) {
+        if (elems["label"]) {
+            if (g_bProVersion) {
                 var advancedParams = { bNoWhereAnd: true, bLabelMode: true, bNegateAll: false, errorParse: "" };
                 var sqlLabels = "SELECT LC.idCardShort FROM LABELCARD as LC JOIN LABELS as L on LC.idLabel=L.idLabel WHERE " +
                     buildSqlParam("label", elems, "", "L.name", "LIKE", state, undefined, undefined, advancedParams);
@@ -1795,8 +1784,9 @@ function buildSql(elems) {
                 else {
                     sql += (state.cFilters > 0 ? " AND" : " WHERE") + " C.idCard" + (advancedParams.bNegateAll ? " NOT" : "") + " in (" + sqlLabels + ")";
                 }
+            } else {
+                sendDesktopNotification("To filter by labels enable 'Pro' from the Plus help pane.", 10000);;
             }
-
         }
 
         return sql;
@@ -1828,10 +1818,10 @@ function buildSql(elems) {
     var state = { cFilters: 0, values: [] };
     sql += buildAllParams(state, true);
 
-    if ((groupByLower != "" || g_bBuildSqlMode)
-        && !elems["user"] //these two imply s/e rows (except when using NOT, but even thewn it could be unexpected). Card count charts are better for finding those.
-        && !elems["keyword"]
-        && !bOrderByR) {
+    if ((groupByLower != "" || g_bBuildSqlMode) &&
+        !elems["user"] && //these two imply s/e rows (except when using NOT, but even thewn it could be unexpected). Card count charts are better for finding those.
+        !elems["keyword"] &&
+        !bOrderByR) {
         bHasUnion = true;
         //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
         //note: dashboard (g_bBuildSqlMode) setChartData relies on special-case of dateDue
@@ -1862,7 +1852,7 @@ function buildSql(elems) {
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     var elems = cloneObject(elemsParam);
-    var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] == "true")
+    var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] == "true");
     var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
     if (customColumns.length == 1 && customColumns[0] == "")
         customColumns = [];
@@ -2727,16 +2717,14 @@ function chartSER(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    var common = getCommonChartParts(domain, g_dataChart.bRemain ? [colors[1]] : colors
-        , g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
+    var common = getCommonChartParts(domain, g_dataChart.bRemain ? [colors[1]] : colors, g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
 
     var datasets = {
         ds: new Plottable.Dataset(g_dataChart.dataS),
         dr: new Plottable.Dataset(g_dataChart.dataR)
     };
 
-    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL)
-        .labelsEnabled(true).addClass("chartReportStyle");
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).labelsEnabled(true).addClass("chartReportStyle");
     if (false && !g_dataChart.bHasNegatives) //review caused problems in popup and with negative values (scale changed), not well tested to enable in non popup
         chart.deferredRendering(true);
 
@@ -2896,8 +2884,7 @@ function charteChange(bForce, callbackCancel) {
     };
 
     var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
-        addDataset(datasets.d0).addDataset(datasets.d1).addDataset(datasets.d2).labelsEnabled(true)
-        .addClass("chartReportStyle");
+        addDataset(datasets.d0).addDataset(datasets.d1).addDataset(datasets.d2).labelsEnabled(true).addClass("chartReportStyle");
 
     if (bNoColors)
         chart.attr("stroke", "black");
@@ -2912,7 +2899,7 @@ function charteChange(bForce, callbackCancel) {
         }).labelFormatter(
             function (text) {
                 return "" + text; //review put + on the red boxes labels. cant differenciate so far from other boxes`
-            });;
+            });
 
     var table = [
       [null, common.legend],
@@ -2988,7 +2975,7 @@ function chartStacked(type, bForce, callbackCancel) {
     var legendTexts = [];
     legendTextsInfo = [
         { text: "-", i: 0 },
-        { text: "", i: 1 },
+        { text: "", i: 1 }
     ]; //note below we force-sort this one to the top always
     var iGroupStack = -1; //none
     if (stackBy) {
@@ -3614,7 +3601,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var bShowBoard = bCustomColumns ? includeCol("board") : (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || bCardGrouping);
     var bShowCard = bCustomColumns ? includeCol("card") : (groupBy == "" || bCardGrouping);
     var bShowTeam = bCustomColumns ? includeCol("team") : (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
-    var bShowLabels = bCustomColumns ? includeCol("labels") : bShowCard && g_bShowLabelsFilter;
+    var bShowLabels = bCustomColumns ? includeCol("labels") : bShowCard && g_bProVersion;
 
     if (bShowLabels && bCustomColumns && !mapCardsToLabels) {
         sendDesktopNotification("To show labels, group by card or s/e rows.", 12000);
@@ -3746,19 +3733,20 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
 
     var dateNowCache = new Date();
     const lengthCols = header.length;
+    var iPosCol;
     if (bCustomColumns) {
         //alert: rgColumnPositions works only if we guarantee that custom columns are ALWAYS shown. make sure all uses above of 'bCustomColumns' force the column if specified, even if Plus cant show it.
         var headerSorted = new Array(lengthCols);
         for (var iHeader = 0; iHeader < lengthCols; iHeader++) {
             assert(iHeader < rgColumnPositions.length);
-            var iPosCol = rgColumnPositions[iHeader];
+            iPosCol = rgColumnPositions[iHeader];
             headerSorted[iPosCol] = header[iHeader];
         }
         header = headerSorted;
     }
 
     for (var propICol in headersSpecialTemp) {
-        var iPosCol;
+
         
         if (bCustomColumns) {
             assert(propICol < rgColumnPositions.length);
@@ -3941,9 +3929,9 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
             title += " - " + row.comment;
             if (row.rowid == ROWID_REPORT_CARD)
                 title += "\n(no s/e)";
-            rgRet.title = title;
+            rgRet.title = escapeHtml(title);
         } else {
-            rgRet.title = (!bNoSEInfo ? "(" + sPush + " / " + estPush + ") " : "") + row.comment;
+            rgRet.title = escapeHtml((!bNoSEInfo ? "(" + sPush + " / " + estPush + ") " : "") + row.comment);
         }
         if (row.date) {
             var dateRow = new Date(row.date * 1000);

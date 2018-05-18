@@ -322,8 +322,16 @@ var UNITS = {
     hours: "h",
     days: "d",
     current: "h", //current units, hours by default
-    getLongFormat: function (u) {
+    getCurrentShort: function (bDisplayPointUnits) {
+        if (bDisplayPointUnits)
+            return "p";
+        return this.current;
+    },
+    getLongFormat: function (u, bDisplayPointUnits) {
         u = u || this.current;
+        if (bDisplayPointUnits)
+            return "points";
+
         if (u == this.minutes)
             return "minutes";
 

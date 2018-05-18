@@ -1,7 +1,7 @@
 ﻿{
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -47,6 +47,7 @@
         "libs/jquery.grumble.js",
         "libs/dialog-polyfill.js",
         "libs/jquery.tablesorter.js",
+        "libs/select2.full.min.js",
         "shared.js",
         "app.js",
         "card.js",
@@ -62,7 +63,7 @@
         "tour.js",
         "translations.js"
       ],
-      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css", "css/jquery-ui-custom.min.css" ],
+      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css", "css/jquery-ui-custom.min.css", "css/select2.min.css"],
       "run_at": "document_start"
     }
   ],
