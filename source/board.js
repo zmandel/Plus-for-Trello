@@ -534,6 +534,7 @@ function showSFTDialog() {
 }
 
 
+
 var g_strLastBoardNameIdSaved = null;
 
 function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards) {

@@ -2012,6 +2012,9 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n(See Plus help Preferences to disable this warning)"))
                         return;
                 }
+                setTimeout(function () {
+                    showPanelsAlertDialog();
+                }, 1500);
                 var elemSpent = $("#plusCardCommentSpent");
                 var sCur = null;
                 var bClearSpentBox = false;
@@ -2531,4 +2534,49 @@ function doInsert00History(idCardCur, idBoardNew, boardNameNew, userCur, boardCu
 				sendDesktopNotification("Plus has moved the card's data to the new board.", 8000);
 			}
 		});
+}
+
+
+function showPanelsAlertDialog() {
+    if (!g_msStartPlusUsage)
+        return;
+
+    var dms = (Date.now() - g_msStartPlusUsage);
+    var cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
+    if (cDaysUsingPlus < 30)
+        return;
+
+    var PROP_PanelsAlertDontWarnAgain = "bPanelsAlertDontWarnAgain";
+    chrome.storage.local.get([PROP_PanelsAlertDontWarnAgain], function (obj) {
+        if (chrome.runtime.lastError == undefined && obj && obj[PROP_PanelsAlertDontWarnAgain])
+            return;
+        var divDialog = $("#agile_dialog_PanelsAlertWarning");
+
+        if (divDialog.length == 0) {
+            divDialog = $('\
+<dialog id="agile_dialog_PanelsAlertWarning" class="agile_dialog_DefaultStyle agile_dialog_Postit">\
+<h2 tabindex="1" style="outline: none;">Plus for Trello</h2>\
+<p>Alert: The special Chrome "Panels" we use will soon go away as Google is removing them from Chrome :(<br>\
+        Google has already removed Panels from their latest "Beta" version of Chrome.<br>\
+	    <br>\
+        Please express your thoughts by going to the following Google page and comment: <b><A href="https://bugs.chromium.org/p/chromium/issues/detail?id=467808" target="_blank">Enter here</A></b>.<br>\
+        We hope Google will change its mind with your positive feedback.<br>\
+        <br>\
+        Without Panels, Plus timers will still work but lose features like unobtrusive always-visible timers.</p>\
+<a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_PanelsAlertWarning_OK">OK</a>\
+<br /><input style="vertical-align:middle;margin-bottom:0px;"  type="checkbox"  id="agile_check_PanelsAlertDontWarnAgain"><label style="display: inline-block;font-weight:500;"  for="agile_check_PanelsAlertDontWarnAgain">Dont show me again</label></input>\
+</dialog>');
+            $("body").append(divDialog);
+        }
+        divDialog.find("#agile_dialog_PanelsAlertWarning_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            var check = $("#agile_check_PanelsAlertDontWarnAgain");
+            var bChecked = check[0].checked;
+            var pairPanelsAlertWarn = {};
+            pairPanelsAlertWarn[PROP_PanelsAlertDontWarnAgain] = bChecked;
+            chrome.storage.local.set(pairPanelsAlertWarn);
+            setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
+        });
+        showModlessDialog(divDialog[0]);
+    });
 }

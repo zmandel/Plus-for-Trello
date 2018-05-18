@@ -838,10 +838,16 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
+	    if (cDaysUsingPlus>3) {
+	        helpWin.raw('<p class="panelsAlertHelp">Alert: The special Chrome "Panels" we use will soon go away as Google plans to remove them from Chrome :(<br>\
+        Without Panels, Plus timers will still work but lose features like unobtrusive always-visible timers.<br>\
+        <br>\
+<A href="https://bugs.chromium.org/p/chromium/issues/detail?id=467808" target="_blank">Read or comment here</A></b>.<br>\</p>');
+	    }
 	    helpWin.para("&bull; Start a timer from any card. The last active timer is always visible in the Chrome Plus icon and menu.");
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
 	    helpWin.para("&bull; Timers always fill Spent using 'decimal format' and not 'colon format'. See more under 'Best practices'.");
-	    helpWin.para("&bull; Timer popups will show much better if you <A href='' id='linkEnablePanels'>enable Chrome Panels</A>.").find("#linkEnablePanels").click(function (e) {
+	    helpWin.para("&bull; Timer popups will work much better if you <A href='' id='linkEnablePanels'>enable Chrome Panels</A>.").find("#linkEnablePanels").click(function (e) {
 	        e.preventDefault();
 	        sendExtensionMessage({ method: "openChromeOptionsPanels" }, function (response) { });
 	    });

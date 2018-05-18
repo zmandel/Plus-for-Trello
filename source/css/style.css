@@ -1941,3 +1941,13 @@ float:left;
     font-weight:bold;
     font-size:17px;
 }
+
+.panelsAlertHelp {
+    margin-right:3em;
+    padding-left:1em;
+    padding-right:1em;
+    padding-top:1.5em;
+    padding-bottom:1.5em;
+    border-radius:6px;
+    background-color: #FFEB3B !important;
+}

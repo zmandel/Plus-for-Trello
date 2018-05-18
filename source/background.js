@@ -529,13 +529,39 @@ var g_loaderDetector = {
             });
         }
 
-        setTimeout(function () { checkNeedsSync(true); }, MSDELAY_FIRSTSYNC); //check right away
+        //check right away
+        setTimeout(function () {
+            checkNeedsSync(true);
+            checkAnalyticsActive();
+        }, MSDELAY_FIRSTSYNC); 
+
+        //every 10 minutes
         setInterval(function () {
+            checkAnalyticsActive();
             checkNeedsSync(false);
             g_cErrorSync = 0; //reset counter
-        }, 1000 * 60 * 10); // and every 10 minutes
+        }, 1000 * 60 * 10);
     }
 }.initLoader();
+
+function checkAnalyticsActive() {
+    if (!g_bProVersion)
+        return;
+
+    var dateNow = new Date();
+    var msShift = (dateNow.getTimezoneOffset() - 60 * 5) * 60000; //GMT-5 aprox standarization
+    var msNow = dateNow.getTime() + msShift;
+    var msLast = parseInt(localStorage["ms-last-usage"] || "0",10);
+    dateNow = new Date(msNow); //overwrite
+    var dateLast = new Date(msLast);
+    var strNow = makeDateCustomString(dateNow);
+    var strLast = makeDateCustomString(dateLast);
+    if (strNow != strLast) {
+        //category: "ProCheckbox", action: "disabled" 
+        handleHitAnalyticsEvent("ActiveDay", "active");
+        localStorage["ms-last-usage"] = "" + msNow;
+    }
+}
 
 function roundRect(ctx, x, y, width, height, radius, fill, stroke) {
     if (typeof stroke == "undefined") {
