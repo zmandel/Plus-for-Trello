@@ -42,7 +42,7 @@ var g_bPreventChartDraw = true;
 var g_waiterLi = CreateWaiter(2, function () {
     assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
     if (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel"))
-        checkLi();
+        setTimeout(checkLi, 2000);
 });
 
 var g_optIsPlusDisplayDisabled = null; //null means uninitialized. dont use directly. private to below
@@ -139,12 +139,12 @@ We have never sacrificed quality but without charging we can only go so fast.<br
 <h3>How to enable "Pro"?</h3>\
 <p id="agile-scrolldown-alert-pro" style="display:none;"><b>Scroll down to see the Approval buttons.</b></p>\
 <p align="justify">\
-By Pressing "Approve", you accept to purchase later this year the "Pro" licence for $9.⁹⁹ yearly per user through the Chrome store (*). Until then, "Pro" features will run as free trial.<br>\
+By Pressing "Approve", you accept to purchase later this year the "Pro" license for $9.⁹⁹ yearly per user through the Chrome store (*). Until then, "Pro" features will run as free trial.<br>\
 You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement</A>.<br>\
 <\p>\
 <br>Once you click "Approve", Plus also asks your approval for:\
 <ul class="agile_help_Pro_ul">\
-<li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store, googleapis.com: To verify your "Pro" licence once free trial is over.</p></li>\
+<li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store, googleapis.com: To verify your "Pro" license once free trial is over.</p></li>\
 <li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and make "Pro" users shape the future of Plus. Our mobile app and power-up already do this.</p></li>\
 </ul>\
 <br>\
@@ -2394,15 +2394,19 @@ function testModifySyncStorageUrl(url) {
 
 function checkLi() {
     chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
-        if (chrome.runtime.lastError)
+        if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.message);
             return;
+        }
         var bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
         if (!bProVersion)
             return;
 
         chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
-            if (chrome.runtime.lastError)
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError.message);
                 return;
+            }
 
             var liData = obj[SYNCPROP_LIDATA] || { msLastCheck: 0, msCreated: 0, li: "" };
             var msNow = Date.now();
@@ -2413,7 +2417,7 @@ function checkLi() {
             var bWaitCheck = false;
             if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 6)) //6 hours
                 return;
-            
+
             liData.msLastCheck = msNow;
 
 
@@ -2427,33 +2431,39 @@ function checkLi() {
                 });
             }
 
-            setTimeout(function () {
-                 showFirstLicDialog(function (status) {
-                    if (status == STATUS_OK) {
-                        sendExtensionMessage({ method: "checkLi" }, function (response) {
-                            if (response.status == STATUS_OK)
-                                sendDesktopNotification("Successful purchase. Enjoy!");
-                            else if (response.status == "hasLicence")
-                                sendDesktopNotification("Existing licence found, no need to purchase again. Enjoy!"); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
-                            else {
-                                //update msLastCheck if needed. must reload storage
-                                chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
-                                    if (chrome.runtime.lastError)
-                                        return;
-                                    var msLastCheckLast = liData.msLastCheck;
-                                    liData = obj[SYNCPROP_LIDATA] || liData;
-                                    if (liData.msLastCheck < msLastCheckLast) {
-                                        liData.msLastCheck = msLastCheckLast;
-                                        saveLi(liData);
-                                    }
-                                });
-                            }
-                        });
-                    } else {
+            function saveLiIfNewer(liData) {
+                //update msLastCheck if needed. must reload storage
+                chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+                    if (chrome.runtime.lastError)
+                        return;
+                    var msLastCheckLast = liData.msLastCheck;
+                    liData = obj[SYNCPROP_LIDATA] || liData;
+                    if (liData.msLastCheck < msLastCheckLast) {
+                        liData.msLastCheck = msLastCheckLast;
                         saveLi(liData);
                     }
                 });
-            }, 2000);
+            }
+
+            showFirstLicDialog(function (status) {
+                if (status == STATUS_OK) {
+                    sendExtensionMessage({ method: "checkLi" }, function (response) {
+                        if (response.status == STATUS_OK)
+                            sendDesktopNotification("Successful activation. Enjoy!");
+                        else if (response.status == "hasLicense")
+                            sendDesktopNotification("Existing license found, no need to activate again. Enjoy!"); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
+                        else {
+                            if (response.status == "PURCHASE_CANCELED")
+                                sendDesktopNotification("License not activated because the purchase was cancelled.");
+                            else
+                                sendDesktopNotification("An error happened. Please try later. " + response.status);
+                            saveLiIfNewer(liData);
+                        }
+                    });
+                } else {
+                    saveLiIfNewer(liData);
+                }
+            });
         });
     });
 }

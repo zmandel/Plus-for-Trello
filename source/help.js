@@ -208,7 +208,7 @@ var Help = {
             //this is likely related to stacking context changes in chrome, in this case there are two scrollbars: one in trello and another in the help pane.
 	        //This was fixed by moving these two elements out of the pane, make them topmost, and track them with m_extraElems
 	        var containerFixed = $(body);
-	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_topmost" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
+	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_almostTopmost1" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
 	        helpWin.m_extraElems.push(elemClose);
 	    elemClose.click(function () {
 	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
@@ -236,7 +236,7 @@ var Help = {
 	        Help.close(false);
 	    });
 
-	    var elemTop = helpWin.raw('<img class="agile_help_top agile_topmost" src="' + chrome.extension.getURL("images/helptop.png") + '"></img>', containerFixed);
+	    var elemTop = helpWin.raw('<img class="agile_help_top agile_almostTopmost1" src="' + chrome.extension.getURL("images/helptop.png") + '"></img>', containerFixed);
 	    helpWin.m_extraElems.push(elemTop);
 	    elemTop.click(function () {
 	        helpWin.m_container.animate({ scrollTop: helpWin.m_container.offset().top }, 350);
@@ -388,57 +388,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        if (cDaysUsingPlus > 2)
 	            strUsingPlusDays = '' + cDaysUsingPlus + ' days with Plus. ';
 	    }
-	    var divDonations = $('<div></div>');
-	    var bInsertDonationAsSection = false;
-	    if (cDaysUsingPlus > 1) {
-	        this.m_container.append(divDonations);
-	        divDonations.hide();
-	    }
-	    else
-	        bInsertDonationAsSection = true;
-	    if (cDaysUsingPlus > 7) {
-	        helpWin.para('We appreciate <b>your help</b> to keep improving Plus! There are many useful features pending:', divDonations);
-	        helpWin.para("&bull; Mobile Apple/Android app improvements.", divDonations);
-	        helpWin.para("&bull; Track unresolved card comments sent or received", divDonations);
-	        helpWin.para('&bull; Board flowcharts for task count or time per list over time and much more!', divDonations);
-	        helpWin.para('&nbsp;', divDonations);
-	    }
-	    else {
-	        helpWin.para('We appreciate <b>your help</b> to keep improving Plus!', divDonations);
-	    }
-	    helpWin.para('Donate securely with Paypal. <b>You don\'t need a Paypal account</b> just a credit card.', divDonations);
-	    helpWin.para('<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">\
-<input type="hidden" name="cmd" value="_s-xclick">\
-<input type="hidden" name="encrypted" value="-----BEGIN PKCS7-----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-----END PKCS7-----">\
-<input type="image" style="margin-bottom:0px" src="https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif" border="0" name="submit" title="Your donation counts a lot! Thank you!">\
-</form>', divDonations);
-
-	    if (!bInsertDonationAsSection) {
-	        var checkDonated = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDonated" \
-					>I already donated, thanks! ' + strUsingPlusDays + '<A href="http://www.plusfortrello.com/p/donations.html" target="_blank">Donate or view all donations</A>.</input>').css("marginBottom", 0).children('input:checkbox:first');
-	        if (g_bUserDonated) {
-	            checkDonated[0].checked = true;
-	            divDonations.hide();
-	        } else {
-	            divDonations.show();
-	        }
-	        checkDonated.click(function () {
-	            var bValue = checkDonated.is(':checked');
-	            var pair = {};
-	            pair["bUserSaysDonated"] = bValue;
-	            if (bValue)
-	                divDonations.slideUp();
-	            else
-	                divDonations.slideDown();
-	            chrome.storage.sync.set(pair, function () {
-	                if (chrome.runtime.lastError == undefined)
-	                    g_bUserDonated = bValue;
-	                checkDonated[0].checked = g_bUserDonated;
-	            });
-	        });
-	    helpWin.para('&nbsp');
-        }
-
+	   
 	    if (g_bFirstTimeUse) {
 	        helpWin.para('If you skip help, make sure to configure <b>Sync</b> and <b>Preferences</b> before using Plus.');
 	        helpWin.para('&nbsp');
@@ -447,7 +397,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = 'View or filter by <b>Card labels</b> in reports and burn-downs, custom report columns and extra export options useful for integrations.';
+	    var textEnablePro = 'View, filter and stack by <b>Card labels</b> in reports and burn-downs, <b>custom columns</b> and extra export options useful for integrations.<br>If you love Plus, enable Pro!';
 	    if (!g_bProVersion)
 	        textEnablePro += '<br />Check for more details.';
 	    helpWin.para(textEnablePro);
@@ -1634,14 +1584,14 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and licence agreement</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and license agreement</h2></b>');
 	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
-	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user licence agreement (EULA)</A>.');
+	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement (EULA)</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_licences">Open-source licences</h2></b>');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/licences.html">View all licences</A>.');
+	    helpWin.para('<b><h2 id="agile_licenses">Open-source licenses</h2></b>');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/licences.html">View all licenses</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 	    
@@ -1658,12 +1608,6 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
-	    if (bInsertDonationAsSection) {
-	        helpWin.para('<b><h2 id="agile_help_donate">Donate</h2></b>');
-	        this.m_container.append(divDonations);
-	        helpWin.para('&nbsp');
-	        helpWin.para('&nbsp');
-	    }
 	    var body = $('body');
 	    container.hide();
 	    var toc = container.find("#tocAgileHelp");

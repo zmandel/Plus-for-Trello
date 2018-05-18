@@ -140,17 +140,17 @@ function showFirstLicDialog(callback) {
         //focus on h2 so it doesnt go to the first link
         divDialog = $('\
 <dialog id="agile_dialog_FirstLic" style="cursor:pointer;text-align: center;width:33em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_Lic">\
-<div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly licence.</div> \
-<div id="agile_FirstLic_content" style="display:none;"><br><b>Your "Plus for Trello Pro" yearly licence</b><br>\
+<div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly license.</div> \
+<div id="agile_FirstLic_content" style="display:none;"><br><b>Your "Plus for Trello Pro" yearly license</b><br>\
 <br>\
-Click "Activate" to show the Chrome store licence screen.<br>\
+Click "Activate" to show the Chrome store license screen.<br>\
 You will then have a 7-day trial until the store charges you.<br><br> \
 The payment goes 100% to keep improving "Plus" for you.<br><br>\
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp; \
-<a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_Cancel">Later</a><br><br> \
-<span style="font-size:80%;">Note: <A href="http://www.plusfortrello.com" target="_blank">Plus for Trello</A> is not associated with Trello Inc.\
+<a href="" class="button-link agile_dialog_Postit_button" style="color:#909090;" id="agile_dialog_FirstLic_Cancel">Later</a><br><br> \
+<span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello Inc.\
 </span>\
-<span style="float:right;"><A href="https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Your%20%22Plus%20for%20Trello%20Pro%22%20yearly%20licence.%0AClick%20%22Activate%22%20to%20show%20the%20Chrome%20store%20licence%20screen.%0AYou%20will%20then%20have%20a%207-day%20trial%20until%20the%20store%20charges%20you.%0AThe%20payment%20goes%20100%25%20to%20keep%20improving%20%22Plus%22%20for%20you.%0A%0AButtons%3A%20Activate%2C%20Later" \
+<span style="float:right;"><A href="https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Your%20%22Plus%20for%20Trello%20Pro%22%20yearly%20license.%0AClick%20%22Activate%22%20to%20show%20the%20Chrome%20store%20license%20screen.%0AYou%20will%20then%20have%20a%207-day%20trial%20until%20the%20store%20charges%20you.%0AThe%20payment%20goes%20100%25%20to%20keep%20improving%20%22Plus%22%20for%20you.%0A%0AButtons%3A%20Activate%2C%20Later" \
 target="_blank">Translate</A></span>\
 <\div>\
 </dialog>');

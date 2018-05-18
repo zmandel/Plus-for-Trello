@@ -142,7 +142,7 @@ list-style-type:disc !important;
     position: fixed  !important;
     top: 0px  !important;
     left: 0px  !important;
-    z-index:99999 !important;
+    z-index:2147483647 !important;
     border-top-right-radius: 0px !important;
     border-top-left-radius: 0px !important;
     background-color: #FFFFFF !important;
@@ -665,6 +665,10 @@ div#agile_help_container h1 {
 
 .agile_help_top:hover {
     opacity:1 !important;
+}
+
+.agile_almostTopmost1 {
+    z-index: 2147483600 !important;
 }
 
 .agile_topmost {

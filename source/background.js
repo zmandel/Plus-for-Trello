@@ -23,6 +23,8 @@ chrome.runtime.onInstalled.addListener(function (details) {
     }
 });
 
+
+
 window.onerror = function (msg, url, lineNo, columnNo, error) {
     var string = msg.toLowerCase();
     var substring = "script error";
@@ -2271,7 +2273,7 @@ function handleCheckLi(sendResponse) {
         return false;
     }
 
-    function checkPurchased() {
+    function checkPurchased(bJustPurchased, strErrorCustom) {
         google.payments.inapp.getPurchases({
             'parameters': { 'env': 'prod' },
             'success': onLicenseUpdate,
@@ -2279,8 +2281,9 @@ function handleCheckLi(sendResponse) {
         });
 
         function onLicenseUpdateFail(data) {
-            console.error(JSON.stringify(data));
-            respond("onLicenseUpdateFail");
+            var strError = "onPurchaseFail:" + JSON.stringify(data);
+            console.error(data);
+            respond(strError);
             return;
         }
 
@@ -2290,9 +2293,9 @@ function handleCheckLi(sendResponse) {
             var liData = { msLastCheck: Date.now(), msCreated:0, li: "" };
             for (var i = 0; i < count; i++) {
                 var license = licenses[i];
-                if (licence.sku == 'plus_pro_single' && licence.state == "ACTIVE") {
+                if (license.sku == 'plus_pro_single' && license.state == "ACTIVE") {
                     liData.msCreated = parseInt(license.createdTime, 10);
-                    liData.li = licence.itemId;
+                    liData.li = license.itemId;
                 }
             }
 
@@ -2302,15 +2305,18 @@ function handleCheckLi(sendResponse) {
                 //ok if fails 
                 if (BLastErrorDetected())
                     console.error(chrome.runtime.lastError.message);
-                if (!liData.li)
-                    doPurchase();
+                if (!liData.li) {
+                    if (bJustPurchased)
+                        respond(strErrorCustom || "Purchase failed");
+                    else
+                        doPurchase();
+                }
                 else {
-                    respond("hasLicence");
+                    respond(bJustPurchased? STATUS_OK : "hasLicense");
                     return;
                 }
             });
         }
-
     }
 
     function doPurchase() {
@@ -2323,14 +2329,19 @@ function handleCheckLi(sendResponse) {
         });
 
         function onPurchaseFail(data) {
-            if (data && data.response && data.response.errorType != "PURCHASE_CANCELED") {
-                handleShowDesktopNotification({
-                    notification: "Chrome store says after payment screen: " + data.response.errorType,
-                    timeout: 10000
-                });
+            var strError = "onPurchaseFail";
+            if (data && data.response && data.response.errorType)
+                strError = data.response.errorType;
+
+            console.error(data); //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}}
+            if (strError == "PURCHASE_CANCELED")
+                respond(strError);
+            else {
+                //http://stackoverflow.com/questions/38043180/
+                setTimeout(function () { //take some API breath
+                    checkPurchased(true, strError);
+                }, 1000);
             }
-            console.error(JSON.stringify(data)); //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}}
-            respond("onPurchaseFail");
             return;
         }
 
