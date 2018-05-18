@@ -19,7 +19,7 @@ function updateNewLink() {
             var msplus_datesync_last = obj[key_plus_datesync_last];
             var statusLastSync = obj[keyplusSyncLastStatus];
 
-            var tooltipSync = "Click to sync now";
+            var tooltipSync = g_tipUserTopReport;
             if (msplus_datesync_last !== undefined) {
                 var dateLastSync = new Date(msplus_datesync_last);
                 tooltipSync = tooltipSync + "\nLast sync " + getTimeDifferenceAsString(msplus_datesync_last, true) + " @" + dateLastSync.toLocaleTimeString();

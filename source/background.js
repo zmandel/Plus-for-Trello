@@ -14,11 +14,13 @@ var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
 var g_mapTimerWindows = {};
 
-chrome.runtime.onInstalled.addListener(function () {
-    handleShowDesktopNotification({
-        notification: "Welcome!\nRefresh or open a trello.com page to start.",
-        timeout: 20000
-    });
+chrome.runtime.onInstalled.addListener(function (details) {
+    if (details && details.reason && details.reason == "install") {
+        handleShowDesktopNotification({
+            notification: "Welcome!\nRefresh or open a trello.com page to start.",
+            timeout: 20000
+        });
+    }
 });
 
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
@@ -416,6 +418,7 @@ var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
 
+        chrome.runtime.setUninstallURL("http://www.plusfortrello.com/p/goodbye.html?from=uninstall", function () { });
         //prevent too old Chrome versions.
         //Must support at least Promises (Chrome 33) http://caniuse.com/#feat=promises
         //<dialog>: polyfilled so we dont check. http://caniuse.com/#feat=dialog (native since Chrome 37)

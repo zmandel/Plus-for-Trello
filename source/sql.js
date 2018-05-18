@@ -691,12 +691,12 @@ function handleMakeRecurring(tx, idCard) {
 
 
 
-function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoard, tx, callback) {
+function handleCardCreatedUpdatedMoved(data, rowParam, bVerifyBoardIsCardsBoard, tx, callback) {
     var row = rowParam;
     var strExecute = "SELECT dateSzLastTrello, idCard, idBoard, name from CARDS where idCard=?";
 	var values = [row.idCard];
 
-    //note: dont yet use alldata.cards if card is there. changing statement execution order/depth can affect other things
+    //note: dont yet use data.cards if card is there. changing statement execution order/depth can affect other things
 	tx.executeSql(strExecute, values,
 	function onOk(tx2, resultSet) {
 	    var dateEarliestTrello = earliest_trello_date();
@@ -706,10 +706,10 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 		var bCardRenamed = false;
 		var bCardCreated = false;
 		var bCardMoved = false;
-		var rowCard = alldata.cards[row.idCard];
+		var rowCard = data.cards[row.idCard];
 		if (!rowCard && resultSet.rows.length > 0) {
 		    rowCard = cloneObject(resultSet.rows.item(0)); //clone to modify it
-		    alldata.cards[row.idCard] = rowCard; //save it.
+		    data.cards[row.idCard] = rowCard; //save it.
 		}
 
 		if (rowCard) {
@@ -724,8 +724,8 @@ function handleCardCreatedUpdatedMoved(alldata, rowParam, bVerifyBoardIsCardsBoa
 
 		if (bCardCreated) {
 		    //since its the first time we encounter the card, idBoard should be OK
-		    rowCard = { idCard: row.idCard, idBoard: row.idBoard, name: row.strCard }; //for consistency
-		    alldata.cards[row.idCard] = rowCard;
+		    rowCard = { idCard: row.idCard, idBoard: row.idBoard, name: row.strCard };
+		    data.cards[row.idCard] = rowCard;
 		    strExecute2 = "INSERT INTO CARDS (idCard, idBoard, name) \
 						   VALUES (? , ? , ?)";
 		    tx2.executeSql(strExecute2, [row.idCard, row.idBoard, row.strCard],
@@ -884,7 +884,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	var bFromSpreadsheet = (iRowEndLastSpreadsheet !== undefined);
 	var bFromSource = (bFromSpreadsheet || bFromTrelloComments); //otherwise it comes from the interface
 	var rowidLastInserted = null; //will be set to the rowid of the last inserted row
-	var alldata = {
+	var data = {
         cards:{} // card[idCard]. must keep track of cards values because deeper queries can create/modify cards and higher transaction levels wont see those changes.
 	};
 
@@ -923,7 +923,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	        }
 	    }
 
-	    insertHistory(tx, alldata, row, bFromSource);
+	    insertHistory(tx, data, row, bFromSource);
 
 	    function markAsSynced(txParam) {
 	        assert(bFromSource);
@@ -941,7 +941,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	    //and here and in dbopen do the 2nd pass when needed. currently the transaction nestings make it hard to control the order of operations and higher levels seeing changes in db
 	    //from lower levels.
 	    //end review
-	    function insertHistory(tx, alldata, row, bFromSource) {
+	    function insertHistory(tx, data, row, bFromSource) {
 	        var strExecute = "INSERT OR IGNORE INTO HISTORY (idHistory, date, idBoard, idCard, spent, est, user, week, month, comment, bSynced, eType, keyword) \
 				VALUES (? , ? , ? , ? , ? , ? , ? ,? , ?, ?, ?, ?, ?)";
 	        //note that when writting rows from the UI (not the spreadsheet) we dont set bSynced=1 right away, instead we wait until we read that row from the ss to set it
@@ -977,7 +977,7 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
                                 rowidLastInserted = rowidInner;
                         }
                         if (!bFromTrelloComments) {
-                            handleCardCreatedUpdatedMoved(alldata, rowInner, bFromSpreadsheet, tx2, function (cardData) {
+                            handleCardCreatedUpdatedMoved(data, rowInner, bFromSpreadsheet, tx2, function (cardData) {
                                 handleUpdateCardBalances(rowInner, rowidInner, tx2, cardData.name);
                             });
                         }
@@ -2033,6 +2033,11 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_listsByArchived ON LISTS(bArchived ASC)');
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByArchivedDeleted ON CARDS(bArchived ASC, bDeleted ASC)');
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_listsByBoard ON LISTS(idBoard ASC)'); 
+        });
+
+        M.migration(39, function (t) {
+            t.executeSql('ALTER TABLE CARDS ADD COLUMN dateCreated INT DEFAULT NULL');
+            t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByDateCreated ON CARDS(dateCreated ASC)');
         });
 
         M.doIt();

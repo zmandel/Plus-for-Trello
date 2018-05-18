@@ -2,11 +2,13 @@
 
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
-var SQLQUERY_PREFIX_CARDDATA = "select dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, idShort, bArchived, bDeleted ";
+
+var SQLQUERY_PREFIX_CARDDATA = "select dateCreated, dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, idShort, bArchived, bDeleted ";
 var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
 var SQLQUERY_PREFIX_BOARDDATA = "select idBoard,idLong, name, dateSzLastTrello, idActionLast, bArchived, verDeepSync, idTeam, dateLastActivity ";
 var SQLQUERY_PREFIX_LABELDATA = "select idLabel,name, idBoardShort, color ";
 var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
+
 var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
 
 /* array of cards where card = {
@@ -319,7 +321,12 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
             });
         }
 
-        getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process, bUserInitiated);
+        completeMissingCardDateCreated(tokenTrello, alldata, function (response) {
+            if (response.status != STATUS_OK)
+                sendResponse(response);
+            else
+                getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrello, process, bUserInitiated);
+        });
         }
     
     function sendResponse(response) {
@@ -532,6 +539,33 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
         });
 }
 
+function completeMissingCardDateCreated(tokenTrello, alldata, sendResponse) {
+    var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where dateCreated is NULL", values: [] };
+    handleGetReport(request,
+        function (responseReport) {
+            if (responseReport.status != STATUS_OK) {
+                sendResponse(responseReport);
+                return;
+            }
+
+            responseReport.rows.forEach(function (row) {
+                var cardCur = alldata.cards[row.idCard];
+                if (!cardCur) {
+                    cardCur = cloneObject(row);
+                    cardCur.orig = cloneObject(cardCur); //keep original values for comparison
+                    alldata.cards[row.idCard] = cardCur;
+                    if (row.idLong)
+                        alldata.cardsByLong[row.idLong] = row.idCard;
+                }
+                if (!cardCur.dateCreated && row.idLong) {
+                    var cSeconds = parseInt(row.idLong.substring(0, 8), 16); //http://help.trello.com/article/759-getting-the-time-a-card-or-board-was-created
+                    if (cSeconds && cSeconds > 0)
+                        cardCur.dateCreated = cSeconds; 
+                }
+            });
+            sendResponse({ status: STATUS_OK });
+        });
+}
 
 function completeMissingListCardData(tokenTrello, alldata, sendResponse) {
     var shortLinkCard = null;
@@ -1021,12 +1055,16 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
 
     var cardCur = cards[card.shortLink];
     var dueDate = undefined;
+    var dateCreated = undefined;
     if (typeof card.due != "undefined") {
         if (card.due == null)
             dueDate = null;
         else
             dueDate = Math.round(new Date(card.due).getTime() / 1000);
     }
+
+    if (typeAction == "createCard" && actionCur.date)
+        dateCreated = Math.round(new Date(actionCur.date).getTime() / 1000);
 
     var idShort = card.idShort;
     if (idShort && typeof (idShort) == "number") //no evidence that its not a number, but list "pos" turned out to be sometimes not a number, thus assume it can happen here
@@ -1042,6 +1080,9 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
 
             if (typeof dueDate != "undefined")
                 cardCur.dateDue = dueDate; //can be null
+
+            if (typeof dateCreated != "undefined")
+                cardCur.dateCreated = dateCreated; //not null
 
             cardCur.dateSzLastTrello = dateCard;
             if (true) {
@@ -1072,7 +1113,7 @@ function bUpdateAlldataCard(actionCur, cards, card, idBoard, dateCard) {
             //before this change, trello used to keep all the history thus the name was never undefined ("createCard" and such were processed before)
             cardActionName = (typeAction == "deleteCard" ? "deleted card" : "unknown card name");
         }
-        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false, dateDue: dueDate || null, idShort: idShort };
+        cardCur = { name: cardActionName, dateSzLastTrello: dateCard, idList: idList, idBoard: idBoard, bArchived: card.closed || false, dateDue: dueDate || null, dateCreated:dateCreated || null, idShort: idShort };
         cards[card.shortLink] = cardCur;
     }
 

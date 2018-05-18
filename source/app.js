@@ -198,6 +198,7 @@ function testExtension(callback) {
 }
 
 function loadExtensionVersion(callback) {
+    //review use chrome.runtime.getManifest() from background
     if (g_manifestVersion != "")
         return;
     g_manifestVersion = "unknown"; //prevent loading again and handle error case

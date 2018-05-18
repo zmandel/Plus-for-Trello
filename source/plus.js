@@ -1,7 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
 
 var g_msSyncPeriod = 3 * (60 * 1000); //3 minutes
-var g_tipUserTopReport = "Click to sync now";
+var g_tipUserTopReport = "Sync";
 var g_marginLabelChart = 35;
 var g_heightBarUser = 30;
 var g_bShowBoardMarkers = false;
