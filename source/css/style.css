@@ -210,6 +210,11 @@ list-style-type:disc !important;
     background-color:white !important;
 }
 
+.agile_mtse_day {
+    display: inline-block !important;
+    width:5em !important;
+}
+
 .agile_mtse_units {
     display: inline-block !important;
     margin-top:0.5em !important;

@@ -812,7 +812,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('The other sync modes make a card comment each time you enter S/E.', divCur);
 	    helpWin.para('Only those that use the same sync spreadsheet will see the team S/E, regardless of Trello board permissions.', divCur);
 	    helpWin.para("&nbsp;", divCur);
-	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1st sync option and use a different "keyword".', divCur);
+	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1ˢᵗ sync option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
         helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
         helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>', divCur);
@@ -845,7 +845,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('Advantages: Permission is based on using the same spreadsheet url, regardless of board membership. Also, card titles are renamed to include total S/E thus you can see total card S/E from mobile or other browsers.', divCur);
 	    helpWin.para('S/E is not synced from card comments, only from the spreadsheet even thou it does add a card S/E comment.', divCur);
 	    helpWin.para('Thus in this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
-	    helpWin.para('Because this mode also adds card S/E comments, its easy to later change to the recommended 1st sync option.', divCur);
+	    helpWin.para('Because this mode also adds card S/E comments, its easy to later change to the recommended 1ˢᵗ sync option.', divCur);
 	    spanButtonGS = setupPlusConfigLink(divCur);
 	    helpWin.para("&nbsp;", divCur);
 	    showCurrentSpreadsheetLink();
@@ -1412,7 +1412,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	        var checkPreventEstMod = paraPreventEstMod.children('input:checkbox:first');
 	        paraPreventEstMod.children('a').click(function (ev) {
 	            helpTooltip(ev, "Check to prevent users from accidentally increasing E (cause a +E) in the S/E bar and 'modify'.\
- Users can still increase E on [R]ecurring cards, create new estimations (1st E) in the S/E bar and change E with <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comments</A>.<br>\
+ Users can still increase E on [R]ecurring cards, create new estimations (1ˢᵗ E) in the S/E bar and change E with <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comments</A>.<br>\
 Managers can always easily find new S/E rows with 'E. type: +E' in the Plus Chrome menu 'New S/E rows' report or estimate change charts.");
 	        });
 	        if (g_bPreventIncreasedE)

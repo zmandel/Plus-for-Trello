@@ -30,7 +30,7 @@ function showTransferEDialog() {
 </tr> \
 <tr> \
 <td align="left"><select class="agile_transferE_user_from agile_combo_regular" title="Pick the \'from\' user."></select></td> \
-<td align="left"><select class="agile_transferE_user_to agile_combo_regular" title="Pick the \'to\' user."></select></td> \
+<td align="left"><select autofocus class="agile_transferE_user_to agile_combo_regular" title="Pick the \'to\' user."></select></td> \
 <td align="left"><input class="agile_transferE_e" maxlength="10"</input></td> \
 </tr> \
 </table> \
@@ -38,7 +38,7 @@ function showTransferEDialog() {
 <label class="agile_unselectable" style="vertical-align: middle;font-weight:normal;line-height:1em;"><input type="checkbox" class="agile_transfere_alsospend" style="vertical-align: middle;margin-bottom:4px;margin-top:4px;" /> Immediately spend the transferred ' + UNITS.getLongFormat(UNITS.current, g_bDisplayPointUnits) + '.</label>\
 <button id="agile_enter_transferE">Enter</button> \
 <button id="agile_cancel_transferE">Cancel</button> \
-<A style="float:right;margin-top:1.5em;" class="agile_linkSoftColor" href="http://www.plusfortrello.com/p/transfer-estimates-between.html" target="_blank">help</A> \
+<button id="agile_help_transferE" style="display:inline-block;float:right;">Help</button> \
 <p class="agile_transferEMessage agile_lightMessage">&nbsp;</p> \
 <br> \
 <table style="agile-etransfer-stats">\
@@ -66,6 +66,10 @@ function showTransferEDialog() {
         divDialog.find("#agile_cancel_transferE").click(function (e) {
             divDialog[0].close();
         });
+
+        divDialog.find("#agile_help_transferE").click(function (e) {
+            showSEHelpDialog("transfere");
+        });
     }
 
     divDialog.off('keydown.plusForTrello').on('keydown.plusForTrello', function (evt) {
@@ -84,6 +88,7 @@ function showTransferEDialog() {
     var elemAlsoSpend = divDialog.find(".agile_transfere_alsospend");
     var bAlsoSpend = false;
 
+    setTimeout(() => { comboUserTo.focus();}); // for convenience, and so ESC wont kill the card behind
     var celSel = {
         from: { user: ".agile-etransfer-tcel-from-user", s: ".agile-etransfer-tcel-from-s", e: ".agile-etransfer-tcel-from-e", r: ".agile-etransfer-tcel-from-r" },
         to: { user: ".agile-etransfer-tcel-to-user", s: ".agile-etransfer-tcel-to-s", e: ".agile-etransfer-tcel-to-e", r: ".agile-etransfer-tcel-to-r" }

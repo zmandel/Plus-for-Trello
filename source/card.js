@@ -381,12 +381,12 @@ function createSEButton() {
         a.append(spanIcon);
         parent.prepend(a);
         a.click(function () {
-            showSEBarContainer(false,true);
+            showSEBarContainer(false,true,false, true);
         });
     }
 }
 
-function showSEBarContainer(bDontRemember, bFocusS, bFocusE) {
+function showSEBarContainer(bDontRemember, bFocusS, bFocusE, bDontHilite) {
     $(".agile-se-bar-entry").show();
     if (!bDontRemember)
         g_bShowSEBar = true;
@@ -394,8 +394,10 @@ function showSEBarContainer(bDontRemember, bFocusS, bFocusE) {
         setTimeout(function () {
             var elemSE = $(bFocusS ? ".agile_spent_box_input" : ".agile_estimation_box_input");
             elemSE.focus();
-            hiliteOnce(elemSE);
-            hiliteOnce($("#plusCardCommentUsers"));
+            if (!bDontHilite) {
+                hiliteOnce(elemSE);
+                hiliteOnce($("#plusCardCommentUsers"));
+            }
         }, 0);
         }
 }
@@ -570,13 +572,6 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	            }
 
 	            var dateNow = new Date();
-	            var options = {
-	                date: dateNow,
-	                mode: 'date',
-	                maxDate: dateNow.getTime()
-	            };
-
-	            
 	            getSEDate(function (dateIn) {
 	                if (!getIdCardFromUrl(document.URL))
 	                    return; //rare. user managed to close the card but not the date dialog.
@@ -1061,7 +1056,7 @@ function fillCardSEStats(tableStats,callback) {
                         if (!bModifiedHeaderE && parseFixedFloat(rowData.estOrig) != parseFixedFloat(rowData.est)) {
                             var elemHeaderE = rowHeader.find(".agile-card-now-estimate-header");
                             elemHeaderE.html(dataRowHeader.est + " (" + dataRowHeader.estOrig + ")" + g_hackPaddingTableSorter);
-                            elemHeaderE.attr("title", "Estimate sum per user. (1st estimate in parenthesis)");
+                            elemHeaderE.attr("title", "Estimate sum per user. (1ˢᵗ estimate in parenthesis)");
                             bModifiedHeaderE = true;
                         }
                     }
@@ -1156,6 +1151,7 @@ function showSETotalEdit(idCardCur, user) {
 <h2 class="agile_mtse_title"></h2><br> \
 <select class="agile_mtse_keywords agile_combo_regular" title="Pick the keyword for this modification."></select> \
 <a class="agile_mtse_kwReportLink agile_linkSoftColor" href="" target="_blank">view keyword report</a> \
+<br>Date to modify: <select class="agile_mtse_day"></select>\
 <table class="agile_seTotalTable"> \
 <tr> \
 <td align="left">S sum</td> \
@@ -1174,7 +1170,7 @@ function showSETotalEdit(idCardCur, user) {
 <button id="agile_cancel_SETotal">Cancel</button> \
 <br><br><p class="agile_mtseMessage agile_lightMessage"></p> \
 <br>\
-<span class="agile_lightMessage">Use "Modify" or use the "S/E bar" ?<br>Modify a 1st estimate ? See help <b>→</b></span> <A style="float:right" class="agile_linkSoftColor" href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">help</A> \
+<span class="agile_lightMessage">Use "Modify" or use the "S/E bar" ?<br>Modify a 1ˢᵗ estimate ? See </span> <button class="agile_modify_help" style="display:inline-block;"  href="">help</button> \
 </dialog>');
         $("body").append(divDialog);
         divDialog = $(".agile_dialog_editSETotal");
@@ -1185,7 +1181,39 @@ function showSETotalEdit(idCardCur, user) {
         divDialog.find(".agile_mtse_s")[0].onkeypress = function (e) { validateSEKey(e); };
         divDialog.find(".agile_mtse_e")[0].onkeypress = function (e) { validateSEKey(e); };
         divDialog.find(".agile_mtse_r")[0].onkeypress = function (e) { validateSEKey(e); };
+        divDialog.find(".agile_modify_help").click(function (ev) {
+            showSEHelpDialog();
+        });
+
+        divDialog.find(".agile_mtse_day").change(function () {
+            var combo = $(this);
+            var val = combo.val();
+            if (!val)
+                return;
+            if (val == g_strDateOtherOption) {
+                function process(dayNew) {
+                    if (dayNew) {
+                        if (dayNew > g_iLastComboDays)
+                            g_valDayExtra = dayNew;
+                    }
+                    fillDaysList(comboDays, dayNew);
+                }
+
+                var dateNow = new Date();
+                getSEDate(function (dateIn) {
+                    if (!getIdCardFromUrl(document.URL))
+                        return; //rare. user managed to close the card but not the date dialog.
+                    var date = 0;
+                    if (dateIn)
+                        date = getDeltaDates(dateNow, dateIn);
+                    process(date);
+                });
+            }
+        });
     }
+
+    var comboDays = divDialog.find(".agile_mtse_day");
+    fillDaysList(comboDays, 0);
 
     divDialog.off('keydown.plusForTrello').on('keydown.plusForTrello', function (evt) {
         //need to capture manually before trello captures it and closes the card.
@@ -1232,7 +1260,7 @@ function showSETotalEdit(idCardCur, user) {
     var elemE = divDialog.find(".agile_mtse_e");
     var elemMessage = divDialog.find(".agile_mtseMessage");
     var elemNote = divDialog.find(".agile_se_note");
-    var strMessageInitial = "Once you modify totals Plus will enter a new S/E row with the needed difference.";
+    var strMessageInitial = "Plus will enter a new S/E row on the given date, with the needed values to make your new totals.";
     var elemR = divDialog.find(".agile_mtse_r");
 
     var sOrig = null;
@@ -1307,6 +1335,8 @@ function showSETotalEdit(idCardCur, user) {
 
     function updateMessage(bUpdateR) {
         var data = getSEData(true);
+        if (!data)
+            return;
         var strMessageNew = null;
         if (data.s == 0 && data.e == 0)
             strMessageNew=strMessageInitial;
@@ -1324,6 +1354,16 @@ function showSETotalEdit(idCardCur, user) {
         }
 
     function getSEData(bSilent) {
+        var prefix = comboDays.val() || "";
+        if (!prefix || prefix == g_strDateOtherOption) {
+            if (!bSilent) {
+                hiliteOnce(comboDays, 500);
+                return null;
+            } else {
+                prefix = "";
+            }
+        }
+
         var sNew = elemS.val().trim();
         var eNew = elemE.val().trim();
         var sNewNum = parseFixedFloat(sNew);
@@ -1335,7 +1375,7 @@ function showSETotalEdit(idCardCur, user) {
         var kw = null;
         if (!bHideComboKeyword)
             kw = comboKeyword.val() || "";
-        return { s: sDiff, e: eDiff, keyword:kw };
+        return { s: sDiff, e: eDiff, keyword: kw, prefix: prefix };
     }
 
     comboKeyword.off("change.plusForTrello").on("change.plusForTrello", function (e) {
@@ -1381,7 +1421,7 @@ function showSETotalEdit(idCardCur, user) {
             hiliteOnce(elemE, 500);
             return;
         }
-        setNewCommentInCard(idCardCur, data.keyword, data.s, data.e, note, "", //empty prefix means time:now
+        setNewCommentInCard(idCardCur, data.keyword, data.s, data.e, note, data.prefix, //empty prefix means time:now
             user, null, onBeforeStartCommit, onFinished);
     }
 
@@ -1750,8 +1790,8 @@ function createSEMenu(divParent) {
     //comboSE.append($(new Option("Spent / Estimate", "", false, true)).attr('disabled', 'disabled'));
     comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
     comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
-    comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", "transfer E 1ˢᵗ between users.\n\
-Useful to transfer from a global estimate to a specific user."));
+    comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", 'transfer "E 1ˢᵗ" between users.\n\
+Useful to transfer from a global estimate to a specific user.'));
     comboSE.append($(new Option("S/E Help", "help")));
     comboSE.val(""); //unselect
     divParent.append(comboSE);
@@ -2740,7 +2780,7 @@ function showSEHelpDialog(section) {
     <option value="addest">Add user estimate or global estimate</option>\
     <option value="addspent">Add user spent</option>\
     <option value="modspent">Modify total spent</option>\
-    <option value="modest">Modify total estimate</option>\
+    <option value="modest">Modify total estimate or remain</option>\
     <option value="transfere">Transfer estimate to a user</option>\
     <option value="modfirstest">Fix mistakes or modify  a 1ˢᵗ estimate</option>\
     <option value="addannotation">Add a burndown annotation</option>'+
@@ -2801,31 +2841,32 @@ function showSEHelpDialog(section) {
 <div class="agile_sehelpsection" id="agile_sehelp_modspent">\
 <img src="' + chrome.extension.getURL("images/cardsemodify.png") + '" />\
 <br><br>\
-<p>Use "modify" to correct mistakes or if you prefer to modify total S directly instead of thinking about increases and decreases. "modify" will create the S/E entry (calculating the needed difference).</p>\
+<p>Use "modify" to correct mistakes or if you prefer to modify total S directly instead of thinking about increases and decreases. "modify" will create the S/E entry (calculating the needed difference)  on the date you specify. When fixing past mistakes, pick the date where the mistake happened.</p>\
 <br>\
-<p>You can also use the S/E bar with negative S to substract from total Spent as an easy way to undo a mistake.</p>\
+<p>You can also use the S/E bar with negative S to substract from total Spent.</p>\
 <br>\
-<p>Do not modify S/E comments you already entered (or sheet rows for stealth sync users). Use "modify" or see the "Modify mistakes" topic above.</p>\
+<p>Normally, you should not modify S/E comments you already entered (or sheet rows for stealth sync users) even if mistaken. Use "modify" or see the "Fix mistakes" topic above.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_modest">\
 <img src="' + chrome.extension.getURL("images/cardsemodify.png") + '" />\
 <br><br>\
-<p>Use "modify" to change E directly instead of thinking about increases and decreases. "modify" will create the needed S/E entry when you edit total Estimate</p>\
+<p>Use "modify" to change E or R directly instead of thinking about increases and decreases. "modify" will create the needed S/E entry on the date you specify. When fixing past mistakes, pick the date where the mistake happened.</p>\
 <br>\
+<p>Plus considers a card finished when R is zero for all users. R = E - S.  \
 <p>You may also use the S/E bar with negative numbers to substract from the total Estimate. However, just like the S/E bar, it does not modify "E 1ˢᵗ".</p>\
 <br>\
-<p>Do not modify S/E comments you already entered (or sheet rows for stealth sync users). Use "modify" or see the "Modify mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
+<p>Normally, you should not modify S/E comments you already entered (or sheet rows for stealth sync users) even if mistaken. Use "modify" or see the "Fix mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_transfere">\
 <p>Pick "transfer Estimate" from the "Spent / Estimate" menu in the card front.<\p>\
-<p>Transfer E 1ˢᵗ between users, usually from a "global" estimate to an actual user.<\p>\
+<p>Transfer "E 1ˢᵗ" between users, usually from a "global" estimate to an actual user.<\p>\
 <br>\
-<p>A "global" estimate is simply E assigned to the "global" user.<\p>\
+<p>A "global" estimate is E assigned to the "global" user.<\p>\
 <p>Change "global" to a different name in Plus help - Preferences.<\p>\
-<A href="http://www.plusfortrello.com/p/transfer-estimates-between.html" target="_blank">More information.</A>\
+<A href="http://www.plusfortrello.com/p/transfer-estimates-between.html" target="_blank">More information</A>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_modfirstest">\
-<p>To fix mistakes with Spent or with modifying estimate, just use "modify" to undo.</p>\
+<p>To fix mistakes with Spent or Estimate, use "modify".</p>\
 <p>However, that will not change a 1ˢᵗ Estimate. It\'s possible to modify E 1ˢᵗ when using the "Card comments" sync mode by entering a special S/E comment with the "^resetsync" command.<\p>\
 <p>First, modify the card comment where the S/E entry was made for the 1ˢᵗ Estimate. Note that only the Trello user that made the comment can modify it.<br>\
 <p>Then, issue the command:</p>\
