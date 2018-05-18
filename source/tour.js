@@ -240,7 +240,8 @@ function handleCardTour() {
           angle: 90,
           distance: 0,
           size: 200,
-          bSEOnly: true
+          bSEOnly: true,
+          bEstOnly: true
       },
       {
           id: 9,
@@ -250,7 +251,8 @@ function handleCardTour() {
           angle: 90,
           distance: 0,
           size: 200,
-          bSEOnly: true
+          bSEOnly: true,
+          bEstOnly: true
       },
     {
         id: 10,
@@ -260,7 +262,8 @@ function handleCardTour() {
         angle: 90,
         distance: 0,
         size: 200,
-        bSEOnly: true
+        bSEOnly: true,
+        bEstOnly: true
     },
     {
         id: 11,
@@ -281,7 +284,8 @@ function handleCardTour() {
             angle: 90,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
 
      {
@@ -302,7 +306,8 @@ function handleCardTour() {
         angle: 90,
         distance: 0,
         size: 200,
-        bSEOnly: true
+        bSEOnly: true,
+        bEstOnly: true
     },
     {
         id: 15,
@@ -312,7 +317,8 @@ function handleCardTour() {
         angle: 90,
         distance: 0,
         size: 200,
-        bSEOnly: true
+        bSEOnly: true,
+        bEstOnly: true
     },
         {
             id: 16,
@@ -322,7 +328,8 @@ function handleCardTour() {
             angle: 90,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
         {
             id: 17,
@@ -331,7 +338,8 @@ function handleCardTour() {
             angle: 180,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
         {
             id: 18,
@@ -340,7 +348,8 @@ function handleCardTour() {
             angle: 180,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
 
         {
@@ -350,7 +359,8 @@ function handleCardTour() {
             angle: 180,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
 
         {
@@ -397,7 +407,8 @@ function handleCardTour() {
                angle: 180,
                distance: 0,
                size: 200,
-               bSEOnly: true
+               bSEOnly: true,
+               bEstOnly: true
            },
 
            {
@@ -436,7 +447,8 @@ function handleCardTour() {
            angle: 180,
            distance: 0,
            size: 200,
-           bSEOnly: true
+           bSEOnly: true,
+           bEstOnly: true
        },
         {
             id: 28,
@@ -445,7 +457,8 @@ function handleCardTour() {
             angle: 180,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
        {
            id: 29,
@@ -454,7 +467,8 @@ function handleCardTour() {
            angle: 180,
            distance: 0,
            size: 200,
-           bSEOnly: true
+           bSEOnly: true,
+           bEstOnly: true
        },
         {
             id: 30,
@@ -463,7 +477,8 @@ function handleCardTour() {
             angle: 180,
             distance: 0,
             size: 200,
-            bSEOnly: true
+            bSEOnly: true,
+            bEstOnly: true
         },
     
        {
@@ -614,7 +629,8 @@ function handleBoardTour() {
               angle: 180 + 45,
               distance: 0,
               size: 100,
-              bSEOnly: true
+              bSEOnly: true,
+              bEstOnly: true
           },
            {
                id: 5,
@@ -788,7 +804,7 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
 
     //timeout in case the grumble code doesnt finish right away
     setTimeout(function () {
-        if ((step.bHideOnTrelloSync && g_bEnableTrelloSync) || (g_bNoSE && step.bSEOnly)) {
+        if ((step.bHideOnTrelloSync && g_bEnableTrelloSync) || (g_bNoSE && step.bSEOnly) || (g_bNoEst && step.bEstOnly)) {
             showNextBubble(delta);
             return;
         }
@@ -822,7 +838,7 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
         if (elemTarget.length != 0 && elemTarget.hasClass("select2-hidden-accessible"))
             elemTarget = elemTarget.next();
 
-        if (elemTarget.length == 0) {
+        if (elemTarget.length == 0 || !elemTarget.eq(0).is(":visible")) {
             showNextBubble(delta);
             return;
         }

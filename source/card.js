@@ -203,16 +203,15 @@ function updateNoteR() {
         prefixNote = "sums are:";
     }
 
-    if (sumS < 0 || sumE < 0 || (!g_bAllowNegativeRemaining && rDiff < 0))
+    if (sumS < 0 || (!g_bNoEst && (sumE < 0 || (!g_bAllowNegativeRemaining && rDiff < 0))))
         statusPre.closest("tr").addClass("agile_SER_negative").removeClass("agile_SER_normal");
     else
         statusPre.closest("tr").addClass("agile_SER_normal").removeClass("agile_SER_negative");
 
-    var noteS = sSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E&nbsp;<b>" + eSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R&nbsp;<b>" + rDiffFormatted + "</b>";
     statusPre.html(prefixNote);
     statusS.html("S=&#8203;" + sSumFormatted); //see http://stackoverflow.com/a/41913332/2213940 about the zero-width space so it line-breaks on long strings
-    statusE.html("E=&#8203;" + eSumFormatted);
-    statusR.html("&nbsp;&nbsp;R=" + rDiffFormatted + (g_bAllowNegativeRemaining || rDiff != 0 ? "" : ". Increase E if not done.") + strLinkHelp);
+    statusE.html(g_bNoEst? "" : "E=&#8203;" + eSumFormatted);
+    statusR.html(g_bNoEst ? "" : "&nbsp;&nbsp;R=" + rDiffFormatted + (g_bAllowNegativeRemaining || rDiff != 0 ? "" : ". Increase E if not done.") + strLinkHelp);
     done();
 }
 
@@ -628,12 +627,18 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
     //thanks for "input" http://stackoverflow.com/a/14029861/2213940
 	spinS.bind("input", function (e) { updateEOnSChange(); });
 	var spinE = setNormalFont($('<input id="plusCardCommentEstimate" placeholder="E" maxlength="10"></input>').addClass("agile_estimation_box_input agile_placeholder_small agile_focusColorBorder"));
+	var spanSpinE = $('<span>');
+	spanSpinE.append(spinE);
 	spinE.attr("title", "Click to type Estimate.");
 	spinE[0].onkeypress = function (e) { validateSEKey(e); checkEnterKey(e); };
 	spinE.bind("input", function (e) { updateNoteR(); });
-	var slashSeparator = setSmallFont($("<span />").text("/"));
+	var slashSeparator = setSmallFont($("<span>").text("/"));
 	var comment = setNormalFont($('<input type="text" maxlength="250" name="Comment" placeholder="note"/>').attr("id", "plusCardCommentComment").addClass("agile_comment_box_input agile_placeholder_small"));
 
+	if (g_bNoEst) {
+	    slashSeparator.addClass("agile_hidden");
+	    spanSpinE.addClass("agile_hidden");
+	}
 	spinS.focus(function () { $(this).select(); });
 	spinE.focus(function () { $(this).select(); }); //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
 
@@ -686,7 +691,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	row.append($('<td />').addClass("agile_tablecellItem").append(comboDays));
 	row.append($('<td />').addClass("agile_tablecellItem").append(spinS));
 	row.append($('<td />').addClass("agile_tablecellItem").append(slashSeparator));
-	row.append($('<td />').addClass("agile_tablecellItem").append(spinE));
+	row.append($('<td />').addClass("agile_tablecellItem").append(spanSpinE));
 	row.append($('<td />').addClass("agile_tablecellItem").append(comment).width("100%")); //takes remaining hor. space
 	row.append($('<td />').addClass("agile_tablecellItemLast").append(buttonEnter));
 
@@ -803,7 +808,8 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	parentSEInput.before(container);
 	fillCardSEStats(tableStats, function () {
 	    container.show();
-	    createSEButton();
+        if (!g_bNoSE)
+	        createSEButton();
 	    insertCardTimer();
 	    g_currentCardSEData.loadFromStorage(idCardCur, function () {
 	        if (g_currentCardSEData.idCard != idCardCur)
@@ -985,11 +991,12 @@ function verifyValidInput(sTotal, eTotal) {
     var err = null;
     if (sTotal < 0)
         err = "Spent total will go negative.";
-    else if (eTotal < 0)
-        err = "Estimate total will go negative.";
-    else if (rTotal < 0 && !g_bAllowNegativeRemaining)
-        err = "Spent total will be larger than estimate total.\nTo avoid this see Plus Preferences 'Allow negative Remaining'";
-
+    else if (!g_bNoEst) {
+        if (eTotal < 0)
+            err = "Estimate total will go negative.";
+        else if (rTotal < 0 && !g_bAllowNegativeRemaining)
+            err = "Spent total will be larger than estimate total.\nTo avoid this see Plus Preferences 'Allow negative Remaining'";
+    }
     if (err != null) {
         err = err + "\n\nAre you sure you want to enter this S/E row?";
         if (!confirm(err))
@@ -1052,13 +1059,20 @@ function fillCardSEStats(tableStats,callback) {
                 var spentBadge = containerStats.find(".agile_badge_spent");
                 var remainBadge = containerStats.find(".agile_badge_remaining");
                 if (response.status == STATUS_OK && (response.rows.length > 0 || (isTourRunning() && !g_bNoSE))) {
-                    containerStats.show();
+                    if (!g_bNoSE)
+                        containerStats.show();
                     if (elemRptLink.length == 0) {
                         estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront").attr('title', 'E sum\nall users');
                         spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront agile_badge_cardfrontFirst").attr('title', 'S sum\nall users');
                         remainBadge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_cardfront").attr('title', 'R sum\nall users');
 
                         var elemTransferE = $('<a class="agile_linkSoftColor no-print agile_unselectable" href="" target="_blank" title="Transfer estimates between users">transfer E</a>');
+                        if (g_bNoEst) {
+                            elemTransferE.hide();
+                            estimateBadge.hide();
+                            remainBadge.hide();
+                        }
+
                         elemTransferE.click(function () {
                             showTransferEDialog();
                         });
@@ -1508,6 +1522,10 @@ function addCardSERowData(tableStats, rowData, bHeader) {
 	
 	var e = $(td).addClass("agile-card-now-estimate-header");
 	var r = $(td);
+	if (g_bNoEst) {
+	    e.hide();
+	    r.hide();
+	}
 	var linkMod = $(td).addClass("agile-card-seByUserModify");
 	
 	if (bHeader) {
@@ -1689,6 +1707,8 @@ function recalcChecklistTotals() {
     var spentBadge = seChecks.children(".agile_badge_spent");
     if (estimateBadge.length==0) {
         estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront");
+        if (g_bNoEst)
+            estimateBadge.hide();
         spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront");
         seChecks.append(spentBadge).append(estimateBadge);
     }
@@ -1810,6 +1830,8 @@ function createRecurringCheck() {
         });
 
     });
+    if (g_bNoEst)
+        span.hide();
     return span;
 }
 
@@ -1825,13 +1847,16 @@ function updateRecurringCardImage(bRecurring, icon) {
 
 function createSEMenu(divParent) {
     var comboSE = $("<select class='agile_AddSELink agile_card_combo agile_linkSoftColor'></select>");
-    comboSE.prop("title", "Plus Spent and Estimates.");
-    comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
-    comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
-    comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", 'transfer "E 1ˢᵗ" between users.\n\
+    comboSE.prop("title", "Plus for Trello card features");
+    if (!g_bNoSE) {
+        comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
+        if (!g_bNoEst) {
+            comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
+            comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", 'transfer "E 1ˢᵗ" between users.\n\
 Useful to transfer from a global estimate to a specific user.'));
-
-    comboSE.append($(new Option("? Show S/E Help", "help")));
+        }
+        comboSE.append($(new Option("? Show S/E Help", "help")));
+    }
     comboSE.append($(new Option("? Show the Plus help pane", "helppane")));
     comboSE.append($(new Option("? Start the card tour", "tour")));
     comboSE.append($(new Option("Mini-me", "minime")));
@@ -1840,7 +1865,7 @@ Useful to transfer from a global estimate to a specific user.'));
     comboUpdateView();
 
     function comboUpdateView() {
-        var scombo=comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "S/E & More", dropdownAutoWidth: true });
+        var scombo=comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: (g_bNoSE? "" : "S/E & ")+ "More", dropdownAutoWidth: true });
     }
 
     function clearSelection() {
@@ -2120,7 +2145,7 @@ var Card = {
 
 
 function loadCardTimer(idCard) {
-    var timerElem = $("<a></a>").addClass("button-link").addClass(CLASS_onlyPlusSE).attr("id", "agile_timer").attr('disabled', 'disabled');
+    var timerElem = $("<a></a>").addClass("button-link").attr("id", "agile_timer").attr('disabled', 'disabled');
 	var spanIcon = $("<span>");
 	var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
 	icon.addClass("agile-spent-icon-cardtimer");

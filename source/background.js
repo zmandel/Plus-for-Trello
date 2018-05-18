@@ -2309,7 +2309,7 @@ var g_analytics = {
         if (bAlwaysSendCD || valCD1Prev != valCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
             payload = payload + "&cd1=" + valCD1Cur;
 
-        chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE, keySyncOutsideTrello], function (obj) {
+        chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_NO_EST, SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE, keySyncOutsideTrello], function (obj) {
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError.message);
                 return;
@@ -2319,9 +2319,11 @@ var g_analytics = {
             var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE];
             const PROP_LS_CD2LAST = "CD2LAST"; //licence & buy attempt count
             const PROP_LS_CD3LAST = "CD3LAST"; //sync method
-            const PROP_LS_CD4LAST = "CD4LAST"; //background sync?
+            const PROP_LS_CD4LAST = "CD4LAST"; //background sync
             const PROP_LS_CD5LAST = "CD5LAST"; //keywords count (multiple keywords)
             const PROP_LS_CD6LAST = "CD6LAST"; //units
+            const PROP_LS_CD7LAST = "CD7LAST"; //SYNCPROP_NO_SE
+            const PROP_LS_CD8LAST = "CD8LAST"; //SYNCPROP_NO_EST
 
             var valCD2Prev = localStorage[PROP_LS_CD2LAST] || "";
             var cViewedBuyDialog = localStorage[PROP_LS_cViewedBuyDialog] || "0";
@@ -2348,6 +2350,16 @@ var g_analytics = {
             var valCD6Cur = UNITS.current;
             if (bAlwaysSendCD || valCD6Prev != valCD6Cur)
                 payload = payload + "&cd6=" + valCD6Cur;
+
+            var valCD7Prev = localStorage[PROP_LS_CD7LAST] || "";
+            var valCD7Cur = obj[SYNCPROP_NO_SE]? "true" : "false";
+            if (bAlwaysSendCD || valCD7Prev != valCD7Cur)
+                payload = payload + "&cd7=" + valCD7Cur;
+
+            var valCD8Prev = localStorage[PROP_LS_CD8LAST] || "";
+            var valCD8Cur = obj[SYNCPROP_NO_EST]? "true" : "false";
+            if (bAlwaysSendCD || valCD8Prev != valCD8Cur)
+                payload = payload + "&cd8=" + valCD8Cur;
 
             setTimeout(function () {
                 var xhr = new XMLHttpRequest();

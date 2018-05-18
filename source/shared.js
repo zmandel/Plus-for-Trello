@@ -26,12 +26,14 @@ var g_bIncreaseLogging = false;
 var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
 var g_language = "en";
 var g_bNoSE = false; //true -> hide S/E features
+var g_bNoEst = false; //true -> hide E features
 var g_bProVersion = false;
 var g_bFromBackground = false;
 var g_msStartPlusUsage = null; //ms of date when plus started being used.
 const URLPART_PLUSLICENSE = "plus-license";
 const LOCALPROP_NEEDSHOWPRO = "keyNeedShowProInfo";
 const LOCALPROP_DONTSHOWSYNCWARN = "bDontShowAgainSyncWarn";
+const LOCALPROP_NEEDSHOWHELPPANE = "keyNeedShowHelpPane";
 
 const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
 
@@ -238,6 +240,7 @@ var SYNCPROP_SERVIEWS = "SERViews";  // see g_serViews
 var SYNCPROP_MSSTARTPLUSUSAGE = "msStartPlusUsage";
 var SYNCPROP_USERSEBAR_LAST = "userSEBarLast";
 var SYNCPROP_NO_SE = "dontUseSE";
+var SYNCPROP_NO_EST = "dontUseEst";
 var LOCALPROP_EXTENSION_VERSIONSTORE = "chromeStoreExtensionVersion";
 
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
@@ -415,7 +418,7 @@ function loadSharedOptions(callback) {
 
     assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([SYNCPROP_MSSTARTPLUSUSAGE, keyServiceUrl, SYNCPROP_bStealthSEMode, SYNCPROP_language, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([SYNCPROP_NO_EST, SYNCPROP_NO_SE, SYNCPROP_MSSTARTPLUSUSAGE, keyServiceUrl, SYNCPROP_bStealthSEMode, SYNCPROP_language, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
                                  if (chrome.runtime.lastError) {
@@ -446,6 +449,10 @@ function loadSharedOptions(callback) {
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && g_strServiceUrl && !g_bDisableSync) ? true : false;
                                  g_language = objSync[SYNCPROP_language] || "en";
+
+                                 g_bNoSE = objSync[SYNCPROP_NO_SE] || false;
+                                 g_bNoEst = objSync[SYNCPROP_NO_EST] || false;
+
                                  chrome.storage.local.get([PROP_TRELLOUSER, LOCALPROP_PRO_VERSION], function (obj) {
                                      if (chrome.runtime.lastError) {
                                          alert(chrome.runtime.lastError.message);
@@ -1057,6 +1064,10 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
             }
 		}
 	}
+
+	if (g_bNoEst)
+	    bUseEFirst = false;
+
 	html=html+('</tbody></table>&nbsp<br />'); //extra line fixes table copy, otherwise bottom-right cell loses background color in pasted table.
 	html=html+('</DIV>');
 	if (!bOnlyTable)
@@ -1064,11 +1075,15 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	if (bShowTotals) {
 	    var sep = "<span class='agile_lighterText'>:</span>";
 	    title += ("&nbsp;" + rows.length + " rows&nbsp;");
-	    if (bSEColumns)
-	        title += ("&nbsp;&nbsp;S" + sep + parseFixedFloat(sTotal) +
-            (bUseEFirst ? "&nbsp;&nbsp;&nbsp;&nbspE 1ˢᵗ"+sep + parseFixedFloat(eFirstTotal) : "") +
-            "&nbsp;&nbsp;&nbsp;&nbspE"+sep + parseFixedFloat(eTotal) + "&nbsp;&nbsp;");
-	    title +="&nbsp;&nbspR" + sep +parseFixedFloat(eTotal - sTotal);
+	    if (bSEColumns && !g_bNoSE) {
+	        title += "&nbsp;&nbsp;S" + sep + parseFixedFloat(sTotal);
+	        if (!g_bNoEst) {
+	            title += (
+            (bUseEFirst ? "&nbsp;&nbsp;&nbsp;&nbspE 1ˢᵗ" + sep + parseFixedFloat(eFirstTotal) : "") +
+            "&nbsp;&nbsp;&nbsp;&nbspE" + sep + parseFixedFloat(eTotal) + "&nbsp;&nbsp;");
+	            title += "&nbsp;&nbspR" + sep + parseFixedFloat(eTotal - sTotal);
+	        }
+	    }
 	}
 	htmlTop += getDrilldownTopButtons(bOnlyTable, title);
 	return htmlTop+html;
@@ -1114,8 +1129,8 @@ function updateSelectedReportTotals() {
             }
         }
     }
-    if (selected.length > 0 && bAdded)
-        $(".agile_selection_totals").html((g_bPopupMode ? "<br />" : "") + "&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
+    if (selected.length > 0)
+        $(".agile_selection_totals").html((g_bPopupMode ? "<br />" : "") + "&nbsp;" + selected.length + " Selected "+ (g_bNoSE?"": "&nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;") + (g_bNoSE || g_bNoEst? "" : "&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur)));
     else
         $(".agile_selection_totals").empty();
 }

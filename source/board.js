@@ -274,14 +274,10 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             else
                 spentBadge.removeClass(szClassSEFromTitle);
 
-            if (bTourRunning && !bNoBadges) {
-                spentBadge.show();
-                estimateBadge.show();
-            } else {
-                elemShowHide(spentBadge, bNoBadges ? false : (!g_bProVersion ? true : g_serViews.card.s));
-                elemShowHide(estimateBadge, bNoBadges ? false : (!g_bProVersion ? true : g_serViews.card.e));
-            }
-            elemShowHide(remainBadge, bNoBadges ? false : (!g_bProVersion ? false : g_serViews.card.r));
+            //CARD
+            elemShowHide(spentBadge, bNoBadges || g_bNoSE ? false : (!g_bProVersion ? true : g_serViews.card.s));
+            elemShowHide(estimateBadge, bNoBadges || g_bNoSE || g_bNoEst ? false : (!g_bProVersion ? true : g_serViews.card.e));
+            elemShowHide(remainBadge,  bNoBadges  || g_bNoSE || g_bNoEst ? false : (!g_bProVersion ? false : g_serViews.card.r));
 
 
             //Recurring
@@ -401,9 +397,10 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             divSE.show();
         }
 
-        elemShowHide(spentBox, bTourRunning || !g_bProVersion? true : g_serViews.list.s);
-        elemShowHide(estimationBox, bTourRunning|| !g_bProVersion ? true : g_serViews.list.e);
-        elemShowHide(remainBox, !g_bProVersion ? false : g_serViews.list.r);
+        //LIST
+        elemShowHide(spentBox, g_bNoSE? false : ( !g_bProVersion? true : g_serViews.list.s));
+        elemShowHide(estimationBox, g_bNoSE || g_bNoEst ? false : (!g_bProVersion ? true : g_serViews.list.e));
+        elemShowHide(remainBox, g_bNoSE || g_bNoEst ? false : (!g_bProVersion ? false : g_serViews.list.r));
         
         if (!bExcludeList) {
             globalTotalEstimation += totalEstimation;
@@ -464,9 +461,10 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             g_spentTotal.prop("title", titleR);
         }
 
-        elemShowHide(g_spentTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.s);
-        elemShowHide(g_estimationTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.e);
-        elemShowHide(g_remainingTotal, bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.r);
+        //BOARD
+        elemShowHide(g_spentTotal, g_bNoSE? false : ( bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.s));
+        elemShowHide(g_estimationTotal, g_bNoSE || g_bNoEst ? false : (bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.e));
+        elemShowHide(g_remainingTotal, g_bNoSE || g_bNoEst ? false : (bShowHeaderStuff || !g_bProVersion ? true : g_serViews.board.r));
         bShowHeaderStuff = true;
     }
     setupBurnDown(bShowHeaderStuff, bHasHiddenCard || bTourRunning);

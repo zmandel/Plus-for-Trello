@@ -32,10 +32,11 @@
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
     <div id="divMain" style="margin:0;padding:0;display:none;">
         <div class="agile_toplevel_report_container">
-            <a style="display:none;position:absolute;left:10px;top:10px;" id="progress"></a>
             <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
+                <a style="display:none;position:absolute;left:5em;top:1em;" id="progress"></a>
                 <div style="width:100%" id="agile_title_header_report">
-                <span id="report_title_text">&nbsp;</span>
+                <button disabled style="float:left;height: 20px; width:47px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
+                    <span id="report_title_text">&nbsp;</span>
                     <span id="report_title_rightLinks" style="display:none;">
                         <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
                         <a style="float:right;text-decoration:none;cursor:help;font-size:110%;margin-right:1em;" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
@@ -46,9 +47,8 @@
                 </div>
             </div>
             <div class="agile_report_filters">
-                <div class="agile_report_filter">
-                    <button disabled style="height: 20px; width:47px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
-                </div>
+                <div class="agile_report_filter agile_alternate_filterPos">
+				</div>
 
                 <div style="display:none" class="agile_report_filter" title="Filter by Plus keywords.
 
@@ -407,10 +407,10 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                             <td class="agile_tab_first">
                                 <a href="#tabs-0" class="agile_report_tabselector">Report</a>
                             </td>
-                            <td class="agile_tab_rest">
+                            <td class="agile_tab_rest agile_tab_pivot">
                                 <a href="#tabs-1" class="agile_report_tabselector">Spent By User</a>
                             </td>
-                            <td class="agile_tab_rest">
+                            <td class="agile_tab_rest agile_tab_pivot">
                                 <a href="#tabs-2" class="agile_report_tabselector">Spent By Board</a>
                             </td>
                             <td class="agile_tab_rest agile_tab_chart">

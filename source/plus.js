@@ -444,6 +444,8 @@ function configureSsLinksWorker(b, url, bSkipConfigCache) {
 		urlUserElem.addClass('agile_urlUser');
 		urlUserElem.appendTo(b);
 		if (!isPlusDisplayDisabled()) {
+		    if (g_bNoSE)
+		        urlUserElem.hide();
 		    getRecentWeeksList().appendTo(b);
 		}
 	}
@@ -508,6 +510,16 @@ function initialIntervalsSetup() {
 	g_remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
 
 	doAllUpdates(false);
+	chrome.storage.local.get([LOCALPROP_NEEDSHOWHELPPANE], function (obj) {
+	    if (obj && obj[LOCALPROP_NEEDSHOWHELPPANE]) {
+	        var pair = {};
+	        pair[LOCALPROP_NEEDSHOWHELPPANE] = false;
+	        chrome.storage.local.set(pair, function () {
+	            Help.display();
+	        });
+	    }
+	});
+	    
 
 	setInterval(function () {
 	    doAllUpdates(true);
@@ -702,7 +714,7 @@ var g_bDisplayPointUnits = false;
 var g_bAllowNegativeRemaining = false;
 var g_bPreventIncreasedE = false;
 var g_bDontWarnParallelTimers = false;
-var g_bUserDonated = false;
+var g_bUserDonated = false; //review: remove
 var g_bHidePendingCards = false;
 var g_bAlwaysShowSEBar = false;
 var g_bHideLessMore = false;
@@ -1224,7 +1236,9 @@ function adjustSelectWidthToContent(combo) {
 function getRecentWeeksList() {
     var combo = $('<select id="spentRecentWeeks" />').addClass("agile_weeks_combo agile_boldfont");
 	combo.css('cursor', 'pointer');
-	combo.attr("title","click to change the week being viewed.");
+	combo.attr("title", "click to change the week being viewed.");
+	if (g_bNoSE)
+	    combo.hide();
 	fillRecentWeeksList(combo);
 	combo.change(function () {
 		if (!g_bReadGlobalConfig) {
@@ -1256,7 +1270,7 @@ function getKeywordsViewList() {
         combo = g_bheader.comboSEView;
 
     if (combo.length == 0) {
-        combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo onlyPlusSE"); //review: rename agile_weeks_combo to generic
+        combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo"); //review: rename agile_weeks_combo to generic
         combo.css('cursor', 'pointer');
         combo.attr("title", "Plus - Click to change the S/E view");
     }
@@ -1454,7 +1468,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 		return false;
 
 	if (burndownLink.length == 0) {
-	    burndownLink = $("<img title='Plus - Board Burndown & Projections' style='display:none;'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link onlyPlusSE");
+	    burndownLink = $("<img title='Plus - Board Burndown & Projections' style='display:none;'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
 	    burndownLink.insertAfter(g_spentTotal);
 	    burndownLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
@@ -1507,7 +1521,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	    });
 	}
 
-    if (!g_bNoSE)
+    if (!g_bNoSE && !g_bNoEst)
 	    burndownLink.show();
 	reportLink.show();
 
@@ -1806,7 +1820,7 @@ function doRecentReport(waiter, elemRecent, user) {
 const VAL_COMBO_OPENREPORT = "//"; //special string that wont collide with idCard
 
 function doPendingReport(waiter, elemPending, user) {
-    if (g_bHidePendingCards) {
+    if (g_bHidePendingCards || g_bNoEst) {
         if (waiter)
             waiter.Decrease();
         return;

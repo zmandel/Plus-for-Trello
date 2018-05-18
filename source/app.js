@@ -30,17 +30,6 @@ function isTabVisible() {
     return !(document.hidden || document.webkitHidden || document.msHidden || document.mozHidden);
 }
 
-function showHideSEFeatures(bNoSE) {
-    if (!bNoSE) {
-        $("." + CLASS_onlyNonPlusSE).hide();
-        $("." + CLASS_onlyPlusSE).show();
-    }
-    else {
-        $("." + CLASS_onlyPlusSE).hide();
-        $("." + CLASS_onlyNonPlusSE).show();
-    }
-}
-
 document.addEventListener('visibilitychange', function () {
     if (!isTabVisible())
         return;
@@ -474,7 +463,7 @@ function entryPoint() {
     checkEnableMoses();
 }
 
-//review zig: merge with loadSharedOptions
+//review zig: merge with loadSharedOptions / loadStorageGlobals
 function loadOptions(callback) {
     var keyDisplayPointUnits = "bDisplayPointUnits";
     var keyAllowNegativeRemaining = "bIgnoreZeroECards";
@@ -515,7 +504,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([SYNCPROP_NO_EST, SYNCPROP_NO_SE, SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyUseLastSEBarUser, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybHideTour,
@@ -529,6 +518,7 @@ function loadOptions(callback) {
                                      logException(e);
                                  }
                                  g_bNoSE = objSync[SYNCPROP_NO_SE] || false;
+                                 g_bNoEst = objSync[SYNCPROP_NO_EST] || false;
                                  g_serViews = (objSync[SYNCPROP_SERVIEWS] || g_serViews);
                                  g_globalUser = objSync[SYNCPROP_GLOBALUSER] || DEFAULTGLOBAL_USER;
                                  g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
@@ -589,11 +579,15 @@ function doAllUpdates(bFromInterval) {
         g_msLastAllUpdatesInterval = msNow;
     }
 
-    chrome.storage.sync.get(SYNCPROP_NO_SE, function (obj) {
+    //note: this mostly helps for testing during development, so the setting can be changed from
+    //one chrome tab as you watch another chrome tab with plus help and validate test scenarios
+    chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_NO_EST], function (obj) {
         var bNoSE = obj[SYNCPROP_NO_SE];
-        if (!bNoSE != !g_bNoSE) {
+        var bNoEst = obj[SYNCPROP_NO_EST];
+        if ((!bNoSE != !g_bNoSE) || (!bNoEst != !g_bNoEst)) {
             g_bNoSE = bNoSE;
-            showHideSEFeatures(bNoSE);
+            g_bNoEst = bNoEst;
+            showHideSEFeatures();
         }
     });
 

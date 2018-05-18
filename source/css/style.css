@@ -422,7 +422,7 @@ div.agile_badge_cardfront {
     margin-bottom: 8px !important;
     text-align:center !important;
     font-size:12px !important;
-    display: inline-block !important;
+    display: inline-block;
     color: #8c8c8c !important;
     border-color: #B7B7B7 !important;
 }
@@ -1877,7 +1877,7 @@ table#tableMarkers td {
 }
 
 .agile_report_filter_input_long {
-	width: 90px;
+	width: 7em;
 }
 
 

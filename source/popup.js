@@ -36,13 +36,15 @@ function updateNewLink() {
             var urlReport = chrome.extension.getURL("report.html");
             var elem = $("#reportLinkNew");
             elem.attr("href", urlReport + "?chartView=s&pivotBy=year&orderBy=date&archived=-1&deleted=-1&afterRow=-1&afterRow=" + rowidLastSyncViewed + "&setLastRowViewed=true");
-            if (rowidLastSync !== undefined && (rowidLastSyncViewed < 0 || rowidLastSyncViewed < rowidLastSync)) {
-                $("#reportLinkNewDisabled").hide();
-                elem.show();
-            }
-            else {
-                elem.hide();
-                $("#reportLinkNewDisabled").show().css("cursor", "default");
+            if (!g_bNoSE) {
+                if (rowidLastSync !== undefined && (rowidLastSyncViewed < 0 || rowidLastSyncViewed < rowidLastSync)) {
+                    $("#reportLinkNewDisabled").hide();
+                    elem.show();
+                }
+                else {
+                    elem.hide();
+                    $("#reportLinkNewDisabled").show().css("cursor", "default");
+                }
             }
         });
     }
@@ -149,7 +151,22 @@ function loadPopup() {
         $("#agile_boardSearch").focus(); //focus on mac for some reason doesnt work without timeout
     }, 150);
 
-	var imgSync = $("#imgSync");
+    var imgSync = $("#imgSync");
+    var linkHelp = $("#help_plus");
+	var elemSpent = $("#reportLinkByUser");
+	var elemRemain = $("#reportLinkR");
+	var elemNewSE = $("#reportLinkNew");
+	var elemNewSEDisabled = $("#reportLinkNewDisabled");
+
+	if (g_bNoEst)
+	    elemRemain.hide();
+
+	if (g_bNoSE) {
+	    elemSpent.hide();
+	    elemRemain.hide();
+	    elemNewSE.hide();
+	    elemNewSEDisabled.hide();
+	}
 
 	function setSyncIcon(bSync) {
 	    if (bSync) {
@@ -163,6 +180,16 @@ function loadPopup() {
 	}
 
 	setSyncIcon(false);
+	linkHelp.click(function (evt) {
+	    evt.preventDefault();
+	    var pair = {};
+	    pair[LOCALPROP_NEEDSHOWHELPPANE] = true;
+	    chrome.storage.local.set(pair, function () {
+	        chrome.tabs.create({ url: "https://trello.com/b/0jHOl1As/plus-for-trello-help" });
+	    });
+	    return false;
+	});
+
 	imgSync.click(function () {
 	    setSyncIcon(true);
 	    sendExtensionMessage({ method: "plusMenuSync" }, function (response) {

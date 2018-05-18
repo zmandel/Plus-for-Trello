@@ -190,12 +190,14 @@ function updateUrlState(params) {
 }
 
 function loadStorageGlobals(callback) {
-    chrome.storage.sync.get([KEY_bIgnoreZeroECards, KEY_FORMAT_PIVOT_USER, KEY_FORMAT_PIVOT_BOARD, KEY_bEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment], function (objs) {
+    chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_NO_EST, KEY_bIgnoreZeroECards, KEY_FORMAT_PIVOT_USER, KEY_FORMAT_PIVOT_BOARD, KEY_bEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment], function (objs) {
         if (objs[KEY_FORMAT_PIVOT_USER] !== undefined)
             g_dataFormatUser.format = objs[KEY_FORMAT_PIVOT_USER];
         if (objs[KEY_FORMAT_PIVOT_BOARD] !== undefined)
             g_dataFormatBoard.format = objs[KEY_FORMAT_PIVOT_BOARD];
         g_bEnableTrelloSync = objs[KEY_bEnableTrelloSync] || false;
+        g_bNoSE = objs[SYNCPROP_NO_SE] || false;
+        g_bNoEst = objs[SYNCPROP_NO_EST] || false;
         g_optEnterSEByComment.loadFromStrings(objs[keybEnterSEByCardComments], objs[keyrgKeywordsforSECardComment]);
         g_bAllowNegativeRemaining = objs[KEY_bIgnoreZeroECards] || false;
         chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
@@ -658,7 +660,9 @@ function updateOutputFormat(format) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    loadAll();
+    loadStorageGlobals(function () {
+        loadAll();
+    });
     //setTimeout(loadAll,100); //review this might help reduce timing issues
 });
 
@@ -752,14 +756,36 @@ function loadAll() {
         $("#orderBy").parent().hide();
         $("body").css("margin-top", "0px");
         $("#report_top_section").css("margin-bottom", "0px");
+        $("#buttonFilter").appendTo($(".agile_alternate_filterPos"));
         refreshBuildSqlMode(params);
         doResizeFromParent();
     }
 
     loadTabs($("#tabs"));
+    if (g_bNoSE)
+        $(".agile_tab_pivot").hide();
 
     if (bDisableSort)
         $("#orderBy").prop('disabled', true);
+
+    if (g_bNoSE) {
+        $("#pivotBy").parent().hide();
+        $("#user").parent().hide();
+        $("#comment").parent().hide();
+        
+        $("#groupBy option[value*='user']").remove();
+        $("#groupBy option[value*='comment']").remove();
+        $("#groupBy option[value='']").remove();
+
+        $("#orderBy option[value='spent']").remove();
+        $("#orderBy option[value='est']").remove();
+        $("#orderBy option[value='user']").remove();
+    }
+
+    if (g_bNoSE || g_bNoEst) {
+        $("#orderBy option[value*='remain']").remove();
+        $("#eType").parent().hide();
+    }
 
     if (g_bPopupMode) {
         $("#spanChartHeight").hide();
@@ -773,7 +799,7 @@ function loadAll() {
         }
 
         $("#card").parent().hide();
-        $("#list").parent().hide();
+        //$("#list").parent().hide();
         $("#comment").parent().hide();
 
         if (params["orderBy"] == "remain") {
@@ -1064,11 +1090,11 @@ Team - Board - List - Card - Hashtag1 - Hashtags - Labels - User - Note - Keywor
             }
         }));
 
-        loadStorageGlobals(function () {
-            configAllPivotFormats();
-            configChartTab();
-            loadReport(params);
-        });
+
+        configAllPivotFormats();
+        configChartTab();
+        loadReport(params);
+
     });
 }
 
@@ -4148,7 +4174,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     if (bShowMonth)
         pushHeader("Month", "month");
 
-    var bShowUser = bCustomColumns ? includeCol("user") : (groupBy == "" || groupBy.indexOf("user") >= 0);
+    var bShowUser = bCustomColumns ? includeCol("user") : (g_bNoSE? false : (groupBy == "" || groupBy.indexOf("user") >= 0));
     if (bShowUser)
         pushHeader("User");
 
@@ -4195,6 +4221,16 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         }
 
         bShowRemain = (bOrderR || groupBy != "");
+        if (g_bNoSE) {
+            bShowS = false;
+        }
+
+        if (g_bNoSE || g_bNoEst) {
+            bShowEFirst = false;
+            bShowE = false;
+            bShowRemain = false;
+        }
+
     } else {
         bShowS = includeCol("s");
         bShowEFirst = includeCol("e1st");
@@ -4211,11 +4247,11 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     if (bShowRemain)
         pushHeaderAggregate("R");
 
-    var bShowComment = bCustomColumns? includeCol("note") :(groupBy == "" || groupBy.indexOf("comment")>=0);
+    var bShowComment = bCustomColumns ? includeCol("note") : !g_bNoSE && (groupBy == "" || groupBy.indexOf("comment") >= 0);
     if (bShowComment)
         pushHeaderExtended("Note");
 
-    var bShowEtype = bCustomColumns ? includeCol("eType") : (groupBy == "");
+    var bShowEtype = bCustomColumns ? includeCol("eType") : (!g_bNoSE && !g_bNoEst && groupBy == "");
 
     if (bShowEtype)
         pushHeader(COLUMNNAME_ETYPE, "eType");
