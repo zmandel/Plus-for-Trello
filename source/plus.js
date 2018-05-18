@@ -41,6 +41,8 @@ var g_dimension = VAL_COMBOVIEWKW_ALL;
 var g_bPreventChartDraw = true;
 
 function isSpecialPayTestUser() {
+    getCurrentTrelloUser();
+
     if (!g_userTrelloCurrent)
         return false;
     if (g_userTrelloCurrent == "zmandel")
@@ -2388,25 +2390,30 @@ function testModifySyncStorageUrl(url) {
     });
 }
 
+var g_bShowedTryPro = false;
+var g_bForceShowTry = false; //for testing only
+
 function checkTryPro() {
     const PROP_LS_MSLASTTRYPRO = "MSLastTryPro";
     const PROP_LS_DATELASTTRYPROCHECK = "DateLastTryProCheck";
     const PROP_LS_CTIMESSHOWNTRYPRO= "CTimesShownTryPro";
-    const MSDELTA_TRYPRO = 1000 * 60 * 60 * 24 * 30; //30 days
+    const MSDELTA_TRYPRO = 1000 * 60 * 60 * 24 * 50; //50 days
     const CTIMES_FINAL = 3;
     const msNow = Date.now();
 
-    if (g_msStartPlusUsage === null)
-        return;
+    if (!g_bForceShowTry) {
+        if (g_msStartPlusUsage === null || g_bShowedTryPro)
+            return;
 
-    var cDaysUsingPlus =  Math.floor((msNow - g_msStartPlusUsage)/1000/60/60/24);
-    if (cDaysUsingPlus<3)
-        return;
+        var cDaysUsingPlus = Math.floor((msNow - g_msStartPlusUsage) / 1000 / 60 / 60 / 24);
+        if (cDaysUsingPlus < 15)
+            return;
 
-    var msLast = parseInt(localStorage[PROP_LS_MSLASTTRYPRO] || "0", 10) || 0;
+        var msLast = parseInt(localStorage[PROP_LS_MSLASTTRYPRO] || "0", 10) || 0;
 
-    if (msNow - msLast < MSDELTA_TRYPRO)
-        return;
+        if (msNow - msLast < MSDELTA_TRYPRO)
+            return;
+    }
     var strDateLast = localStorage[PROP_LS_DATELASTTRYPROCHECK] || "";
     var strDateNow = makeDateCustomString(new Date(msNow));
     var cTimesToday = 0;
@@ -2417,58 +2424,78 @@ function checkTryPro() {
 
     cTimesToday++;
 
-    if (cTimesToday > CTIMES_FINAL)
-        return;
+    if (!g_bForceShowTry) {
+        if (cTimesToday > CTIMES_FINAL)
+            return;
 
-    if (cDaysUsingPlus < 20 && cTimesToday > 1)
-        return;
+        if (cDaysUsingPlus < 20 && cTimesToday > 1)
+            return;
+    }
 
     localStorage[PROP_LS_CTIMESSHOWNTRYPRO] = cTimesToday.toString();
-
-    showTryProDialog(cTimesToday == CTIMES_FINAL, function () {
-        g_bNeedShowPro = true;
-        hiliteOnce($(".agile-main-plus-help-icon"), 1000, null, 2);
-        setTimeout(function () {
-            Help.display();
-        }, 1000);
-
+    g_bShowedTryPro = true;
+    showTryProDialog(cTimesToday == CTIMES_FINAL, function (bOK) {
+        if (bOK) {
+            g_bNeedShowPro = true;
+            hiliteOnce($(".agile-main-plus-help-icon"), 1000, null, 2);
+            setTimeout(function () {
+                Help.display();
+            }, 1000);
+        }
         localStorage[PROP_LS_MSLASTTRYPRO] = msNow.toString();
     });
 }
 
 function insertStripeDialog() {
     var price = 9.99;
+    var userTrello = getCurrentTrelloUser();
+    if (!userTrello)
+        return null;
+
     divStripeForm = $('\
 <dialog class="agile_dialog_stripe_pay agile_dialog_DefaultStyle" style="width: 500px;"> \
-<h2  style="outline: none;" align="center">Plus for Trello - "Pro" licenses</h2>\
-<p>Payments by stripe.com. <a href="" id="agile_stripe_tellmore">Tell me more</a></p>\
+<p align="center"><span style="font-size:120%;font-weight:normal;">Payments by stripe.com</span></p>\
+<br>\
     <form method="post" id="payment-form">\
         <div class="form-row agile-stripe-form">\
-        <div>&nbsp;</div>\
-        <label>\
-            <span><span>Name (Card holder)</span></span>\
-            <input autofocus name="cardholder-name" class="field is-empty" style="width:20em;"/>\
+       <label style="display:inline-block;">License owner: </label><span id="agile_userTrello_stripe">' + userTrello + '</span>\
+<br><br>\
+       <label>\
+            <span>Email of license owner</span>\
+            <input autofocus class="field" name="email" type="email"  style="width:20em;" />\
+<br>\
         </label>\
-        <div>&nbsp;</div>\
         <label>\
-            <span>Your email</span>\
-            <input class="field" type="email"  style="width:20em;" />\
+            <span>Number of licenses</span>\
         </label>\
-        <div>&nbsp;</div>\
+            <input class="field" id="agile_number_licenses_stripe" type="number" name="quantity" pattern="[0-9]" min="0" max="99" style="width:5em;display:inline-block;"/>\
+ <span>&nbsp;one per Trello user, including you</span>\
+<br><hr>\
         <label>\
-            <span>Number of Trello users</span>\
-            <input class="field" id="agile_number_licenses_stripe" type="number" pattern="[0-9]" min="1" max="100" style="width:5em;display:inline-block" /><span id="agile_stripe_numtext" style="font-weight:normal;"></span>\
+            <span><span>Name of card holder</span></span>\
+            <input name="cardholder-name" class="field is-empty" style="width:20em;"/>\
         </label>\
         <div>&nbsp;</div>\
         <label for="card-element">\
             Credit or debit card\
         </label>\
         <div id="card-element"></div>\
-        <div id="card-errors"></div>\
         </div>\
-        <button id="agile_stripe_buy">Buy</button>\
-    </form>\
+<br>\
+        <button id="agile_stripe_paydialog_buy">Buy</button>\
     <button id="agile_cancel_stripe_buy">Cancel</button>\
+ <a href="" id="agile_stripe_paydialog_tellmore">more about licenses</a>\
+    </form>\
+<div style="min-height:3em;margin-top:0.5em;">\
+<div id="agile_stripe_paydialog_moreinfo" style="display:none;">\
+<br><p>Stripe payments (not Plus for Trello) processes your card. <A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html#agile_stripe_payments" target="_blank">Read more</A> about Stripe or changing license quantities later.<\p>\
+</div>\
+    <div id="card-errors" style="color:red;"></div>\
+<div style="display:none;" id="agile_stripe_licence_info" >\
+Licence: <input id="agile_stripe_licence" style="width:20em;" />\
+Start date: <span id="agile_stripe_startdate"></span>\
+<\div>\
+<\div>\
 </dialog>');
     document.body.appendChild(divStripeForm[0]);
     $("#agile_cancel_stripe_buy").click(function () {
@@ -2476,23 +2503,21 @@ function insertStripeDialog() {
         divStripeForm.remove();
     });
 
-    //divStripeForm.children("input").eq(0).focus();
-
-    $("#agile_stripe_tellmore").click(function (ev) {
-        helpTooltip(ev, '<A href="https://stripe.com/about" target="_blank">stripe.com</A> (not Plus for Trello) securely stores your payment details. To buy a group license set the "Number of Trello users" below. Plus will give you a license that other users (or you, from another computer) can enter in the Plus help pane.');
+    $("#agile_stripe_paydialog_tellmore").click(function (ev) {
+        var elem = $("#agile_stripe_paydialog_moreinfo");
+        if (elem.is(":visible"))
+            elem.hide();
+        else
+            elem.show();
     });
     
     function changeButtonText() {
         var num = Math.floor(parseFloat(elemNum.val()) || 0);
         var title = "Buy";
-        var numText = " for you (" + g_userTrelloCurrent + ")";
         if (num && num > 0) {
-            title = title + " ($" + (num * price).toFixed(2) + " yearly)";
-            if (num > 1)
-                numText = " including you (" + g_userTrelloCurrent+")";
+            title = title + ": $" + (num * price).toFixed(2) + " yearly";
         }
-        $("#agile_stripe_numtext").text(numText);
-        $("#agile_stripe_buy").text(title);
+        $("#agile_stripe_paydialog_buy").text(title);
     }
 
     var elemNum = $("#agile_number_licenses_stripe");
@@ -2500,6 +2525,57 @@ function insertStripeDialog() {
     changeButtonText();
     elemNum.on("input", changeButtonText);
     return divStripeForm;
+}
+
+
+function handleStripePay() {
+    var divStripeForm = $(".agile_dialog_stripe_pay");
+    if (divStripeForm.length > 0) {
+        alert("Sorry, there was an error. Please refresh this Trello page and try again.");
+        return;
+    }
+    sendExtensionMessage({ method: "checkStripeLi" }, function (response) {
+        if (response.status != STATUS_OK)
+            return;
+
+        //Insert the stripe API script (if needed), then insert our stripe-wrap.
+        //the "wrap" is needed because we need to execute it in the context of Trello, not the extension, given that the stripe API script loads in that context.
+        function insertWrap() {
+            g_bInsertedStripeScript = true;
+            var script = document.createElement("script");
+            script.src = chrome.extension.getURL("stripe-wrap.js");
+            script.onload = function () {
+                showModalDialog(divStripeForm[0]);
+            };
+            document.head.appendChild(script);
+        }
+
+        divStripeForm = insertStripeDialog();
+        if (!divStripeForm)
+            return;
+
+        if (g_bInsertedStripeScript) {
+            insertWrap();
+        } else {
+            //Dear Chrome store reviewer:
+            //Please see cws-developer-support ticket #[9-0047000017350], I received a reply on may 12, 2017 that my case is being investigated
+            //regarding failure of payments through the Chrome Web Store. I have also contacted other chrome web store extension developers and all confirmed multiple issues
+            //with Chrome payments, typically like this: https://groups.google.com/a/chromium.org/d/msg/chromium-apps/pY_Rpt3P1eo/NUOjMx3IDAAJ
+            //
+            //My extension released (https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf)
+            //and developer test version (https://chrome.google.com/webstore/detail/test-pft/ehfjngfdbecjebnhoiohimligofdandp)
+            //accepts Chrome store payments, but many payment attempts currently fail. Many users have written us
+            //about being unable to pay with valid cards in valid countries.
+            //Thus I am also supporting payments with stripe.com
+            //Stripe ONLY allows their script to be loaded directly from Stripe, otherwise they detect and prevent using their api.
+            //Thus, the only way to use stripe is to load it directly from their servers, from an https origin.
+            //The stripe library cannot be included in the extension, cannot be loaded from the content script or the background page.
+            var script = document.createElement("script");
+            script.src = 'https://js.stripe.com/v3/';
+            script.onload = insertWrap;
+            document.head.appendChild(script);
+        }
+    });
 }
 
 function checkLi(bForce) {
@@ -2565,49 +2641,7 @@ function checkLi(bForce) {
                     hitAnalytics("LicDialog", status);
                     if (status == STATUS_OK) {
                         if (g_bStripeMode) {
-                            var divStripeForm = $(".agile_dialog_stripe_pay");
-                            if (divStripeForm.length > 0) {
-                                alert("Sorry, there was an error. Please refresh this Trello page and try again.");
-                                return;
-                            }
-                            sendExtensionMessage({ method: "checkStripeLi" }, function (response) {
-                                if (response.status != STATUS_OK)
-                                    return;
-
-                                function insertWrap() {
-                                    g_bInsertedStripeScript = true;
-                                    var script = document.createElement("script");
-                                    script.src = chrome.extension.getURL("stripe-wrap.js");
-                                    script.onload = function () {
-                                        showModalDialog(divStripeForm[0]);
-                                    };
-                                    document.head.appendChild(script);
-                                }
-
-                                divStripeForm = insertStripeDialog();
-
-                                if (g_bInsertedStripeScript) {
-                                    insertWrap();
-                                } else {
-                                    //Dear Chrome store reviewer:
-                                    //Please see cws-developer-support ticket #[9-0047000017350], I received a reply on may 12, 2017 that my case is being investigated
-                                    //regarding failure of payments through the Chrome Web Store. I have also contacted other chrome web store extension developers and all confirmed multiple issues
-                                    //with Chrome payments, typically like this: https://groups.google.com/a/chromium.org/d/msg/chromium-apps/pY_Rpt3P1eo/NUOjMx3IDAAJ
-                                    //
-                                    //My extension released (https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf)
-                                    //and developer test version (https://chrome.google.com/webstore/detail/test-pft/ehfjngfdbecjebnhoiohimligofdandp)
-                                    //accepts Chrome store payments, but many payment attempts currently fail. Many users have written us
-                                    //about being unable to pay with valid cards in valid countries.
-                                    //Thus I am also supporting payments with stripe.com
-                                    //Stripe ONLY allows their script to be loaded directly from Stripe, otherwise they detect and prevent using their api.
-                                    //Thus, the only way to use stripe is to load it directly from their servers, from an https origin.
-                                    //The stripe library cannot be included in the extension, cannot be loaded from the content script or the background page.
-                                    var script = document.createElement("script");
-                                    script.src = 'https://js.stripe.com/v3/';
-                                    script.onload = insertWrap;
-                                    document.head.appendChild(script);
-                                }
-                            });
+                            handleStripePay();
                             return;
                         }
                         sendExtensionMessage({ method: "checkLi" }, function (response) {

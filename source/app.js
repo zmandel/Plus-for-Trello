@@ -228,38 +228,56 @@ https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Pay%20wi
 function showTryProDialog(bHilite, callback) {
     var divDialog = $("#agile_dialog_TryPro");
 
+    function doCloseDialog(callbackAfter) {
+        divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+        setTimeout(function () {
+            divDialog[0].close();
+            if (callbackAfter)
+                callbackAfter();
+        }, 300); //wait for animation to complete
+    }
+
     if (divDialog.length == 0) {
         //focus on h2 so it doesnt go to the first link
         divDialog = $('\
-<dialog id="agile_dialog_TryPro" style="cursor:pointer;text-align: center;width:25em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_TryPro">\
-<div tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Read about our Plus for Trello "Pro" version.</div> \
+<dialog id="agile_dialog_TryPro" style="cursor:pointer;padding-bottom:6px;padding-top:6px;text-align: center;width:21em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_TryPro">\
+<div tabindex="1" style="outline: none;cursor:pointer;margin-top:0em;"><span>Try Plus for Trello "Pro" for free</span> \
+<button style="display:inline-block;padding:0;margin-left:1em;margin-top:0;margin-bottom:0;width:3em;min-height:0.5em;">OK</button> \
+<img style="padding:3px;margin-left:0.5em;margin-bottom:-7px;" src="' + chrome.extension.getURL("images/close.png") + '"></img></div> \
 </dialog>');
         $("body").append(divDialog);
         divDialog = $("#agile_dialog_TryPro");
         if (bHilite) {
             setTimeout(function () {
-                hiliteOnce(divDialog, 3000);
+                hiliteOnce(divDialog, 2000);
             }, 1000);
         }
-        divDialog.click(function (e) {
+        divDialog.find("img").click(function (e) {
+            e.stopPropagation();
+            e.preventDefault();
             doCloseDialog(function () {
-                callback();
+                callback(false);
             });
+            return false;
         });
 
-        function doCloseDialog(callbackAfter) {
-            divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
-            setTimeout(function () {
-                divDialog[0].close();
-                if (callbackAfter)
-                    callbackAfter();
-            }, 300); //wait for animation to complete
-        }
-
+        divDialog.click(function (e) {
+            doCloseDialog(function () {
+                callback(true);
+            });
+        });
     }
 
     showModlessDialog(divDialog[0]);
     setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
+    if (!g_bForceShowTry) {
+        setTimeout(function () {
+            if (divDialog.hasClass("agile_dialog_Postit_Anim_ShiftToShow")) { //class indicates we havent started anim&close process
+                g_bShowedTryPro = false; //pretend not showed so we try later
+                doCloseDialog();
+            }
+        }, 15000);
+    }
 }
 
 function showFatalError(message) {

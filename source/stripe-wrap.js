@@ -4,9 +4,6 @@ var g_loaderStripe = {
     load: function () {
         var stripe = Stripe('pk_test_mLo8JETttIstZNGCiBz6PAaX');
         var elements = stripe.elements();
-
-        // Custom styling can be passed to options when creating an Element.
-        // (Note that this demo uses a wider set of styles than the guide below.)
         var style = {
             base: {
                 color: '#32325d',
@@ -53,18 +50,70 @@ var g_loaderStripe = {
             });
         });
 
+        function enableElements(bEnable) {
+            function enableByTag(tag) {
+                var inputs = form.getElementsByTagName(tag);
+                for (var i = 0; i < inputs.length; i++)
+                    inputs[i].disabled = !bEnable;
+            }
+
+            enableByTag("input");
+            enableByTag("button");
+        }
+
         function stripeTokenHandler(token) {
             // Insert the token ID into the form so it gets submitted to the server
             var form = document.getElementById('payment-form');
-            var hiddenInput = document.createElement('input');
-            hiddenInput.setAttribute('type', 'hidden');
-            hiddenInput.setAttribute('name', 'stripeToken');
-            hiddenInput.setAttribute('value', token.id);
-            form.appendChild(hiddenInput);
-            document.getElementById("agile_cancel_stripe_buy").click();
+            var userTrello = document.getElementById('agile_userTrello_stripe').textContent;
+            function sendData() {
+                var xhr = new XMLHttpRequest();
+
+                // Bind the FormData object and the form element
+                var fd = new FormData(form);
+                var i = 0;
+                var strParams = "?";
+                var pair;
+                for (var pair of fd.entries()) {
+                    if (i > 0)
+                        strParams += "&";
+                    strParams += (pair[0] + "=" + encodeURIComponent(pair[1]));
+                    i++;
+                }
+                
+                strParams += ("&stripeToken=" + encodeURIComponent(token.id));
+                strParams += ("&userTrello=" + encodeURIComponent(userTrello));
+                xhr.addEventListener("load", function (event) {
+                    var val = event.target.responseText;
+                    var iColon = val.indexOf(":");
+                    
+                    if (val.indexOf("error") == 0) {
+                        var displayError = document.getElementById('card-errors');
+                        displayError.textContent = val;
+                        enableElements(true);
+                        return;
+                    }
+                    var params = val.split(":");
+                    $("#agile_stripe_licence").val(params[1]);
+                    $("#agile_stripe_startdate").val(new Date(params[2]));
+                    $("#agile_stripe_licence_info").show();
+                });
+
+                
+                xhr.addEventListener("error", function (event) {
+                    var displayError = document.getElementById('card-errors');
+                    displayError.textContent = event.target.responseText;
+                    enableElements(true);
+                });
+
+                document.getElementById('card-errors').textContent = "";
+                enableElements(false);
+                xhr.open("GET", "https://us-central1-plusfortrelloapp.cloudfunctions.net/setlic" + strParams);
+                xhr.send();
+            }
+ 
+            sendData();
+            //document.getElementById("agile_cancel_stripe_buy").click();
             return;
-            // Submit the form
-            form.submit();
         }
 
         return this;

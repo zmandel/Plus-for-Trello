@@ -1738,11 +1738,27 @@ function handleTimerNotificationsUpdate() {
     }
 }
 
+function createChromeNotification(idNotification, obj, callback) {
+    var notification = null;
+
+    try {
+        notification = chrome.notifications.create(idNotification, obj, callback);
+    } catch (e) {
+        if (obj.requireInteraction && e.message && e.message.indexOf("requireInteraction")>=0) {
+            delete obj.requireInteraction; //workarround for old versions of chrome
+            notification = chrome.notifications.create(idNotification, obj, callback);
+        } else {
+            throw e;
+        }
+    }
+    return notification;
+}
+
 function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
     hookNotificationActions();
     g_mapTimerWindows[idCard] = { idWindow: null, nameCard: nameCard, nameBoard: nameBoard };
     var idNotification = idNotificationForTimer(idCard);
-    var notification = chrome.notifications.create(idNotification,
+    var notification = createChromeNotification(idNotification,
         {
             type: "basic",
             isClickable:true,
@@ -1876,7 +1892,7 @@ function handleShowDesktopNotification(request) {
 	}
 
 	clearPendingTimeout();
-    chrome.notifications.create(idUse,
+	createChromeNotification(idUse,
         {
             type:"basic",
             iconUrl: chrome.extension.getURL("images/icon128.png"),

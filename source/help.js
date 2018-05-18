@@ -358,7 +358,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 	    
 	    if (true) {
-	        helpWin.para("Open this <span style='font-weight:bold;font-size:110%;'><A target='_blank' href=''>Plus Help board</A></span> for best place to learn about Plus.").find("A").click(function (e) {
+	        helpWin.para("<div style='display:inline-block;border: 1px solid;border-radius:3px;border-color:RGB(77,77,77);padding:1em;background-color: #E4F0F6;'>Open the <span style='font-weight:bold;font-size:110%;'><A target='_blank' href=''>Plus Help board</A></span> for the best place to learn about Plus.</div>").find("A").click(function (e) {
 	            window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	            e.preventDefault();
 	        });
