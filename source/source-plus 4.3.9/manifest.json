@@ -1,0 +1,82 @@
+﻿{
+  "name": "__MSG_extName__",
+  "short_name": "Plus for Trello",
+  "version": "4.3.9",
+  "manifest_version": 2,
+  "default_locale": "en",
+  "description": "__MSG_extDescription__",
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
+  },
+  "offline_enabled": true,
+  "background": {
+    "page": "background.html"
+  },
+
+  "homepage_url": "http://www.plusfortrello.com",
+  "oauth2": {
+    "client_id": "147493868263-rau69q6puvkskc83li1neonnbo0aelp9.apps.googleusercontent.com",
+    "scopes": [
+      "https://spreadsheets.google.com/feeds",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/chromewebstore.readonly"
+    ]
+  },
+
+  "browser_action": {
+    "default_icon": {
+      "19": "images/icon19.png"
+    },
+    "default_title": "Plus for Trello",
+    "default_popup": "popup.html"
+  },
+
+  "content_scripts": [
+    {
+      "all_frames": true,
+      "matches": [ "https://trello.com/*" ],
+      "js": [
+        "libs/jquery.min.js",
+        "libs/jquery-ui.custom.min.js",
+        "libs/jquery.cookie.js",
+        "libs/jquery.zoomooz.js",
+        "libs/jsapi.js",
+        "libs/formatchart.js",
+        "libs/jquery.grumble.js",
+        "libs/dialog-polyfill.js",
+        "libs/jquery.tablesorter.js",
+        "libs/select2.full.min.js",
+        "shared.js",
+        "sharedmobile.js",
+        "sharedsync.js",
+        "app.js",
+        "card.js",
+        "cardetransfer.js",
+        "labels.js",
+        "labels.js",
+        "language.js",
+        "help.js",
+        "buttons.js",
+        "plus.js",
+        "plusconfig.js",
+        "board.js",
+        "tour.js",
+        "translations.js"
+      ],
+      "css": [ "css/style.css", "css/colors.css", "css/tooltip.css", "css/grumble.css", "css/dialog-polyfill.css", "css/tablesorter.css", "css/jquery-ui-custom.min.css", "css/select2.min.css"],
+      "run_at": "document_start"
+    }
+  ],
+  "content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+  "web_accessible_resources": [
+    "images/*.png",
+    "images/*.gif",
+    "*.html",
+    "manifest.json",
+    "css/images/*.gif"
+  ],
+  "optional_permissions": ["https://spreadsheets.google.com/", "http://www.plusfortrello.com/", "https://www.plusfortrello.com/", "https://app.plusfortrello.com/", "https://ssl.google-analytics.com/",  "https://www.googleapis.com/", "alarms", "gcm" ],
+  "permissions": [ "clipboardWrite", "identity", "storage", "unlimitedStorage", "notifications", "webRequest", "webRequestBlocking", "https://trello.com/", "https://trello.com/1/*"]
+}

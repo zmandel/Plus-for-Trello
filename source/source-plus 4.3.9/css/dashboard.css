@@ -1,0 +1,25 @@
+﻿.minichartBurndownXLine * {
+    font-size:10px !important;
+}
+
+.minichartBurndownXLine line {
+    stroke:#CDCDCD !important;
+}
+
+.timelineGridline line {
+    stroke:#CDCDCD !important;
+}
+
+#timelineDetail {
+    font-size: 0.8em !important;
+}
+
+.reportLinkClass {
+    font-size:13px;
+    text-decoration:none;
+    line-height:1em !important;
+}
+
+.reportLinkClass:hover {
+    text-decoration:underline !important;
+}

@@ -1,0 +1,34 @@
+﻿<!DOCTYPE html>
+<html style="overflow-x:hidden;">
+<head>
+    <title>Plus for Trello</title>
+    <link href="css/style.css" rel="stylesheet" type="text/css">
+    <link href="css/tooltip.css" rel="stylesheet" type="text/css">
+    <script type="text/javascript" src="libs/jquery.min.js"></script>
+    <script type="text/javascript" src="shared.js"></script>
+    <script type="text/javascript" src="sharedmobile.js"></script>
+    <script type="text/javascript" src="sharedsync.js"></script>
+    <script type="text/javascript" src="popup.js"></script>
+</head>
+<body style="margin:0px;padding:0px;font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size:12px;width:250px;height:3000px;">
+    <div align="center" style="margin-bottom:.5em;">
+        <a title="Plus F.A.Q." style="float:left;margin-top:1px;padding-left:4px;padding-right:1em;text-decoration:none;font-weight:bolder;" target="_blank" href="http://www.plusfortrello.com/p/faq.html">?</a>
+        <span id="topTitle" style="font-size:1.2em;font-weight:bold;">Plus for Trello</span><img id="imgSync" style="float:right;margin-right:1em;" src="" title="Sync" />
+    </div>
+    <div id="agile_active_timer" align="center" style="display: none;margin-bottom:5px;">
+        <input class="agile_timer_button_popup agile_timer_running" type="button" /><br />
+        <a href="" id="agile_showall_timers" class="agile_popup_topLinks">show all timers</a>
+    </div>
+    <a class="agile_popup_topLinks" style="margin-left: 0.55em;" id="reportLinkByUser" href="report.html?orderBy=date&sinceSimple=w-4&archived=0&deleted=0&tab=1&popup=1&named=_spent&useStoredNamed=true">Spent</a>
+    <a class="agile_popup_topLinks agile_popup_nfLink"  id="reportLinkR" href="report.html?chartView=r&groupBy=idBoardH&orderBy=remain&archived=0&deleted=0&popup=1&named=_remain&useStoredNamed=true">Remain</a>
+    <a class="agile_popup_topLinks agile_popup_nfLink"  id="reportLink" href="report.html?groupBy=idCardH&weekStartRecent=true" target="_blank">Reports</a>
+    <a class="agile_popup_topLinks agile_popup_nfLink"  id="linkTrello" href="https://trello.com" target="_blank">Trello</a>
+    <a class="agile_popup_topLinks agile_new_report_items  agile_popup_nfLink" style="display: none;"  title="Click to see" id="reportLinkNew" href="" target="_blank">New S/E</a>
+    <span id="reportLinkNewDisabled" class="agile_popup_nfLink" title="No new team S/E rows" style="color:lightgray">New S/E</span>
+    <div id="agile_divSearch_container"><input id="agile_boardSearch" class="agile_placeholder_small" placeholder ="Find boards or cards by name..." type="text" name="searchBoards" spellcheck="false" /></div>
+    <div id="agile_popup_cards_container"></div>
+    <div id="agile_popup_cards_comment_container"></div>
+    <div id="agile_popup_cards_powerfind_container"></div>
+    <p style="display: none;" id="progress"></p>
+</body>
+</html>	

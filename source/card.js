@@ -47,7 +47,8 @@ function updateEOnSChange(cRetry) {
     setTimeout(function ()  {
         var valS = spinS.val() || "";
         var bHilite = false;
-        if (isRecurringCard()) {
+        var bRecurring = isRecurringCard();
+        if (bRecurring) {
             spinE.val(valS);
             bHilite = true;
         }
@@ -74,7 +75,8 @@ function updateEOnSChange(cRetry) {
             if (floatDiff <= 0)
                 floatDiff = 0;
             var diff = parseFixedFloat(floatDiff);
-            if (diff <= 0) {
+            if (diff <= 0 || (g_bPreventIncreasedE && mapSeCur.e>0)) {
+                assert(!bRecurring);
                 diff = "";
                 floatDiff = 0;
             }
@@ -277,6 +279,7 @@ function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependN
     }
 
     comboKeywords.empty();
+    comboKeywords.append($("<optgroup label='keyword:'></optgroup>"));
     for (var i = 0; i < rg.length; i++) {
         add(rg[i], kwSelected);
     }
@@ -294,8 +297,10 @@ function fillComboUsers(comboUsers, userSelected, idCard, nameBoard, bDontEmpty,
     var userMe = getCurrentTrelloUser();
     var user = g_strUserMeOption;
     var userGlobal = g_globalUser; //make a copy
-    if (!bDontEmpty)
+    if (!bDontEmpty) {
         comboUsers.empty();
+        comboUsers.append($("<optgroup label='user:'></optgroup>"));
+    }
     comboUsers.append($(new Option(user, user))); //make it available right away as caller might select it
     getSQLReport(sql, [],
 		function (response) {
@@ -425,6 +430,7 @@ function fillDaysList(comboDays, cDaySelected) {
     }
 
     comboDays.empty();
+    comboDays.append($("<optgroup label='days ago:'></optgroup>"));
     addItem(0, cDaySelected);
     for (iDays = 1; iDays <= g_iLastComboDays; iDays++)
         addItem(iDays, cDaySelected);
@@ -481,6 +487,10 @@ function promptNewUser(combo, idCardCur, callbackParam) {
             callback(STATUS_OK);
         }
     });
+}
+
+function alertNoIncE() {
+    alert("You cannot increase the estimate (hey, just following your Preferences.)\nYour manager can increase estimates for you.\n\nTip: Are you typing in the correct Spent / Estimate box?");
 }
 
 function createCardSEInput(parentSEInput, idCardCur, board) {
@@ -676,6 +686,13 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	        var mapSe = getSeCurForUser(userCur, keyword);
 	        assert(mapSe); //we checked g_seCardCur above so it should exist
+	        if (g_bPreventIncreasedE && mapSe.e > 0 && e > 0 && !isRecurringCard()) {
+	            alertNoIncE();
+	            hiliteOnce(spinE, 500);
+	            spinE.focus();
+	            return;
+	        }
+
 	        var sTotal = parseFixedFloat(mapSe.s + s);
 	        var eTotal = parseFixedFloat(mapSe.e + e);
 
@@ -1242,12 +1259,46 @@ function showSETotalEdit(idCardCur, user) {
         elemR.val(parseFixedFloat(eOrigNum - sOrigNum));
     }
 
+    function updateEfromS() {
+        var sNew = elemS.val().trim();
+        var valESet = null;
+        var sNewNum = parseFixedFloat(sNew);
+        var bUpdateRInstead = false;
+        if (sNewNum <= sOrigNum) {
+            bUpdateRInstead = true;
+        } else {
+            if (isRecurringCard())
+                valESet = sNew;
+            else {
+                if (sNewNum > eOrigNum) {
+                    if (g_bPreventIncreasedE)
+                        bUpdateRInstead = true;
+                    else
+                        valESet = sNew;
+                } else {
+                    bUpdateRInstead = true;
+                }
+            }
+        }
+
+        if (bUpdateRInstead)
+            updateMessage(true);
+        else {
+            if (valESet !== null) {
+                elemE.val(valESet);
+                hiliteOnce(elemE);
+            }
+            updateMessage(false);
+        }
+    }
+
     function updateEFromR() {
         var sNew = elemS.val().trim();
         var rNew = elemR.val().trim();
         var sNewNum = parseFixedFloat(sNew);
         var rNewNum = parseFixedFloat(rNew);
         var valNew = parseFixedFloat(rNewNum + sNewNum);
+
         if (valNew != elemE.val()) {
             elemE.val(valNew);
             hiliteOnce(elemE);
@@ -1324,6 +1375,12 @@ function showSETotalEdit(idCardCur, user) {
             return;
         }
 
+        if (g_bPreventIncreasedE && !isRecurringCard() && data.e > 0) {
+            alertNoIncE();
+            elemE.focus();
+            hiliteOnce(elemE, 500);
+            return;
+        }
         setNewCommentInCard(idCardCur, data.keyword, data.s, data.e, note, "", //empty prefix means time:now
             user, null, onBeforeStartCommit, onFinished);
     }
@@ -1332,7 +1389,7 @@ function showSETotalEdit(idCardCur, user) {
         doEnter();
     });
 
-    elemS.unbind("input").bind("input", function (e) { updateMessage(true); });
+    elemS.unbind("input").bind("input", function (e) { updateEfromS(); });
     elemE.unbind("input").bind("input", function (e) { updateMessage(true); });
     elemR.unbind("input").bind("input", function (e) { updateEFromR(); updateMessage(false); });
     $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current, g_bDisplayPointUnits));

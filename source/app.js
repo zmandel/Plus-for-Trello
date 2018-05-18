@@ -22,6 +22,7 @@ var g_boardName = null;
 var g_bUpdatingGlobalSums = null;  //null means uninitialized. tracks if we are waiting for all trello cards to load
 var g_manifestVersion = "";
 var g_rgExcludedUsers = []; //users exluded from the S/E bar
+var g_bDontShowSpentPopups = false;
 
 function showModlessDialog(elem) {
     if (!elem.show) {
@@ -264,6 +265,7 @@ function entryPoint() {
 function loadOptions(callback) {
     var keyDisplayPointUnits = "bDisplayPointUnits";
     var keyAllowNegativeRemaining = "bIgnoreZeroECards";
+    var keyPreventIncreasedE = "bPreventEstMod";
     var keyDontWarnParallelTimers = "bDontWarnParallelTimers";
     var keyAcceptSFT = "bAcceptSFT";
     var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
@@ -285,6 +287,7 @@ function loadOptions(callback) {
     var keybDisabledSync = "bDisabledSync"; //note this takes precedence over bEnableTrelloSync or g_strServiceUrl 'serviceUrl'
     var keyClosePlusHomeSection = "bClosePlusHomeSection";
     var keybDontShowTimerPopups = "bDontShowTimerPopups";
+    var keybDontShowSpentPopups = "bDontShowSpentPopups";
     var keyServiceUrl = 'serviceUrl'; //note we only get but not set. Code later will set it
 
     function BLastErrorDetected() {
@@ -296,9 +299,9 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
-                             keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
+                             keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
@@ -308,6 +311,7 @@ function loadOptions(callback) {
                                  g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
                                  g_language = objSync[SYNCPROP_language] || "en";
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
+                                 g_bDontShowSpentPopups = objSync[keybDontShowSpentPopups] || false;
                                  g_bShowHomePlusSections = !(objSync[keyClosePlusHomeSection] || false);
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  g_bDontWarnParallelTimers = objSync[keyDontWarnParallelTimers] || false;
@@ -333,6 +337,7 @@ function loadOptions(callback) {
                                      g_bAcceptPFTLegacy = true; //defaults to true to not break legacy users
                                  g_bDisplayPointUnits = objSync[keyDisplayPointUnits] || false;
                                  g_bAllowNegativeRemaining = objSync[keyAllowNegativeRemaining] || false;
+                                 g_bPreventIncreasedE = objSync[keyPreventIncreasedE] || false;
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;
                                  g_bChangeCardColor = objSync[keybChangeCardColor] || false;

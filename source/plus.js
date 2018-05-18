@@ -543,10 +543,10 @@ function setSyncErrorStatus(urlUser, status, statusLastTrelloSync) {
 	var statusSet = "";
 
 	if (status != STATUS_OK) {
-	    if (status.indexOf("error:") >= 0)
+	    if (status && status.indexOf("error:") >= 0)
 	        statusSet = status;
 	    else
-	        statusSet = "error: " + status;
+	        statusSet = "error: " + (status?status: "unknown error");
 	}
 
 
@@ -637,6 +637,7 @@ var g_cRowsHistoryLast = 0;
 var g_bFirstTimeUse = false;
 var g_bDisplayPointUnits = false;
 var g_bAllowNegativeRemaining = false;
+var g_bPreventIncreasedE = false;
 var g_bDontWarnParallelTimers = false;
 var g_bUserDonated = false;
 var g_bHidePendingCards = false;
@@ -1399,7 +1400,7 @@ function processUserSENotifications(sToday,sWeek) {
 			var pair = {};
 			pair[key] = { strToday: strToday, sToday: sToday };
 			chrome.storage.local.set(pair, function (obj) { });
-			if (sToday!=0)
+			if (sToday!=0 && !g_bDontShowSpentPopups)
 			    sendDesktopNotification("Spent today: " + sToday, 3000, "spentTodayTotal");
 		});
 

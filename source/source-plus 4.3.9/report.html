@@ -1,0 +1,473 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Report- Plus</title>
+    <link href="css/style.css" rel="stylesheet" type="text/css">
+    <link href="css/tablesorter.css" rel="stylesheet" type="text/css">
+    <link href="css/tooltip.css" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="css/jquery-ui-custom.min.css">
+    <link href="css/jquery.qtip.min.css" rel="stylesheet" type="text/css">
+    <link href="css/plottable.css" rel="stylesheet" type="text/css">
+    <link href="css/bsmselect.css" rel="stylesheet" type="text/css">
+    <script type="text/javascript" src="libs/jquery.min.js"></script>
+    <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
+    <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
+    <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
+    <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
+    <script type="text/javascript" src="libs/bsmselect.js"></script>
+    <script type="text/javascript" src="libs/svgpng.js"></script>
+    <script type="text/javascript" src="libs/d3.min.js"></script>
+    <script type="text/javascript" src="libs/plottable.min.js"></script>
+    <script type="text/javascript" src="libs/excellentexport.js"></script>
+    <script type="text/javascript" src="shared.js"></script>
+    <script type="text/javascript" src="sharedmobile.js"></script>
+    <script type="text/javascript" src="sharedsync.js"></script>
+    <script type="text/javascript" src="report.js"></script>
+</head>
+<body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
+    <div id="divMain" style="margin:0;padding:0;display:none;">
+        <div class="agile_toplevel_report_container">
+            <a style="display:none;position:absolute;left:10px;top:10px;" id="progress"></a>
+            <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
+                <div style="width:100%" id="agile_title_header_report">
+                <span id="report_title_text">&nbsp;</span>
+                    <span id="report_title_rightLinks" style="display:none;">
+                        <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
+                        <a style="float:right;text-decoration:none;cursor:help;font-size:110%;margin-right:1em;" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
+                        <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
+                    </span>
+                    <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
+                    <img src="" style="display:none;" class="agile_img_popup" id="backImg" title='Back' />
+                </div>
+            </div>
+            <div class="agile_report_filters">
+                <div class="agile_report_filter">
+                    <button disabled style="height: 20px; width:47px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
+                </div>
+
+                <div style="display:none" class="agile_report_filter" title="Filter by Plus keywords.
+
+To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Keyword</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="keyword" name="keyword" /><input type="submit" class="agile_hidden" />
+                </div>
+
+                <div title="Group resulting rows to the level of detail you need.
+Each resulting row will show the sum of its grouped S/E rows.
+
+Grouping only affects the Report tab.
+When grouping by 'S/E rows', cards without S/E do not appear in the report.
+
+'User' refers to those with S/E, not card members." class="agile_report_filter agile_groupby_report_section">
+                    <p class="agile_report_filter_label">Group by</p>
+                    <select id="groupBy" style="width:8.5em;">
+                        <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
+                        <option value="user">User</option>
+                        <option value="idTeamH" title="Groups resulting cards and 'S/E rows' by team.\nColumns like 'date' use the newest row in each team.">Team</option>
+                        <option value="idTeamH-user" title="Groups resulting cards and 'S/E rows' by team & user.\nColumns like 'date' use the newest row in each team.">Team-User</option>
+                        <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by board.\nColumns like 'date' use the newest row in each board.">Board</option>
+                        <option value="idBoardH-nameList" title="Groups resulting cards and 'S/E rows' by unique board & list combination.">Board-List</option>
+                        <option value="idBoardH-nameList-hashtagFirst" title="Groups by board, list & first #tag in the card">Board-List-hashtag1</option>
+                        <option value="idBoardH-nameList-user" title="Groups by board, list & card S/E user">Board-List-User</option>
+                        <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag1</option>
+                        <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' groups are only for 'S/E rows'.">Board-User</option>
+                        <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag1</option>
+                        <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag1</option>
+                        <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
+                        <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
+                        <option value="week">Week</option>
+                        <option value="month">Month</option>
+                        <option value="idBoardH-week">Board-Week</option>
+                        <option value="idBoardH-month">Board-Month</option>
+                        <option value="user-week">User-Week</option>
+                        <option value="user-month">User-Month</option>
+                        <option value="dateString">Date</option>
+                        <option value="dateString-user">Date-User</option>
+                        <option value="dateString-idBoardH">Date-Board</option>
+                        <option value="dateString-idCardH">Date-Card</option>
+                        <option value="keyword">Keyword</option>
+                        <option value="user-keyword">User-Keyword</option>
+                        <option value="idBoardH-keyword">Board-Keyword</option>
+                        <option value="idTeamH-keyword">Team-Keyword</option>
+                        <option value="custom">Custom...</option>
+                    </select>
+                </div>
+                <div title="Pick a pivot to change the columns in the 'Spent by ...' tabs.
+
+If you do not need to pivot, using 'Year' will make the report a little faster." class="agile_report_filter">
+                    <p class="agile_report_filter_label">Pivot by</p>
+                    <select id="pivotBy">
+                        <option value="year">Year</option>
+                        <option value="month">Month</option>
+                        <option value="">Week</option>
+                        <option value="day">Day</option>
+                    </select>
+                </div>
+                <div title="Order resulting rows. Also click report headers to change order (SHIFT-click for multi-column).
+
+When the card has S/E rows, the row date is based on S/E rows.
+Otherwise its the date of the card's last create, move or rename.
+
+Special orders:
+                                          
+'R (non-zero)'
+Special 'Remaining' report. Shows only rows with non-zero R.
+This order makes sense with filter 'since: All dates' and group by card,list,board,team or user.
+To show S/E columns, group by Card-User.
+
+To sort by R without this special behavior, order by something else, query, then click the R column header.
+
+'Due date'
+only shows cards with a due date, and only works when grouping by Card or Card-User.
+
+'List position'
+orders first by board name (descending) then by list position in each Trello board." class="agile_report_filter agile_orderby_report_section">
+                    <p class="agile_report_filter_label">Order by</p>
+                    <select id="orderBy">
+                        <option value="date">Date</option>
+                        <option value="dateDue" title="Only valid with card grouping. Shows only cards with due dates.">Due date</option>
+                        <option value="remain" title="Also removes all zero R.">R (non-zero)</option>
+                        <option value="spent">S</option>
+                        <option value="est">E</option>
+                        <option value="user">User</option>
+                        <option value="nameBoard">Board</option>
+                        <option value="nameList">List name</option>
+                        <option value="posList">List position</option>
+                        <option value="nameCard">Card</option>
+                        <option value="keyword">Keyword</option>
+                    </select>
+                </div>
+                <div title="Filter by date.
+
+When the card has S/E rows, the date in that report row is based on S/E rows.
+Otherwise it uses the date of the card's last create, move or rename." class="agile_report_filter" id="groupDateSimple">
+                    <p class="agile_report_filter_label">Since</p>
+                    <select id="sinceSimple">
+                        <option value="d-1">Today</option>
+                        <option value="d-2">2 days</option>
+                        <option value="d-3">3 days</option>
+                        <option value="d-4">4 days</option>
+                        <option value="d-5">5 days</option>
+                        <option value="d-6">6 days</option>
+                        <option value="d-7">7 days</option>
+                        <option value="w-1">This week</option>
+                        <option value="w-2">2 weeks</option>
+                        <option value="w-3">3 weeks</option>
+                        <option value="w-4">4 weeks</option>
+                        <option value="w-5">5 weeks</option>
+                        <option value="w-10">10 weeks</option>
+                        <option value="w-15">15 weeks</option>
+                        <option value="w-30">30 weeks</option>
+                        <option value="w-53">53 weeks</option>
+                        <option value="">All dates</option>
+                        <option value="advanced">Advanced</option>
+                    </select>
+                </div>
+                <div class="agile_report_filter_group" id="groupDateAdvanced">
+                    <div title="Valid formats:
+2014
+2014-W12
+
+Using a week filter only shows results that have S/E." class="agile_report_filter">
+                        <p class="agile_report_filter_label">Week start</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekStart" name="weekStart" /><input type="submit" class="agile_hidden" />
+                    </div>
+                    <div title="Valid formats:
+2014
+2014-W15
+
+Using a week filter only shows results that have S/E." class="agile_report_filter">
+                        <p class="agile_report_filter_label">Week end</p><input autocomplete="on" spellcheck="false" maxlength="8" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="weekEnd" name="weekEnd" /><input type="submit" class="agile_hidden" />
+                    </div>
+                    <div title="Valid formats:
+2014  (year)
+2014-02  (month)
+2014-02-09 (full date)"  class="agile_report_filter">
+                        <p class="agile_report_filter_label">Date start</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthStart" name="monthStart" /><input type="submit" class="agile_hidden" />
+                    </div>
+                    <div title="Valid formats:
+2014  (year)
+2014-07  (month)
+2014-07-03 (full date)"  class="agile_report_filter">
+                        <p class="agile_report_filter_label">Date end</p><input autocomplete="on" spellcheck="false" maxlength="10" class="agile_report_filter_input_short" placeholder="begins with..." type="text" id="monthEnd" name="monthEnd" /><input type="submit" class="agile_hidden" />
+                    </div>
+                </div>
+                <div class="agile_report_filter" title="Filter by users that entered S/E on each card.
+Filtering by user will only show results that have S/E.
+
+To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">User</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="user" name="user" /><input type="submit" class="agile_hidden" />
+                </div>
+
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Team</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="team" name="team" /><input type="submit" class="agile_hidden" />
+                </div>
+
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Board</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="board" name="board" /><input type="submit" class="agile_hidden" />
+                </div>
+
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+
+Example: !doing finds history on cards with lists not containing 'doing'
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">List</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="list" name="list" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter" title="To find NOT containing, start with !
+
+Example: !#low finds cards without a '#low' hashtag.
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Card</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="card" name="card" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter" title="Filter by card labels.
+
+To find NOT containing, start with !
+Partially supports AND/OR:
+When using OR, no term can be negated: label1 OR label2 OR label3 
+When using AND, all terms must be negated: !label1 AND !label2 AND !label3
+
+Labels sync note: Plus automatic sync does not always detect all card labeling changes that happened within
+the last two minutes before sync, or label names on boards where the only change was a renamed label.
+To force fresh card label results in those cases, click on sync from the Chrome Plus menu or the top weekly report in Trello.
+
+See reports help top-right.">
+                    <p class="agile_report_filter_label">Label</p>
+                    <input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="label" name="label" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter"
+                      title="To find NOT containing, start with !
+
+Filtering by S/E note will only show results that have S/E.
+Supports multiple AND/OR. See reports help top-right.">
+                    <p class="agile_report_filter_label">Note</p><input class="agile_report_filter_input_long" autocomplete="on" spellcheck="false" maxlength="800" placeholder="contains..." type="text" id="comment" name="comment" /><input type="submit" class="agile_hidden" />
+                </div>
+
+                <div style="display:none"  class="agile_report_filter" title="Filter by archived card, list or board.">
+                    <p class="agile_report_filter_label">Archived</p>
+                    <select id="archived">
+                        <option value="-1">All</option>
+                        <option value="1">Archived</option>
+                        <option value="0" selected="selected">Not Archived</option>
+                    </select>
+                </div>
+
+                <div style="display:none" class="agile_report_filter" title="Filter by deleted card.">
+                    <p class="agile_report_filter_label">Deleted</p>
+                    <select id="deleted">
+                        <option value="-1">All</option>
+                        <option value="1">Deleted</option>
+                        <option value="0" selected="selected">Not Deleted</option>
+                    </select>
+                </div>
+
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all boards&#013;or type the board shortLink from its URL&#013;trello.com/b/shortLink/..."><p class="agile_report_filter_label">Board shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idBoard" name="idBoard" /></div>
+                <div style="display:none" class="agile_report_filter" title="Leave blank for all cards&#013;or type the card shortLink from its URL&#013;trello.com/c/shortLink/..."><p class="agile_report_filter_label">Card shortLink</p><input class="agile_report_filter_input_long" autocomplete="on" maxlength="40" placeholder="is..." type="text" id="idCard" name="idCard" /></div>
+                <div class="agile_report_filter" title="Show only rows after this row number.
+Leave blank to display all.">
+                    <p class="agile_report_filter_label">After row</p><input class="agile_report_filter_input_short" autocomplete="on" spellcheck="false" maxlength="6" placeholder="row number" type="text" id="afterRow" name="afterRow" /><input type="submit" class="agile_hidden" />
+                </div>
+                <div class="agile_report_filter" title="Filter by estimate type.
+
+All: No E. type filter.
+E 1st: rows with a first estimate
++E: rows that increased the card estimate per user
+-E: rows that decreased it">
+                    <p class="agile_report_filter_label">E. type</p>
+                    <select id="eType">
+                        <option value="all">All</option>
+                        <option value="enew">E 1ˢᵗ</option>
+                        <option value="eincr">+E</option>
+                        <option value="edecr">-E</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display:none;" id="optionsContainer" class="agile_arrow_closed agile_arrow_container">
+                <p title="Click to change options.
+To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
+                <div style="display:none;" id="report_options_section">
+                    <div><i>Click 'Query' after making changes.</i></div>
+                        <div class="report_options_item"  title="Check to prevent cropping text in results.">
+                            <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
+                            <label class="agile_unselectable" for="checkNoCrop">No Crop (show full contents)</label>
+                        </div>
+                    <div class="report_options_item" title="Check to not generate charts, which can speed-up huge reports.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCharts" />
+                        <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
+                    </div>
+                    <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
+                    <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
+                        <label class="agile_unselectable" for="checkNoLabelColors">No color in labels</label>
+                    </div>
+                    <div class="report_options_item">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkSyncBeforeQuery" />
+                        <label class="agile_unselectable" for="checkSyncBeforeQuery">Sync before doing the query</label>
+                    </div>
+                    <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+After clicking 'Query' try sorting by board then shift-click the card number column.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
+                        <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
+                    </div>
+                    
+                    <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
+                    
+                    <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
+                        <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
+                    </div>
+                    <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
+                        <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
+                    </div>
+                    <div class="report_options_item"  title="Download report as CSV or Excel.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputReport" />
+                        <label class="agile_unselectable" for="checkOutputReport">Download report as </label>
+                        <select id="outputFormat">
+                        <option value="csv">CSV (text)</option>
+                        <option value="xls">XLS (Excel)</option>
+                        </select>
+                        <span id="noteExportFormat"></span>
+                    </div>
+                    <div class="report_options_item" style="width:40em;">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkCustomColumns" />
+                        <label class="agile_unselectable" for="checkCustomColumns">Output custom columns</label>
+                        <div id="section_customColumns" style="display:none;margin-left:1.2em;">
+                            <select multiple="multiple" title="Pick columns..." id="selectAllColumns">
+                                /* https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing */
+                                <option  value="archived">Archived</option>
+                                <option  value="board">Board</option>
+                                <option  value="boardShortLink">Board shortLink</option>
+                                <option  value="card">Card</option>
+                                <option  value="cardNumber" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+After clicking 'Query' try sorting by board then shift-click the card number column.">Card #</option>
+                                <option  value="cardCount">Card count</option>
+                                <option  value="cardShortLink">Card shortLink</option>
+                                <option value="dateCreated">Created date</option>
+                                <option  value="dateString">Date</option>
+                                <option  value="deleted">Deleted</option>
+                                <option  value="dateDue">Due date</option>
+                                <option  value="e">E</option>
+                                <option  value="e1st">E 1ˢᵗ</option>
+                                <option  value="eType">E. type</option>
+                                <option  value="hashtagFirst">Hashtag1</option>
+                                <option  value="keyword">Keyword</option>
+                                <option  value="labels">Labels</option>
+                                <option  value="nameList">List</option>
+                                <option  value="month">Month</option>
+                                <option  value="note">Note</option>
+                                <option  value="r">R</option>
+                                <option  value="s">S</option>
+                                <option  value="team">Team</option>
+                                <option  value="user">User</option>
+                                <option  value="week">Week</option>
+                            </select>
+                            <div><i>Drag to re-order. When grouping and the group does not include a custom column, the column name will end with <b>*</b> and show the value of the newest item in the group.</i></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="tabs" style="background: #E8EBEE;padding:0px;">
+                <div class="agile_tabselector_list" style="background: white;">
+                    <table border="0" style="border-spacing: 0;" cellpadding="5">
+                        <tr>
+                            <td class="agile_tab_first">
+                                <a href="#tabs-0" class="agile_report_tabselector">Report</a>
+                            </td>
+                            <td class="agile_tab_rest">
+                                <a href="#tabs-1" class="agile_report_tabselector">Spent By User</a>
+                            </td>
+                            <td class="agile_tab_rest">
+                                <a href="#tabs-2" class="agile_report_tabselector">Spent By Board</a>
+                            </td>
+                            <td class="agile_tab_rest agile_tab_chart">
+                                <a href="#tabs-3" class="agile_report_tabselector">Chart</a>
+                            </td>
+                            <td style="width:100%" class="agile_tab_dummyLast"></td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="tabs-0" style="display:none;padding-top:6px;" class="agile_report_container agile_report_tab"></div>
+                <div id="tabs-1" style="display: none;" class="agile_report_tab">
+                    <div class="agile_format_container" title="To remove colors, pick 'No format or leave fields blank.
+Note: current week always ignores 'under' format.">
+                        <span>under </span>
+                        <input class="agile_format_under" type="number"  />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <span style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
+                        <select class="agile_report_optionsFormat" style="margin-left: 15px;">
+                            <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
+                            <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
+                            <option value="off" title="No coloring.">No format</option>
+                        </select>
+                        <img class="agile_drilldown_select agile_fixed" />
+
+                    </div>
+                    <div class="agile_report_container_byUser agile_report_containerScroll" style="overflow: auto;"></div>
+                </div>
+                <div id="tabs-2" style="display: none;" class="agile_report_tab">
+                    <div class="agile_format_container" title="To remove colors, pick 'No format or leave fields blank.
+Note: current week always ignores 'under' format.">
+                        <span>under </span>
+                        <input class="agile_format_under" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <span style="margin-left:15px;">over </span>
+                        <input class="agile_format_over" type="number" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
+                        <select class="agile_report_optionsFormat" style="margin-left: 15px;">
+                            <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
+                            <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
+                            <option value="off" title="No coloring.">No format</option>
+                        </select>
+                        <img class="agile_drilldown_select" />
+                    </div>
+                    <div class="agile_report_container_byBoard agile_report_containerScroll" style="overflow: auto;"></div>
+                </div>
+                <div id="tabs-3" style="display:none;padding-left:6px;padding-right:6px;padding-top:6px;margin-bottom:1em;" class="agile_report_tab">
+                    <div style="height:2em;">
+                        <select id="chartView" >
+                            <option value="s">Spent</option>
+                            <option value="e">Estimate</option>
+                            <option value="r">Remaining</option>
+                            <option value="ser">Spent & Remaining. E=S+R</option>
+                            <option value="e1vse">E 1ˢᵗ versus E</option>
+                            <option value="echange">E change</option>
+                            <option value="burndown">S.E.R. Burndown</option>
+                            <option value="cardcount">Card count</option>
+                        </select>
+                        <select id="stackBy" style="display:none;">
+                            <option value="">No stacking</option>
+                            <option value="user">Stack by S/E user</option>
+                            <option value="nameList">Stack by list</option>
+                            <option value="hashtagFirst">Stack by hashtag1</option>
+                            <option value="keyword">Stack by keyword</option>
+                            <option value="week">Stack by week</option>
+                            <option value="month">Stack by month</option>
+                        </select>
+                        <span class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
+                            <input class="agile_report_checkbox" style="margin-left:1em;" type="checkbox" value="checked" id="checkNoColorsChart" />
+                            <label class="agile_unselectable" for="checkNoColorsChart">No colors</label>
+                        </span>
+                        <img class="agile_drilldown_select"/>
+                    </div>
+                    <div id="chartMessage" style="margin-bottom:1em;"></div>
+                    
+                    <div class="agile_report_containerScroll" style="overflow: auto;">
+                      <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;"></div>
+                      <svg id="chart" style="display:block;"></svg>
+                        
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="reportBottomMessage" style="display:none;"></div>
+</body>
+</html>	

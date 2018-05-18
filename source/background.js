@@ -651,7 +651,9 @@ var g_loaderDetector = {
 
 
                 //if we already did at least one sync during this chrome session, and the last error was "offline", do try to sync again (bypassing bSyncOutsideTrello)
-                var bLastErrorWasOffline = (g_lastStatusSyncCache && (g_lastStatusSyncCache.statusRead == Language.NOINTERNETCONNECTION || g_lastStatusSyncCache.statusWrite == Language.NOINTERNETCONNECTION));
+                var bLastErrorWasOffline = (g_lastStatusSyncCache &&
+                    ((g_lastStatusSyncCache.statusRead && g_lastStatusSyncCache.statusRead.indexOf(Language.NOINTERNETCONNECTION)>=0) ||
+                    (g_lastStatusSyncCache.statusWrite && g_lastStatusSyncCache.statusWrite.indexOf(Language.NOINTERNETCONNECTION) >= 0)));
 
                 if (!bSyncOutsideTrello && !bLastErrorWasOffline)
                     return;
@@ -875,16 +877,20 @@ function updatePlusIconWorker(bTooltipOnly) {
             chrome.browserAction.setTitle({ title: tooltipPre + tooltip });
 
             var dateLastStatus = (statusLastSync && statusLastSync.date) || msNow;
-            return (syncStatus.length ==0 || (msNow-dateLastStatus>1000*60*20)); //pretend there wasnt a sync error if its old (over 20 min)
+            return { statusStr: syncStatus, msDelta: msNow - dateLastStatus };
         }
 
-        var bErrorSync = !setTooltipSyncStatus();
+        var statusTooltip = setTooltipSyncStatus();
+        var bErrorSync = (statusTooltip.statusStr.length > 0 && statusTooltip.msDelta < 1000 * 60 * 60); //pretend there wasnt a sync error if its old (over 60 min)
         var ctx = null;
         var canvas = null;
         var dxCanvas = 0;
         var dyCanvas = 0;
         var rotation = g_rotation;
 
+        if (bErrorSync && statusTooltip.statusStr && statusTooltip.statusStr.indexOf(Language.NOINTERNETCONNECTION) >= 0) {
+            bErrorSync = false;
+        }
         if (bTooltipOnly && bErrorSync)
             bTooltipOnly = false;
 
@@ -2198,4 +2204,84 @@ function handlenotifyCardTab(idCard, tabid) {
 
 function handlenotifyBoardTab(idBoard, tabid) {
     g_mapBoardToTab[idBoard] = { tabid: tabid, ms: Date.now() };
+}
+
+function testLicence() {
+
+    function checkPurchased() {
+        google.payments.inapp.getPurchases({
+            'parameters': { 'env': 'prod' },
+            'success': onLicenseUpdate,
+            'failure': onLicenseUpdateFail
+        });
+
+        function onLicenseUpdateFail(response) {
+            console.error(JSON.stringify(response));
+        }
+
+        function onLicenseUpdate(response) {
+            var licenses = response.details;
+            var count = licenses.length;
+            for (var i = 0; i < count; i++) {
+                var license = licenses[i];
+                var x = 1;
+            }
+            doPurchase();
+        }
+
+    }
+
+    function doPurchase() {
+        google.payments.inapp.buy({
+            'parameters': { 'env': 'prod' },
+            'sku': 'plus_pro_single',
+            'success': onPurchased,
+            'failure': onPurchaseFail
+        });
+
+        function onPurchaseFail(response) {
+            console.error(JSON.stringify(response));
+        }
+
+        function onPurchased(response) {
+            var x = 1;
+            console.log(JSON.stringify(response));
+        }
+    }
+
+    chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
+        if (BLastErrorDetected())
+            return;
+        var bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
+        if (!bProVersion)
+            return;
+
+        chrome.storage.sync.get([SYNCPROP_MSLICHECK], function (obj) {
+            if (BLastErrorDetected())
+                return;
+
+            var msLast = obj[SYNCPROP_MSLICHECK] || 0;
+            var msNow = Date.now();
+            if (msNow - msLast < 1000 * 60 * 60 * 24*5) //5 days
+                return;
+
+            checkPurchased();
+            if (false) {
+                google.payments.inapp.getSkuDetails({
+                    'parameters': { 'env': 'prod' },
+                    'success': onSkuDetails,
+                    'failure': onSkuDetailsFail,
+                    'sku': 'plus_pro_single'
+                });
+
+                function onSkuDetails(response) {
+                    checkPurchased();
+                }
+
+                function onSkuDetailsFail(response) {
+                    console.error(JSON.stringify(response));
+                }
+            }
+        });
+    });
 }

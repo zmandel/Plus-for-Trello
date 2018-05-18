@@ -475,8 +475,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/about.html">Quick introduction to Plus for Trello</A>');
 	    helpWin.para('Reports, the Chrome Plus menu, hashtags and more/less can be used by all Trello users.');
 	    helpWin.para('Other features like spent and estimate, burn-downs, timers and recurring cards are useful to those that measure card S/E (Spent and Estimate).');
-	    helpWin.para('Once you close this help Plus will offer to run the product tour. It will guide you step-by-step on all Plus features.');
-	    helpWin.para('Do enable "Sync" (in this help later below). Most Plus features need it even if you do not use S/E.');
+	    helpWin.para('Once you close this help Plus will offer to run the product tour.');
+	    helpWin.para('Do enable "Sync" (in this help below). Most Plus features need it even if you do not use Spent / Estimates.');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s3.png") + '"/>');
 	    helpWin.para("This <b>Plus header</b> is useful mostly to those using S/E.");
 	    helpWin.para("The <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO week</A> as in 2014-W49 is 2014's week 49. Weeks start on Sunday unless you change it in <b>Preferences</b>.");
@@ -500,7 +500,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
-        helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('&nbsp');
+        helpWin.para('<b><h2 id="agile_help_sesystem">The Plus Spent / Estimate system</h2></b>');
+        helpWin.para('<h3>An analogy with time tracking on a spreadsheet</h3>');
+        helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus. Is similar to summing rows on a spreadsheet.');
         helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">See this section on the web</A>');
         helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:');
         helpWin.para('Using the Plus "Card S/E bar" is like adding new rows to the table below and moving the running total down:');
@@ -823,30 +826,38 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
+	    helpWin.para('<b><h2 id="agile_help_preestimate">Pre-Estimations</h2></b>');
+	    helpWin.para('Plus supports two levels of pre-estimation to help your team figure out card first estimates (E 1<sup>st</sup>).');
+	    helpWin.para('Add pre-estimates to checklist items or card titles. Neither show in reports, only in the card front and board dimensions.');
+	    helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates" target="_blank">See how to use pre-estimates.</A>');
+	    helpWin.para('&nbsp');
+	    helpWin.para('&nbsp');
+
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices for S/E</h2></b>');
-	    helpWin.para('&bull; <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
-	    helpWin.para('If you do modify or delete s/e card comments, see help inside the "modify" dialog about the card "^resetsync" command.');
-	    helpWin.para('&bull; To measure changed estimates, your team should always modify <b>R</b> to reflect actual remaining work. A card is done when S=E (R is zero)');
-	    helpWin.para('&bull; When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b>.');
-	    helpWin.para('&bull; Similarly if S goes over E, increase R so its not negative. The card S/E bar automatically pre-fills E to');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;help you prevent negative R.');
-	    helpWin.para('&bull; You may use the units:subunits <b>colon format</b> to enter S/E. (ie hours:minutes when using "hour" units)');
+	    helpWin.para('<b>★</b> <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
+	    helpWin.para('<b>★</b> If you do modify or delete S/E card comments see help inside the "modify" dialog about the card "^resetsync" command.');
+	    helpWin.para('<b>★</b> A card is done when S reaches E (R is zero, R=E-S).');
+	    helpWin.para('<b>★</b> To measure changed E the team (or the manager) should increase E as needed so <b>R</b> reflects actual <b>R</b>emaining work.');
+	    helpWin.para('<b>★</b> When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b> (which reduces E).');
+	    helpWin.para('<b>★</b> Similarly if S goes over E, increase E so R is not negative.');
+	    helpWin.para('<b>★</b> The card S/E bar and "modify" automatically pre-fill increased E to help you prevent negative R.');
+	    helpWin.para('<b>★</b> Prevent accidental E increases with the preference to "Prevent me from increasing existing E".');
+	    helpWin.para('<b>★</b> You may use the units:subunits <b>colon format</b> to enter S/E. (as in hours:minutes when using "hour" units)');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 in hour units = 1 hour 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;Soon Plus will have a preference to always show in "colon format". Currently Plus always converts to "decimal format".');
-	    helpWin.para('&bull; Add <b>[exclude]</b> to list names to exclude them from board sums on the trello board page.<br>\
+	    helpWin.para('&nbsp;&nbsp;&nbsp;Plus always converts to "decimal format".');
+	    helpWin.para('<b>★</b> Add <b>[exclude]</b> to list names to exclude them from board sums on the Trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
-	    helpWin.para('&bull; Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more.</a>').children('a').click(function (ev) {
+	    helpWin.para('<b>★</b> Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more.</a>').children('a').click(function (ev) {
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
 	    });
 		helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile Plus for Trello</b>');
-	    helpWin.para('View card S/E. Pin cards to your phone. Offline enabled.');
-	    helpWin.para('The app works very well but some basic features are still missing.');
-	    helpWin.para('Soon it will have card timers and the S/E bar. Until then, once you are on a card in the app and wish to add S/E, it lets you go directly to the card in the trello app to enter S/E as a comment.');
-	    helpWin.para('The app is compatible only with "Trello card comments" sync. Upgrade if you are still using legacy google sync.');
-	    helpWin.para('Android: <A href="https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello" target="_blank">install from the store</A>. Soon for Apple iOS.');
+	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile and Web Plus for Trello</b>');
+	    helpWin.para('Works on any phone or browser (Firefox, iPhone etc and soon an official Trello power-up).');
+	    helpWin.para('View and enter card S/E. Pin cards to your phone notification bar. Works offline too!');
+	    helpWin.para('Is compatible only with "Trello card comments" sync.');
+	    helpWin.para('<A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">More information</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
@@ -1023,7 +1034,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            strEffectiveDow = " <b>Week effectively starts on " + strPrefix + getWeekdayName(DowMapper.dowFromPosWeek(0), true).toLowerCase() + "</b>. Set shift to zero above to undo. ";
 	        }
 	        var dateNowTemp = new Date();
-	        strEffectiveDow += "<br>Today's week is " + getCurrentWeekNum(dateNowTemp, dowStart, delta) + " with these settings.";
+	        strEffectiveDow += "<br>Today's week is " + getCurrentWeekNum(dateNowTemp, dowStart, delta) + " with these settings.<br><br>";
 	        if (delta != 0)
 	            strEffectiveDow += " Would be " + getCurrentWeekNum(dateNowTemp, dowStart, 0) + " with zero shift.";
 	        elemEffectiveDow.html(strEffectiveDow);
@@ -1165,6 +1176,29 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        });
 	    }
 
+	    if (true) {
+	        var paraPreventEstMod = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedPreventEstMod" \
+>Prevent me (mostly) from increasing existing <b>E</b>stimates. Your manager does it for you or wants to prevent entry mistakes. </input> <a href="">Tell me more.</a>');
+	        var checkPreventEstMod = paraPreventEstMod.children('input:checkbox:first');
+	        paraPreventEstMod.children('a').click(function (ev) {
+	            helpTooltip(ev, "Check to prevent users from accidentally increasing E (cause a +E) in the S/E bar and 'modify'.\
+ Users can still increase E on [R]ecurring cards, create new estimations (1st E) in the S/E bar and change E with <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comments</A>.<br>\
+Managers can always easily find new S/E rows with 'E. type: +E' in the Plus Chrome menu 'New S/E rows' report or estimate change charts.");
+	        });
+	        if (g_bPreventIncreasedE)
+	            checkPreventEstMod[0].checked = true;
+
+	        checkPreventEstMod.click(function () {
+	            var bValue = checkPreventEstMod.is(':checked');
+	            var pair = {};
+	            pair["bPreventEstMod"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bPreventIncreasedE = bValue;
+	                checkPreventEstMod[0].checked = g_bPreventIncreasedE;
+	            });
+	        });
+	    }
 
 	    if (true) {
 	        var checkIgnoreZeroEst = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedIgnoreZeroEstimates" \
@@ -1252,7 +1286,7 @@ Background sync every 10 minutes while Chrome is open even if Trello is not open
 	    //option to not warn on multiple active timers
 	    if (true) {
 	        var checkDontWarnParallelTimers = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontWarnParallelTimers">\
-Do not warn when starting multiple timers in parallel.</input>').children('input:checkbox:first');
+Do not warn when starting a timer when another timer is active.</input>').children('input:checkbox:first');
 	        if (g_bDontWarnParallelTimers)
 	            checkDontWarnParallelTimers[0].checked = true;
 
@@ -1288,10 +1322,29 @@ Do not warn when starting multiple timers in parallel.</input>').children('input
 	        });
 	    }
 
+	    //option to not show spent popups
+	    if (true) {
+	        var checkDontShowSpentPopups = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontShowSpentPopups">\
+Do not show daily spent total popup notifications every time you enter spent.</input>').children('input:checkbox:first');
+	        if (g_bDontShowSpentPopups)
+	            checkDontShowSpentPopups[0].checked = true;
+
+	        checkDontShowSpentPopups.click(function () {
+	            var bValue = checkDontShowSpentPopups.is(':checked');
+	            var pair = {};
+	            pair["bDontShowSpentPopups"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bDontShowSpentPopups = bValue;
+	                checkDontShowSpentPopups[0].checked = g_bDontShowSpentPopups;
+	            });
+	        });
+	    }
+
 	    //option to not show timer popups
 	    if (true) {
 	        var checkDontShowTimerPopups = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontShowTimerPopups">\
-Do not show timer popups.</input>').children('input:checkbox:first');
+Do not show timer popup notifications.</input>').children('input:checkbox:first');
 	        if (g_bDontShowTimerPopups)
 	            checkDontShowTimerPopups[0].checked = true;
 
@@ -1326,10 +1379,10 @@ Set the card background based on its first label color.</input>').children('inpu
 	        });
 	    }
 
-	    helpWin.para("<br>The next two settings let Plus read S/E from card titles, for board templates and those migrating from other tools.");
-	    helpWin.para("Plus uses card title S/E only when the card has no S/E rows entered.");
-	    helpWin.para("All users should have the same setting. S/E entered this way will only appear in the board, not in reports or burndowns.");
-	    helpWin.para("<A target='_blank' href='http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html'>See more about S/E in card titles.</A>");
+	    helpWin.para("<br>The next two settings let Plus read S/E from card and checklist titles for board dimensions, pre-estimation and those migrating from other scrum tools.");
+	    helpWin.para("Plus uses card title S/E in board dimensions only when the card has no S/E rows entered yet.");
+	    helpWin.para("All users should have the same setting. S/E entered this way will only appear in the board and checklists, not in reports or burndowns.");
+	    helpWin.para("See more about <A target='_blank' href='http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html'>S/E in card titles</A> and <A target='_blank' href='http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates'>pre-estimations</A>.");
 	    //checkAcceptPFTLegacy
 	    if (true) {
 	        var checkAcceptPFTLegacy = helpWin.raw('<span style="vertical-align:middle;margin-bottom:0px;"><input style="vertical-align:middle;margin-bottom:0px;" type="checkbox"  value="checkAcceptPFTLegacy">\
