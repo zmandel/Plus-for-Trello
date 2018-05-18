@@ -63,12 +63,17 @@ var Help = {
 	totalDbRowsHistoryNotSync: 0,
 	totalDbMessages: 0,
 	hasLegacyRows: false,
-    hasLi: false,
+	hasLi: false,
+    msDateLi: 0,
 	bDontShowAgainSyncWarn: false,
     bStartTourBubbleOnClose: false,
     bStartSyncOnClose: false,
     isVisible: function () {
         return ($('#agile_help_container').size() > 0 || this.m_bShowing);
+    },
+    isSyncEnabled: function () {
+        var bDisabled = (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()));
+        return !bDisabled;
     },
 	display: function () {
 	    if (this.m_bShowing || !g_dbOpened) {
@@ -127,6 +132,10 @@ var Help = {
 
                                                                             var liData = obj[SYNCPROP_LIDATA];
                                                                             thisObj.hasLi = liData && liData.li;
+                                                                            if (thisObj.hasLi)
+                                                                                thisObj.msDateLi = liData.msCreated;
+                                                                            else
+                                                                                thisObj.msDateLi = 0;
                                                                             thisObj.displayWorker();
                                                                         });
                                                                     });
@@ -221,7 +230,7 @@ var Help = {
 	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_almostTopmost1" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
 	        helpWin.m_extraElems.push(elemClose);
 	    elemClose.click(function () {
-	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
+	        if (!helpWin.isSyncEnabled()) {
 	            var msgAlert = "You have not enabled sync. You will not see your team Spent/Estimates.\nClick OK to configure sync, or click Cancel to use without sync.";
 	            var bHiliteGSButton = false;
 	            if (g_strServiceUrl == "" && (comboSync.val() == SYNCMETHOD.googleSheetLegacy || comboSync.val() == SYNCMETHOD.googleSheetStealth)) {
@@ -429,37 +438,42 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 &bull; <b>Card labels</b> in charts and reports (view, group, filter, stack).<br>\
 &bull; <b>Custom report columns</b> and extra export options useful for integrations.<br>\
 &bull; <b>Custom board views</b>. Pick which S, E, R boxes to show in boards, lists and cards (see Preferences.)';
-	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>';
+	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>\
+<div id="sectionLiDetails" style="display:none;margin-top:0.5em;"></div>';
 
 	    var paraProEnable = helpWin.para(textEnablePro);
 	    var sectionWhyPro = paraProEnable.find("#sectionWhyPro");
 	    var sectionPayProNow = paraProEnable.find("#sectionPayProNow");
+	    var sectionLiDetails = paraProEnable.find("#sectionLiDetails");
 
 	    var elemLinkPay = sectionPayProNow.find("#linkPayProNow");
 	    checkEnablePro[0].checked = g_bProVersion;
 
-	    function showProSections(bProEnabled) {
+	    function showProSections(bProEnabled, bHilitePay) {
 	        var bShowPay = bProEnabled;
 	        var bShowWhyPro = !bProEnabled;
-
-	        if (!isSpecialPayTestUser() || helpWin.hasLi)
+	        var bShowLicDetails = bProEnabled && helpWin.hasLi && helpWin.msDateLi;
+	        if (helpWin.hasLi)
 	            bShowPay = false;
+            
+	        if (bShowLicDetails)
+	            sectionLiDetails.text("License start date: " + makeDateCustomString(new Date(helpWin.msDateLi)));
+	        elemShowHide(sectionPayProNow, bShowPay);
+	        elemShowHide(sectionLiDetails, bShowLicDetails);
+	        elemShowHide(sectionWhyPro, bShowWhyPro);
 
-	        if (bShowPay)
-	            sectionPayProNow.show();
-	        else
-	            sectionPayProNow.hide();
-
-	        if (bShowWhyPro)
-	            sectionWhyPro.show();
-	        else
-	            sectionWhyPro.hide();
+	        if (bShowPay && bHilitePay)
+	            hiliteOnce(elemLinkPay, 5000);
 	    }
 
 	    if (g_bProVersion)
 	        showProSections(true);
 
 	    elemLinkPay.click(function () {
+	        if (!helpWin.isSyncEnabled()) {
+	            if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
+	                return;
+	        }
 	        Help.close(false);
 	        setTimeout(function () { //save the epileptics!
 	            checkLi(true);
@@ -488,7 +502,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                saveCheck();
 	                if (bValue) {
 	                    hitAnalytics("ProCheckbox", "enabled");
-	                    showProSections(true);
+	                    showProSections(true, true);
 	                } else {
 	                    showProSections(false);
 	                }
@@ -763,7 +777,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    comboSync.change(onComboSyncChange);
 	    var valComboNew = valCombo;
-	    if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()))
+	    if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) //same as !helpWin.isSyncEnabled()
 	        valComboNew = SYNCMETHOD.disabled;
 	    else if (g_optEnterSEByComment.IsEnabled()) {
 	        valComboNew = SYNCMETHOD.trelloComments;

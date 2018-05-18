@@ -44,7 +44,7 @@ window.onerror = function (msg, url, lineNo, columnNo, error) {
     var substring = "script error";
     var message;
     if (string.indexOf(substring) > -1) {
-        message = 'Script Error: See background browser console for details.';
+        message = 'Script Error: See background browser console for details. ' + msg;
     } else {
         message = [
             'Message: ' + msg,
@@ -1983,21 +1983,40 @@ function handleCheckChromeStoreToken(sendResponse) {
     });
 
     if (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf") {
-        g_bProVersion = true; //development version
-        sendResponse({ status: STATUS_OK });
-        return;
+       g_bProVersion = true; //development version
+       sendResponse({ status: STATUS_OK });
+       return;
     }
 
     chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
         if (token) {
             g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
             sendResponse({ status: STATUS_OK });
+            return;
         } else {
-            g_bProVersion = false; //caller will update storage
             var message = "";
             if (chrome.runtime.lastError)
                 message = chrome.runtime.lastError.message;
-            sendResponse({ status: "Not signed into Chrome, network error or no permission.\n" + message });
+            chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError.message);
+                    sendResponse({ status: chrome.runtime.lastError.message });
+                    return;
+                }
+                var liData = obj[SYNCPROP_LIDATA];
+                if (liData && liData.li) {
+                    //this can happen if this browser (like Opera) does not support the webstore, but user purchased the license from another Chrome browser
+                    g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
+                    sendResponse({ status: STATUS_OK });
+                    return;
+                }
+                var msgReturn =  "Not signed into Chrome, network error or no permission.\n" + message;
+                if (navigator && navigator.userAgent && navigator.userAgent.indexOf("Opera"))
+                    msgReturn = "Opera users: From Chrome, enable Pro & pay the license, then come back to Opera and enable Pro again signed-in to the same Google account as Chrome.";
+
+                g_bProVersion = false; //caller will update storage
+                sendResponse({ status: msgReturn });
+            });
         }
     });
 }

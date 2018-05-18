@@ -52,7 +52,7 @@ function isSpecialPayTestUser() {
     } else
         randUser = parseInt(randUser, 10);
 
-    return (randUser%100 == 0);
+    return (randUser%10 == 0);
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
@@ -164,7 +164,7 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
 <li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and make "Pro" users shape the future of Plus. Our mobile app and power-up already do this.</p></li>\
 </ul>\
 <br>\
-* We won\'t ask for payment information right now. Plus will remind you around March 2017.<br>Amount may vary slightly per country.<br>\
+* We won\'t ask for payment information right now. Plus will remind you later.<br>Amount may vary slightly per country.<br>\
 <br>\
 <button id="agile_dialog_showAprovePro_OK">Approve</button>&nbsp;\
 <button id="agile_dialog_showAprovePro_Cancel">Cancel</button>\
