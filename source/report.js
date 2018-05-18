@@ -72,6 +72,7 @@ const g_columnData = {
     cardShortLink: ["idCardH"],
     deleted: ["deleted", "idCardH"],
     dateDue: ["dateDue", "idCardH"],
+    dateCreated: ["dateCreated", "idCardH"],
     e: ["e"],
     e1st: ["e1st"],
     eType: ["eType"],
@@ -1806,7 +1807,7 @@ function buildSql(elems) {
     var sql = "select H.rowid as rowid, H.keyword as keyword, H.user as user, H.week as week, H.month as month, H.spent as spent, H.est as est, \
                 CASE WHEN (H.eType="+ ETYPE_NEW + ") then H.est else 0 end as estFirst, \
                 H.date as date, H.comment as comment, H.idCard as idCardH, H.idBoard as idBoardH, T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, H.eType as eType, \
-                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue, C.dateCreated as dateCreated \
                 FROM HISTORY as H \
                 JOIN CARDS as C on H.idCard=C.idCard \
                 JOIN LISTS as L on C.idList=L.idList \
@@ -1840,7 +1841,7 @@ function buildSql(elems) {
                 (g_bBuildSqlMode? "C.dateDue" : "CASE when C.dateSzLastTrello is null then 0 else cast(strftime('%s',C.dateSzLastTrello) as INTEGER) end")+" as date " +
                 ", '' as comment, C.idCard as idCardH, C.idBoard as idBoardH, \
                 T.idTeam as idTeamH, T.name as nameTeam,T.nameShort as nameTeamShort, L.name as nameList, L.pos as posList, C.name as nameCard, C.idShort as idShort, B.name as nameBoard, " + ETYPE_NONE + " as eType, \
-                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue \
+                CASE WHEN (C.bArchived+B.bArchived+L.bArchived)>0 then 1 else 0 end as bArchivedCB, C.bDeleted as bDeleted, C.dateDue as dateDue, C.dateCreated as dateCreated \
                 FROM CARDS as C \
                 JOIN LISTS as L on C.idList=L.idList \
                 JOIN BOARDS B on C.idBoard=B.idBoard \
@@ -3638,6 +3639,11 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         pushSpecialDueDateHeader();
     }
 
+    var bShowCreatedDate = bCustomColumns ? includeCol("dateCreated") : false;
+    if (bShowCreatedDate) {
+        pushHeader("Created date", "dateCreated");
+    }
+
     var bShowWeek = bCustomColumns ? includeCol("week") : (bShowDate && (bGroupedByDate || !g_bPopupMode));
     if (bShowWeek)
         pushHeader("Week","week");
@@ -3799,6 +3805,15 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
                 dateDueTimeString = makeDateCustomString(dateDueTimeString, true);
             }
             pushCol({ name: dateDueTimeString, bNoTruncate: true });
+        }
+
+        if (bShowCreatedDate) {
+            var dateCreatedTimeString = row.dateCreated || "";
+            if (dateCreatedTimeString) {
+                dateCreatedTimeString = new Date(dateCreatedTimeString * 1000);
+                dateCreatedTimeString = makeDateCustomString(dateCreatedTimeString, true);
+            }
+            pushCol({ name: dateCreatedTimeString, bNoTruncate: true });
         }
 
         function pushCardRow() {

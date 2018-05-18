@@ -1339,6 +1339,12 @@ function handleCheckChromeStoreToken(sendResponse) {
         timeout: 10000
     });
 
+    if (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf") {
+        g_bProVersion = true; //development version
+        sendResponse({ status: STATUS_OK });
+        return;
+    }
+
     chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
         if (token) {
             g_bProVersion = true; //caller will update storage. this global is for background, not content scripts
