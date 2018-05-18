@@ -259,7 +259,7 @@ function calculateSyncDelay(callback) {
 
 //review: cache this list globally, patch it as cards get renamed (hard to tell when an entry goes away)
 function handleGetAllHashtags(sendResponse) {
-    var request = { sql: "SELECT name FROM cards WHERE name LIKE '%#%' AND bDeleted=0 AND idBoard in (SELECT idBoard from Boards where bArchived=0)", values: [] };
+    var request = { sql: "SELECT name FROM cards WHERE name LIKE '%#%' AND bDeleted=0 AND bArchived=0 AND idBoard in (SELECT idBoard from Boards where bArchived=0)", values: [] };
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK) {

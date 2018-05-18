@@ -334,6 +334,9 @@ function clearAllStorage(callback) {
                         console.log(chrome.runtime.lastError.message);
                         alert(chrome.runtime.lastError.message);
                     }
+                    //review zig: we never do localStorage.clear(). need to check if any needs saving before adding it
+                    //for now just delete the new ones
+                    delete localStorage[PROP_LS_ASKEDNOTUSINGSE]; //helps with testing 
                     continueClear();
                 });
             });

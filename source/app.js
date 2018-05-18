@@ -320,6 +320,43 @@ function showTryProDialog(bHilite, callback) {
     }
 }
 
+function showTryNoSEDialog(callback) {
+    if (!callback)
+        callback = function () { };
+
+    var divDialog = $("#agile_dialog_tryNoSE");
+
+    function doCloseDialog(callbackAfter) {
+        divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+        setTimeout(function () {
+            divDialog[0].close();
+            if (callbackAfter)
+                callbackAfter();
+        }, 300); //wait for animation to complete
+    }
+
+    if (divDialog.length == 0) {
+        divDialog = $('\
+<dialog id="agile_dialog_tryNoSE" style="cursor:pointer;padding-bottom:6px;padding-top:6px;text-align: center;width:37em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_TryPro">\
+<div tabindex="1" style="outline: none;cursor:pointer;margin-top:0em;"><span>Hi! Seems you are not using Plus for Trello Spent or Estimates. <A href="http://www.plusfortrello.com/p/new-features-for-those-not-using-time.html" target="_blank"> Learn more</A></span> \
+<img style="padding:3px;margin-left:0.5em;margin-bottom:-7px;" src="' + chrome.extension.getURL("images/close.png") + '"></img></div> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $("#agile_dialog_tryNoSE");
+        divDialog.find("img").click(function (e) {
+            e.stopPropagation();
+            e.preventDefault();
+            doCloseDialog(function () {
+                callback(false);
+            });
+            return false;
+        });
+    }
+
+    showModlessDialog(divDialog[0]);
+    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
+}
+
 function showFatalError(message) {
     if (g_bErrorExtension)
         return;

@@ -1265,6 +1265,8 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
+	    helpWin.para('Change "sync" preferences from the <A href="#agile_help_trellosync">Sync section</A>.');
+	    helpWin.para('&nbsp');
 	    if (true) { //units
 	        var pComboUnits = helpWin.rawSE('<p><span>&bull; Work units: </span></p>');
 	        var comboUnits = $('<select style="width:auto">');

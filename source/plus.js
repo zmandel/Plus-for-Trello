@@ -15,6 +15,7 @@ var g_bSkipUpdateSsLinks = false; //used by dimensions dropdown to hack arround 
 var g_bInsertedStripeScript = false;
 const PROP_LS_MSLASTNOSYNCWARN = "msLastSyncWarn"; //warning: can be in the future. date since last time we showed the configure warning. 
 const PROP_LS_MSLAST_IGNORE_EXTUPGRADE = "msLastIgnoreExtUpg";
+const PROP_LS_ASKEDNOTUSINGSE = "ASKEDNOTUSINGSE";
 
 //board dimensions combo
 //sync see SYNCPROP_BOARD_DIMENSION
@@ -818,6 +819,8 @@ function updateCRowsTotalState(cRowsTotal, config, user) {
     var cRowsOld = g_cRowsHistoryLast;
     g_cRowsHistoryLast = cRowsTotal;
     var bNewRows = (cRowsOld != g_cRowsHistoryLast);
+    //review zig: the hack below causes the side-effect that users not using S/E will have cRowsTotal==0 and make the empty
+    //home charts refresh more than once.
     if (bNewRows || cRowsTotal == 0) { //cRowsTotal==0 is a hack so the "first sync" status text gets updated after a first sync with no rows
         g_bForceUpdate = true;
         g_seCardCur = null; //mark as uninitialized. will be set on the refresh below
@@ -1178,6 +1181,7 @@ function addWeekDataByBoard(dataWeek, weekCur, response, callback) {
 
 function useWeeklyReportData(dataWeek, topbarElem, user, bUpdateErrorState) {
 	configureSsLinksWorkerPostOauth(dataWeek, topbarElem, user, bUpdateErrorState);
+	//setTimeout(function () { insertFrontpageCharts(dataWeek, user); }, 1000); //to test the home page we add a delay
 	insertFrontpageCharts(dataWeek, user);
 }
 
@@ -1595,9 +1599,13 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 
     var divInsertAfter = $(".boards-page-board-section");
     var divPrepend = $(".home-container"); //new trello home april 2018
-    if (divInsertAfter.length == 0 && divPrepend.length == 0) {
-        setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
-        return false;
+    var divCheckExists = $(".home-tab-container");
+
+    if (divInsertAfter.length == 0) {
+        if (divPrepend.length == 0 || divCheckExists.length == 0) {
+            setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
+            return false;
+        }
     }
 
 	var classContainer = "agile_spent_items_container";
@@ -1624,7 +1632,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		        seContainer.insertAfter(divInsertAfter);
 		    else {
 		        seHeader.addClass("seContainerNewTrello");
-		        divPrepend.css("padding-top", "14px");
+		        divPrepend.children(".sticky-spacer").css("margin-top", "-26px");
 		        divPrepend.parent().prepend(seContainer);
 		    }
 		    function refreshAll() {
@@ -1797,6 +1805,31 @@ function addModuleSection(bCombobox, bEnableZoom, div, name, id, bHidden, strFlo
     return divItem;
 }
 
+function checkNotUsingSE() {
+    var sql = "select date from HISTORY AS H \
+				ORDER by date DESC LIMIT 1";
+    getSQLReport(sql, [],
+		function (response) {
+		    if (response && response.status == STATUS_OK && response.rows) {
+		        var bNoSE= response.rows.length==0;
+
+		        if (!bNoSE) {
+		            var msDate = response.rows[0].date * 1000; //db is in seconds
+		            if (Date.now() - msDate > 1000 * 60 * 60 * 24 * 30) {
+		                //over a month ago
+		                bNoSE = true;
+		            }
+		        }
+
+		        if (bNoSE) {
+		            setTimeout(function () { //wait a little for page to finish
+		                showTryNoSEDialog();
+		            }, 2000);
+		        }
+		    }
+		});
+}
+
 function doRecentReport(waiter, elemRecent, user) {
     //note: includes deleted cards
     var sql = "select count(*) as cGrouped, max(date*1000) as msDate, max(dateLocal) as dateLocal, nameBoard, nameCard, SUM(spent) as spent, sum(est) as est, coalesce(GROUP_CONCAT(comment,'\n'),'') as comment, idCard from \
@@ -1815,6 +1848,19 @@ function doRecentReport(waiter, elemRecent, user) {
 		    elemRecent.empty();
 		    elemRecent.append($(new Option("► Recent", "")).addClass("agile_section_comboTitle"));
 		    elemRecent.append($(new Option("↗ Open report", VAL_COMBO_OPENREPORT)));
+		    if (g_msStartPlusUsage && g_cRowsHistoryLast < 20 && !g_bNoSE && !g_bNoEst) {
+		        var msDelta = Date.now() - g_msStartPlusUsage;
+		        if (msDelta > 1000 * 60 * 60 * 2) { //2 days
+		            if ((localStorage[PROP_LS_ASKEDNOTUSINGSE] || "") != "1") {
+		                sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
+		                    if (response && response.status == STATUS_OK && response.bCompletedFirstSync) {
+		                        localStorage[PROP_LS_ASKEDNOTUSINGSE] = "1";
+		                        checkNotUsingSE();
+		                    }
+		                });
+		            }
+		        }
+		    }
 		    handleLoadRecent(elemRecent, response.rows, user);
 			elemRecent.parent().show();
 			if (waiter)
@@ -1835,7 +1881,7 @@ function doPendingReport(waiter, elemPending, user) {
 					CB.date*1000 AS msDate, CB.diff  \
 					FROM CARDBALANCE AS CB join CARDS AS C ON CB.idCard=C.idCard AND C.bDeleted=0 \
 					jOIN BOARDS B ON B.idBoard=C.idBoard \
-					WHERE CB.user=? AND ("+ sqlNegativeDiff + " CB.diff>0.005 OR CB.spent<-0.005 OR CB.est<-0.005) \
+					WHERE CB.user=? AND C.bArchived=0 AND C.bDeleted=0 AND (" + sqlNegativeDiff + " CB.diff>0.005 OR CB.spent<-0.005 OR CB.est<-0.005) \
 					ORDER BY CB.date DESC";
 	var values = [user];
 	getSQLReport(sql, values,
