@@ -1,12 +1,55 @@
 ﻿/// <reference path="intellisense.js" />
 
-var g_bLoaded = false; //needed because DOMContentLoaded gets called again when we modify the page
+var g_bLoaded = false;
+var g_bSentLoadedMsg = false;
 
-function getSQLReport(sql, values, callback) {
-    return getSQLReportShared(sql, values, callback, function onError(status) {
-        showError(status);
+function sendOnceLoadedMessage() {
+    if (g_bSentLoadedMsg)
+        return;
+    g_bSentLoadedMsg = true;
+    var params = getUrlParams();
+    var idCard = params.idCard;
+    var bClearAndMinimize = (params.minimized != "0");
+    sendExtensionMessage({ method: "timerWindowLoaded", idCard: idCard, bClearAndMinimize: bClearAndMinimize }, function (response) { });
+}
+
+window.addEventListener("load", function (event) {
+    var params = getUrlParams();
+    var idCard = params.idCard;
+    //try to wait until the window is fully painted, Windows needs it so its minimized preview shows the content.
+    //this method isnt perfect. I also tried changing an img src and detect its onload but that also didnt always work,
+    //so the current approach is to wait an extra 100ms
+    window.requestAnimationFrame(function () {
+        setTimeout(function () {
+            sendOnceLoadedMessage();
+            setTimeout(function () {
+                window.requestAnimationFrame(function () {
+                    handleRestoreWindow(idCard); //case after lock screen restore
+                });
+            }, 2000); //2000 is a safe time to wait, in case the minimize takes time and another paint happens
+        }, 100);
+    });
+});
+
+
+var g_bHandledRestore = false;
+function handleRestoreWindow(idCard) {
+    if (g_bHandledRestore)
+        return;
+    g_bHandledRestore = true; //first one wins
+    sendOnceLoadedMessage();
+    sendExtensionMessage({ method: "timerWindowRestored", idCard: idCard }, function (response) {
+        window.close();
     });
 }
+
+window.onfocus = function () {
+    if (document.visibilityState != "visible")
+        return;
+    var params = getUrlParams();
+    var idCard = params.idCard;
+    handleRestoreWindow(idCard);
+};
 
 document.addEventListener('DOMContentLoaded', function () {
     if (g_bLoaded)
@@ -16,83 +59,25 @@ document.addEventListener('DOMContentLoaded', function () {
     var params = getUrlParams();
     var idCard = params.idCard;
     var hash = getCardTimerSyncHash(idCard);
-    var bodyElem = $("body");
 
-    bodyElem.click(function () {
-
-        function stepCardData(resolve, reject) {
-            getCardData(null, idCard, "shortLink", false, function (cardData) {
-                if (cardData.status == STATUS_OK && !cardData.hasPermission) {
-                    removeTimerForCard(idCard);
-                    reject(new Error("")); //not an error, just stop chain. message already shown by removeTimerForCard
-                }
-                else
-                    resolve(STATUS_OK);
-            });
-        }
-
-        function openCard(status) {
-            assert(status == STATUS_OK);
-            window.open("https://trello.com/c/" + idCard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
-        }
-
-        function checkDeletedCard(response) {
-            assert(response.status == STATUS_OK);
-            var rows = response.rows;
-            assert(window.Promise); //we check for this during extension init, and wont load if its not there
-            if (rows && rows.length == 1 && rows[0].bDeleted)
-                return new Promise(stepCardData); //verify that indeed user has no access
-            else
-                return STATUS_OK;
-        }
-
-        loadSharedOptions(function () {
-            getSQLReport("SELECT bDeleted FROM cards WHERE idCard=?", [idCard]).then(checkDeletedCard).then(openCard)['catch'](function (err) { //review: 'catch' syntax to keep lint happy
-                if (err.message) //message is only set if user needs to see a message. else just means stop the chain
-                    sendDesktopNotification(err.message, 10000); //note: timer panels rely on this, as alerts dont work in panels
-            });
-        });
-    });
-
-    bodyElem.on("mouseenter", function () {
-        bodyElem.addClass("agile_timer_popup_hilite");
-    });
-
-    bodyElem.on("mouseleave", function () {
-        bodyElem.removeClass("agile_timer_popup_hilite");
-    });
-
-    //review zig: re-enable hover on panel body. https://code.google.com/p/chromium/issues/detail?id=268367
     $("#cardText").text(params.nameCard);//.prop("title", params.nameCard);
-    $("#cardFullAsTitle").prop("title", params.nameCard); //so in case there is ellipsis, tooltip shows when hovering it
     $("#boardText").text(params.nameBoard);
-    var bPanel = chrome.windows.getCurrent(null, function (window) {
-        if (!window.alwaysOnTop) {
-            $("#enablePanels").show();
-            $("#linkEnablePanels").click(function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                sendExtensionMessage({ method: "openChromeOptionsPanels" }, function (response) { });
-            });
-        }
-    });
-    if (bPanel)
-        button.hide();
+
     function update() {
         getCardTimerData(hash, function (objTimer) {
             var stored = objTimer.stored;
 
             if (stored === undefined || stored.msStart == null || stored.msEnd != null) {
-                document.title = "00:00:00s";
+                document.title = "00:00m";
+                sendOnceLoadedMessage();
                 window.close();
             }
             else {
-                var values = getTimerElemText(stored.msStart, Date.now(), false, document.visibilityState != "visible");
-                document.title = values;
+                document.title = getTimerElemText(stored.msStart, Date.now(), false, true);;
             }
         });
     }
 
     update();
-    setInterval(update, 1000);
+    setInterval(update, 1000); //review this could be re-done with timeouts with minute-step as now the windows is always minimized
 });

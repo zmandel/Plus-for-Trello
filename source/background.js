@@ -12,7 +12,7 @@ var g_bInstalledNetworkDetection = false;
 var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
-var g_mapTimerWindows = {};
+var g_mapTimerWindows = {}; // {idWindow, can be undefined or invalid }
 
 chrome.runtime.onInstalled.addListener(function (details) {
     if (details && details.reason && details.reason == "install") {
@@ -940,6 +940,14 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             }
             sendResponse({ status: STATUS_OK });
         }
+        else if (request.method == "timerWindowLoaded") {
+            handleTimerWindowLoaded(request.idCard, request.bClearAndMinimize);
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "timerWindowRestored") {
+            handleTimerWindowRestored(request.idCard);
+            sendResponse({ status: STATUS_OK });
+        } 
         else if (request.method == "getBoardsWithoutMe") {
             buildBoardsWithoutMe(function (response) {
                 sendResponse(response);
@@ -1163,68 +1171,247 @@ function handleCopyClipboard(html, sendResponse) {
     }
 }
 
+function isTaskbarBottom() {
+    return (navigator.platform.indexOf('Win') >= 0 || navigator.userAgent.indexOf('CrOS')>=0); //windows and chromebooks 
+}
+
 var g_bHookedNotificationsButton = false;
 
-function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
+function handleTimerWindowRestored(idCard) {
+    var map = g_mapTimerWindows[idCard];
+    if (!map)
+        return;
+    showTimerWindowAsNotification(idCard, map.nameCard, map.nameBoard);
+}
 
-    if (!g_bHookedNotificationsButton) {
-        chrome.notifications.onButtonClicked.addListener(function (notificationId, buttonIndex) {
-            
-                if (true) {
-                    chrome.windows.create({
-                        url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +
-                            "&nameBoard=" + encodeURIComponent(nameBoard), width: 250, height: 88, type: "popup"
-                    },
-                function (window) {
-                    if (window) {
-                        chrome.windows.update(window.id, { state: "minimized" });
-                        try {
-                            //alert: this call, when done without any Chrome windows left on the screen, will fail and the catch doesnt help, thus its done at the very end.
-                            chrome.notifications.clear(notificationId, function (bWasCleared) { });
-                        } catch (e) {
-                        }
-                    } else {
-                        //alert("error");
-                    }
-                }
-            );
-                }
-            ;
+function handleTimerWindowLoaded(idCard, bClearAndMinimize) {
+    var map = g_mapTimerWindows[idCard];
+    if (!map)
+        return;
+    var idWindow = map.idWindow;
+    try {
+        //alert: this call, when done without any Chrome windows left on the screen, will fail and the catch doesnt help, thus its done at the very end.
+        map.bClosedByUser = true;
+        if (bClearAndMinimize) {
+            chrome.notifications.clear(idNotificationForTimer(idCard), function (bWasCleared) {
+                if (true) //dont use bWasCleared for case where ther notification is no longer there when closed by system (lock screen etc)
+                    chrome.windows.update(idWindow, { state: "minimized" });
+            });
+        }
+    } catch (e) {
+    }
+}
+
+function handleNotifClick(notificationId) {
+    
+    var idCard = idCardFromIdNotification(notificationId);
+
+    function stepCardData(resolve, reject) {
+        getCardData(null, idCard, "shortLink", false, function (cardData) {
+            if (cardData.status == STATUS_OK && !cardData.hasPermission) {
+                removeTimerForCard(idCard);
+                reject(new Error("")); //not an error, just stop chain. message already shown by removeTimerForCard
+            }
+            else
+                resolve(STATUS_OK);
         });
-        g_bHookedNotificationsButton = true;
     }
 
-    var notification = chrome.notifications.create("timer:" + idCard,
+    function openCard(status) {
+        assert(status == STATUS_OK);
+        window.open("https://trello.com/c/" + idCard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
+    }
+
+    function checkDeletedCard(response) {
+        assert(response.status == STATUS_OK);
+        var rows = response.rows;
+        assert(window.Promise); //we check for this during extension init, and wont load if its not there
+        if (rows && rows.length == 1 && rows[0].bDeleted)
+            return new Promise(stepCardData); //verify that indeed user has no access
+        else
+            return STATUS_OK;
+    }
+
+    loadSharedOptions(function () {
+        getSQLReportShared("SELECT bDeleted FROM cards WHERE idCard=?", [idCard]).then(checkDeletedCard).then(openCard)['catch'](function (err) { //review: 'catch' syntax to keep lint happy
+            if (err.message) //message is only set if user needs to see a message. else just means stop the chain
+                sendDesktopNotification(err.message, 10000); //note: timer panels rely on this, as alerts dont work in panels
+        });
+    });
+}
+
+
+function makeTimerPopupWindow(notificationId, bMinimized) {
+    if (!notificationId || notificationId.indexOf(g_prefixTimerNotification) != 0)
+        return;
+    var marginSafety = 20;
+    var width = 240;
+    var height = 88;
+    var topPos = (isTaskbarBottom() ? Math.max(0, window.screen.availHeight - height - marginSafety) : 0);
+    var leftPost = Math.max(0, window.screen.availWidth - width - marginSafety);
+    var idCard = idCardFromIdNotification(notificationId);
+    var data = g_mapTimerWindows[idCard];
+    if (!data)
+        return;
+    data.bClosedByUser = false;
+    chrome.windows.create({
+        url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(data.nameCard) +
+            "&nameBoard=" + encodeURIComponent(data.nameBoard)+"&minimized="+(bMinimized?"1":"0"), width: width, height: height, type: "popup", left: leftPost, top: topPos
+    },
+    function (window) {
+        if (window) {
+            var map = g_mapTimerWindows[idCard];
+            if (map)
+                map.idWindow = window.id;
+
+        } else {
+            //alert("error");
+        }
+    }
+    );
+}
+
+function hookNotificationActions() {
+    if (g_bHookedNotificationsButton)
+        return;
+    g_bHookedNotificationsButton = true;
+
+    chrome.notifications.onClicked.addListener(function (notificationId) {
+        if (!notificationId || notificationId.indexOf(g_prefixTimerNotification) != 0)
+            return; //some notifications are not timers
+        handleNotifClick(notificationId);
+    });
+
+    chrome.notifications.onClosed.addListener(function (notificationId, byUser) {
+        if (byUser || !notificationId || notificationId.indexOf(g_prefixTimerNotification) != 0)
+            return; //some notifications are not timers
+
+        var idCard = idCardFromIdNotification(notificationId);
+        var data = g_mapTimerWindows[idCard];
+        if (!data.bClosedByUser)
+            makeTimerPopupWindow(notificationId,false);
+    });
+
+    chrome.notifications.onButtonClicked.addListener(function (notificationId, buttonIndex) {
+        makeTimerPopupWindow(notificationId, true);
+    });
+}
+
+var g_prefixTimerNotification = "timer:";
+function idNotificationForTimer(idCard) { 
+    return g_prefixTimerNotification + idCard;
+}
+
+function idCardFromIdNotification(idNotification) {
+    assert(idNotification.indexOf(g_prefixTimerNotification) == 0);
+    return idNotification.substring(g_prefixTimerNotification.length);
+}
+
+var g_intervalTimerNotifications = null;
+var g_cTimerUpdates = 0;
+
+function handleTimerNotificationsUpdate() {
+    if (!g_intervalTimerNotifications)
+        g_intervalTimerNotifications = setInterval(updateTimerNotifications, 1000);
+    updateTimerNotifications();
+
+    function updateTimerNotifications() {
+        chrome.notifications.getAll(function (notifications) {
+            var cUpdated = 0;
+            for (var idNotification in notifications) {
+                if (!idNotification || idNotification.indexOf(g_prefixTimerNotification) != 0)
+                    continue;
+                updateTimerNotification(idNotification);
+                cUpdated++;
+                g_cTimerUpdates++;
+            }
+            if (cUpdated == 0 && g_intervalTimerNotifications) {
+                clearInterval(g_intervalTimerNotifications);
+                g_intervalTimerNotifications = null;
+            }
+        });
+    }
+
+    function updateTimerNotification(idNotification) {
+        var idCard = idCardFromIdNotification(idNotification);
+        var hash = getCardTimerSyncHash(idCard);
+        getCardTimerData(hash, function (objTimer) {
+            var stored = objTimer.stored;
+            var map = g_mapTimerWindows[idCard];
+            if (!map)
+                return;
+
+            if (stored === undefined || stored.msStart == null || stored.msEnd != null) {
+                map.bClosedByUser = true;
+                chrome.notifications.clear(idNotification, function (bWasCleared) { });
+            }
+            else {
+                var notification = chrome.notifications.update(idNotification,
+                    {
+                        title: getTimerElemText(stored.msStart, Date.now(), false, false),
+                        buttons: [{ title: g_cTimerUpdates>2?"":"Minimize", iconUrl: chrome.extension.getURL("images/minimize.png") }]
+                    }, function (notificationId) {
+                       
+                    }
+                    );
+            }
+        });
+    }
+}
+
+function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
+    hookNotificationActions();
+    g_mapTimerWindows[idCard] = { idWindow: null, nameCard: nameCard, nameBoard: nameBoard };
+    var idNotification = idNotificationForTimer(idCard);
+    
+    var notification = chrome.notifications.create(idNotification,
         {
             type: "basic",
             isClickable:true,
             iconUrl: chrome.extension.getURL("images/timer-sm-on.png"),
             appIconMaskUrl: chrome.extension.getURL("images/icon32alpha.png"),
-            title: "17:20:08s",
-            message: "My Card\r\nSample Board",
+            title: "00:00:00s",
+            message: nameCard,
             //message: strTruncate(nameCard, 20) + "\r\n" + strTruncate(nameBoard, 20),
-            //contextMessage:strTruncate(nameBoard, 20),
+            contextMessage:strTruncate(nameBoard, 40),
             requireInteraction: true,
-            buttons: [{ title: "", iconUrl: chrome.extension.getURL("images/minimize.png")}]
+            buttons: [{ title: "Minimize", iconUrl: chrome.extension.getURL("images/minimize.png")}]
         }, function (notificationId) {
-               
+            handleTimerNotificationsUpdate();
             }
         );
 }
 
 function doShowTimerWindow(idCard) {
     
-    var idWindow = g_mapTimerWindows[idCard];
+    var data = g_mapTimerWindows[idCard];
 
-    if (idWindow === undefined)
+    if (data === undefined)
         create(idCard);
-    else {
+    else if (data.idWindow) {
+        caseWindow(data.idWindow);
+    } else {
+        caseNotification();
+    } 
+
+    function caseWindow(idWindow) {
         chrome.windows.get(idWindow, null, function (window) {
             if (chrome.runtime.lastError || !window) {
-                if (g_mapTimerWindows[idCard] === idWindow) {
+                data = g_mapTimerWindows[idCard];
+                if (!data || data.idWindow === idWindow) {
                     delete g_mapTimerWindows[idCard];
                     create(idCard);
                 }
+            }
+        });
+    }
+
+    function caseNotification() {
+        var idNotification = idNotificationForTimer(idCard);
+        chrome.notifications.getAll(function (notifications) {
+            if (!notifications[idNotification]) {
+                delete g_mapTimerWindows[idCard];
+                create(idCard);
             }
         });
     }
@@ -1255,33 +1442,8 @@ function doShowTimerWindow(idCard) {
                         return;
                     }
 
-                    //showTimerWindowAsNotification(idCard, nameCard, nameBoard);
-                    //return;
-                    chrome.windows.create({
-                        url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +
-                            "&nameBoard=" + encodeURIComponent(nameBoard), width: 205, height: 88, type: "panel"
-                    },
-                        function (window) {
-                            if (window) {
-                                if (g_mapTimerWindows[idCard]) {
-                                    //disclaimer: in v3.1.7 there was a bug where sometimes a card timer window would show twice.
-                                    //repro was to click on the timer button inside the chrome popup
-                                    //the card would open with the board behind it. both cards and boards would ask for the timer window but there
-                                    //already was code here to deal with it. I made other parts more robust but I have also added this final check
-                                    //even though I dont think its needed anymore
-                                    chrome.windows.remove(window.id);
-                                    logPlusError("duplicate timer window removed");
-                                }
-                                else {
-                                    g_mapTimerWindows[idCard] = window.id;
-                                    if (!window.alwaysOnTop) {
-                                        var heightNew = window.height + 12; //for the line showing panel instructions
-                                        var widthNew = window.width + 40; //some OSs (win10) need more space for the max/restore/min win buttons
-                                        chrome.windows.update(window.id, { height: heightNew, width: widthNew }); //grow to show panel enabling instructions
-                                    }
-                                }
-                            }
-                        });
+                    showTimerWindowAsNotification(idCard, nameCard, nameBoard);
+                    return;
                 });
         });
     }

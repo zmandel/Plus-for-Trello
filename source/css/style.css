@@ -1903,15 +1903,11 @@ float:left;
 .agile_timer_popup {
     font-size:14px;
     font-family:'Helvetica Neue', arial, helvetica, sans-serif;
-    background: #BBD0DB;
     overflow:hidden;
     cursor:pointer !important;
     margin:7px;
 }
 
-.agile_timer_popup_hilite {
-    background: #DDE8ED !important;
-}
 
 .agile_timerPopupDescCard {
     margin-bottom:5px;
@@ -1921,8 +1917,9 @@ float:left;
     font-weight:bold;
     display: block;
     text-decoration:none;
-    color:#4D4D4D;
-    opacity:0.8;
+    color:black;
+    opacity:1;
+    font-size:120%;
 }
 
 .agile_timerPopupDescBoard {
