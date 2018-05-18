@@ -52,7 +52,7 @@ function isSpecialPayTestUser() {
     } else
         randUser = parseInt(randUser, 10);
 
-    return ((randUser % 5 == 0));
+    return true;
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
@@ -2435,7 +2435,7 @@ function checkLi(bForce) {
 
             var msLast = liData.msLastCheck;
             var bWaitCheck = !bForce;
-            if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 6)) //6 hours
+            if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 35)) //35 hours
                 return;
 
             if (isLicException())
@@ -2461,37 +2461,68 @@ function checkLi(bForce) {
                         return;
                     var msLastCheckLast = liData.msLastCheck;
                     liData = obj[SYNCPROP_LIDATA] || liData;
-                    if (liData.msLastCheck < msLastCheckLast) {
+                    if (liData.msLastCheck <= msLastCheckLast) {
                         liData.msLastCheck = msLastCheckLast;
                         saveLi(liData);
                     }
                 });
             }
 
-            showFirstLicDialog(bForce, function (status) {
-                hitAnalytics("LicDialog", status);
-                if (status == STATUS_OK) {
-                    sendExtensionMessage({ method: "checkLi" }, function (response) {
-                        hitAnalytics("LicActivation", response.status == STATUS_OK ? "OK-ACTIVATED" : response.status);
-                        if (response.status == STATUS_OK)
-                            sendDesktopNotification("Successful activation. Enjoy!");
-                        else if (response.status == "hasLicense")
-                            sendDesktopNotification("Existing license found (was already activated). Enjoy!", 12000); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
-                        else {
-                            if (response.status == "PURCHASE_CANCELED")
-                                sendDesktopNotification("License not activated because the purchase was cancelled.", 12000);
-                            else
-                                sendDesktopNotification("An error happened. Please try later. " + response.status, 12000);
-                            saveLiIfNewer(liData);
-                        }
-                    });
-                } else {
-                    saveLiIfNewer(liData);
-                }
+            checkBackendEnabledPay(function () {
+                showFirstLicDialog(bForce, function (status) {
+                    hitAnalytics("LicDialog", status);
+                    if (status == STATUS_OK) {
+                        sendExtensionMessage({ method: "checkLi" }, function (response) {
+                            hitAnalytics("LicActivation", response.status == STATUS_OK ? "OK-ACTIVATED" : response.status);
+                            if (response.status == STATUS_OK)
+                                sendDesktopNotification("Successful activation. Enjoy!");
+                            else if (response.status == "hasLicense")
+                                sendDesktopNotification("Existing license found (was already activated). Enjoy!", 12000); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
+                            else {
+                                if (response.status == "PURCHASE_CANCELED")
+                                    sendDesktopNotification("License not activated because the purchase was cancelled.", 12000);
+                                else
+                                    sendDesktopNotification("An error happened. Please try later. " + response.status, 12000);
+                                saveLiIfNewer(liData);
+                            }
+                        });
+                    } else {
+                        saveLiIfNewer(liData);
+                    }
+                });
             });
         });
     });
 }
+
+function checkBackendEnabledPay(callback) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function (event) {
+        if (xhr.readyState == 4) {
+            var statusRet = STATUS_OK;
+            var obj = null;
+
+            if (xhr.status == 200 && xhr.responseText !== undefined && xhr.responseText != "") {
+                try {
+                    obj = JSON.parse(xhr.responseText);
+                } catch (e) {
+                }
+            }
+            if (obj == null || !obj._value)
+                return;
+
+            if (obj._value == "ENABLED")
+                callback();
+            return;
+        }
+    };
+    //https://trello.com/b/OpVbnPB4/plus-for-trello-public-board card "ENABLE CHROME STORE"
+    var url = "https://trello.com/1/cards/MM8LbbVO/desc";
+
+    xhr.open("GET", url, true);
+    xhr.send();
+}
+
 
 function hitAnalytics(category, action) {
     sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action }, function (response) {

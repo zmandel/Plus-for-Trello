@@ -342,6 +342,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        var buttonUpgrade = paraUpgrade.children('input:button:first');
 	        helpWin.para('&nbsp');
 	        helpWin.para('&nbsp');
+	        hiliteOnce(buttonUpgrade, null, null, 3);
+
+
 	        buttonUpgrade.click(function () {
 	            buttonUpgrade.val("Installing...");
 	            buttonUpgrade.prop('disabled', true);

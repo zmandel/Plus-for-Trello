@@ -2854,7 +2854,7 @@ function getCommonChartParts(domain, colorsForScale, legendTexts) {
     if (colorsForScale)
         ret.colorScale.range(colorsForScale);
     if (colorsForScale.length > 1)
-        ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("top");
+        ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("top").maxEntriesPerRow(legendTexts.length > 20 ? 3 : 1);
     else
         ret.legend = null;
     ret.yScale = new Plottable.Scales.Category().domain(domain);

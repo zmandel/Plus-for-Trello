@@ -1386,12 +1386,17 @@ function setPopupClickHandler(elem, url) {
 }
 
 //msTime 0 or undefined will use 1500
-function hiliteOnce(elem,msTime, strClass) {
+function hiliteOnce(elem,msTime, strClass, count) {
 	var classBlink = (strClass ? strClass : "agile_box_input_hilite");
 	msTime = msTime || 1500;
 	elem.addClass(classBlink);
 	setTimeout(function () {
-		elem.removeClass(classBlink);
+	    elem.removeClass(classBlink);
+	    if (count && count>1) {
+	        setTimeout(function () {
+	            hiliteOnce(elem, msTime, strClass, count - 1);
+	        }, msTime);
+	    }
 	}, msTime);
 }
 

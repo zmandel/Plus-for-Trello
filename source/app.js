@@ -159,7 +159,7 @@ target="_blank">Translate</A></span>\
 </dialog>');
         $("body").append(divDialog);
         divDialog = $("#agile_dialog_FirstLic");
-
+        hiliteOnce(divDialog, 3000);
         divDialog.click(function (e) {
             var content = divDialog.find("#agile_FirstLic_content");
             if (content.is(":visible"))

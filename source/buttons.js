@@ -23,6 +23,10 @@ var HelpButton = {
 		});
 
 		configureSsLinks(b);
+		setTimeout(function () {
+		    if (newerStoreVersion())
+		        hiliteOnce(icon, null, null, 3);
+		}, 1000);
 		return b;
 	},
 	display: function () {
