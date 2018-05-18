@@ -2877,7 +2877,7 @@ function dlabelRealFromEncoded(dlabel) {
 function getCommonChartParts(elemChart, domain, colorsForScale, legendTexts) {
     var colorBk = (g_dataChart.params["checkBGColorChart"] == "true" ? g_dataChart.params["colorChartBackground"] || "#FFFFFF" : null);
     elemChart.css("background-color", colorBk || "transparent");
-    elemChart.parent().parent().css("background-color", colorBk || "transparent");
+    //elemChart.parent().parent().css("background-color", colorBk || "transparent");
     var ret = {};
     ret.colorScale = new Plottable.Scales.Color().domain(legendTexts);
     if (colorsForScale)
@@ -3421,6 +3421,7 @@ function chartStacked(type, bForce, callbackCancel) {
     var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
         labelsEnabled(true).addClass("chartReportStyle");
 
+    
     if (bNoColors)
         chart.attr("stroke", "black");
 
@@ -3448,7 +3449,6 @@ function chartStacked(type, bForce, callbackCancel) {
 
 
     var table = null;
-
     if (iGroupStack >= 0) {
         if (!bNoColors && type == g_chartViews.cardcount) {
             chart.attr("stroke", function (d) {
@@ -3471,8 +3471,26 @@ function chartStacked(type, bForce, callbackCancel) {
 
     prependChartTitle(table, g_dataChart, domain);
     g_chartContainer = new Plottable.Components.Table(table);
-    elemChart.attr('height', (domain.length + 3) * (50 + (cPartsGroupFinal < 3 ? 0 : 15 * (cPartsGroupFinal - 2))));
+    const barWidthMax = 50 + (cPartsGroupFinal < 3 ? 0 : 15 * (cPartsGroupFinal - 2));
+    var heightChartCalc = (domain.length + 3) * barWidthMax;
+    elemChart.attr('height', heightChartCalc);
+
+    //START hack alert: plottable 3.0 solves this but for now, we hack the layout code to cap the bar width.
+    //needed so that when we size the chart bigger, the bars dont keep growing needlessly (try with a single bar)
+    //then, we again might resize the chart height so that its exactly the table height. So when the chart PNG is downloaded, the background color
+    //covers the entire height. Otherwise, a short chart with many labels (try a single board stacked by card) will be too short (labels overflow the chart background)
+    chart._saved_updateBarPixelWidth = chart._updateBarPixelWidth;
+    chart._updateBarPixelWidth = function () {
+        this._saved_updateBarPixelWidth();
+        if (chart._barPixelWidth > barWidthMax)
+            chart._barPixelWidth = barWidthMax;
+    };
     g_chartContainer.renderTo("#chart");
+    var heightFinal = g_chartContainer.requestedSpace(g_chartContainer._width, Infinity).minHeight;
+    if (heightFinal>heightChartCalc)
+        elemChart.attr('height', heightFinal);
+    //END hack alert
+
     if (iGroupStack >= 0) {
         var elemTooltip = $("#tooltipChart");
         // Setup Interaction.Pointer

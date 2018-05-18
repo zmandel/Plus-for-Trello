@@ -205,6 +205,43 @@ target="_blank">Translate</A></span>\
     setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }
 
+function showTryProDialog(bHilite, callback) {
+    var divDialog = $("#agile_dialog_TryPro");
+
+    if (divDialog.length == 0) {
+        //focus on h2 so it doesnt go to the first link
+        divDialog = $('\
+<dialog id="agile_dialog_TryPro" style="cursor:pointer;text-align: center;width:25em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_TryPro">\
+<div tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Read about our Plus for Trello "Pro" version.</div> \
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $("#agile_dialog_TryPro");
+        if (bHilite) {
+            setTimeout(function () {
+                hiliteOnce(divDialog, 3000);
+            }, 1000);
+        }
+        divDialog.click(function (e) {
+            doCloseDialog(function () {
+                callback();
+            });
+        });
+
+        function doCloseDialog(callbackAfter) {
+            divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+            setTimeout(function () {
+                divDialog[0].close();
+                if (callbackAfter)
+                    callbackAfter();
+            }, 300); //wait for animation to complete
+        }
+
+    }
+
+    showModlessDialog(divDialog[0]);
+    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
+}
+
 function showFatalError(message) {
     if (g_bErrorExtension)
         return;

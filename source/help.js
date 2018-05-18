@@ -199,8 +199,8 @@ var Help = {
 	    if (bShowPro) {
 	        setTimeout(function () {
 	            var step = {
-	                selector: $("#agile_plus_checkPro").parent(),
-	                text: 'Enable "Pro"<br />from here!<br /><br />Thanks for<br />giving back!',
+	                selector: $("#agile_plus_checkPro").parent().children("label"),
+	                text: 'Enable "Pro"<br />from here',
 	                angle: 0,
 	                distance: 5,
 	                size: 150,
@@ -422,7 +422,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    var strUsingPlusDays = "";
 	    var cDaysUsingPlus = 0;
-	    if (g_msStartPlusUsage != null) {
+	    if (g_msStartPlusUsage !== null) {
 	        var dms = (Date.now() - g_msStartPlusUsage);
 	        cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
 	        if (cDaysUsingPlus > 2)
@@ -440,7 +440,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro!<br>\
 &bull; Card labels in charts and reports (view, group, filter, stack).<br>\
 &bull; Custom report columns, extra export options useful for integrations.<br>\
-&bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).';
+&bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).<br>\
+&bull; Priority support and many planned "Pro" features.';
 	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>\
 <div id="sectionLiDetails" style="display:none;margin-top:0.5em;"></div>';
 

@@ -675,6 +675,7 @@ var g_bHideLessMore = false;
 var g_msStartPlusUsage = null; //ms of date when plus started being used. will be null until user enters the first row
 var g_bSyncOutsideTrello = false; //allow sync outside trello
 var g_bChangeCardColor = false; //change card background color based on its first label
+var g_msLastHiliteNoSync = 0;
 
 function checkFirstTimeUse() {
 	var keyDateLastSetupCheck = "dateLastSetupCheck";
@@ -686,7 +687,7 @@ function checkFirstTimeUse() {
 	sendExtensionMessage({ method: "getTotalDBRows" }, function (response) {
 	    if (response.status == STATUS_OK) {
 	        totalDbRowsHistory = response.cRowsTotal;
-	        if (g_msStartPlusUsage == null && response.dateMin) {
+	        if (g_msStartPlusUsage === null && response.dateMin) {
 	            chrome.storage.sync.set({ 'msStartPlusUsage': response.dateMin }, function () {
 	                if (chrome.runtime.lastError === undefined)
 	                    g_msStartPlusUsage = response.dateMin;
@@ -702,7 +703,8 @@ function checkFirstTimeUse() {
 	            bShowHelp = true;
 	            bForceShowHelp = true;
 	        }
-	        if (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled() && !g_bDisableSync) { //sync not set up
+	        var bSyncNotEnabled = (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()));
+	        if (bSyncNotEnabled && !g_bDisableSync) { //sync not set up
 	            if (msDateLastSetupCheck !== undefined) {
 	                if (totalDbRowsHistory > 0) {
 	                    if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24) //nag once a day
@@ -715,24 +717,6 @@ function checkFirstTimeUse() {
 	            }
 	        }
 
-            //show help on startup in some cases
-			if (!bShowHelp && !g_bUserDonated && g_msStartPlusUsage != null) {
-			    var dms = msDateNow - g_msStartPlusUsage;
-			    var cDaysUsingPlus = Math.floor(dms / 1000 / 60 / 60 / 24);
-			    if (cDaysUsingPlus > 20) {
-			        if (msDateLastSetupCheck === undefined) {
-			            bForceShowHelp = true;
-			            bShowHelp = true;
-			        }
-			        else {
-			            if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24 * 15) { //every 15 days (15%7=1 thus will shift the day of the week every time)
-			                bForceShowHelp = true;
-			                bShowHelp = true;
-			            }
-			        }
-			    }
-			}
-
 			if (bShowHelp) {
 			    if (!valuekeySyncWarn || bForceShowHelp) {
 					var pair = {};
@@ -744,6 +728,14 @@ function checkFirstTimeUse() {
 					}, 1500);
 					setTimeout(function () { Help.display(); }, 2000);
 				}
+			} else if (bSyncNotEnabled) {
+			    var msNow = Date.now();
+			    if (msNow - g_msLastHiliteNoSync  > 1000 * 60 * 5) {
+			        setTimeout(function () {
+			            hiliteOnce($(".agile-main-plus-help-icon"), 500, null, 2);
+			        }, 2000);
+			        g_msLastHiliteNoSync = msNow;
+			    }
 			}
 		});
 	});
@@ -2417,6 +2409,54 @@ function testModifySyncStorageUrl(url) {
     });
 }
 
+function checkTryPro() {
+    const PROP_LS_MSLASTTRYPRO = "MSLastTryPro";
+    const PROP_LS_DATELASTTRYPROCHECK = "DateLastTryProCheck";
+    const PROP_LS_CTIMESSHOWNTRYPRO= "CTimesShownTryPro";
+    const MSDELTA_TRYPRO = 1000 * 60 * 60 * 24 * 30; //30 days
+    const CTIMES_FINAL = 3;
+    const msNow = Date.now();
+
+    if (g_msStartPlusUsage === null)
+        return;
+
+    var cDaysUsingPlus =  Math.floor((msNow - g_msStartPlusUsage)/1000/60/60/24);
+    if (cDaysUsingPlus<3)
+        return;
+
+    var msLast = parseInt(localStorage[PROP_LS_MSLASTTRYPRO] || "0", 10) || 0;
+
+    if (msNow - msLast < MSDELTA_TRYPRO)
+        return;
+    var strDateLast = localStorage[PROP_LS_DATELASTTRYPROCHECK] || "";
+    var strDateNow = makeDateCustomString(new Date(msNow));
+    var cTimesToday = 0;
+    if (strDateNow == strDateLast)
+        cTimesToday = (parseInt(localStorage[PROP_LS_CTIMESSHOWNTRYPRO] || "0", 10) || 0);
+    else
+        localStorage[PROP_LS_DATELASTTRYPROCHECK] = strDateNow;
+
+    cTimesToday++;
+
+    if (cTimesToday > CTIMES_FINAL)
+        return;
+
+    if (cDaysUsingPlus < 20 && cTimesToday > 1)
+        return;
+
+    localStorage[PROP_LS_CTIMESSHOWNTRYPRO] = cTimesToday.toString();
+
+    showTryProDialog(cTimesToday == CTIMES_FINAL, function () {
+        g_bNeedShowPro = true;
+        hiliteOnce($(".agile-main-plus-help-icon"), 1000, null, 2);
+        setTimeout(function () {
+            Help.display();
+        }, 1000);
+
+        localStorage[PROP_LS_MSLASTTRYPRO] = msNow.toString();
+    });
+}
+
 function checkLi(bForce) {
     chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
         if (chrome.runtime.lastError) {
@@ -2424,8 +2464,10 @@ function checkLi(bForce) {
             return;
         }
         var bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
-        if (!bProVersion)
+        if (!bProVersion) {
+            checkTryPro();
             return;
+        }
 
         chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
             if (chrome.runtime.lastError) {
@@ -2502,6 +2544,7 @@ function checkLi(bForce) {
     });
 }
 
+//callback only if not payed
 function checkBackendEnabledPay(callback) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function (event) {

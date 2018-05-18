@@ -2103,7 +2103,9 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
             msdateLastLabelsSync = Math.max(0, msdateLastLabelsSync - g_msDelayTrelloSearch*2); //pretend is a little before, to cover for overlap with eventually consistent search in trello
             //must include at least the past g_msDelayTrelloSearch because of eventual search consistency. *2 for safety
             var cDaysDelta = ((msDateNow - msdateLastLabelsSync) / 1000 / 60 / 60 / 24);
-            assert(cDaysDelta >= 0);
+            if (cDaysDelta < 0)
+                cDaysDelta = 0; //user's system date might be wrong
+            
             cDaysDelta = Math.ceil(cDaysDelta); //trello api handles minimum of 1 'edited' search
             var bForceAllBoards = (cDaysDelta > 30);
             if (bForceAllBoards)
@@ -2315,7 +2317,8 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                                             return;
                                         }
                                         
-                                        if (data.search.cards.length == cLimitCardsSearch) {
+                                        //review: one user had data.search undefined so check it
+                                        if (!data.search || data.search.cards.length == cLimitCardsSearch) {
                                             //rare case, too many cards changed. instead of coding a paged search, just tell caller to retry with a full deep sync
                                             //hack alert: this repeats the previous step using deep sync for all boards. might be hard to maintain if step later changes global state
                                             sendResponse({ bNeedWorkerRetry: true, status: "retry with deep sync"});

@@ -161,6 +161,12 @@ list-style-type:disc !important;
     transition: all 0.3s ease-out;  
 }
 
+.agile_dialog_Postit_Anim_TryPro {
+    margin-top: -4em;
+    -webkit-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;  
+}
+
 .agile_dialog_Postit_Anim_SFT {
     margin-top: -16em;
 }
