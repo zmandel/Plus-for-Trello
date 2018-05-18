@@ -59,11 +59,16 @@ function isSpecialPayTestUser() {
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
+    if (document.URL.indexOf("/trello.com/" + URLPART_PLUSLICENSE + "/") >= 0)
+        return;
+
     assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
+    
     if (isSpecialPayTestUser()) {
         sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
-            if (response && response.status == STATUS_OK && response.bCompletedFirstSync)
+            if (response && response.status == STATUS_OK && response.bCompletedFirstSync) {
                 setTimeout(checkLi, 2000);
+            }
         });
         
     }
@@ -2446,61 +2451,88 @@ function checkTryPro() {
     });
 }
 
-function insertStripeDialog() {
-    var price = 9.99;
+function insertStripeDialog(liDataStripe) {
     var userTrello = getCurrentTrelloUser();
     if (!userTrello)
         return null;
 
     divStripeForm = $('\
-<dialog class="agile_dialog_stripe_pay agile_dialog_DefaultStyle" style="width: 500px;"> \
+<dialog class="agile_dialog_stripe_pay agile_dialog_DefaultStyle" style="width: 500px;top:0;"> \
 <p align="center"><span style="font-size:120%;font-weight:normal;">Payments by stripe.com</span></p>\
 <br>\
-    <form method="post" id="payment-form">\
-        <div class="form-row agile-stripe-form">\
-       <label style="display:inline-block;">License owner: </label><span id="agile_userTrello_stripe">' + userTrello + '</span>\
-<br><br>\
-       <label>\
-            <span>Email of license owner</span>\
-            <input autofocus class="field" name="email" type="email"  style="width:20em;" />\
-<br>\
-        </label>\
-        <label>\
-            <span>Number of licenses</span>\
-        </label>\
-            <input class="field" id="agile_number_licenses_stripe" type="number" name="quantity" pattern="[0-9]" min="0" max="99" style="width:5em;display:inline-block;"/>\
- <span>&nbsp;one per Trello user, including you</span>\
-<br><hr>\
-        <label>\
-            <span><span>Name of card holder</span></span>\
-            <input name="cardholder-name" class="field is-empty" style="width:20em;"/>\
-        </label>\
-        <div>&nbsp;</div>\
-        <label for="card-element">\
+<form method="post" id="agile-stripe-payment-form">\
+    <div style="display:none;" id="agile_stripe_li"></div>\
+    <label style="display:inline-block;">License owner:</label>&nbsp;<span id="agile_userTrello_stripe">' + userTrello + '</span>\
+    <br><br>\
+    <label>\
+        <span>Email of license owner</span>\
+        <input  id="agile_email_stripe" class="field" name="email" type="email"  style="width:20em;background-color:#E2E4E6 !important;" autocomplete="email" />\
+        <br>\
+    </label>\
+    <label for="agile_quantity_stripe" style="display:inline-block;">\
+        <span>Total number of licenses</span>\
+    </label>\
+     <span id="agile_quantity_explain_modify_stripe" style="display:none;">Increase or decrease the total.</span><br>\
+    <input id="agile_quantity_stripe" autocomplete="off" class="field" type="number" name="quantity" pattern="[0-9]" min="0" max="99" style="width:5em;display:inline-block;"/>\
+    <span>&nbsp;one per Trello user, including you</span>\
+    <br><br>\
+    <label for="agile_cardholdername_stripe">\
+        <span><span>Name of card holder</span></span>\
+        <input id="agile_cardholdername_stripe"  name="name" class="field is-empty" style="width:20em;" autocomplete="cc-name" />\
+    </label>\
+    <div>&nbsp;</div>\
+    <span id="agile_stripe_postpayhide">\
+        <label for="agile-stripe-card-element">\
             Credit or debit card\
         </label>\
-        <div id="card-element"></div>\
-        </div>\
-<br>\
+        <div id="agile-stripe-card-element"></div>\
+        <br>\
         <button id="agile_stripe_paydialog_buy">Buy</button>\
-    <button id="agile_cancel_stripe_buy">Cancel</button>\
- <a href="" id="agile_stripe_paydialog_tellmore">more about licenses</a>\
-    </form>\
+        <button id="agile_cancel_stripe_buy">Cancel</button>\
+    </span>\
+     <a href="" id="agile_stripe_paydialog_tellmore">more about licenses</a>\
+</form>\
 <div style="min-height:3em;margin-top:0.5em;">\
-<div id="agile_stripe_paydialog_moreinfo" style="display:none;">\
-<br><p>Stripe payments (not Plus for Trello) processes your card. <A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html#agile_stripe_payments" target="_blank">Read more</A> about Stripe or changing license quantities later.<\p>\
+    <div id="agile_stripe_paydialog_moreinfo" style="display:none;">\
+        <br><p>Stripe payments (not Plus for Trello) processes your card.<br><A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html#agile_stripe_payments" target="_blank">Read more</A> about Stripe, changing license quantities later or finding an existing license.<\p>\
+    </div>\
+    <div id="agile-stripe-card-errors" style="color:red;"></div>\
+    <div id="agile_stripe_modifyinfo_reply" style="display:none;border: 1px solid;border-radius:6px;border-color:RGB(77,77,77);margin-top:1.5em;padding:1em;background-color: #FAF3C0;">\
+    </div>\
+    <div id="agile_stripe_modifyinfo" style="display:none;">\
+<br>Change any detail. When changing quantities Plus will show a preview of charges or credits. To remove the subscription set licenses to zero. Credits always apply to the next yearly period.\
+    </div>\
+    <div style="display:none;" id="agile_stripe_licence_info" >\
+        <p><b>Done! License processed OK.</b> You will receive an email shortly.</p>\
+        Activate other computers with this address or forward them the email: <input readonly id="agile_stripe_licence"  style="width:100%;" />\
+        Start date: <span id="agile_stripe_startdate"></span>. Edit the license from the Plus help pane.\
+    </div>\
+    <button id="agile_stripe_ok" style="display:none;">OK</button>\
 </div>\
-    <div id="card-errors" style="color:red;"></div>\
-<div style="display:none;" id="agile_stripe_licence_info" >\
-Licence: <input id="agile_stripe_licence" style="width:20em;" />\
-Start date: <span id="agile_stripe_startdate"></span>\
-<\div>\
-<\div>\
+<div id="agile_stripe_overlay" style="display:none;border-radius: 0px 0px 4px 4px;background:#F8F9F9;width: 100%;font-size:250%;height: 100%;text-align:center;position: absolute;top: 0;left: 0;">\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<span>Processing</span>\
+<p>&nbsp;</p>\
+<p>&nbsp;</p>\
+<div><img src="' + chrome.extension.getURL("images/dotswait.gif") + '" /></div></div>\
 </dialog>');
     document.body.appendChild(divStripeForm[0]);
-    $("#agile_cancel_stripe_buy").click(function () {
+    var bNeedsPreview = false;
+    var quantityOrig = 0;
+    $("#agile_cancel_stripe_buy,#agile_stripe_ok").click(function (ev) {
         divStripeForm[0].close();
         divStripeForm.remove();
+        ev.preventDefault();
+        if (ev.target.id == "agile_cancel_stripe_buy")
+            hitAnalytics("LicActivation", "CANCELED-STRIPE");
+        return false;
     });
 
     $("#agile_stripe_paydialog_tellmore").click(function (ev) {
@@ -2510,20 +2542,32 @@ Start date: <span id="agile_stripe_startdate"></span>\
         else
             elem.show();
     });
-    
-    function changeButtonText() {
-        var num = Math.floor(parseFloat(elemNum.val()) || 0);
-        var title = "Buy";
-        if (num && num > 0) {
-            title = title + ": $" + (num * price).toFixed(2) + " yearly";
-        }
-        $("#agile_stripe_paydialog_buy").text(title);
-    }
+   
 
-    var elemNum = $("#agile_number_licenses_stripe");
+    var elemNum = divStripeForm.find("[name='quantity']");
     elemNum.val("1");
-    changeButtonText();
-    elemNum.on("input", changeButtonText);
+
+    if (liDataStripe) {
+        var elemEmail = divStripeForm.find("#agile_email_stripe");
+        if (liDataStripe.li) {
+            divStripeForm.find("#agile_stripe_modifyinfo, #agile_quantity_explain_modify_stripe").show();
+            divStripeForm.find("#agile_stripe_li").text(liDataStripe.li);
+        }
+        if (liDataStripe.emailOwner)
+            elemEmail.val(liDataStripe.emailOwner);
+        quantityOrig = 0;
+        if (liDataStripe.quantity) {
+            quantityOrig = liDataStripe.quantity;
+            elemNum.val(quantityOrig);
+            setTimeout(function () { elemNum.focus(); },500);
+        } else {
+            setTimeout(function () { elemEmail.focus(); }, 500);
+        }
+
+        if (liDataStripe.nameCardOwner)
+            divStripeForm.find("#agile_cardholdername_stripe").val(liDataStripe.nameCardOwner);
+    }
+    
     return divStripeForm;
 }
 
@@ -2534,9 +2578,13 @@ function handleStripePay() {
         alert("Sorry, there was an error. Please refresh this Trello page and try again.");
         return;
     }
-    sendExtensionMessage({ method: "checkStripeLi" }, function (response) {
-        if (response.status != STATUS_OK)
+    chrome.storage.sync.get([SYNCPROP_LIDATA_STRIPE], function (objLiStripe) {
+        if (chrome.runtime.lastError) {
+            alert(chrome.runtime.lastError.message);
             return;
+        }
+
+        var liDataStripe = objLiStripe[SYNCPROP_LIDATA_STRIPE];
 
         //Insert the stripe API script (if needed), then insert our stripe-wrap.
         //the "wrap" is needed because we need to execute it in the context of Trello, not the extension, given that the stripe API script loads in that context.
@@ -2548,9 +2596,10 @@ function handleStripePay() {
                 showModalDialog(divStripeForm[0]);
             };
             document.head.appendChild(script);
-        }
 
-        divStripeForm = insertStripeDialog();
+        }
+        //chrome.storage.sync.get()
+        divStripeForm = insertStripeDialog(liDataStripe);
         if (!divStripeForm)
             return;
 
@@ -2574,11 +2623,26 @@ function handleStripePay() {
             script.src = 'https://js.stripe.com/v3/';
             script.onload = insertWrap;
             document.head.appendChild(script);
+            window.addEventListener('message', function (event) {
+                if (event && event.isTrusted && event.data && event.data.type && event.data.type == "agile_stripe_data") {
+                    //msCreated, li, userTrello, emailOwner, quantity, name
+                    var license = event.data.license;
+                    hitAnalytics("LicActivation", "OK-ACTIVATED-STRIPE");
+                    var objNew = {};
+                    objNew[SYNCPROP_LIDATA_STRIPE] = license;
+                    chrome.storage.sync.set(objNew, function () {
+                        if (chrome.runtime.lastError) {
+                            alert(chrome.runtime.lastError.message);
+                            return;
+                        }
+                    });
+                }
+            });
         }
     });
 }
 
-function checkLi(bForce) {
+function checkLi(bForce, bExpanded) {
     chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
@@ -2590,27 +2654,25 @@ function checkLi(bForce) {
             return;
         }
 
-        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+        chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError.message);
                 return;
             }
 
             var liData = obj[SYNCPROP_LIDATA] || { msLastCheck: 0, msCreated: 0, li: "" };
+            var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE] || { msLastCheck: 0, msCreated: 0, li: "" };
             var msNow = Date.now();
-            if (liData.li)
-                return; //review zig expiration
+            if (!bForce && (liData.li || liDataStripe.li))
+                return; //review zig expiration etc
 
-            var msLast = liData.msLastCheck;
+            var msLast = Math.max(liData.msLastCheck, liDataStripe.msLastCheck);
             var bWaitCheck = !bForce;
             if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 35)) //35 hours
                 return;
 
-            if (!bForce && isLicException())
-                return;
-
             liData.msLastCheck = msNow;
-
+            liDataStripe.msLastCheck = msNow; //note: currently we are not saving this value. Existing code will check liData.msLastCheck for showing dialog below
 
             function saveLi(liData) {
                 var objNew = {};
@@ -2628,7 +2690,15 @@ function checkLi(bForce) {
                     if (chrome.runtime.lastError)
                         return;
                     var msLastCheckLast = liData.msLastCheck;
-                    liData = obj[SYNCPROP_LIDATA] || liData;
+                    var liDataFromSync = obj[SYNCPROP_LIDATA];
+
+                    if (liDataFromSync && liData.li) {
+                        //this is grave, we could save the new license anyway but it should never get here and may mess it up further so just log it
+                        logPlusError("unexpected: received license in saveLiIfNewer. license:" + liData.li + ". previous retained:" + liDataFromSync.li);
+                    }
+                    liData = liDataFromSync || liData;
+
+                    //this check will be false when we saved a newer liData to storage after we had set msNow to our local liData
                     if (liData.msLastCheck <= msLastCheckLast) {
                         liData.msLastCheck = msLastCheckLast;
                         saveLi(liData);
@@ -2637,10 +2707,10 @@ function checkLi(bForce) {
             }
 
             checkBackendEnabledPay(bForce, function () {
-                showFirstLicDialog(bForce, function (status) {
-                    hitAnalytics("LicDialog", status);
+                showFirstLicDialog(bExpanded, liData.li == "", function (status, bStripeMode) {
+                    hitAnalytics("LicDialog", (bStripeMode?"Stripe-":"Webstore-")+status);
                     if (status == STATUS_OK) {
-                        if (g_bStripeMode) {
+                        if (bStripeMode) {
                             handleStripePay();
                             return;
                         }
@@ -2691,7 +2761,7 @@ function checkBackendEnabledPay(bForce, callback) {
             if (obj == null || !obj._value)
                 return;
 
-            if (obj._value && obj._value.indexOf("V2-ENABLED")==0)
+            if (obj._value && obj._value.indexOf("V3-ENABLED")==0)
                 callback();
             return;
         }
@@ -2701,4 +2771,112 @@ function checkBackendEnabledPay(bForce, callback) {
 
     xhr.open("GET", url, true);
     xhr.send();
+}
+
+function handlePlusLicenseUrl(userOwner, idSub) {
+    var divPlusContent = $('#agile_plus_license_activate');
+    if (divPlusContent.length > 0)
+        return;
+    var userTrello = getCurrentTrelloUser();
+
+    if (!userTrello)
+        return;
+
+    chrome.storage.sync.get([SYNCPROP_LIDATA_STRIPE], function (obj) {
+        if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.message);
+            return;
+        }
+
+        var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE] || { msLastCheck: 0, msCreated: 0, li: "" };
+        var elemContent = $('#content');
+        var elemNewContent = $('<div id="agile_plus_license_activate" class="big-message quiet" />');
+        var elemText = $("<h1 >Activate \"Plus for Trello Pro\"</h1>");
+        var elemP = $("<p>for Trello user: <b>" + userTrello + "</b></p>");
+        var elemP2 = $("<p style='display:none;'></p>");
+        var elemB = $("<button>Activate now</button>");
+        var elemBottom = $('<p style="margin-top:4em;font-size:100%;color:#909090;"><A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.</p>');
+        elemNewContent.append(elemText);
+        elemNewContent.append(elemP).append(elemP2);
+        elemNewContent.append(elemB).append(elemBottom);
+        elemContent.empty(); //killing content instead of reusing seems safer as trellos handlers will be gone too
+        document.title = "License - Plus for Trello";
+        elemContent.append(elemNewContent);
+
+        if (liDataStripe.li) {
+            elemP2.text("You already activated a license. Its ok, you can activate again to verify it.").show();
+        }
+        elemB.click(function (evt) {
+            var url = "https://us-central1-plusfortrelloapp.cloudfunctions.net/checklic?";
+            elemB.hide();
+            elemP2.hide();
+            elemBottom.hide();
+            elemText.text("Activating...");
+            elemP.html("&nbsp;");
+            url += "userTrelloOwner=" + userOwner + "&userTrello=" + userTrello + "&liStripe=" + idSub;
+            var xhr = new XMLHttpRequest();
+            xhr.onreadystatechange = function (event) {
+                if (xhr.readyState == 4) {
+                    var statusRet = STATUS_OK;
+                    var obj = null;
+                    var val = xhr.responseText || "";
+                    var iColon = val.indexOf(":");
+                    const strOk = "sub-check-ok";
+                    if (!val || !iColon || val.indexOf(strOk) != 0) {
+                        if (iColon > 0)
+                            val = val.substr(iColon + 1, val.length) + " (" + val.substr(0, iColon) + ")";
+                        elemText.text("Error");
+                        elemP.text(val);
+                        elemP2.html("<p>Visit our <a href='http://www.plusfortrello.com/p/support.html' target='_blank'>Plus support page</a></p>").show();
+                        hitAnalytics("LicActivation", "ERROR-URL-ACTIVATED-STRIPE");
+                        return;
+                    }
+                    var parts = val.split(":");
+                    var date = new Date(parseInt(parts[1], 10) || 0);
+                    var quantity = parseInt(parts[2],10) || 0;
+                    liDataStripe.msCreated = date.getTime();
+                    liDataStripe.msLastCheck = Date.now();
+                    liDataStripe.li = idSub;
+                    liDataStripe.userTrello = userOwner;
+                    liDataStripe.quantity = quantity;
+                    var objNew = {};
+                    objNew[SYNCPROP_LIDATA_STRIPE] = liDataStripe;
+                    chrome.storage.sync.set(objNew, function () {
+                        if (chrome.runtime.lastError) {
+                            alert(chrome.runtime.lastError.message);
+                            return;
+                        }
+                        var bSyncNotEnabled = (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()));
+                        elemText.html("Your 'Plus for Trello Pro' license seat is active");
+                        if (bSyncNotEnabled) {
+                            elemP2.html("<b><span style='color:red;'>You have not yet enabled sync.</span> <a href=''>Do it now</a><b/>").show();
+                            elemP2.find("a").click(function (evt) {
+                                evt.preventDefault();
+                                Help.display();
+                                return false;
+                            });
+                        }
+                        elemP.html("<b>Thank you!</b><br><br><br>Love Plus? <a href='https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews' target='_blank'>Rate us!</a><br><br>\
+Explore our <a href='https://trello.com/b/0jHOl1As/plus-for-trello-help'>Plus help board</a><br><br>\
+Go to <a href='https://trello.com'>trello.com</a><br><br>");
+
+                        if (!g_bProVersion) {
+                            var pairPro={};
+                            pairPro[LOCALPROP_PRO_VERSION] = true;
+                            chrome.storage.local.set(pairPro, function () {
+                                if (chrome.runtime.lastError == undefined)
+                                    g_bProVersion = true;
+                            });
+                        }
+                        hitAnalytics("LicActivation", "OK-ACTIVATED-STRIPE");
+                        return;
+                    });
+                }
+            };
+
+            xhr.open("GET", url, true);
+            xhr.send();
+
+        });
+    });
 }

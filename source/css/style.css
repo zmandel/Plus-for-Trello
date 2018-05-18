@@ -69,6 +69,10 @@ border-radius:3px;
     color: white !important;
 }
 
+.agile_dialog_stripeBuy {
+    background: #61BD4F !important;
+}
+
 #agile_dialog_showAprovePro_Cancel {
     color: white !important;
 }
@@ -156,7 +160,7 @@ list-style-type:disc !important;
 }
 
 .agile_dialog_Postit_Anim_Lic {
-    margin-top: -26em;
+    margin-top: -21em;
     -webkit-transition: all 0.3s ease-out;
     transition: all 0.3s ease-out;  
 }
@@ -545,7 +549,9 @@ div#agile_help_container {
 	padding-top: 10px;
 	position: absolute;
 	top: 0em;
-	width: 56em;
+	max-width: 52em;
+    min-width: 42em;
+    width:calc(100% - 2em);
 	z-index: 1001;
 	overflow-y: scroll;
 }
@@ -655,7 +661,7 @@ div#agile_help_container h1 {
 	cursor: pointer;
     position:fixed !important;
     top: 10px;
-    left: 55em !important;
+    left: 51em !important;
 }
 
 .agile_close_button:hover {
@@ -666,7 +672,7 @@ div#agile_help_container h1 {
 	cursor: pointer;
     position:fixed !important;
     top: 10px;
-    left: 53em !important;
+    left: 49em !important;
 }
 
 .agile_help_top:hover {
@@ -1033,6 +1039,11 @@ table#tableMarkers td {
   right: 0;
   bottom: 0;
   background-color: rgba(0, 0, 0, 0.4);
+}
+
+
+.agile_dialog_stripe_pay {
+    border-radius: 0px 0px 4px 4px !important;
 }
 
 .agile_dialog_stripe_pay::backdrop {
@@ -1598,7 +1609,7 @@ table#tableMarkers td {
 }
 
 .agile_box_input_hilite {
-	background: yellow !important;
+	background: #FAF3C0 !important;
     color:black !important;
 }
 

@@ -63,8 +63,8 @@ var Help = {
 	totalDbRowsHistoryNotSync: 0,
 	totalDbMessages: 0,
 	hasLegacyRows: false,
-	hasLi: false,
-    msDateLi: 0,
+	hasLiCS: false,
+	hasLiStripe: false,
 	bDontShowAgainSyncWarn: false,
     bStartTourBubbleOnClose: false,
     bStartSyncOnClose: false,
@@ -124,18 +124,33 @@ var Help = {
 																    sendExtensionMessage({ method: "detectLegacyHistoryRows" },
                                                                     function (response) {
                                                                         thisObj.hasLegacyRows = response.hasLegacyRows;
-                                                                        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+                                                                        chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
                                                                             if (chrome.runtime.lastError) {
                                                                                 console.error(chrome.runtime.lastError.message);
                                                                                 return;
                                                                             }
 
                                                                             var liData = obj[SYNCPROP_LIDATA];
-                                                                            thisObj.hasLi = liData && liData.li;
-                                                                            if (thisObj.hasLi)
-                                                                                thisObj.msDateLi = liData.msCreated;
-                                                                            else
-                                                                                thisObj.msDateLi = 0;
+                                                                            var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE];
+                                                                            thisObj.liDataCS = null;
+                                                                            thisObj.liDataStripe = null;
+
+                                                                            if (liData) {
+                                                                                thisObj.liDataCS = liData;
+                                                                                thisObj.hasLiCS = !!(liData.li);
+                                                                            } else {
+                                                                                thisObj.liDataCS = null;
+                                                                                thisObj.hasLiCS = false;
+                                                                            }
+
+                                                                            if (liDataStripe) {
+                                                                                thisObj.liDataStripe = liDataStripe;
+                                                                                thisObj.hasLiStripe = !!(liDataStripe.li);
+                                                                            } else {
+                                                                                thisObj.liDataStripe = null;
+                                                                                thisObj.hasLiStripe = false;
+                                                                            }
+
                                                                             thisObj.displayWorker();
                                                                         });
                                                                     });
@@ -214,7 +229,13 @@ var Help = {
 	    }
 	    keepSyncPaused(true);
 
-	    var container = $('<div id="agile_help_container" tabindex="0"></div>').height($(window).innerHeight()-20); //-20 prevents trello from adding a vertical scrollbar
+	    var container = $('<div id="agile_help_container" tabindex="0"></div>');
+	    function resizeHelp() {
+	        container.height($(window).innerHeight() - 20); //-20 prevents trello from adding a vertical scrollbar
+	    }
+	    resizeHelp();
+	    window.addEventListener('resize', resizeHelp);
+
 	    container.keydown(function (evt) {
 	        evt.stopPropagation(); //dont let it bubble to document. in some pages like boards, document hooks into keyboard events for card navigation, which breaks scrolling here with down-arrow etc
 	        return true; //do default action for this element
@@ -274,7 +295,7 @@ var Help = {
 	        }, 8000);
 	    }, 200);
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars and help spread the word!">Rate</A>&nbsp;&nbsp \
+	    helpWin.raw('<span style="float:right;padding-right:6em;"><A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Love Plus?">Rate us!</A>&nbsp;&nbsp \
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/collection/khxOc" rel="publisher" target="_blank"> \
 <img src="https://ssl.gstatic.com/images/icons/gplus-16.png" title="Follow the official news page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
@@ -282,7 +303,7 @@ var Help = {
 <img src="https://abs.twimg.com/favicons/favicon.ico" title="Follow us on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://www.linkedin.com/in/zigmandel" rel="publisher" target="_blank"> \
 <img src="https://www.linkedin.com/favicon.ico" title="Connect at LinkedIn" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
-	    helpWin.para("<button style='float:right'>Close</button>").children("button").click(onClosePane);
+	    helpWin.para("version " + g_manifestVersion + "&nbsp;&nbsp<button style='float:right'>Close</button>").children("button").click(onClosePane);
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
@@ -452,28 +473,100 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 &bull; Custom report columns, extra export options useful for integrations.<br>\
 &bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).<br>\
 &bull; Priority support and many planned "Pro" features.';
-	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
-<div id="sectionLiDetails" style="display:none;margin-top:0.5em;"></div>';
+	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
+<a href="" id="agile_showLiDetails">Show license details</a> \
+<div id="agile_showLiDetails_contents" style="display:none;"><div id="sectionLiDetailsCS" style="display:none;">\
+    <p><span class="agile_cs_licData"></span> <a href="" style="margin-left:1em;" id="agile_more_pmt_options" >More payment options</a></p>\
+    <div id="agile_more_pmt_options_content" style="display:none;">\
+       <div>Use stripe.com for payment and group licenses. You can keep the Chrome store subscription or\
+       </div>\
+       <span>later cancel it if you include yourself in the group license.<\span> <button id="agile_more_pmt_options_stripe">Add stripe license</button>\
+    </div>\
+</div>\
+<div id="sectionLiDetailsStripe" style="display:none;">\
+    <p><span class="agile_stripe_licData"></span><button style="margin-left:1em;margin-top:0px;" id="editStripeLicense" >Edit license</button></p>\
+    <p>Apply this license to other computers with this URL<span class="agile_stripe_liUrlOwnerNote"> (same as in your license email)</span>:</p>\
+    <input readonly class="agile_stripe_liUrl" size="80" title="copy and email this URL to the team" spellcheck="false" />\
+</div></div>';
 
 	    var paraProEnable = helpWin.para(textEnablePro);
 	    var sectionWhyPro = paraProEnable.find("#sectionWhyPro");
 	    var sectionPayProNow = paraProEnable.find("#sectionPayProNow");
-	    var sectionLiDetails = paraProEnable.find("#sectionLiDetails");
-
+	    var sectionLiDetailsCS = paraProEnable.find("#sectionLiDetailsCS");
+	    var sectionLiDetailsStripe = paraProEnable.find("#sectionLiDetailsStripe");
 	    var elemLinkPay = sectionPayProNow.find("#linkPayProNow");
 	    checkEnablePro[0].checked = g_bProVersion;
+
+	    function onPayClick(callback) {
+	        if (!helpWin.isSyncEnabled()) {
+	            if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
+	                return;
+	        }
+	        Help.close(false);
+	        setTimeout(function () { //save the epileptics!
+	            callback();
+	        }, 1000);
+
+	    }
+
+
+	    sectionLiDetailsCS.find("#agile_more_pmt_options_stripe").click(function (ev) {
+	        onPayClick(function () {
+	            checkLi(true, true);
+	        });
+	    });
+
+	    
+	    var btnshowLiDetails = paraProEnable.find("#agile_showLiDetails");
+	    btnshowLiDetails.click(function (ev) {
+	        btnshowLiDetails.hide();
+	        paraProEnable.find("#agile_showLiDetails_contents").show();
+	    });
+
+	    var btnMorePmtOptions = sectionLiDetailsCS.find("#agile_more_pmt_options");
+
+	    if (helpWin.hasLiStripe)
+	        btnMorePmtOptions.hide();
+
+	    btnMorePmtOptions.click(function (ev) {
+	        btnMorePmtOptions.hide();
+	        sectionLiDetailsCS.find("#agile_more_pmt_options_content").show();
+	        return false;
+	    });
+
+	    var btnEditLicense = sectionLiDetailsStripe.find("#editStripeLicense");
+	    btnEditLicense.click(function (ev) {
+	        if (!helpWin.liDataStripe)
+	            return;
+	        onPayClick(function () {
+	            handleStripePay();
+	        });
+	    });
 
 	    function showProSections(bProEnabled, bHilitePay) {
 	        var bShowPay = bProEnabled;
 	        var bShowWhyPro = !bProEnabled;
-	        var bShowLicDetails = bProEnabled && helpWin.hasLi && helpWin.msDateLi;
-	        if (helpWin.hasLi)
+	        var bShowLicDetailsCS = bProEnabled && helpWin.hasLiCS;
+	        var bShowLicDetailsStripe = bProEnabled && helpWin.hasLiStripe;
+	        if (helpWin.hasLiCS || helpWin.hasLiStripe)
 	            bShowPay = false;
             
-	        if (bShowLicDetails)
-	            sectionLiDetails.text("License start date: " + makeDateCustomString(new Date(helpWin.msDateLi)));
+	        if (bShowLicDetailsCS)
+	            sectionLiDetailsCS.find(".agile_cs_licData").html("<b>Chrome store License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataCS.msCreated)));
+
+	        if (bShowLicDetailsStripe) {
+	            sectionLiDetailsStripe.find(".agile_stripe_licData").html("<b>stripe.com License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataStripe.msCreated)) + " for " + (helpWin.liDataStripe.quantity || "0") + " Trello users.");
+	            sectionLiDetailsStripe.find(".agile_stripe_liUrl").val("https://trello.com/"+URLPART_PLUSLICENSE+"/" + helpWin.liDataStripe.userTrello + "/" + helpWin.liDataStripe.li);
+	            if (getCurrentTrelloUser() != helpWin.liDataStripe.userTrello) {
+	                btnEditLicense.hide();
+	                sectionLiDetailsStripe.find("#agile_stripe_liUrlOwnerNote").hide();
+	            }
+	        }
+
+	        elemShowHide(btnshowLiDetails, !bShowPay);
 	        elemShowHide(sectionPayProNow, bShowPay);
-	        elemShowHide(sectionLiDetails, bShowLicDetails);
+	        elemShowHide(sectionLiDetailsCS, bShowLicDetailsCS);
+	        elemShowHide(sectionLiDetailsStripe, bShowLicDetailsStripe);
 	        elemShowHide(sectionWhyPro, bShowWhyPro);
 
 	        if (bShowPay && bHilitePay)
@@ -484,21 +577,12 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        showProSections(true);
 
 	    elemLinkPay.click(function () {
-	        if (!helpWin.isSyncEnabled()) {
-	            if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
-	                return;
-	        }
-	        if (isLicException()) {
-	            alert("Dear Opera user, please pay for the Pro license from a Chrome browser.");
-	            return;
-	        }
-	        Help.close(false);
-	        setTimeout(function () { //save the epileptics!
-	            checkLi(true);
-	        }, 1000);
-
+	        onPayClick(function () {
+	            checkLi(true, true);
+	        });
 	    });
 
+        
 	    checkEnablePro.click(function () {
 	        var bValue = checkEnablePro.is(':checked');
 	        var pair = {};
@@ -585,7 +669,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('&nbsp');
         helpWin.para('<hr class="agile_hr_help"><br>');
         helpWin.para('<b><h2 id="agile_help_sesystem">The Plus Spent / Estimate system</h2></b>');
-        helpWin.para('Plus tracks estimate, spent and estimate changes by storing "S/E rows" per card and user, then summing the rows.');
+        helpWin.para('Plus tracks estimate, spent and changes by storing "S/E rows" per card and user, then summing the rows.');
         helpWin.para('For a given card, its S/E total "sum" is the sum of all its S/E rows.');
         helpWin.para('Estimates are optional, and normally entered before or at the same time as entering spent.');
         helpWin.para('★ The best way to learn the system is to <b><A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">read a typical case of using Plus (web page)</A>.');
@@ -622,7 +706,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('Plus automatically pre-fills E when you type <b>S</b> that causes Remain to be negative (S sum bigger than E sum).');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R (Remain) is zero.');
         helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
-        helpWin.para('Your first S/E row per card becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) used to compare to the current estimate <b>E sum</b>.');
+        helpWin.para('Your first S/E row per card is the 1ˢᵗ estimate (E 1ˢᵗ) to compare with the current estimate <b>E sum</b>.');
         helpWin.para('When you enter S/E for another user (not "me") Plus generates a special note in that S/E row: "[by user]."');
         helpWin.para('All special notes that Plus generates with [brackets] are secure and cannot be faked or removed by other users making Plus actions fully traceable.');
         helpWin.para('To use a different system you might want to "allow negative <b>R</b>emaining" in Preferences.');
@@ -911,15 +995,15 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_preestimate">Pre-Estimations</h2></b>');
 	    helpWin.para('Plus supports two levels of pre-estimation to help your team figure out card first estimates (E 1<sup>st</sup>).');
 	    helpWin.para('Add pre-estimates to checklist items or card titles. Neither show in reports, only in the card front and board dimensions.');
-	    helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates" target="_blank">See how to use pre-estimates.</A>');
+	    helpWin.para('Read <A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates" target="_blank">how to use pre-estimates</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices for S/E</h2></b>');
 	    helpWin.para('<b>★</b> <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
-	    helpWin.para('<b>★</b> If you do modify or delete S/E card comments see help inside the "modify" dialog about the card "^resetsync" command.');
+	    helpWin.para('<b>★</b> If you do modify or delete S/E card comments see help about the card "^resetsync" command.');
 	    helpWin.para('<b>★</b> A card is done when S reaches E (R is zero, R=E-S).');
-	    helpWin.para('<b>★</b> To measure changed E the team (or the manager) should increase E as needed so <b>R</b> reflects actual <b>R</b>emaining work.');
+	    helpWin.para('<b>★</b> Increase E as needed so <b>R</b> reflects actual <b>R</b>emaining work.');
 	    helpWin.para('<b>★</b> When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b> (which reduces E).');
 	    helpWin.para('<b>★</b> Similarly if S goes over E, increase E so R is not negative.');
 	    helpWin.para('<b>★</b> The "card S/E bar" and "modify" automatically pre-fill increased E to help you prevent negative R.');
@@ -929,7 +1013,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Plus always converts to "decimal format".');
 	    helpWin.para('<b>★</b> Add <b>[exclude]</b> to list names to exclude them from board sums on the Trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
-	    helpWin.para('<b>★</b> Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more</a>.').children('a').click(function (ev) {
+	    helpWin.para('<b>★</b> Renaming a user is not renamed in Plus. It will appear as a new user until "Reset sync". <a href="">More</a>.').children('a').click(function (ev) {
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
 	    });
 		helpWin.para('&nbsp');
@@ -978,13 +1062,13 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_reccards">Recurring cards [R]</h2></b>');
 	    helpWin.para('Make a card recurring when you don\'t want to measure changed estimates (like weekly meetings.)');
 	    helpWin.para('Check "&#10004; Recurring" inside the card or manually add <b>[R]</b> to the card title.');
-	    helpWin.para('A recurring card\'s <b>E 1ˢᵗ</b> automatically changes to match <b>E sum</b> thus do not generate changed estimates in reports.');
+	    helpWin.para('A recurring card\'s <b>E 1ˢᵗ</b> automatically changes to match <b>E sum</b>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_hashtags">Card Hashtags #</h2></b>');
 	    helpWin.para('Add #tags to cards. Use the hashtag list inside cards or type them directly in card titles.');
-	    helpWin.para('Hashtags are similar to Trello labels with the advantage of viewing them in the card back and shared across all boards.');
+	    helpWin.para('Hashtags are similar to Trello labels but show in the card back and are shared across boards.');
 	    helpWin.para('Search cards by hashtag in the Chrome Plus menu or reports.');
 	    helpWin.para('A card with title "This is a card <b>#review #sales #urgent!</b>" shows as:');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/cardht.png") + '"/>');
@@ -1025,7 +1109,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
-	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
+	    helpWin.para("&bull; Clicking 'Less' on the page top hides cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para("&bull; Hide this feature from Preferences.");
 	    helpWin.para('&nbsp');
@@ -1764,7 +1848,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and license agreement</h2></b>');
-	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
+	    helpWin.para('Plus secures all your data inside your browser, does not use servers to store Trello data (except your license information) and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
 	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement (EULA)</A>.');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');

@@ -1209,9 +1209,6 @@ If you instead want to disable timer popups do so from Plus preferences.");
         else if (request.method == "checkLi") {
             handleCheckLi(sendResponse);
         }
-        else if (request.method == "checkStripeLi") {
-            handleCheckStripeLi(idTabSender, sendResponse);
-        }
         else if (request.method == "queryTrelloDetectionCount") {
             handleQueryTrelloDetectionCount(sendResponse);
         }
@@ -2192,13 +2189,14 @@ var g_analytics = {
         if (valCD1Prev != valCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
             payload = payload + "&cd1=" + valCD1Cur;
 
-        chrome.storage.sync.get([SYNCPROP_LIDATA, keySyncOutsideTrello], function (obj) {
+        chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE, keySyncOutsideTrello], function (obj) {
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError.message);
                 return;
             }
 
             var liData = obj[SYNCPROP_LIDATA];
+            var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE];
             const PROP_LS_CD2LAST = "CD2LAST"; //licence & buy attempt count
             const PROP_LS_CD3LAST = "CD3LAST"; //sync method
             const PROP_LS_CD4LAST = "CD4LAST"; //background sync?
@@ -2207,7 +2205,7 @@ var g_analytics = {
 
             var valCD2Prev = localStorage[PROP_LS_CD2LAST] || "";
             var cViewedBuyDialog = localStorage[PROP_LS_cViewedBuyDialog] || "0";
-            var valCD2Cur = (liData && liData.li ? "Active": "Inactive") + "-" + cViewedBuyDialog;
+            var valCD2Cur = (liData && liData.li ? "ActiveCS" : (liDataStripe && liDataStripe.li ? "ActiveStripe" : "Inactive")) + "-" + cViewedBuyDialog;
             if (valCD2Prev != valCD2Cur)
                 payload = payload + "&cd2=" + valCD2Cur;
 
@@ -2339,16 +2337,6 @@ function handlenotifyBoardTab(idBoard, tabid) {
     g_mapBoardToTab[idBoard] = { tabid: tabid, ms: Date.now() };
 }
 
-/* handleCheckStripeLi
-**/
-function handleCheckStripeLi(idTabSender, sendResponse) {
-   
-   // No longer needed:
-   // chrome.permissions.request({
-   //     permissions: [],
-   //     origins: ['https://js.stripe.com/*', 'https://*.cloudfunctions.net/']
-    sendResponse({ status: STATUS_OK });
-}
 
 /* handleCheckLi
  * can return in status:
@@ -2365,7 +2353,7 @@ function handleCheckLi(sendResponse) {
     }
 
     //Note: store api does not require this getAuthToken. its an attempt to fix many errors when users try to pay
-    getExtensionOauthToken("To continue, approve the Chrome web store permissions. If not signed-in to Chrome, do so now.",
+    getExtensionOauthToken("To continue, approve the Chrome Web Store permissions. If not signed-in to Chrome, do so now.",
         ["https://www.googleapis.com/auth/chromewebstore.readonly"], function (token) {
         if (token) {
             checkPurchased(false);

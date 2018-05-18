@@ -27,8 +27,7 @@ var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage 
 var g_language = "en";
 var g_bProVersion = false;
 var g_bFromBackground = false;
-var g_bStripeMode = false;
-
+const URLPART_PLUSLICENSE = "plus-license";
 const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
 
 const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
@@ -220,7 +219,8 @@ var SYNCPROP_GLOBALUSER = "global_user";
 var SYNCPROP_KEYWORDS_HOME = "keywords_home";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var SYNCPROP_MSLICHECK = "msLiCheck";
-var SYNCPROP_LIDATA = "LiData";  // {  msLastCheck, msCreated, li}
+var SYNCPROP_LIDATA = "LiData";  //for chrome store {  msLastCheck, msCreated, li}
+var SYNCPROP_LIDATA_STRIPE = "striLiData"; //for stripe { msLastCheck, msCreated, li, userTrello, emailOwner, quantity, nameCardOwner}
 var SYNCPROP_SERVIEWS = "SERViews";  // see g_serViews
 var LOCALPROP_EXTENSION_VERSIONSTORE = "chromeStoreExtensionVersion";
 

@@ -135,40 +135,45 @@ function showExtensionUpgradedError(e) {
 }
 
 
-function showFirstLicDialog(bExpanded, callback) {
+function showFirstLicDialog(bExpanded, bShowWSOption, callback) {
     var divDialog = $("#agile_dialog_FirstLic");
 
     if (divDialog.length == 0) {
         //focus on h2 so it doesnt go to the first link
         divDialog = $('\
 <dialog id="agile_dialog_FirstLic" style="cursor:pointer;text-align: center;width:33em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_Lic">\
-<div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly license.</div> \
-<div id="agile_FirstLic_content" style="display:none;"><br><b>Your "Plus for Trello Pro" yearly license</b><br>\
-<br>\
-<p>Pay with the Chrome Web Store. It uses <A href="https://www.google.com/chrome/browser/signin.html"  target="_blank">Chrome sign-in</A>.</p>\
-Click "Activate" to show the Chrome store license screen.<br><br>\
-<a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp; \
-<a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br><br><hr> \
-<div style="text-align: left;">\
-<p>&bull; The Chrome store is currently failing for some users. <a href="" id="agile_storeerrors_tellmore">More</a>\
-<span style="display:none;" id="agile_storeerrors_tellmore_content">If it shows an error: Dont worry, you can keep using "Pro" and will not be charged. Google is currently working on fixing these Chrome Store issues.</span></p>\
-<p>&bull; Already paid, reinstalled Plus? Activate to find your license. You will never be double-charged.</p>\
-<p>&bull; <a href="" id="agile_stripe_tellmore">More payment options?</a></p>\
-<p style="display:none;" id="agile_stripe_tellmore_content">&bull; Soon we will add single & group licenses without needing Chrome sign-in or a Google account. We will use <A href="https://stripe.com/about" target="_blank">stripe.com</A> licenses based on Trello usernames, not Google accounts.\
-The current Chrome Web Store payments will still be supported.</p>\
-</div><br>\
-<span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.\
-</span>\
-<span style="float:right;"><A href="\
-https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Pay%20with%20the%20%22Chrome%20Web%20Store%22.%20It%20uses%20Chrome%20sign-in.%0A%0AClick%20%22Activate%22%20to%20show%20the%20Chrome%20store%20license%20screen.%0A%0AButtons%3A%20Activate%2C%20Later%0A%0A%E2%80%A2%20The%20Chrome%20store%20is%20currently%20failing%20for%20some%20users.%20If%20it%20shows%20an%20error%3A%20Dont%20worry%2C%20you%20can%20keep%20using%20%22Pro%22%20and%20will%20not%20be%20charged.%20Google%20is%20currently%20working%20on%20fixing%20these%20Chrome%20Store%20issues.%0A%0A%E2%80%A2%20Already%20paid%2C%20reinstalled%20Plus%3F%20Activate%20to%20find%20your%20license.%20You%20will%20never%20be%20double-charged.%0A%0A%E2%80%A2%20More%20payment%20options%3A%20Soon%20we%20will%20add%20single%20%26%20group%20licenses%20without%20needing%20Chrome%20sign-in%20or%20a%20Google%20account.%20We%20will%20use%20stripe.com%20licenses%20based%20on%20Trello%20usernames%2C%20not%20Google%20accounts.The%20current%20Chrome%20Web%20Store%20payments%20will%20still%20be%20supported.%0A%0ANote%3A%20%22Plus%20for%20Trello%22%20is%20not%20associated%20with%20%22Trello%22%20or%20%22Atlassian%22.\
-" target="_blank">Translate</A></span>\
-<\div>\
+    <div id="agile_FirstLic_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Please click here to activate your "Plus for Trello Pro" yearly license.</div> \
+    <div id="agile_FirstLic_content" style="display:none;"><br><b>"Plus for Trello Pro" yearly license</b><br>\
+        <br>\
+        <p>Purchase a single or group license with our <A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html#agile_stripe_payments" target="_blank">secure stripe.com payments</A>.</p>\
+        <p>Click "Activate" to enter payment details now.</p><br>\
+        <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OK">Activate</a>&nbsp;&nbsp;\
+        <a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_FirstLic_Cancel">Later</a><br>\
+        <br><br>\
+        <div style="text-align: left;">\
+        <p><a href="" id="agile_stripe_tellmore">More payment options?</a></p>\
+        <div style="display:none;" id="agile_stripe_tellmore_content">\
+            <hr>\
+            <p>You can also purchase a single license (your own) using Chrome Web Store payments through Google.</p>\
+            <p>Requires <A href="https://www.google.com/chrome/browser/signin.html"  target="_blank">Chrome sign-in</A> and is tied to your Google account.<\p>\
+            <p>The Chrome Web Store is currently failing for some users, thus we recommend to instead use stripe payments (above) which also supports group licenses.</p>\
+        <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_FirstLic_OKWebstore">Activate with the \"Chrome Web Store\" instead</a>\
+        </div>\
+        </div>\
+        <br>\
+        <span style="font-size:80%;color:#909090;">Note: <A href="http://www.plusfortrello.com" target="_blank" style="color:#909090;">Plus for Trello</A> is not associated with Trello or Atlassian.\
+        </span>\
+        <span style="float:right;">\<A href="\
+        https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Purchase%20a%20single%20or%20group%20license%20with%20our%20secure%20%22stripe.com%22%20payments.%0A%0AClick%20%22Activate%22%20to%20enter%20payment%20details%20now.%0A%0AButtons%3A%20Activate%2C%20Later%0A%0A______________________________________________________________%0A%0A%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%20%22Chrome%20Web%20Store%22%20payments%0A%0AYou%20can%20also%20purchase%20a%20single%20license%20(your%20own)%20using%20%22Chrome%20Web%20Store%22%20payments%20through%20Google.%0A%0ARequires%20Chrome%20sign-in%20and%20is%20tied%20to%20your%20Google%20account.%0A%0AThe%20Chrome%20Web%20Store%20is%20currently%20failing%20for%20some%20users%2C%20thus%20we%20recommend%20stripe%20payments%20which%20also%20supports%20group%20licenses.%0A%0AButton%3A%20Activate%20with%20the%20Chrome%20Web%20Store%20%0A%0ANote%3A%20%22Plus%20for%20Trello%22%20is%20not%20associated%20with%20%22Trello%22%20or%20%22Atlassian%22.\
+        " target="_blank">Translate</A></span>\
+    <\div>\
 </dialog>');
         $("body").append(divDialog);
         divDialog = $("#agile_dialog_FirstLic");
-        if (!bExpanded)
-            hiliteOnce(divDialog, 3000);
-        divDialog.click(function (e) {
+    }
+
+    function initDialog() {
+        divDialog.off("click.plusForTrello").on("click.plusForTrello", function (e) {
             var content = divDialog.find("#agile_FirstLic_content");
             if (content.is(":visible"))
                 return;
@@ -187,22 +192,29 @@ https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Pay%20wi
             }, 300); //wait for animation to complete
         }
 
-        divDialog.find("#agile_storeerrors_tellmore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        var elemTellMore = divDialog.find("#agile_stripe_tellmore");
+        if (bShowWSOption) {
+            elemTellMore.off("click.plusForTrello").on("click.plusForTrello", function (e) {
+                e.preventDefault();
+                elemTellMore.parent().hide();
+                divDialog.find("#agile_stripe_tellmore_content").show();
+            });
+        } else {
+            elemTellMore.parent().hide();
+            divDialog.find("#agile_stripe_tellmore_content").hide();
+        }
+
+        divDialog.find("#agile_dialog_FirstLic_OKWebstore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault();
-            divDialog.find("#agile_storeerrors_tellmore").hide();
-            divDialog.find("#agile_storeerrors_tellmore_content").show();
+            doCloseDialog(function () {
+                callback(STATUS_OK, false);
+            });
         });
 
-        divDialog.find("#agile_stripe_tellmore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
-            e.preventDefault();
-            divDialog.find("#agile_stripe_tellmore").parent().hide();
-            divDialog.find("#agile_stripe_tellmore_content").show();
-        });
-        
         divDialog.find("#agile_dialog_FirstLic_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault();
             doCloseDialog(function () {
-                callback(STATUS_OK);
+                callback(STATUS_OK, true);
             });
         });
 
@@ -212,14 +224,18 @@ https://translate.google.com.pe/?um=1&ie=UTF-8&hl=en&client=tw-ob#en/es/Pay%20wi
                 callback("cancel");
             });
         });
+
+        if (bExpanded) {
+            divDialog.find("#agile_FirstLic_title").hide();
+            divDialog.find("#agile_FirstLic_content").show();
+        } else {
+            divDialog.find("#agile_FirstLic_title").show();
+            divDialog.find("#agile_FirstLic_content").hide();
+            hiliteOnce(divDialog, 3000);
+        }
     }
-    if (bExpanded) {
-        divDialog.find("#agile_FirstLic_title").hide();
-        divDialog.find("#agile_FirstLic_content").show();
-    } else {
-        divDialog.find("#agile_FirstLic_title").show();
-        divDialog.find("#agile_FirstLic_content").hide();
-    }
+
+    initDialog();
     showModlessDialog(divDialog[0]);
     divDialog.find("#agile_dialog_FirstLic_OK").focus();
     setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
@@ -525,7 +541,7 @@ function doAllUpdates() {
     addCardCommentHelp();
 
     var url = document.URL;
-
+    var urlLower = url.toLowerCase();
     var idCard = getIdCardFromUrl(url);
     if (idCard)
         sendExtensionMessage({ method: "notifyCardTab", idCard: idCard }, function (response) { });
@@ -535,9 +551,18 @@ function doAllUpdates() {
             sendExtensionMessage({ method: "notifyBoardTab", idBoard: idBoard }, function (response) { });
     }
 
-    if (document.URL.toLowerCase() == "https://trello.com/plus-emergency-settings") {
+    var strDetectLicense = "https://trello.com/"+URLPART_PLUSLICENSE+"/";
+    if (url.indexOf(strDetectLicense) == 0) {
+        var liData = (url.slice(strDetectLicense.length) || "").split("/");
+        if (liData.length == 2) {
+            var userOwner = liData[0];
+            var idSub = liData[1];
+            handlePlusLicenseUrl(userOwner, idSub);
+        }
+    }
+    else if (urlLower.indexOf("https://trello.com/plus-emergency-settings")==0) {
         var linkReset = $("#plusEmergencyReset");
-        elemDetect = $(".big-message h1");
+        var elemDetect = $(".big-message h1");
         if (linkReset.length == 0 && elemDetect.length > 0) {
             elemDetect.text("");
             $(".big-message p").text("");
@@ -553,6 +578,7 @@ function doAllUpdates() {
             linkPlusHelpPane.click(function (e) {
                 e.preventDefault();
                 Help.display();
+                return false;
             });
         }
     }

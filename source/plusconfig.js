@@ -303,7 +303,7 @@ function restartPlus(message) {
 
 function clearAllStorage(callback) {
     var propsSyncSave = {};
-    chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+    chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
         } else {
