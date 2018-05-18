@@ -1032,9 +1032,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Plus always converts to "decimal format".');
 	    helpWin.para('<b>★</b> Add <b>[exclude]</b> to list names to exclude them from board sums on the Trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
-	    helpWin.para('<b>★</b> Renaming a user is not renamed in Plus. It will appear as a new user until "Reset sync". <a href="">More</a>.').children('a').click(function (ev) {
-	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
-	    });
+	    helpWin.para('<b>★</b> Renaming a user is not renamed in Plus. It will appear as a new user until "Reset sync". <a href="https://trello.com/c/N59rMJbk/" target="_blank">More</a>.');
 		helpWin.para('&nbsp');
 		helpWin.para('<hr class="agile_hr_help"><br>');
 
@@ -1479,7 +1477,7 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	    if (true) {
 	        var checkAlwaysShowSEBar = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedAlwaysShowSEBar">\
 Always show the "card S/E bar".</input>', null,
-"If you leave unchecked, you need to click the card front \'Spent / Estimate\' menu to show the Plus S/E bar.").children('input:checkbox:first');
+"If you leave unchecked, you need to click the card front \'S/E & Help\' menu to show the Plus S/E bar.").children('input:checkbox:first');
 	        if (g_bAlwaysShowSEBar)
 	            checkAlwaysShowSEBar[0].checked = true;
 

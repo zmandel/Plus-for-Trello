@@ -38,22 +38,6 @@ var HelpButton = {
 	}
 };
 
-function createMiniHelp() {
-    var b = $('<span id="help_buttons_container_mini"></span>').addClass('agile_miniHelp_container agile_help_button no-print');
-    var spanIcon = $('<span></span>').css('cursor', 'help');
-    var spanTour = $('<span class="agile_tour_link_mini">Tour</span>');
-    hookTour(spanTour);
-    var icon = $("<img>").attr("src",chrome.extension.getURL("images/iconspenthelp.png"));
-    icon.addClass("agile-spent-icon-header agile-spent-icon-header_cardwindow");
-    icon.attr("title", "Plus Help");
-    b.append(spanTour);
-    spanIcon.append(icon);
-    b.append(spanIcon);
-    icon.click(function () {
-        Help.display();
-    });
-    return b;
-}
 
 var g_intervalCheckPlusFeed = null;
 function insertPlusFeed(bForce) {

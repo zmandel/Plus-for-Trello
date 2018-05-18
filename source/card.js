@@ -275,7 +275,7 @@ function isRecurringCard() {
     return bRecurring;
 }
 
-function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependNonDisabled) {
+function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependNonDisabled, bNoPrependKWHeader) {
     function add(elem, kwSelected) {
         var str;
         var val;
@@ -312,7 +312,8 @@ function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependN
     }
 
     comboKeywords.empty();
-    comboKeywords.append($("<optgroup label='keyword:'></optgroup>"));
+    if (!bNoPrependKWHeader)
+        comboKeywords.append($("<optgroup label='keyword:'></optgroup>"));
     for (var i = 0; i < rg.length; i++) {
         add(rg[i], kwSelected);
     }
@@ -1731,7 +1732,7 @@ function addCardCommentHelp() {
 				div.append(createRecurringCheck());
 				createHashtagsList(div);
 				createSEMenu(div);
-				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
+				elemWindowTop.find(".window-header").eq(0).append(div);
 				
 				createCardSEInput(elemParent, idCardCur, board);
 				break;
@@ -1827,18 +1828,20 @@ function updateRecurringCardImage(bRecurring, icon) {
 function createSEMenu(divParent) {
     var comboSE = $("<select class='agile_AddSELink agile_card_combo agile_linkSoftColor'></select>");
     comboSE.prop("title", "Plus Spent and Estimates.");
-    //comboSE.append($(new Option("Spent / Estimate", "", false, true)).attr('disabled', 'disabled'));
     comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
     comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
     comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", 'transfer "E 1ˢᵗ" between users.\n\
 Useful to transfer from a global estimate to a specific user.'));
-    comboSE.append($(new Option("S/E Help", "help")));
+
+    comboSE.append($(new Option("❔ Show S/E Help", "help")));
+    comboSE.append($(new Option("❔ Show the Plus help pane", "helppane")));
+    comboSE.append($(new Option("❔ Start the card tour", "tour")));
     comboSE.val(""); //unselect
     divParent.append(comboSE);
     comboUpdateView();
 
     function comboUpdateView() {
-        comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "Spent / Estimate", width: 'auto', dropdownAutoWidth: true });
+        comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "S/E & Help", dropdownCss: "overflow:hidden;", dropdownAutoWidth: true });
     }
 
     function clearSelection() {
@@ -1870,9 +1873,25 @@ Useful to transfer from a global estimate to a specific user.'));
             clearSelection();
             return false; //handled
         }
+
+        if (val == "tour") {
+            clearSelection();
+            handleTourStart(true);
+            return false; //handled
+        }
+
+
+        if (val == "helppane") {
+            clearSelection();
+            Help.display();
+            return false; //handled
+        }
+
     });
 
-    if (!isTourRunning()) {
+    if (g_tour.bAutoShowTour)
+        setTimeout(function () { handleTourStart(false); }, 2500);
+    else if (!isTourRunning()) {
         chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
             if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
                 showSEButtonBubble(comboSE);
@@ -2774,26 +2793,26 @@ function showSEHelpDialog(section) {
 <p><b>E</b>stimate = <b>E 1ˢᵗ</b> + "E changes" (<b>+E</b> & <b>-E</b> "E. type" in Reports)</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_addannotation">\
-<p>To add an annotation, first pick the annotation date in the S/E bar, then type type your annotation as a note starting with "<b>!</b>" and Enter.</p>\
+<p>To add an annotation, first pick the annotation date in the S/E bar, then type your annotation in the note field starting with "<b>!</b>" and press Enter.</p>\
 <p>Typing S/E is optional when adding an annotation.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_addest">\
 <img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
 <br><br>\
-<p><b>Add a user estimate:</b> Pick "add Estimate" from the "Spent / Estimate" menu in the card front.</p>\
+<p><b>Add a user estimate:</b> Pick "add Estimate" from the "S/E & Help" menu in the card front.</p>\
 <p>Pick the user in the S/E bar (or "me" for yourself), Estimate, optional note, and Enter.</p>\
 <p>The estimate may increase or decrease later if you keep adding more E entries with the S/E bar or with "modify".<p>\
 <p>Keep E up-to-date so Plus can calculate a realistic Remain "R" for reports and burndowns.</p>\
 <p>Plus keeps track of the first estimate (E 1ˢᵗ) per user to compare with their current E. See the "Modify total estimate" and "Transfer from a global estimate" topics above.</p>\
 <br>\
-<p><b>Add a global estimate</b> by assigning it to the "global" user. Useful to later transfer E to specific users.</p>\
+<p><b>Add a global estimate</b> by assigning it to the <A href="https://trello.com/c/6QFgJEZH/13-global-user" target="_blank">"global" user</A>. Useful to later transfer E to specific users.</p>\
 <p>When transferring estimates, Plus always transfers E 1ˢᵗ. This can cause "global" to reach negative E 1ˢᵗ when its estimate was increased and later transferred to a user.</p>\
 <p>Change the "global" name in Plus Preferences.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_addspent">\
 <img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
 <br><br>\
-<p>Pick "add Spent" from the "Spent / Estimate" menu in the card front.</p>\
+<p>Pick "add Spent" from the "S/E & Help" menu in the card front.</p>\
 <p>Pick the user in the S/E bar (or "me" for yourself), type the spent, optional note, and Enter.</p>\
 <p>If the spent is not for "now", pick the date from the "now" date selector.</p>\
 <br>\
@@ -2822,7 +2841,7 @@ function showSEHelpDialog(section) {
 <p>Normally, you should not modify S/E comments you already entered (or sheet rows for stealth sync users) even if mistaken. Use "modify" or see the "Fix mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_transfere">\
-<p>Pick "transfer Estimate" from the "Spent / Estimate" menu in the card front.<\p>\
+<p>Pick "transfer Estimate" from the "S/E & Help" menu in the card front.<\p>\
 <p>Transfer "E 1ˢᵗ" between users, usually from a "global" estimate to an actual user.<\p>\
 <br>\
 <p>A "global" estimate is E assigned to the "global" user.<\p>\
@@ -2843,12 +2862,12 @@ function showSEHelpDialog(section) {
 <div class="agile_sehelpsection" id="agile_sehelp_setprefs">\
 <p>From the Plus help pane jump to Preferences to set your Units (minutes, hours, days), whether to use Estimates, background sync and much more.</p>\
 <p>Set your S/E sync method and keywords form the help pane\'s Sync section.</p>\
-<p>View more in the help pane from any Trello page by clicking its icon: <img src="' + chrome.extension.getURL("images/iconspenthelp.png") + '" style="width:22px;height:22px;" /></p>\
+<p>View more in the help board\'s <A href="https://trello.com/c/dte0vHXX/5-preferences-units-and-much-more" target="_blank">card about Preferences</A></p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_otherhelp">\
-<p>For more help, open the Plus help pane from any Trello page by clicking its icon: <img src="' + chrome.extension.getURL("images/iconspenthelp.png") + '" style="width:22px;height:22px;" /></p>\
-<p>or visit these pages:</p>\
+<p>For more help:</p>\
 <ul class="agile_sehelp_otheritem">\
+<li>&bull; <b><A href="https://trello.com/b/0jHOl1As/plus-for-trello-help" target="_blank">Help Board</A></b></li>\
 <li>&bull; <A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">How Plus tracks Spent and Estimate</A></li>\
 <li>&bull; <A href="http://www.plusfortrello.com/p/s-e-entry-methods.html" target="_blank">Spent / Estimate entry methods</A></li>\
 <li>&bull; <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">Entering Spent / Estimate as card comments</A></li>\

@@ -192,16 +192,15 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 var ctlContents = cloneTitleTag.contents();
                 var ctlUpdate = null;
 
-                if (ctlContents && ctlContents.length>=2) {
+                if (ctlContents && ctlContents.length>=2)
                     ctlUpdate = ctlContents[1];
-                    if (ctlUpdate && ctlUpdate.textContent != cleanTitle)
-                        ctlUpdate.textContent = cleanTitle;
-                }
 
-                if (!ctlUpdate) { //trello might have changed their page. try with a regular <A> without children
+                if (!ctlUpdate) //trello might have changed their page. try with a regular <A> without children
                     ctlUpdate = cloneTitleTag[0];
-                    if (ctlUpdate !== undefined && ctlUpdate.text != cleanTitle)
-                        ctlUpdate.text = cleanTitle;
+
+                if (ctlUpdate && ctlUpdate.textContent != cleanTitle) {
+                    if (!ctlUpdate.textContent || ctlUpdate.textContent.trim()!=(cleanTitle || "").trim())
+                        ctlUpdate.textContent = cleanTitle;
                 }
             }
 

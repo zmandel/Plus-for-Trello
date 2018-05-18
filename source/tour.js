@@ -161,7 +161,7 @@ function handleCardTour() {
     var flow = [
     {
         id: 1,
-        selector: ".agile-spent-icon-header_cardwindow",
+        selector: ".agile_AddSELink",
         text: "Help<br>is here too.<br><br>Use keyboard arrows<br>to navigate the tour.",
         angle: 180,
         distance: 0,
@@ -508,7 +508,7 @@ function handleCardTour() {
         },
     {
         id: 39,
-        selector: ".agile-spent-icon-header_cardwindow",
+        selector: ".agile_AddSELink",
         text: "Read the<br>full help anytime.<br><br>Please <A href='http://www.plusfortrello.com/p/donations.html' target='_blank'>donate</A> <span style='font-size:230%'>☺</span>",
         angle: 180,
         distance: 0,
@@ -770,6 +770,9 @@ function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
 
         if (step.selectorAlt && (elemTarget.length == 0 || !(elemTarget.eq(0).is(":visible"))))
             elemTarget = $(step.selectorAlt);
+
+        if (elemTarget.length != 0 && elemTarget.hasClass("select2-hidden-accessible"))
+            elemTarget = elemTarget.next();
 
         if (elemTarget.length == 0) {
             showNextBubble(delta);

@@ -1280,7 +1280,7 @@ function getKeywordsViewList() {
         if (bMultipleKeywords)
             rgItems.push({ str: "↗ Report by keyword", val: VAL_COMBOVIEWKW_REPORTKW });
         rgItems.push({ str:  "↗ Dimensions help", val: VAL_COMBOVIEWKW_HELP });
-        fillComboKeywords(combo, rgItems, g_dimension, "agile_weeks_combo_element", '\u00A0\u00A0\u00A0');
+        fillComboKeywords(combo, rgItems, g_dimension, "agile_weeks_combo_element", '\u00A0\u00A0\u00A0', true);
         if (combo.val() != g_dimension) { //keyword no longer in use, default to all
             combo.val(VAL_COMBOVIEWKW_ALL);
             doComboChange();

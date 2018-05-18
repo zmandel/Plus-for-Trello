@@ -384,11 +384,6 @@ div.agile_total_box {
     font-size:120%;
 }
 
-.agile_miniHelp_container {
-    margin-top:-7px !important;
-    float:right !important;
-    margin-right:-1.7em;
-}
 
 label.agile_ignore_filters_option {
 	float: right;
