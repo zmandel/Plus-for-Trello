@@ -124,8 +124,7 @@ function configureTimerElem(callback) {
                 update();
                 
                 button.click(function () {
-                    var href = "https://trello.com/c/" + idCardTimer;
-                    chrome.tabs.create({ url: href });
+                    sendExtensionMessage({ method: "openCardWindow", idCard: idCardTimer }, function (response) { });
                 });
             });
         }

@@ -998,6 +998,22 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             }
             sendResponse({ status: STATUS_OK });
         }
+        else if (request.method == "notifyCardTab") {
+            handlenotifyCardTab(request.idCard, sender.tab.id);
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "notifyBoardTab") {
+            handlenotifyBoardTab(request.idBoard, sender.tab.id);
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "openCardWindow") {
+            doOpenCardInBrowser(request.idCard);
+            sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "openBoardWindow") {
+            doOpenBoardInBrowser(request.idBoard);
+            sendResponse({ status: STATUS_OK });
+        }
         else if (request.method == "timerWindowLoaded") {
             handleTimerWindowLoaded(request.idCard, request.bClearAndMinimize);
             sendResponse({ status: STATUS_OK });
@@ -1260,6 +1276,7 @@ function handleTimerWindowLoaded(idCard, bClearAndMinimize) {
     }
 }
 
+
 function handleNotifClick(notificationId) {
     
     var idCard = idCardFromIdNotification(notificationId);
@@ -1277,7 +1294,7 @@ function handleNotifClick(notificationId) {
 
     function openCard(status) {
         assert(status == STATUS_OK);
-        window.open("https://trello.com/c/" + idCard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
+        doOpenCardInBrowser(idCard);
     }
 
     function checkDeletedCard(response) {
@@ -1298,6 +1315,90 @@ function handleNotifClick(notificationId) {
     });
 }
 
+function doOpenCardInBrowser(idCard) {
+    function openCardAsUrl() {
+        window.open("https://trello.com/c/" + idCard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
+    }
+
+    var mapCardWindow = g_mapCardToTab[idCard];  // { tabid: tabid, ms: Date.now() };
+    var msNow = Date.now();
+    if (mapCardWindow && msNow - mapCardWindow.ms < 8000) { //recent card window. depends on UPDATE_STEP
+        var tabid = mapCardWindow.tabid;
+
+        //verify the tab is alive and well
+        chrome.tabs.get(tabid, function (tab) {
+            var idCardCur = null;
+            if (tab)
+                idCardCur = getIdCardFromUrl(tab.url);
+
+            if (idCardCur != idCard)
+                openCardAsUrl();
+            else {
+                //first select the window. else chrome can get weird about selecting the tab while the window is not active
+                chrome.windows.update(tab.windowId, { focused: true }, function (window) {
+                    if (!window)
+                        openCardAsUrl();
+                    else {
+                        //finally, select the tab
+                        chrome.tabs.update(tabid, { active: true, highlighted: true }, function (tab) {
+                            var idCardCur = null;
+                            if (tab)
+                                idCardCur = getIdCardFromUrl(tab.url);
+
+                            if (idCardCur != idCard)
+                                openCardAsUrl();
+                        });
+                    }
+                });
+            }
+        });
+    } else {
+        openCardAsUrl();
+    }
+}
+
+
+function doOpenBoardInBrowser(idBoard) {
+    function openBoardAsUrl() {
+        window.open("https://trello.com/b/" + idBoard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
+    }
+
+    var mapBoardWindow = g_mapBoardToTab[idBoard];  // { tabid: tabid, ms: Date.now() };
+    var msNow = Date.now();
+    if (mapBoardWindow && msNow - mapBoardWindow.ms < 8000) { //recent Board window. depends on UPDATE_STEP
+        var tabid = mapBoardWindow.tabid;
+
+        //verify the tab is alive and well
+        chrome.tabs.get(tabid, function (tab) {
+            var idBoardCur = null;
+            if (tab)
+                idBoardCur = getIdBoardFromUrl(tab.url);
+
+            if (idBoardCur != idBoard)
+                openBoardAsUrl();
+            else {
+                //first select the window. else chrome can get weird about selecting the tab while the window is not active
+                chrome.windows.update(tab.windowId, { focused: true }, function (window) {
+                    if (!window)
+                        openBoardAsUrl();
+                    else {
+                        //finally, select the tab
+                        chrome.tabs.update(tabid, { active: true, highlighted: true }, function (tab) {
+                            var idBoardCur = null;
+                            if (tab)
+                                idBoardCur = getIdBoardFromUrl(tab.url);
+
+                            if (idBoardCur != idBoard)
+                                openBoardAsUrl();
+                        });
+                    }
+                });
+            }
+        });
+    } else {
+        openBoardAsUrl();
+    }
+}
 
 function makeTimerPopupWindow(notificationId, bMinimized) {
     if (!notificationId || notificationId.indexOf(g_prefixTimerNotification) != 0)
@@ -1978,4 +2079,15 @@ function injectTrelloFrame() {
         parent.removeChild(parent.firstChild);
     parent.appendChild(iframe);
     g_bInjectedTrelloFrame = true;
+}
+
+var g_mapCardToTab = {}; //we keep this map to know which tab has which card currently open. This method works without needing to add the "tabs" permission to the extension.
+var g_mapBoardToTab = {}; //we keep this map to know which tab has which card currently open. This method works without needing to add the "tabs" permission to the extension.
+
+function handlenotifyCardTab(idCard, tabid) {
+    g_mapCardToTab[idCard] = {tabid: tabid, ms: Date.now() };
+}
+
+function handlenotifyBoardTab(idBoard, tabid) {
+    g_mapBoardToTab[idBoard] = { tabid: tabid, ms: Date.now() };
 }

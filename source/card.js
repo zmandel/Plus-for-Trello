@@ -273,6 +273,7 @@ var g_timeoutUpdateCurrentSEData = null;
 function updateCurrentSEData(bForceNow) {
     if (g_timeoutUpdateCurrentSEData) {
         clearTimeout(g_timeoutUpdateCurrentSEData);
+        g_timeoutUpdateCurrentSEData = null;
     }
 
     function worker() {

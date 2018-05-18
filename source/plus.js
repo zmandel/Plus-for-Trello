@@ -1741,7 +1741,7 @@ function handleLoadRecent(combo, data, user) {
 	            setTimeout(function () {
 	                var url = "https://trello.com/c/" + id;
 	                if (msDateLastCtrlClick && Math.abs(msChange - msDateLastCtrlClick) < 500) {
-	                    window.open(url, "_blank");
+	                    sendExtensionMessage({ method: "openCardWindow", idCard: id }, function (response) { });
 	                    return;
 	                }
 	                window.location.href = url;
@@ -1813,11 +1813,11 @@ function handleLoadPending(combo, data, user) {
 	            setTimeout(function () {
 	                var url = "https://trello.com/c/" + id;
 	                if (msDateLastCtrlClick && Math.abs(msChange - msDateLastCtrlClick) < 500) {
-	                    window.open(url, "_blank");
+	                    sendExtensionMessage({ method: "openCardWindow", idCard: id }, function (response) { });
 	                    return;
 	                }
 	                window.location.href = url;
-	            }, 200);
+	            }, 300);
 	        }
 	    }
 	});

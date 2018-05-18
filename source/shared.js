@@ -1116,17 +1116,35 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	//use addEventListener to avoid placing a handler on each individual TR
 	container[0].addEventListener('click',
 	  function (ev) {
-	      var t = ev.target;
+	      var bRet = true;
+	      var t = $(ev.target);
+	      if (t.is("a") && (t.prop("target")=="_blank" || (ev.ctrlKey || ev.shiftKey))) {
+	          var url = t.prop("href");
+	          var idCard = getIdCardFromUrl(url);
+	          if (idCard) {
+	              sendExtensionMessage({ method: "openCardWindow", idCard: idCard }, function (response) { });
+	              ev.preventDefault();
+	              bRet= false;
+	          } else {
+	              var idBoard = getIdBoardFromUrl(url);
+	              if (idBoard) {
+	                  sendExtensionMessage({ method: "openBoardWindow", idBoard: idBoard }, function (response) { });
+	                  ev.preventDefault();
+	                  bRet = false;
+	              }
+	          }
+	      }
+	      var elemThis = t.closest('TR');
+	      if (elemThis.children("th").length == 0) {
 
-	      var elemThis = $(t).closest('TR');
-	      if (elemThis.children("th").length > 0)
-	          return;
-	      if (elemThis.hasClass("agile-drilldown-row-toggle"))
-	          elemThis.removeClass("agile-drilldown-row-toggle");
-	      else
-	          elemThis.addClass("agile-drilldown-row-toggle");
+	          if (elemThis.hasClass("agile-drilldown-row-toggle"))
+	              elemThis.removeClass("agile-drilldown-row-toggle");
+	          else
+	              elemThis.addClass("agile-drilldown-row-toggle");
 
-	      updateSelectedReportTotals();
+	          updateSelectedReportTotals();
+	      }
+	      return bRet;
 	  }, false);
 
 	container.hide();
@@ -1345,14 +1363,31 @@ if (typeof jQuery !== 'undefined') {
 }
 
 function setPopupClickHandler(elem, url) {
-	elem.click(function () {
-		chrome.tabs.create({ url: url });
+
+    function create() {
+        var idCard = getIdCardFromUrl(url);
+        if (idCard) {
+            sendExtensionMessage({ method: "openCardWindow", idCard: idCard }, function (response) { });
+            return;
+        } else {
+            var idBoard = getIdBoardFromUrl(url);
+            if (idBoard) {
+                sendExtensionMessage({ method: "openBoardWindow", idBoard: idBoard }, function (response) { });
+                return;
+            }
+        }
+        chrome.tabs.create({ url: url });
+    }
+
+    elem.click(function (event) {
+        event.preventDefault();
+	    create();
 		return false;
 	});
 	elem.keypress(function (event) {
 		var keycode = (event.keyCode ? event.keyCode : event.which);
 		if (keycode == '13') { //enter key
-			chrome.tabs.create({ url: url });
+		    create();
 			return false;
 		}
 	});
@@ -2161,4 +2196,24 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
         );
     }
     return ret;
+}
+
+
+function getXFromUrl(url, prefix) {
+    if (url.indexOf(prefix) != 0)
+        return null;
+
+    var remainUrl = url.slice(prefix.length);
+    var iNextSlash = remainUrl.indexOf("/");
+    if (iNextSlash >= 0)
+        remainUrl = remainUrl.slice(0, iNextSlash);
+    return remainUrl;
+}
+
+function getIdCardFromUrl(url) {
+    return getXFromUrl(url, "https://trello.com/c/");
+}
+
+function getIdBoardFromUrl(url) {
+    return getXFromUrl(url, "https://trello.com/b/");
 }

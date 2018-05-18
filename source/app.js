@@ -83,24 +83,6 @@ function insertCardTimer(containerBar) {
     }
 }
 
-function getXFromUrl(url, prefix) {
-    if (url.indexOf(prefix) != 0)
-        return null;
-
-    var remainUrl = url.slice(prefix.length);
-    var iNextSlash = remainUrl.indexOf("/");
-    if (iNextSlash >= 0)
-        remainUrl = remainUrl.slice(0, iNextSlash);
-    return remainUrl;
-}
-
-function getIdCardFromUrl(url) {
-    return getXFromUrl(url, "https://trello.com/c/");
-}
-
-function getIdBoardFromUrl(url) {
-    return getXFromUrl(url, "https://trello.com/b/");
-}
 
 var g_bErrorExtension = false;
 
@@ -368,6 +350,17 @@ function doAllUpdates() {
     if (isPlusDisplayDisabled())
         return;
     addCardCommentHelp();
+
+    var url = document.URL;
+
+    var idCard = getIdCardFromUrl(url);
+    if (idCard)
+        sendExtensionMessage({ method: "notifyCardTab", idCard: idCard }, function (response) { });
+    else {
+        var idBoard = getIdBoardFromUrl(url);
+        if (idBoard)
+            sendExtensionMessage({ method: "notifyBoardTab", idBoard: idBoard }, function (response) { });
+    }
 }
 
 
