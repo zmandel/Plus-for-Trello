@@ -1660,8 +1660,6 @@ function recalcChecklistTotals() {
     var e = 0;
     
     checks.each(function (i, elem) {
-        if (elem.clientHeight==0)
-            return; //"hidden" element
         var se = parseSE(elem.textContent, true);
         if (se.bParsed) {
             s = s + se.spent;
@@ -2014,7 +2012,7 @@ function createHashtagsList(divParent) {
         if (val == "")
             return;
         if (val == txtOther) {
-            var newHash = prompt("Note: To remove a tag, remove it from the card title. Type the new hashtag:");
+            var newHash = prompt("Type the new hashtag: (to remove a tag, remove it from the card title)");
             if (!newHash) {
                 selectFirst();
                 return;

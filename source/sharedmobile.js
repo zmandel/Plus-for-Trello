@@ -16,6 +16,7 @@ var TAG_RECURRING_CARD = "[R]";
 var DEFAULTGLOBAL_USER = "global";
 var g_strUserOtherOption = "other user...";
 var g_strDateOtherOption = "other date...";
+var g_valMaxDaysCombo = 5;
 
 var MAP_UNITS = {
     "m": 1000 * 60,
@@ -61,23 +62,24 @@ var UNITS = {
         if (callbackOnSet)
             callbackOnSet(unit);
     },
-    FormatWithColon: function (f) {
+    FormatWithColon: function (f, bShowZero) {
         assert(typeof f == "number");
         var pre = "";
+        var strZero = (bShowZero ? "0" : "");
         if (f < 0) {
             f = -f;
             pre = "-";
         }
         if (f == 0)
-            return "";
+            return strZero;
         var units = Math.floor(f);
         var str = "";
         var subunits = Math.round((f - units) * this.ColonFactor());
         if (subunits == 0)
             str = "" + units;
         else
-            str = "" + (units == 0 ? "" : units) + ":" + subunits;
-        return pre+str;
+            str = "" + (units == 0 ? strZero : units) + ":" + subunits;
+        return pre + str;
     },
     ColonFactor: function () {
         return (this.current == "d" ? 24 : 60);
@@ -154,13 +156,16 @@ var g_storage = {
     }
 };
 
+
+//information about what is being edited in the s/e card. can load/restore from storage per card
+//NOTE: g_currentCardSEData.user can be "me", must be manually mapped to g_user.username 
 var g_currentCardSEData = {
     loadFromStorage: function (idCard, callback) {
         assert(idCard);
         var key = this.keyStoragePrefix + idCard;
-        this.idCard = idCard;
+        
         this.clearValues();
-
+		this.idCard = idCard;
         var thisLocal = this;
         g_storage.get(key, function (strVal) {
             if (!strVal) {
@@ -170,8 +175,8 @@ var g_currentCardSEData = {
             var value = JSON.parse(strVal);
             assert(idCard == value.idCard);
             if (thisLocal.idCard != idCard) {
-                //should never happen but handle possible rare timing
-                callback();
+                //should never happen but handle possible rare timing if async storage
+                //does not callback
                 return;
 
             }
@@ -251,6 +256,7 @@ var g_currentCardSEData = {
         this.s = "";
         this.e = "";
         this.note = "";
+        //do not clear this.idCard, we want to leave it, as if the draft is all empty.
     },
 
     msTime: 0,
@@ -258,7 +264,7 @@ var g_currentCardSEData = {
     strLastSaved: "", //note: because it contains the idCard, its OK to not clear this cache when the card changes
     idCard: "",
     keyword: "",
-    user: "",
+    user: "", //note: can be "me". must be checked
     delta: "",
     s: "", //NOTE: s/e stored as strings. could contain ":"
     e: "",
