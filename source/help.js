@@ -840,9 +840,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/timer.png") + '"/>');
 	    if (cDaysUsingPlus>3) {
 	        helpWin.raw('<p class="panelsAlertHelp">Alert: The special Chrome "Panels" we use will soon go away as Google plans to remove them from Chrome :(<br>\
-        Without Panels, Plus timers will still work but lose features like unobtrusive always-visible timers.<br>\
+        Without Panels, Plus timers will still work as we are working to replace them with a similar feature. Chrome beta users, please be patient.<br>\
         <br>\
-<A href="https://bugs.chromium.org/p/chromium/issues/detail?id=467808" target="_blank">Read or comment here</A></b>.<br>\</p>');
+<A href="https://bugs.chromium.org/p/chromium/issues/detail?id=467808" target="_blank">Read more here</A></b>.<br>\</p>');
 	    }
 	    helpWin.para("&bull; Start a timer from any card. The last active timer is always visible in the Chrome Plus icon and menu.");
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");

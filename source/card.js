@@ -2012,9 +2012,11 @@ function handleCardTimerClick(msDateClick, hash, timerElem, timerStatus, idCard)
                     if (!confirm("There is already an active timer.\nClick the Chrome Plus icon to see it.\nAre you sure you want to start another timer?\n\n(See Plus help Preferences to disable this warning)"))
                         return;
                 }
-                setTimeout(function () {
-                    showPanelsAlertDialog();
-                }, 1500);
+                if (false) {
+                    setTimeout(function () {
+                        showPanelsAlertDialog();
+                    }, 1500);
+                }
                 var elemSpent = $("#plusCardCommentSpent");
                 var sCur = null;
                 var bClearSpentBox = false;

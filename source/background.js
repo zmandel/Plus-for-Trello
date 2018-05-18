@@ -1163,7 +1163,57 @@ function handleCopyClipboard(html, sendResponse) {
     }
 }
 
+var g_bHookedNotificationsButton = false;
+
+function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
+
+    if (!g_bHookedNotificationsButton) {
+        chrome.notifications.onButtonClicked.addListener(function (notificationId, buttonIndex) {
+            
+                if (true) {
+                    chrome.windows.create({
+                        url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +
+                            "&nameBoard=" + encodeURIComponent(nameBoard), width: 250, height: 88, type: "popup"
+                    },
+                function (window) {
+                    if (window) {
+                        chrome.windows.update(window.id, { state: "minimized" });
+                        try {
+                            //alert: this call, when done without any Chrome windows left on the screen, will fail and the catch doesnt help, thus its done at the very end.
+                            chrome.notifications.clear(notificationId, function (bWasCleared) { });
+                        } catch (e) {
+                        }
+                    } else {
+                        //alert("error");
+                    }
+                }
+            );
+                }
+            ;
+        });
+        g_bHookedNotificationsButton = true;
+    }
+
+    var notification = chrome.notifications.create("timer:" + idCard,
+        {
+            type: "basic",
+            isClickable:true,
+            iconUrl: chrome.extension.getURL("images/timer-sm-on.png"),
+            appIconMaskUrl: chrome.extension.getURL("images/icon32alpha.png"),
+            title: "17:20:08s",
+            message: "My Card\r\nSample Board",
+            //message: strTruncate(nameCard, 20) + "\r\n" + strTruncate(nameBoard, 20),
+            //contextMessage:strTruncate(nameBoard, 20),
+            requireInteraction: true,
+            buttons: [{ title: "", iconUrl: chrome.extension.getURL("images/minimize.png")}]
+        }, function (notificationId) {
+               
+            }
+        );
+}
+
 function doShowTimerWindow(idCard) {
+    
     var idWindow = g_mapTimerWindows[idCard];
 
     if (idWindow === undefined)
@@ -1204,6 +1254,9 @@ function doShowTimerWindow(idCard) {
                         //very hard (impossible?) to happen, but it takes time (open db, make report) since last map check. windows could have been created from a previous request.
                         return;
                     }
+
+                    //showTimerWindowAsNotification(idCard, nameCard, nameBoard);
+                    //return;
                     chrome.windows.create({
                         url: chrome.extension.getURL("timerwin.html") + "?idCard=" + idCard + "&nameCard=" + encodeURIComponent(nameCard) +
                             "&nameBoard=" + encodeURIComponent(nameBoard), width: 205, height: 88, type: "panel"
