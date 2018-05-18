@@ -397,6 +397,55 @@ function doInstallNetworkDetection() {
         },
         { urls: ["https://trello.com/1/*"] },
         []);
+
+    chrome.webRequest.onErrorOccurred.addListener(function (details) {
+        if (details && details.type == "main_frame" && details.parentFrameId == -1 && details.method == "GET" && !details.fromCache &&
+            (!navigator.onLine || details.error.indexOf("_DISCONNECT") >= 0)) {
+            var url = details.url;
+            chrome.tabs.get(details.tabId, function (tab) {
+                if (tab && tab.highlighted) { //highlighted reduces chances we show the message for a tab that chrome is retrying in the background
+                    doShowBoardCardOfflineNotification(url);
+                }
+            });
+        }
+    }, { urls: ["https://trello.com/b/*", "https://trello.com/c/*"] });
+}
+
+
+function doShowBoardCardOfflineNotification(url) {
+    var idBoard = null;
+    var idCard = null;
+    if (url.toLowerCase().indexOf("/b/") >= 0)
+        idBoard = url.split("/")[4];
+    else if (url.toLowerCase().indexOf("/c/") >= 0)
+        idCard = url.split("/")[4];
+
+    if (idBoard || idCard) {
+        handleOpenDB(null, function (responseOpen) {
+            if (responseOpen.status != STATUS_OK) {
+                return;
+            }
+            if (idBoard) {
+                var request = { sql: "SELECT idBoard,name FROM boards WHERE idBoard=?", values: [idBoard] };
+                handleGetReport(request,
+                    function (responseReport) {
+                        if (responseReport.status == STATUS_OK && responseReport.rows.length > 0) {
+                            handleShowDesktopNotification({ timeout: 10000, idUse: g_prefixOfflineBoardNotification + idBoard, notification: "Chrome is offline. Click to open a card report for this board: " + responseReport.rows[0].name });
+                        }
+                    });
+            }
+            else if (idCard) {
+                var request = { sql: "SELECT idBoard,name FROM cards WHERE idCard=?", values: [idCard] };
+                handleGetReport(request,
+                    function (responseReport) {
+                        if (responseReport.status == STATUS_OK && responseReport.rows.length > 0) {
+                            idBoard = responseReport.rows[0].idBoard;
+                            handleShowDesktopNotification({ timeout: 10000, idUse: g_prefixOfflineCardNotification + idBoard + ":" + idCard, notification: "Chrome is offline. Click to open a card report for this card and board: " + responseReport.rows[0].name });
+                        }
+                    });
+            }
+        });
+    }
 }
 
 function handleDetectedTrelloActivity() {
@@ -471,8 +520,10 @@ var g_loaderDetector = {
         }, 1000 * 5);
 
 
-        //install network detection
-        var intervalNetDetect=setInterval(function () {
+        
+        var intervalNetDetect = null;
+
+        function doNetDetect() {
             if (g_bInstalledNetworkDetection) {
                 if (intervalNetDetect)
                     clearInterval(intervalNetDetect);
@@ -487,8 +538,15 @@ var g_loaderDetector = {
                 }
             });
 
-        }, 4000);
+        }
 
+        setTimeout(function () {
+            doNetDetect();
+            //install network detection
+            intervalNetDetect = setInterval(doNetDetect, 4000);
+        }, 2500);
+
+        hookNotificationActions();
         processTimerCounter(true);
 
         function updateOnlineState(bOnline) {
@@ -1271,15 +1329,61 @@ function makeTimerPopupWindow(notificationId, bMinimized) {
     );
 }
 
+function handleOfflineBoardNotificationClick(notificationId) {
+    var parts = notificationId.split(":");
+    var idBoard = parts[1];
+    var urlGo = chrome.extension.getURL("report.html") + "?groupBy=idCardH&idBoard=" + encodeURIComponent(idBoard);
+    window.open(urlGo, "_blank");
+    chrome.notifications.clear(notificationId, function (bWasCleared) { });
+}
+
+function handleOfflineCardNotificationClick(notificationId) {
+    var parts = notificationId.split(":");
+
+    var idBoard = parts[1];
+    var idCard = parts[2];
+
+    handleOpenDB(null, function (responseOpen) {
+        if (responseOpen.status != STATUS_OK) {
+            return;
+        }
+
+        var request = { sql: "SELECT idBoard,name,bArchived,bDeleted FROM cards WHERE idCard=?", values: [idCard] };
+        handleGetReport(request,
+            function (responseReport) {
+                if (responseReport.status == STATUS_OK && responseReport.rows.length > 0) {
+                    var row = responseReport.rows[0];
+                    idBoard = row.idBoard;
+                    var urlGo = chrome.extension.getURL("report.html") + "?groupBy=idCardH&idBoard=" + encodeURIComponent(idBoard) + "&idBoard=" + encodeURIComponent(idBoard) + "&orderBy=posList&idCardSelect=" + encodeURIComponent(idCard);
+                    if (row.bArchived)
+                        urlGo += "&archived=-1";
+                    if (row.bDeleted)
+                        urlGo += "&deleted=-1";
+                    window.open(urlGo, "_blank");
+                    chrome.notifications.clear(notificationId, function (bWasCleared) { });
+                }
+            });
+    });
+}
+
 function hookNotificationActions() {
     if (g_bHookedNotificationsButton)
         return;
     g_bHookedNotificationsButton = true;
 
     chrome.notifications.onClicked.addListener(function (notificationId) {
-        if (!notificationId || notificationId.indexOf(g_prefixTimerNotification) != 0)
-            return; //some notifications are not timers
-        handleNotifClick(notificationId);
+        if (!notificationId)
+            return;
+
+        if (notificationId.indexOf(g_prefixTimerNotification) == 0) {
+            handleNotifClick(notificationId);
+        }
+        else if (notificationId.indexOf(g_prefixOfflineBoardNotification) == 0) {
+            handleOfflineBoardNotificationClick(notificationId);
+        }
+        else if (notificationId.indexOf(g_prefixOfflineCardNotification) == 0) {
+            handleOfflineCardNotificationClick(notificationId);
+        }
     });
 
     chrome.notifications.onClosed.addListener(function (notificationId, byUser) {
@@ -1298,6 +1402,8 @@ function hookNotificationActions() {
 }
 
 var g_prefixTimerNotification = "timer:";
+var g_prefixOfflineBoardNotification = "openBoardReport:";
+var g_prefixOfflineCardNotification = "openCardReport:";
 function idNotificationForTimer(idCard) { 
     return g_prefixTimerNotification + idCard;
 }
@@ -1460,29 +1566,45 @@ chrome.identity.onSignInChanged.addListener(function(account, signedIn) {
 //note: ntofications are done from background from here so they work correctly when navigating during notification, and chrome has them preaproved
 var g_strLastNotification = "";
 var g_dtLastNotification = null;
+var g_mapNotificationToTimeoutClose = {};
 
 function handleShowDesktopNotification(request) {
 	var dtNow = new Date();
 	var dtDiff = 0;
 	if (g_dtLastNotification != null) {
-		if (dtNow.getTime() - g_dtLastNotification.getTime() < 5000 && g_strLastNotification == request.notification)
-			return; //ingore possible duplicate notifications
+		if (dtNow.getTime() - g_dtLastNotification.getTime() < 3000 && g_strLastNotification == request.notification)
+			return; //ignore possible duplicate notifications
 	}
 	g_dtLastNotification = dtNow;
 	g_strLastNotification = request.notification;
 	var timeout = request.timeout || 5000;
 	var idUse = request.idUse || request.notification || "";
+
+	function clearPendingTimeout() {
+	    if (g_mapNotificationToTimeoutClose[idUse]) {
+	        clearTimeout(g_mapNotificationToTimeoutClose[idUse]);
+	        g_mapNotificationToTimeoutClose[idUse] = null;
+	    }
+	}
+
+	clearPendingTimeout();
 	var notification = chrome.notifications.create(idUse,
         {
             type:"basic",
             iconUrl: chrome.extension.getURL("images/icon128.png"),
             title: 'Plus for Trello',
-            message: request.notification
+            message: request.notification,
+            requireInteraction: true,
         }, function (notificationId) {
             if (timeout) {
-                setTimeout(function () {
-                    chrome.notifications.clear(notificationId,function(wasCleared) {});
+                clearPendingTimeout();
+                var timeoutLast = null;
+				timeoutLast=setTimeout(function () {
+                    if (g_mapNotificationToTimeoutClose[idUse] === timeoutLast)
+                        g_mapNotificationToTimeoutClose[idUse] = null;
+                    chrome.notifications.clear(notificationId, function (wasCleared) { });
                 }, timeout);
+                g_mapNotificationToTimeoutClose[idUse] = timeoutLast;
             }
         });
 }

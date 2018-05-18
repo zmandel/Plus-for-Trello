@@ -1299,6 +1299,8 @@ function loadReport(params) {
         sinceSimple = "w-4";
     }
 
+    g_idCardSelect = params.idCardSelect;
+
     if (params.setLastRowViewed == "true")
         g_bNeedSetLastRowViewed = true;
     else
@@ -2195,6 +2197,7 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
         var html = getHtmlDrillDownTooltip(customColumns, rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
         var parentScroller = $(".agile_report_container");
         var container = makeReportContainer(html, 1300, true, parentScroller, true);
+        updateSelectedReportTotals(); //some reports include row selections
         var tableElem = $(".tablesorter");
         var bDoSort = true;
         if (tableElem.length > 0 && rowsGrouped.length > 0) {
@@ -3536,6 +3539,9 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var bCountCards = options.bCountCards;
     var bNoTruncate = options.bNoTruncate;
     var headersSpecialTemp = {};
+    var idCardSelect = g_idCardSelect;
+    g_idCardSelect = null;
+
     function pushSpecialLinkHeader() {
         assert(header.length > 0);
         headersSpecialTemp[header.length - 1] = {
@@ -3767,6 +3773,8 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
 
     
     function callbackRowData(row) {
+        if (idCardSelect && row.idCardH == idCardSelect)
+            row.bSelectedRow = true;
         bPushedCard = false;
         if (row.rowid && row.rowid > g_rowidLastSyncRemember) //review zig: hacky way so we dont loop the array twice. would be nice if this was outside of view
             g_rowidLastSyncRemember = row.rowid;

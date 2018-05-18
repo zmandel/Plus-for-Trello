@@ -908,7 +908,7 @@ function getDrilldownTopButtons(bNoClose, title) {
 	return ret;
 }
 
-function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, callbackGetRowData, bOnlyTable, title,bSEColumns) {
+function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, callbackGetRowData, bOnlyTable, title, bSEColumns) {
 	bOnlyTable = bOnlyTable || false;
 	if (title === undefined)
 		title = "Plus Drill-down";
@@ -941,6 +941,10 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		if (tds.title && tds.title != "")
 		    strPost = " title='" + tds.title + "'";
 		var strClassRow = "agile-drilldown-row";
+
+		if (row.bSelectedRow)
+		    strClassRow = strClassRow + " agile-drilldown-row-toggle";
+
 		if (iColComment >= 0 && tds.length > iColComment) {
 		    var commentLow = tds[iColComment].name.toLowerCase();
 		    if (commentLow.indexOf(PREFIX_ERROR_SE_COMMENT) >= 0)
@@ -1050,6 +1054,35 @@ function setScrollerHeight(heightWindow, scroller, elemTop, dyTop, bAdjustBody) 
 		scroller.css("height", height-7); //7 is to prevent scrollbar in case some plattform calcs are off by a few pixels
 }
 
+function updateSelectedReportTotals() {
+    var container = $(".agile_topLevelTooltipContainer");
+    var selected = container.find(".agile-drilldown-row-toggle");
+    var iSelected = 0;
+    var sCur = 0;
+    var eCur = 0;
+    var bAdded = false; //simple way of not showing selected s/e when not present (sort by R for example)
+    for (; iSelected < selected.length; iSelected++) {
+        var children = selected.eq(iSelected).children("td");
+        var iChildren = 0;
+        for (; iChildren < children.length; iChildren++) {
+            var childCur = children.eq(iChildren);
+            if (childCur.hasClass("agile_cell_drilldownS")) {
+                sCur += parseFloat(childCur.text());
+                bAdded = true;
+
+            }
+            else if (childCur.hasClass("agile_cell_drilldownE")) {
+                eCur += parseFloat(childCur.text());
+                bAdded = true;
+            }
+        }
+    }
+    if (selected.length > 0 && bAdded)
+        $(".agile_selection_totals").html((g_bPopupMode ? "<br />" : "") + "&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
+    else
+        $(".agile_selection_totals").empty();
+}
+
 function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScroll) {
 	bNoScroll = bNoScroll || bOnlyTable;
 	var container = $(".agile_topLevelTooltipContainer");
@@ -1093,31 +1126,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	      else
 	          elemThis.addClass("agile-drilldown-row-toggle");
 
-	      var selected = container.find(".agile-drilldown-row-toggle");
-	      var iSelected = 0;
-	      var sCur = 0;
-	      var eCur = 0;
-	      var bAdded = false; //simple way of not showing selected s/e when not present (sort by R for example)
-	      for (; iSelected < selected.length; iSelected++) {
-	          var children = selected.eq(iSelected).children("td");
-	          var iChildren = 0;
-	          for (; iChildren < children.length; iChildren++) {
-	              var childCur = children.eq(iChildren);
-	              if (childCur.hasClass("agile_cell_drilldownS")) {
-	                  sCur += parseFloat(childCur.text());
-	                  bAdded = true;
-
-	              }
-	              else if (childCur.hasClass("agile_cell_drilldownE")) {
-	                  eCur += parseFloat(childCur.text());
-	                  bAdded = true;
-	              }
-	          }
-	      }
-	      if (selected.length > 0 && bAdded)
-	          $(".agile_selection_totals").html((g_bPopupMode ? "<br />" : "") + "&nbsp;" + selected.length + " Selected &nbsp;&nbsp;S:" + parseFixedFloat(sCur) + "&nbsp;&nbsp;&nbsp;&nbsp;E:" + parseFixedFloat(eCur) + "&nbsp;&nbsp;&nbsp;&nbsp;R:" + parseFixedFloat(eCur - sCur));
-	      else
-	          $(".agile_selection_totals").empty();
+	      updateSelectedReportTotals();
 	  }, false);
 
 	container.hide();
@@ -2113,34 +2122,43 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
         var bRemain = (propertySort == "remain");
         var bPosList = (propertySort == "posList");
         ret.sort(function doSort(a, b) {
-            if (bPosList) {
-                var namePropBoard = "nameBoard";
-                var ret = a[namePropBoard].localeCompare(b[namePropBoard]);
-                if (ret != 0)
-                    return ret;
-                return a[propertySort] - b[propertySort];
-            }
-            if (bString)
-                return (a[propertySort].localeCompare(b[propertySort]));
-            var va = null;
-            var vb = null;
-
-            if (bRemain) {
-                va = a.est - a.spent;
-                vb = b.est - b.spent;
-            } else {
-                if (propertySort == "dateDue") { //REVIEW ZIG: ugly duplication in setReportData
-                    va = b[propertySort];
-                    vb = a[propertySort];
+            function compareItems(a, b) {
+                if (bPosList) {
+                    var namePropBoard = "nameBoard";
+                    var ret = a[namePropBoard].localeCompare(b[namePropBoard]);
+                    if (ret != 0)
+                        return ret;
+                    return a[propertySort] - b[propertySort];
                 }
-                else {
-                    va = a[propertySort];
-                    vb = b[propertySort];
-                }
+                if (bString)
+                    return (a[propertySort].localeCompare(b[propertySort]));
+                var va = null;
+                var vb = null;
 
+                if (bRemain) {
+                    va = a.est - a.spent;
+                    vb = b.est - b.spent;
+                } else {
+                    if (propertySort == "dateDue") { //REVIEW ZIG: ugly duplication in setReportData
+                        va = b[propertySort];
+                        vb = a[propertySort];
+                    }
+                    else {
+                        va = a[propertySort];
+                        vb = b[propertySort];
+                    }
+
+                }
+                return (vb - va);
             }
-            return (vb - va);
-        });
+
+            var cmp = compareItems(a, b);
+            if (cmp === 0) {
+                cmp = b.date - a.date;
+            }
+            return cmp;
+        }
+        );
     }
     return ret;
 }
