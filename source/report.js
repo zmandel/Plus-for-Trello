@@ -629,6 +629,16 @@ function refreshBuildSqlMode(params) {
     }
 }
 
+function updateOutputFormat(format) {
+    var msg;
+    if (!format || format == "csv")
+        msg = "Can cause <A href='http://stackoverflow.com/questions/4438589' target='_blank'>issues with special characters</A> when opening in Excel.";
+    else
+        msg = "Note about the <A href='https://support.microsoft.com/en-us/help/948615' target='_blank'>warning in Excel</A>.";
+    $("#noteExportFormat").html(msg);
+
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     //chrome Content Security Policy (CSP) needs DOMContentLoaded
     if (g_bLoaded)
@@ -654,6 +664,18 @@ document.addEventListener('DOMContentLoaded', function () {
         } else {
             elemSection.show();
         }
+    });
+
+    $("#checkOutputReport").change(function () {
+        var elemOutputFormatHelp = $("#noteExportFormat");
+        if (this.checked)
+            elemOutputFormatHelp.show();
+        else
+            elemOutputFormatHelp.hide();
+    });
+
+    $("#outputFormat").change(function () {
+        updateOutputFormat($(this).val());
     });
 
     addTableSorterParsers();
@@ -973,7 +995,7 @@ function configPivotFormat(elemFormat, dataFormat, tableContainer, iTab) {
 
     if (copyWindow.length > 0) {
         copyWindow.attr("src", chrome.extension.getURL("images/copy.png"));
-        copyWindow.attr("title", "Click to copy table to your clipboard, then paste elsewhere (email, spreadsheet, etc.)");
+        copyWindow.attr("title", "Copy the table to the clipboard, then paste in a spreadsheet, an email etc.");
         copyWindow.off().click(function () {
             var table = tableContainer;
             selectElementContents(table[0]);
@@ -1375,7 +1397,7 @@ function loadReport(params) {
         stackBy: "", checkNoColorsChart: "false", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
-        checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputCardIdShort: "false",
+        checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
         checkHideAnnotationTexts: "false", checkSyncBeforeQuery: "false"
     };
 
@@ -1409,6 +1431,12 @@ function loadReport(params) {
         g_bNoGroupChart = true;
     }
 
+    var elemOutputFormatHelp = $("#noteExportFormat");
+    if (params["checkOutputReport"] == "true")
+        elemOutputFormatHelp.show();
+    else
+        elemOutputFormatHelp.hide();
+    updateOutputFormat(params["outputFormat"]);
     if (g_bShowKeywordFilter)
         editKeyword.parent().show();
     else {
@@ -1884,22 +1912,31 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         elems["checkNoColorsChart"] = ""; //ditto
 
     if (elems["checkNoLabelColors"] == "false")
-        elems["checkNoLabelColors"] = ""; //ditto like eType
+        elems["checkNoLabelColors"] = ""; //ditto
 
     if (elems["checkSyncBeforeQuery"] == "false")
-        elems["checkSyncBeforeQuery"] = ""; //ditto like eType
+        elems["checkSyncBeforeQuery"] = ""; //ditto
     
     if (elems["checkOutputCardShortLink"] == "false")
-        elems["checkOutputCardShortLink"] = ""; //ditto like eType
+        elems["checkOutputCardShortLink"] = ""; //ditto
 
     if (elems["checkOutputBoardShortLink"] == "false")
-        elems["checkOutputBoardShortLink"] = ""; //ditto like eType
+        elems["checkOutputBoardShortLink"] = ""; //ditto
+
+    if (elems["checkOutputCSV"] == "false")
+        elems["checkOutputCSV"] = ""; //ditto
+
+    if (elems["checkOutputReport"] == "false") {
+        elems["checkOutputReport"] = "";
+        if (elems["outputFormat"] == "csv")
+            elems["outputFormat"] = "";
+    }
 
     if (elems["checkOutputCardIdShort"] == "false")
-        elems["checkOutputCardIdShort"] = ""; //ditto like eType
+        elems["checkOutputCardIdShort"] = ""; //ditto
 
     if (elems["checkHideAnnotationTexts"] == "false") //this is for burndown only
-        elems["checkHideAnnotationTexts"] = ""; //ditto like eType
+        elems["checkHideAnnotationTexts"] = ""; //ditto
 
     if (!g_bBuildSqlMode) {
         if (g_bAddParamSetLastRowViewedToQuery) {
@@ -1982,13 +2019,24 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                     bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
                                     bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
                                     bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0),
-                                    customColumns: customColumns
+                                    customColumns: customColumns,
+                                    bCheckOutputCSV: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"]=="csv",
+                                    bCheckOutputXLS: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"] == "xls"
                                 };
 
                                 elemProgress.text("Filling...").show();
 
                                 setReportData(rows, options, elems, sqlQuery, function onOK() {
                                     elemProgress.text("").hide();
+                                    if (options.bCheckOutputCSV || options.bCheckOutputXLS) {
+                                        setTimeout(function () {
+                                            var elem = $("#tabs-0 table")[0];
+                                            if (options.bCheckOutputCSV)
+                                                ExcellentExport.csv(elem, elem);
+                                            else
+                                                ExcellentExport.excel(elem, elem);
+                                        }, 1000);
+                                    }
                                 });
                             }
                             catch (e) {

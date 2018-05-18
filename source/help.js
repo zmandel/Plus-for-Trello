@@ -539,6 +539,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
 	    helpWin.para('Easily enter Spent with card timers, or manually enter S/E with the Plus card bar.');
+	    helpWin.para('To track time spent in lists automatically, see <A href="http://www.plusfortrello.com/p/automated-time-tracking-with-butler-plus.html" target="_blank">using Plus & Butler</A>.');
+	    helpWin.para('&nbsp');
 	    helpWin.para('Example of entering S/E starting from the bottom (oldest) card comment:');
 	    helpWin.para('Note that Plus makes the "plus" card comments when using the S/E bar (unless using the stealth sync mode).');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
@@ -1235,6 +1237,25 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	                if (chrome.runtime.lastError == undefined)
 	                    g_bHidePendingCards = bValue;
 	                checkHidePending[0].checked = g_bHidePendingCards;
+	            });
+	        });
+	    }
+
+	    
+	    if (true) {
+	        var checkAlwaysShowSEBar = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedAlwaysShowSEBar">\
+Always show the card S/E bar.</input>').children('input:checkbox:first');
+	        if (g_bAlwaysShowSEBar)
+	            checkAlwaysShowSEBar[0].checked = true;
+
+	        checkAlwaysShowSEBar.click(function () {
+	            var bValue = checkAlwaysShowSEBar.is(':checked');
+	            var pair = {};
+	            pair["bAlwaysShowSEBar"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bAlwaysShowSEBar = bValue;
+	                checkAlwaysShowSEBar[0].checked = g_bAlwaysShowSEBar;
 	            });
 	        });
 	    }

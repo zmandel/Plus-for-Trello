@@ -1374,6 +1374,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
 
                     pending.call();
                 } catch (ex) {
+                    logException(ex);
                     sendResponse({ status: ex.message });
                 }
             }
@@ -1750,6 +1751,7 @@ function getBoardData(tokenTrello, bOnlyCards, idBoard, params, callback, waitRe
                         bReturned = true;
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
+                        logException(ex);
                     }
                 } else {
                     //boards cant be deleted, but leave it here for future possibility. REVIEW zig: board delete case isnt handled in sync
@@ -1808,6 +1810,7 @@ function getListData(tokenTrello, idList, fields, callback, waitRetry) {
                         callback(objRet);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
@@ -1908,6 +1911,7 @@ function getCardActions(tokenTrello, iCard, idCard, idBoard, limit, strDateBefor
                         callback(objRet, lengthOriginal);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
@@ -2011,6 +2015,7 @@ function getBoardActions(tokenTrello, iBoard, idBoard, limit, strDateBefore, str
                         callback(objRet, lengthOriginal);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
@@ -2693,6 +2698,7 @@ function getBoardsLastInfoWorker(tokenTrello, callback, waitRetry) {
                         callback(objRet);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
@@ -2770,6 +2776,7 @@ function doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDay
                         callback(objRet);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
@@ -2777,6 +2784,7 @@ function doSearchTrelloChanges(bUserInitiated, tokenTrello, idBoardsSearch, cDay
                         try {
                             injectTrelloFrame();
                         } catch (e) {
+                            logException(e);
                             console.log("Error: could not insert trello iframe to fix expired auth.");
                         }
                         objRet.status = "Error: Trello authentication error. Will retry in a few seconds.";
@@ -2848,6 +2856,7 @@ function getAllTeams(callback, waitRetry) {
                         callback(objRet);
                         bReturned = true;
                     } catch (ex) {
+                        logException(ex);
                         objRet.status = "error: " + ex.message;
                     }
                 } else {

@@ -18,6 +18,7 @@
     <script type="text/javascript" src="libs/svgpng.js"></script>
     <script type="text/javascript" src="libs/d3.min.js"></script>
     <script type="text/javascript" src="libs/plottable.min.js"></script>
+    <script type="text/javascript" src="libs/excellentexport.js"></script>
     <script type="text/javascript" src="shared.js"></script>
     <script type="text/javascript" src="sharedmobile.js"></script>
     <script type="text/javascript" src="sharedsync.js"></script>
@@ -32,9 +33,7 @@
                 <span id="report_title_text">&nbsp;</span>
                     <span id="report_title_rightLinks" style="display:none;">
                         <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
-                        <a style="float:right;text-decoration:none;cursor:help" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
-                        <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=FH223PYNLWZQU&lc=US&item_name=Plus%20for%20Trello&currency_code=USD&bn=PP%2dDonationsBF%3abtn_donate_SM%2egif%3aNonHosted" target="_blank" title="Thank you!">Donate</a>
-                        <a style="float:right;text-decoration:none;margin-right:.6em;" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" target="_blank" title="Rate Plus to release the guilt from not donating!">Rate</a>
+                        <a style="float:right;text-decoration:none;cursor:help;font-size:110%;margin-right:1em;" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
                         <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
                     </span>
                     <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
@@ -325,6 +324,15 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                     <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
                         <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
+                    </div>
+                    <div class="report_options_item"  title="Download report as CSV or Excel.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputReport" />
+                        <label class="agile_unselectable" for="checkOutputReport">Download report as </label>
+                        <select id="outputFormat">
+                        <option value="csv">CSV (text)</option>
+                        <option value="xls">XLS (Excel)</option>
+                        </select>
+                        <span id="noteExportFormat"></span>
                     </div>
                     <div class="report_options_item" style="width:40em;">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkCustomColumns" />

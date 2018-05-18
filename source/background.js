@@ -23,6 +23,25 @@ chrome.runtime.onInstalled.addListener(function (details) {
     }
 });
 
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    var string = msg.toLowerCase();
+    var substring = "script error";
+    var message;
+    if (string.indexOf(substring) > -1) {
+        message = 'Script Error: See background browser console for details.';
+    } else {
+        message = [
+            'Message: ' + msg,
+            'URL: ' + url,
+            'Line: ' + lineNo,
+            'Column: ' + columnNo,
+            'Error object: ' + JSON.stringify(error)
+        ].join(' - ');
+    }
+    logPlusError(message, false);
+    return false;
+};
+
 function getConfigData(urlService, userTrello, callback, bSkipCache) {
     var data = null;
     //review zig: assumes g_optEnterSEByComment is loaded. should be. assert in IsEnabled ensures it wont continue if not.
@@ -1042,7 +1061,6 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             if (sendResponseParam)
                 sendResponseParam(obj);
         } catch (e) {
-            if (e.message.indexOf("disconnected port object") < 0) //skip disconnected ports as the user may close a trello tab anytime
                 logException(e);
         }
         responseStatus.bCalled = true;
@@ -1165,6 +1183,9 @@ If you instead want to disable timer popups do so from Plus preferences.");
         }
         else if (request.method == "requestProPermission") {
             handleRequestProPermission(sendResponse);
+        }
+        else if (request.method == "checkLi") {
+            handleCheckLi(sendResponse);
         }
         else if (request.method == "queryTrelloDetectionCount") {
             handleQueryTrelloDetectionCount(sendResponse);
@@ -1375,6 +1396,7 @@ function handleTimerWindowLoaded(idCard, bClearAndMinimize) {
             });
         }
     } catch (e) {
+        //yummy
     }
 }
 
@@ -2206,7 +2228,26 @@ function handlenotifyBoardTab(idBoard, tabid) {
     g_mapBoardToTab[idBoard] = { tabid: tabid, ms: Date.now() };
 }
 
-function testLicence() {
+/* handleCheckLi
+**/
+function handleCheckLi(sendResponse) {
+
+    function respond(status) {
+        sendResponse({ status: status });
+    }
+
+    checkPurchased();
+
+    function BLastErrorDetected() {
+        if (chrome.runtime.lastError) {
+            handleShowDesktopNotification({
+                notification: "Error: "+chrome.runtime.lastError.message,
+                timeout: 10000
+            });  
+            return true;
+        }
+        return false;
+    }
 
     function checkPurchased() {
         google.payments.inapp.getPurchases({
@@ -2215,18 +2256,38 @@ function testLicence() {
             'failure': onLicenseUpdateFail
         });
 
-        function onLicenseUpdateFail(response) {
-            console.error(JSON.stringify(response));
+        function onLicenseUpdateFail(data) {
+            console.error(JSON.stringify(data));
+            respond("onLicenseUpdateFail");
+            return;
         }
 
-        function onLicenseUpdate(response) {
-            var licenses = response.details;
+        function onLicenseUpdate(data) {
+            var licenses = data.response.details;
             var count = licenses.length;
+            var liData = { msLastCheck: Date.now(), msCreated:0, li: "" };
             for (var i = 0; i < count; i++) {
                 var license = licenses[i];
-                var x = 1;
+                if (licence.state == "ACTIVE" && licence.sku == 'plus_pro_single') {
+                    liData.msCreated = parseInt(license.createdTime, 10);
+                    liData.li = licence.itemId;
+                }
             }
-            doPurchase();
+
+            var objNew = {};
+            objNew[SYNCPROP_LIDATA] = liData;
+            chrome.storage.sync.set(objNew, function () {
+                //ok if fails
+                if (BLastErrorDetected())
+                    console.error(chrome.runtime.lastError.message);
+                
+            });
+            if (!liData.li)
+                doPurchase();
+            else {
+                respond("hasLicence");
+                return;
+            }
         }
 
     }
@@ -2239,49 +2300,35 @@ function testLicence() {
             'failure': onPurchaseFail
         });
 
-        function onPurchaseFail(response) {
-            console.error(JSON.stringify(response));
+        function onPurchaseFail(data) {
+            if (data && data.response && data.response.errorType != "PURCHASE_CANCELED") {
+                handleShowDesktopNotification({
+                    notification: "Chrome store says after payment screen: " + data.response.errorType,
+                    timeout: 10000
+                });
+            }
+            console.error(JSON.stringify(data)); //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}}
+            respond("onPurchaseFail");
+            return;
         }
 
-        function onPurchased(response) {
-            var x = 1;
-            console.log(JSON.stringify(response));
+        function onPurchased(data) {
+            var liData = { msLastCheck: Date.now(), msCreated: 0, li: "" };
+
+            if (data && data.response) {
+                liData.msCreated = liData.msLastCheck;
+                liData.li = data.response.orderId;
+            }
+
+            var objNew = {};
+            objNew[SYNCPROP_LIDATA] = liData;
+            chrome.storage.sync.set(objNew, function () {
+                //ok if fails
+                if (BLastErrorDetected())
+                    console.error(chrome.runtime.lastError.message);
+                respond(STATUS_OK);
+                return;
+            });
         }
     }
-
-    chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
-        if (BLastErrorDetected())
-            return;
-        var bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
-        if (!bProVersion)
-            return;
-
-        chrome.storage.sync.get([SYNCPROP_MSLICHECK], function (obj) {
-            if (BLastErrorDetected())
-                return;
-
-            var msLast = obj[SYNCPROP_MSLICHECK] || 0;
-            var msNow = Date.now();
-            if (msNow - msLast < 1000 * 60 * 60 * 24*5) //5 days
-                return;
-
-            checkPurchased();
-            if (false) {
-                google.payments.inapp.getSkuDetails({
-                    'parameters': { 'env': 'prod' },
-                    'success': onSkuDetails,
-                    'failure': onSkuDetailsFail,
-                    'sku': 'plus_pro_single'
-                });
-
-                function onSkuDetails(response) {
-                    checkPurchased();
-                }
-
-                function onSkuDetailsFail(response) {
-                    console.error(JSON.stringify(response));
-                }
-            }
-        });
-    });
 }

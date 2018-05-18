@@ -213,6 +213,7 @@ var SYNCPROP_BOARD_DIMENSION = "board_dimension";
 var SYNCPROP_GLOBALUSER = "global_user";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var SYNCPROP_MSLICHECK = "msLiCheck";
+var SYNCPROP_LIDATA = "LiData";  // {  msLastCheck, msCreated, li}
 
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
@@ -540,7 +541,12 @@ function CreateWaiter(cTasks, callback) {
             return this;
         },
 
-        Increase: function () {
+        Increase: function (prop) { //prop: optional to prevent multiple calls with the same prop from increasing
+            if (prop) {
+                if (this.mapProps[prop])
+                    return;
+                this.mapProps[prop] = true;
+            }
             this.cTasksPending++;
         },
 
@@ -548,7 +554,12 @@ function CreateWaiter(cTasks, callback) {
             assert(this.cTasksPending == 0);
             this.cTasksPending = cTasks;
         },
-        Decrease: function () {
+        Decrease: function (prop) { //prop: optional to prevent multiple calls with the same prop from decreasing
+            if (prop) {
+                if (this.mapProps[prop])
+                    return;
+                this.mapProps[prop] = true;
+            }
             this.cTasksPending--;
             if (this.bWaiting && this.cTasksPending == 0)
                 this.OnFinish();
@@ -559,7 +570,8 @@ function CreateWaiter(cTasks, callback) {
                 this.OnFinish();
         },
         bWaiting: false,
-        cTasksPending: 0
+        cTasksPending: 0,
+        mapProps: {}
     }.Init(cTasks, callback);
 
     return waiter;
@@ -651,6 +663,10 @@ function logPlusError(str, bAddStackTrace) {
     str = str || ""; //handle possible undefined
     if (bIgnoreError(str))
         return;
+
+    if (str.indexOf("disconnected port") >= 0 || str.indexOf("port closed") >= 0)
+        return; //sometimes we dont return from a received message. that seems ok
+
     g_bIncreaseLogging = true;
 	var strStack = null;
 	var date = new Date();
@@ -671,7 +687,7 @@ function logPlusError(str, bAddStackTrace) {
 	console.log(str);
 
 	if (typeof g_userTrelloCurrent != "undefined") {
-	    if (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel" || g_userTrelloCurrent == "zigmandel" || g_userTrelloCurrent == "tareocw")) {
+	    if (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel" || g_userTrelloCurrent == "zigmandel")) {
 	        if (typeof document != "undefined" && typeof PLUS_BACKGROUND_CALLER == "undefined")
 	            console.dir(document.body);
 	        //hi to me
@@ -1159,7 +1175,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 		if (attrTitle)
 			return container;
 		copyWindow.attr("src", chrome.extension.getURL("images/copy.png"));
-		copyWindow.attr("title", "Click to copy table to your clipboard, then paste elsewhere (email, spreadsheet, etc.)");
+		copyWindow.attr("title", "Copy the table to the clipboard, then paste in a spreadsheet, an email etc.");
 		copyWindow.click(function () {
 			var table = container.find(".agile_tooltip_scroller");
 			selectElementContents(table[0]);
@@ -1657,6 +1673,7 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
     try {
         startProcess();
     } catch (ex) {
+        logException(ex);
         onFinishedInternal("error: " + ex.message);
     }
 
@@ -1706,6 +1723,7 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
             try {
                 onProcessItem(tokenTrello, item, iitem, postProcessItem);
             } catch (ex) {
+                logException(ex);
                 onFinishedInternal("error: " + ex.message);
             }
             
@@ -1870,6 +1888,7 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
                         bReturned = true;
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
+                        logException(ex);
                     }
                 } else {
                     if (bHandledDeletedOrNoAccess(xhr.status, objRet)) { //no permission to the board, or card deleted already
@@ -1933,6 +1952,7 @@ function renameCard(tokenTrello, idCard, title, callback, statusNoAccessCustom, 
                         callback(objRet);
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
+                        logException(ex);
                     }
                 } else {
                     if (bHandledDeletedOrNoAccess(xhr.status, objRet, statusNoAccessCustom)) { //no permission or deleted

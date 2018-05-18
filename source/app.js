@@ -255,6 +255,7 @@ function setTrelloAuth(callback, bInFrame) {
 
 
 function entryPoint() {
+    g_waiterLi.SetWaiting(true);
     //note: this also does setInterval on the callback which we use to do sanity checks and housekeeping
     setCallbackPostLogMessage(testExtensionAndcommitPendingPlusMessages); //this allows all logs (logPlusError, logException) to be written to the database
     HelpButton.display(); //inside is where the fun begins
@@ -271,6 +272,7 @@ function loadOptions(callback) {
     var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
     var keyAlreadyDonated = "bUserSaysDonated";
     var keyHidePendingCards = "bHidePendingCards";
+    var keyAlwaysShowSEBar = "bAlwaysShowSEBar";
     var keyHideLessMore = "bHideLessMore";
     var keyDowStart = "dowStart";
     var keyDowDelta = "dowDelta";
@@ -302,7 +304,7 @@ function loadOptions(callback) {
     chrome.storage.sync.get([keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
@@ -324,6 +326,7 @@ function loadOptions(callback) {
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
                                  g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
+                                 g_bAlwaysShowSEBar = objSync[keyAlwaysShowSEBar] || false;
                                  g_bHideLessMore = objSync[keyHideLessMore] || false;
 
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);

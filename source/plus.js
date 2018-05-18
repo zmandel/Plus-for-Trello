@@ -38,6 +38,12 @@ var g_dimension = VAL_COMBOVIEWKW_ALL;
 //end-review
 var g_bPreventChartDraw = true;
 
+var g_waiterLi = CreateWaiter(2, function () {
+    assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
+    if (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel"))
+        checkLi();
+});
+
 var g_optIsPlusDisplayDisabled = null; //null means uninitialized. dont use directly. private to below
 function isPlusDisplayDisabled() {
     if (g_optIsPlusDisplayDisabled === null)
@@ -321,6 +327,7 @@ function getCurrentTrelloUser() {
 	if (userElem.length == 0)
 	    return null; //not needed, but might help when trello suddenly changes DOM
 	g_userTrelloCurrent = userElem;
+	g_waiterLi.Decrease("user");
     //save the user
 	chrome.storage.local.get([PROP_TRELLOUSER], function (obj) {
 	    var userTrelloLast = (obj[PROP_TRELLOUSER] || null);
@@ -641,6 +648,7 @@ var g_bPreventIncreasedE = false;
 var g_bDontWarnParallelTimers = false;
 var g_bUserDonated = false;
 var g_bHidePendingCards = false;
+var g_bAlwaysShowSEBar = false;
 var g_bHideLessMore = false;
 var g_msStartPlusUsage = null; //ms of date when plus started being used. will be null until user enters the first row
 var g_bSyncOutsideTrello = false; //allow sync outside trello
@@ -734,6 +742,7 @@ function onDbOpened() {
 	if (!g_bDidInitialIntervalsSetup) {
 		initialIntervalsSetup(); //also calls doAllUpdates
 		g_bDidInitialIntervalsSetup = true;
+		g_waiterLi.Decrease("dbOpened");
 	}
 	checkFirstTimeUse();
 
@@ -2244,19 +2253,6 @@ function setNormalFont(elem) {
 }
 
 function checkEnableMoses() {
-	if (g_bNewTrello)
-		return true;
-
-	var content = $("#content");
-	var classHomeContent = "agile_maincontent_margin";
-
-	if (bAtTrelloHome())
-		content.addClass(classHomeContent); //do the Moses move.
-	else {
-		if (content.hasClass(classHomeContent) && $(".agile_spent_items_container").length > 0)
-			return false; //call again
-		content.removeClass(classHomeContent);
-	}
 	return true;
 }
 
@@ -2381,3 +2377,36 @@ function testModifySyncStorageUrl(url) {
     });
 }
 
+function checkLi() {
+    chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
+        if (chrome.runtime.lastError)
+            return;
+        var bProVersion = obj[LOCALPROP_PRO_VERSION] || false;
+        if (!bProVersion)
+            return;
+
+        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+            if (chrome.runtime.lastError)
+                return;
+
+            var liData = obj[SYNCPROP_LIDATA] || { msLastCheck: 0, msCreated: 0, li: "" };
+            var msNow = Date.now();
+            if (liData.li)
+                return; //review zig expiration
+
+            if (false) {
+                var msLast = liData.msLastCheck;
+                if (msNow - msLast < 1000 * 60 * 60 * 24 * 5) //5 days
+                    return;
+            }
+
+            setTimeout(function () {
+                alert("Plus will activate your Pro licence now.");
+                sendExtensionMessage({ method: "checkLi" }, function (response) {
+                    if (response.status == STATUS_OK)
+                        sendDesktopNotification("Successful purchase. Enjoy!");
+                });
+            }, 2000);
+        });
+    });
+}

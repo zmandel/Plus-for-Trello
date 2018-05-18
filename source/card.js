@@ -503,7 +503,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	var tableStats = $("<table class='agile-se-bar-table agile-se-stats tablesorter'></table>");
 	var containerBar = $("<table class='agile-se-bar-table agile-se-bar-entry no-print'></table>");
 	
-	if (!g_bShowSEBar)
+	if (!g_bShowSEBar && !g_bAlwaysShowSEBar)
         containerBar.hide();
 	containerStats.append(tableStats);
 	container.append(containerStats);
@@ -2498,6 +2498,7 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
                         callback(objRet);
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
+                        logException(ex);
                     }
                 } else {
                     if (bHandledDeletedOrNoAccess(xhr.status, objRet, "error: permission error or deleted")) { //no permission or deleted

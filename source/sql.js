@@ -78,7 +78,8 @@ function Migrator(db, sendResponse) {
 			doMigration(initialVersion + 1);
 		} catch (e) {
 			if (console.error)
-				console.error(e.message);
+			    console.error(e.message);
+			logException(e);
 		}
 	};
 }
@@ -370,11 +371,13 @@ function handleSyncDBWorker(request, sendResponseParam) {
                         sendResponse({ status: (resp || {}).status });
                     }
                 } catch (e) {
+                    logException(e);
                     sendResponse({ status: "exception: " + e.message });
                 }
             }
             );
         } catch (e) {
+            logException(e);
             sendResponse({ status: "exception: " + e.message });
         }
     }
