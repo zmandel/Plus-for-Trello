@@ -735,7 +735,7 @@ function checkAnalyticsActive() {
     var strNow = makeDateCustomString(dateNow);
     var strLast = makeDateCustomString(dateLast);
     if (strNow != strLast) {
-        handleHitAnalyticsEvent("ActiveDay", "active");
+        handleHitAnalyticsEvent("ActiveDay", "active", true);
         localStorage["ms-last-usage"] = "" + msNow;
     }
 }
@@ -2169,9 +2169,9 @@ function onAuthorized(url, params, sendResponse, oauth, bRetry, postBody, conten
 	xhr.send(postBody);
 }
 
-function handleHitAnalyticsEvent(category, action) {
+function handleHitAnalyticsEvent(category, action, bIncludeVersion) {
     //try and hit anyway. if user didnt enable analytics, it will fail silently
-    g_analytics.hit({ t: "event", ec: category, ea: action }, 1000);
+    g_analytics.hit({ t: "event", ec: category, ea: (bIncludeVersion? chrome.runtime.getManifest().version + ": " : "") + action }, 1000);
 }
 
 var g_analytics = {
@@ -2341,8 +2341,9 @@ function handleCheckLi(sendResponse) {
 
         function onLicenseUpdateFail(data) {
             console.log("onLicenseUpdateFail");
-            var strError = "onPurchaseFail:" + JSON.stringify(data);
-            console.error(data);
+            var strError = "onLicenseUpdateFail:" + JSON.stringify(data);
+            console.error(strError);
+            handleHitAnalyticsEvent("LicActivation", strError, true);
             if (onError)
                 onError();
             else
@@ -2404,7 +2405,8 @@ function handleCheckLi(sendResponse) {
                 strError = data.response.errorType;
 
             console.log("onPurchaseFail:");
-            console.log(data);
+            console.log(JSON.stringify(data));
+            handleHitAnalyticsEvent("LicActivation", "onPurchaseFail: " + JSON.stringify(data), true);
             //http://stackoverflow.com/questions/38043180/
             //{"request":{},"response":{"errorType":"PURCHASE_CANCELED"}} when user cancels the window (and maybe in other cases)
             // {checkoutOrderId: "10370910874874185126.76a0c57c6ea342e79b0d9a97b91d29ee", integratorData: "EMeilfWBBQ=="}
@@ -2442,7 +2444,8 @@ function handleCheckLi(sendResponse) {
         function onPurchased(data) {
             var liData = { msLastCheck: Date.now(), msCreated: 0, li: "" };
             console.log("onPurchased:");
-            console.log(data);
+            handleHitAnalyticsEvent("LicActivation", "onPurchased: " + JSON.stringify(data), true);
+            console.log(JSON.stringify(data));
             if (data && data.response) {
                 liData.msCreated = liData.msLastCheck;
                 liData.li = data.response.orderId;

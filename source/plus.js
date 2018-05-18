@@ -52,7 +52,7 @@ function isSpecialPayTestUser() {
     } else
         randUser = parseInt(randUser, 10);
 
-    return ((randUser % 5 == 0) || ((randUser+1) % 5 == 0));
+    return ((randUser % 5 == 0));
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
@@ -2472,7 +2472,7 @@ function checkLi(bForce) {
                 hitAnalytics("LicDialog", status);
                 if (status == STATUS_OK) {
                     sendExtensionMessage({ method: "checkLi" }, function (response) {
-                        hitAnalytics("LicActivation", response.status);
+                        hitAnalytics("LicActivation", response.status == STATUS_OK ? "OK-ACTIVATED" : response.status);
                         if (response.status == STATUS_OK)
                             sendDesktopNotification("Successful activation. Enjoy!");
                         else if (response.status == "hasLicense")
