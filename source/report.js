@@ -23,6 +23,7 @@ var g_bAllowNegativeRemaining = false;
 var g_bNoGroupChart = false;
 const g_strMessageNoGroupChart = "To view this chart type, group by other than 'S/E rows'.";
 var g_lastGroupSelection = "";
+var g_mapColorFromName = {};
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
@@ -837,7 +838,7 @@ function loadAll() {
             if (stack && pGroups.indexOf(stack) < 0) {
                 pGroups.push(stack);
                 var pGNew = pGroups.filter(function (group) {
-                    return (group != stackOld);
+                    return (group && group != stackOld);
                 });
                 var valNew = pGNew.join("-");
                 var elemGroup = $("#groupBy");
@@ -2238,6 +2239,7 @@ function fillMapCardsToLabels(rowsIn, options, callback) {
 
         var mapLabelNames = {};
         var mapLabelColors = {};
+        var mapColorFromName = {};
         sql = "SELECT idLabel,name,color FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
         getSQLReport(sql, [], function (response) {
             if (response.status != STATUS_OK) {
@@ -2245,10 +2247,14 @@ function fillMapCardsToLabels(rowsIn, options, callback) {
                 return;
             }
             response.rows.forEach(function (rowLabel) {
-                mapLabelNames[rowLabel.idLabel] = escapeHtml(rowLabel.name);
-                mapLabelColors[rowLabel.idLabel] = rowLabel.color || "#b6bbbf"; //trello's no-color color
+                var name = escapeHtml(rowLabel.name);
+                var color = rowLabel.color || "#b6bbbf"; //trello's no-color color
+                mapLabelNames[rowLabel.idLabel] = name;
+                mapLabelColors[rowLabel.idLabel] = color;
+                if (!mapColorFromName[name])
+                    mapColorFromName[name] = color;
             });
-
+            g_mapColorFromName = mapColorFromName;
             var iLabel = 0;
             for (var idCardLoop in mapCardsToLabels) {
                 var objLoop = mapCardsToLabels[idCardLoop];
@@ -3199,28 +3205,28 @@ function chartStacked(type, bForce, callbackCancel) {
         legendTextsInfo.pop(); //remove fake empty legend
         if (!bNoColors) {
             //thanks http://stackoverflow.com/a/4382138/2213940 for showing the 20 "best" colors to use for most people (black added by me)
-            colors = ["#000000", //Black, only for empty property "-"
-                    "#FF6800", // Vivid Orange
-                    "#803E75", // Strong Purple
-                    "#A6BDD7", // Very Light Blue
-                    "#00538A", // Strong Blue
-                    "#C10020", // Vivid Red
-                    "#CEA262", // Grayish Yellow
-                    "#817066", // Medium Gray
-                    // The following don't work well for people with defective color vision
-                    "#FFB300", // Vivid Yellow
-                    "#007D34", // Vivid Green
-                    "#F6768E", // Strong Purplish Pink
-                    "#FF7A5C", // Strong Yellowish Pink
-                    "#53377A", // Strong Violet
-                    "#FF8E00", // Vivid Orange Yellow
-                    "#B32851", // Strong Purplish Red
-                    "#F4C800", // Vivid Greenish Yellow
-                    "#7F180D", // Strong Reddish Brown
-                    "#93AA00", // Vivid Yellowish Green
-                    "#593315", // Deep Yellowish Brown
-                    "#F13A13", // Vivid Reddish Orange
-                    "#2F3A1D" // Dark Olive Green (modified by zig to differenciate better from black)
+            colors = ["#000000", //Black, only for empty property "-"  0
+                    "#FF6800", // Vivid Orange              1
+                    "#803E75", // Strong Purple              2
+                    "#A6BDD7", // Very Light Blue              3
+                    "#00538A", // Strong Blue              4
+                    "#C10020", // Vivid Red              5
+                    "#CEA262", // Grayish Yellow              6
+                    "#817066", // Medium Gray              7
+                    // The following don't work well for people with defective color vision 8
+                    "#FFB300", // Vivid Yellow              9
+                    "#007D34", // Vivid Green              10
+                    "#F6768E", // Strong Purplish Pink              11
+                    "#FF7A5C", // Strong Yellowish Pink              12
+                    "#53377A", // Strong Violet              13
+                    "#FF8E00", // Vivid Orange Yellow              14
+                    "#B32851", // Strong Purplish Red              15
+                    "#F4C800", // Vivid Greenish Yellow              16
+                    "#7F180D", // Strong Reddish Brown              17
+                    "#93AA00", // Vivid Yellowish Green              18
+                    "#593315", // Deep Yellowish Brown              19
+                    "#F13A13", // Vivid Reddish Orange              20
+                    "#2F3A1D" // Dark Olive Green (modified by zig to differenciate better from black)               21
             ];
         }
         cPartsGroupFinal--;
@@ -3228,6 +3234,7 @@ function chartStacked(type, bForce, callbackCancel) {
         var mapDlabelsNew = {};
         var domainNew = [];
         const lengthColorsOrig = colors.length;
+
         domain.forEach(function (dlabel) {
             var iSlash = dlabel.indexOf(REPORTCHART_DLABEL_PREPENDSEP);
             var prepend = dlabel.substring(0, iSlash + 1); //include REPORTCHART_DLABEL_PREPENDSEP
@@ -3240,8 +3247,14 @@ function chartStacked(type, bForce, callbackCancel) {
                     mapDlabelsNew[partNew.toLowerCase()] = true;
 
                     if (partNew != "-") {
+                        if (stackBy == "labels") {
+                            var colNew = g_mapColorFromName[partNew];
+                            if (colNew)
+                                colors[iColor] = colNew;
+                        }
+
                         legendTextsInfo.push({ text: partNew, i: iColor });
-                        iColor++;
+                        iColor++; //move to the next color
                         if (iColor >= colors.length)
                             colors.push(colors[((iColor - 1) % (lengthColorsOrig - 1)) + 1]); //remap to 1-20
                     }
@@ -3256,25 +3269,28 @@ function chartStacked(type, bForce, callbackCancel) {
             }
 
         });
-
-        legendTextsInfo.sort(function (a, b) {
-            var at = a.text;
-            var bt = b.text;
-            const legendEmpty = "-";
-            if (at != bt) {
-                //force sort
-                if (at == legendEmpty)
-                    return -1;
-                if (bt == legendEmpty)
-                    return 1;
-            }
-            return at.toLowerCase().localeCompare(bt.toLowerCase());
-        });
+        
+        if (stackBy != "labels") {
+            legendTextsInfo.sort(function (a, b) {
+                var at = a.text;
+                var bt = b.text;
+                const legendEmpty = "-";
+                if (at != bt) {
+                    //force sort
+                    if (at == legendEmpty)
+                        return -1;
+                    if (bt == legendEmpty)
+                        return 1;
+                }
+                return at.toLowerCase().localeCompare(bt.toLowerCase());
+            });
+        }
         domain = domainNew;
     }
 
     for (var iSet = 0; iSet < legendTextsInfo.length; iSet++) {
-        var textSet = legendTextsInfo[iSet].text;
+        var dataCur = legendTextsInfo[iSet];
+        var textSet = dataCur.text;
         legendTexts.push(textSet);
         mapLegendToIColor[textSet.toLowerCase()] = iSet;
     }
