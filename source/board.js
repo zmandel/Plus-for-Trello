@@ -207,7 +207,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
             if (!bUpdateTitle())
                 return;
-            var idCardCur=getIdCardFromUrl(originalTitleTag[0].href);
+            var idCardCur=getIdCardFromUrl(originalTitleTag[0].href || card.href);
             var bRecurring = false;
             var bSEFromTitle = false;
             updateSE();
@@ -748,11 +748,10 @@ var List = {
     },
     cards: function (list) {
         var cardsContainer = $(list).parent();
-        if (!g_bNewTrello)
-            cardsContainer = cardsContainer.siblings('div.list-card-area').children('div.list-cards').eq(0);
-        else
-            cardsContainer = cardsContainer.siblings('div.list-cards').eq(0);
-        var cards = $(cardsContainer).children('div.list-card');
+        cardsContainer = cardsContainer.siblings('div.list-cards').eq(0);
+        var cards = $(cardsContainer).children('a.list-card');
+        if (cards.length == 0)
+            cards = $(cardsContainer).children('div.list-card'); //old trello layout
         return cards;
     }
 };
