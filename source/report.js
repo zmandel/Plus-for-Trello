@@ -829,7 +829,26 @@ function loadAll() {
         });
 
         $("#stackBy").change(function () {
+            var paramsOld = getUrlParams();
+            var stackOld = paramsOld["stackBy"];
+            var stack = $("#stackBy").val();
             updateURLPart("stackBy");
+            var pGroups = $("#groupBy").val().split("-");
+            if (stack && pGroups.indexOf(stack) < 0) {
+                pGroups.push(stack);
+                var pGNew = pGroups.filter(function (group) {
+                    return (group != stackOld);
+                });
+                var valNew = pGNew.join("-");
+                var elemGroup = $("#groupBy");
+                elemGroup.val(valNew);
+                if (elemGroup.val() != valNew) {
+                    elemGroup.append(new Option(remapGroupByToDisplay(valNew), valNew));
+                    elemGroup.val(valNew);
+                }
+                updateURLPart("groupBy");
+                sendDesktopNotification("Plus modified the 'group-by' to accomodate this stacking.",6000);
+            }
             $("#buttonFilter").click(); //review zig: ugly but currently only way to get updated groupBy in case used changed it following stackby error from missing groupby
             //fillChart(true); //we used to do this instead of reloading the entire report, but since allowing group by id elements (team,board,card) chaert stacking can fail
         });
@@ -1475,8 +1494,10 @@ function loadReport(params) {
         editKeyword.parent().show();
     else {
         editKeyword.parent().hide();
-        $("#orderBy option[value*='keyword']").remove();
-        $("#groupBy option[value*='keyword']").remove();
+        if ($("#orderBy").val().toLowerCase().indexOf("keyword")<0)
+            $("#orderBy option[value*='keyword']").remove();
+        if ($("#groupBy").val().toLowerCase().indexOf("keyword")<0)
+            $("#groupBy option[value*='keyword']").remove();
     }
 
     if (!g_bEnableTrelloSync) {
@@ -2052,7 +2073,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                     bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
                                     bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
                                     bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
-                                    bCountCards: (groupBy.length > 0 && groupBy.indexOf("idCardH") < 0),
+                                    bCountCards: (groupBy.length > 0),
                                     customColumns: customColumns,
                                     bCheckOutputCSV: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"]=="csv",
                                     bCheckOutputXLS: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"] == "xls"
@@ -2614,7 +2635,7 @@ function saveDataChart(rows, urlParams, options) {
         //datasets
 
         if (options.bCountCards) {
-            dataCountCards.push({ x: rowCur.countCards, y: yField });
+            dataCountCards.push({ x: rowCur.countCards || 1, y: yField });
             checkPushDomain("cardcount", yField);
         }
 
@@ -3105,7 +3126,7 @@ function chartStacked(type, bForce, callbackCancel) {
     if (type == g_chartViews.cardcount) {
         dataChart = g_dataChart.dataCountCards;
         if (dataChart.length == 0)
-            textMessage += "There are no counts to chart. Make sure to group by other than Card or 'S/E rows'. ";
+            textMessage += "There are no counts to chart. ";
     } else {
         if (type == g_chartViews.s)
             dataChart = g_dataChart.dataS;
@@ -3826,7 +3847,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         bPushedCard = true;
     }
 
-    var bShowCardCount= bCustomColumns? includeCol("cardCount"): bCountCards;
+    var bShowCardCount= bCustomColumns? includeCol("cardCount"): (bCountCards && groupBy.indexOf("idCardH") < 0);
     if (bShowCardCount)
         pushHeader("Card count", "cardCount", true);
     var bGroupByCardOrNone = (groupBy == "" || bCardGrouping);
