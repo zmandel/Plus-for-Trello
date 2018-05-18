@@ -1520,6 +1520,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             if (bDidSetOpening)
                 g_bOpeningDb = false;
             updatePlusIcon();
+            checkAnalyticsActive();
             sendResponseParam(thisResponse);
         }
 

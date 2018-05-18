@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateNewLink();
         }, 200);
         loadPopup();
-        hitAnalytics("ChromeMenu", "open");
+        hitAnalytics("ChromeMenu", "open", true);
     });
 });
 
@@ -214,12 +214,12 @@ function listAllBoards() {
 	    if (rows === undefined || rows.length == 0) {
 	        var textStatus;
 
-	        if (!g_bEnableTrelloSync)
-	            textStatus = "Plus Sync is not yet enabled.</br></br>From <A target='_blank' href='https://trello.com'>trello.com</A> click the Plus icon (right of 'tour') to open the Plus help pane. Read the basic help and pick a sync method.";
+	        if (!g_bEnableTrelloSync || g_bDisableSync)
+	            textStatus = "Plus Sync is not enabled.</br></br>From <A target='_blank' href='https://trello.com'>trello.com</A> click the Plus icon (right of 'tour') to open the Plus help pane and pick a sync method.";
 	        else if ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true")
-	            textStatus = "First sync has not yet completed. Hover the Chrome Plus icon for progress.";
+	            textStatus = "First sync has not yet completed.";
 	        else
-	            textStatus = "No boards with you as member.";
+	            textStatus = "No boards with you as direct member.";
 	        status.html(textStatus);
 	        status.show();
 	        return;

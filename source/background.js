@@ -700,7 +700,6 @@ var g_loaderDetector = {
         //check right away
         setTimeout(function () {
             checkNeedsSync(true);
-            checkAnalyticsActive();
         }, MSDELAY_FIRSTSYNC); 
 
         //every 10 minutes
@@ -713,6 +712,9 @@ var g_loaderDetector = {
 }.initLoader();
 
 function checkAnalyticsActive() {
+    if (!g_db) //active only if at least opened the db
+        return;
+
     var dateNow = new Date();
     var msShift = (dateNow.getTimezoneOffset() - 60 * 5) * 60000; //GMT-5 aprox standarization
     var msNow = dateNow.getTime() + msShift;
@@ -722,7 +724,7 @@ function checkAnalyticsActive() {
     var strNow = makeDateCustomString(dateNow);
     var strLast = makeDateCustomString(dateLast);
     if (strNow != strLast) {
-        handleHitAnalyticsEvent("ActiveDay", "active", true);
+        handleHitAnalyticsEvent("ActiveDay", "active", true, true);
         localStorage["ms-last-usage"] = "" + msNow;
     }
 }
@@ -1173,7 +1175,7 @@ function handleExtensionMessage(request, sendResponseParam, idTabSender) {
             });
         }
         else if (request.method == "hitAnalyticsEvent") {
-            handleHitAnalyticsEvent(request.category, request.action);
+            handleHitAnalyticsEvent(request.category, request.action, false, request.bSkipNewbie);
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "showTimerWindow") {
@@ -2140,8 +2142,12 @@ function getCurrentSyncName() {
     return name;
 }
 
-function handleHitAnalyticsEvent(category, action, bIncludeVersion) {
-    //try and hit anyway. if user didnt enable analytics, it will fail silently
+function handleHitAnalyticsEvent(category, action, bIncludeVersion, bSkipNewbie) {
+    if (bSkipNewbie) {
+        var msDelta = Date.now() - g_msStartPlusUsage;
+        if (msDelta < 1000 * 60 * 60 * 4)
+            return;
+    }
     g_analytics.hit({ t: "event", ec: category, ea: (bIncludeVersion? chrome.runtime.getManifest().version + ": " : "") + action }, 1000);
 }
 
@@ -2183,10 +2189,10 @@ var g_analytics = {
         }
         const PROP_LS_CD1LAST = "CD1LAST";
         const keySyncOutsideTrello = "bSyncOutsideTrello";
-
+        const bAlwaysSendCD = true; //review: somehow analytics is losing custom properties, so trying to always send them to see if it fixes it. 2017-06-07
         var valCD1Prev = localStorage[PROP_LS_CD1LAST] || "";
         var valCD1Cur = (g_bProVersion ? "Pro" : "Basic");
-        if (valCD1Prev != valCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
+        if (bAlwaysSendCD || valCD1Prev != valCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
             payload = payload + "&cd1=" + valCD1Cur;
 
         chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE, keySyncOutsideTrello], function (obj) {
@@ -2206,27 +2212,27 @@ var g_analytics = {
             var valCD2Prev = localStorage[PROP_LS_CD2LAST] || "";
             var cViewedBuyDialog = localStorage[PROP_LS_cViewedBuyDialog] || "0";
             var valCD2Cur = (liData && liData.li ? "ActiveCS" : (liDataStripe && liDataStripe.li ? "ActiveStripe" : "Inactive")) + "-" + cViewedBuyDialog;
-            if (valCD2Prev != valCD2Cur)
+            if (bAlwaysSendCD || valCD2Prev != valCD2Cur)
                 payload = payload + "&cd2=" + valCD2Cur;
 
             var valCD3Prev = localStorage[PROP_LS_CD3LAST] || "";
             var valCD3Cur = getCurrentSyncName();
-            if (valCD3Prev != valCD3Cur)
+            if (bAlwaysSendCD || valCD3Prev != valCD3Cur)
                 payload = payload + "&cd3=" + valCD3Cur;
 
             var valCD4Prev = localStorage[PROP_LS_CD4LAST] || "";
             var valCD4Cur = obj[keySyncOutsideTrello] ? "true" : "false";
-            if (valCD4Prev != valCD4Cur)
+            if (bAlwaysSendCD || valCD4Prev != valCD4Cur)
                 payload = payload + "&cd4=" + valCD4Cur;
 
             var valCD5Prev = localStorage[PROP_LS_CD5LAST] || "";
             var valCD5Cur = g_optEnterSEByComment.getAllKeywordsExceptLegacy().length.toString();
-            if (valCD5Prev != valCD5Cur)
+            if (bAlwaysSendCD || valCD5Prev != valCD5Cur)
                 payload = payload + "&cd5=" + valCD5Cur;
 
             var valCD6Prev = localStorage[PROP_LS_CD6LAST] || "";
             var valCD6Cur = UNITS.current;
-            if (valCD6Prev != valCD6Cur)
+            if (bAlwaysSendCD || valCD6Prev != valCD6Cur)
                 payload = payload + "&cd6=" + valCD6Cur;
 
             setTimeout(function () {

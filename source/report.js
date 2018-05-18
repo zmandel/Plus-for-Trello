@@ -703,7 +703,7 @@ function loadAll() {
     g_bBuildSqlMode = (params["getsql"] == "1");
 
     if (!g_bBuildSqlMode)
-        hitAnalytics("Reports", "open-" + (g_bPopupMode ? "inPopup" : "window"));
+        hitAnalytics("Reports", "open-" + (g_bPopupMode ? "inPopup" : "window"), true);
 
     if (namedReport) {
         g_namedReport = namedReport;

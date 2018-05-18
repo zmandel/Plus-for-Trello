@@ -14,6 +14,7 @@ var g_cRowsWeekByUser = 0; //gets set after making the chart. Used by the tour
 var g_bShowHomePlusSections = true;
 var g_bSkipUpdateSsLinks = false; //used by dimensions dropdown to hack arround legacy way to start sync
 var g_bInsertedStripeScript = false;
+const PROP_LS_MSLASTNOSYNCWARN = "msLastSyncWarn"; //warning: can be in the future. date since last time we showed the configure warning. 
 
 //board dimensions combo
 //sync see SYNCPROP_BOARD_DIMENSION
@@ -63,16 +64,31 @@ var g_waiterLi = CreateWaiter(2, function () {
         return;
 
     assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
-    
-    if (isSpecialPayTestUser()) {
+    checkFirstTimeUse(function (bShowedDialog) {
+        if (bShowedDialog)
+            return;
         sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
             if (response && response.status == STATUS_OK && response.bCompletedFirstSync) {
                 setTimeout(checkLi, 2000);
             }
         });
-        
-    }
+    });
 });
+
+function resizeHelp(container) {
+    if (!container)
+        container = $('#agile_help_container');
+    if (container.length == 0)
+        return;
+    container.height($(window).innerHeight() - 20); //-20 prevents trello from adding a vertical scrollbar
+}
+
+function resizeMain() {
+    resizeHelp();
+    checkTrelloLogo();
+}
+
+window.addEventListener('resize', resizeMain);
 
 var g_optIsPlusDisplayDisabled = null; //null means uninitialized. dont use directly. private to below
 function isPlusDisplayDisabled() {
@@ -654,15 +670,12 @@ var g_bUserDonated = false;
 var g_bHidePendingCards = false;
 var g_bAlwaysShowSEBar = false;
 var g_bHideLessMore = false;
-var g_msStartPlusUsage = null; //ms of date when plus started being used. will be null until user enters the first row
 var g_bSyncOutsideTrello = false; //allow sync outside trello
 var g_bChangeCardColor = false; //change card background color based on its first label
-var g_msLastHiliteNoSync = 0;
 
-function checkFirstTimeUse() {
+function checkFirstTimeUse(callback) { //callback(bShowedDialog)
 	var keyDateLastSetupCheck = "dateLastSetupCheck";
-	var keySyncWarn = "bDontShowAgainSyncWarn";
-
+	var bShowedDialog = false;
 	var msDateNow = Date.now();
 	var bShowHelp = false;
 	var totalDbRowsHistory = 0;
@@ -670,23 +683,24 @@ function checkFirstTimeUse() {
 	    if (response.status == STATUS_OK) {
 	        totalDbRowsHistory = response.cRowsTotal;
 	        if (g_msStartPlusUsage === null && response.dateMin) {
+	            g_msStartPlusUsage = response.dateMin;
 	            chrome.storage.sync.set({ 'msStartPlusUsage': response.dateMin }, function () {
-	                if (chrome.runtime.lastError === undefined)
-	                    g_msStartPlusUsage = response.dateMin;
+	                if (chrome.runtime.lastError)
+	                    console.log(chrome.runtime.lastError.message);
 	            });
 	        }
 	    }
-	    chrome.storage.local.get([KEY_LS_NEEDSHOWPRO, keyDateLastSetupCheck, keySyncWarn], function (obj) {
-	        var valuekeySyncWarn = obj[keySyncWarn];
+	    chrome.storage.local.get([LOCALPROP_NEEDSHOWPRO, keyDateLastSetupCheck, LOCALPROP_DONTSHOWSYNCWARN], function (obj) {
+	        var bSyncDontWarn = obj[LOCALPROP_DONTSHOWSYNCWARN] || false;
 	        var bForceShowHelp = false;
 	        var msDateLastSetupCheck = obj[keyDateLastSetupCheck];
-	        g_bNeedShowPro = obj[KEY_LS_NEEDSHOWPRO];
+	        g_bNeedShowPro = obj[LOCALPROP_NEEDSHOWPRO];
 	        if (g_bNeedShowPro) {
 	            bShowHelp = true;
 	            bForceShowHelp = true;
 	        }
 	        var bSyncNotEnabled = (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()));
-	        if (bSyncNotEnabled && !g_bDisableSync) { //sync not set up
+	        if (bSyncNotEnabled && !g_bDisableSync) { //sync not set up ever
 	            if (msDateLastSetupCheck !== undefined) {
 	                if (totalDbRowsHistory > 0) {
 	                    if (msDateNow - msDateLastSetupCheck > 1000 * 60 * 60 * 24) //nag once a day
@@ -699,29 +713,54 @@ function checkFirstTimeUse() {
 	            }
 	        }
 
+	        function showHelp(msDelay) {
+	            setTimeout(function () {
+	                hiliteOnce($(".agile-main-plus-help-icon"), 2000);
+	            }, msDelay);
+	            setTimeout(function () { Help.display(); }, msDelay+500);
+	        }
+
 			if (bShowHelp) {
-			    if (!valuekeySyncWarn || bForceShowHelp) {
-					var pair = {};
+			    if (!bSyncDontWarn || bForceShowHelp) {
+			        bShowedDialog = true;
+			        var pair = {};
 					pair[keyDateLastSetupCheck] = msDateNow;
-					pair[KEY_LS_NEEDSHOWPRO] = "";
-					chrome.storage.local.set(pair, function () { });
-					setTimeout(function () {
-					    hiliteOnce($(".agile-main-plus-help-icon"),4000);
-					}, 1500);
-					setTimeout(function () { Help.display(); }, 2000);
+					pair[LOCALPROP_NEEDSHOWPRO] = "";
+					chrome.storage.local.set(pair, function () {
+					    showHelp(1500);
+					});
 				}
-			} else if (bSyncNotEnabled) {
+			} else if (bSyncNotEnabled && !bSyncDontWarn) {
 			    var boardCurrent = getCurrentBoard();
 			    if (!boardCurrent || boardCurrent.toLowerCase().indexOf("plus for trello") < 0) { //skip the plus for trello help board
 			        var msNow = Date.now();
-			        if (msNow - g_msLastHiliteNoSync > 1000 * 60 * 5) {
+			        var msLastHiliteNoSync = localStorage[PROP_LS_MSLASTNOSYNCWARN] || 0;
+			        hiliteOnce($(".agile-main-plus-help-icon"), 500, "agile_box_input_hilite_red", 3);
+			        if (msNow - msLastHiliteNoSync > 1000 * 60 * 5) { //can be negative
+			            bShowedDialog = true;
+			            localStorage[PROP_LS_MSLASTNOSYNCWARN] = msNow;
 			            setTimeout(function () {
-			                hiliteOnce($(".agile-main-plus-help-icon"), 500, null, 3);
+			                showEnableSyncDialog(function (status) {
+			                    //STATUS_OK, dontask, cancel (later)
+			                    if (status == "dontask") {
+			                        var pair = {};
+			                        pair[LOCALPROP_DONTSHOWSYNCWARN] = true;
+			                        chrome.storage.local.set(pair, function () {
+			                        });
+			                    }
+			                    else if (status == STATUS_OK) {
+			                        showHelp(0);
+			                    } else if (status == "cancel") {
+			                        //later
+			                        localStorage[PROP_LS_MSLASTNOSYNCWARN] = Date.now() + 1000 * 60 * 60 * 1;
+			                    }
+			                });
 			            }, 2000);
 			            g_msLastHiliteNoSync = msNow;
 			        }
 			    }
 			}
+			callback(bShowedDialog);
 		});
 	});
 }
@@ -743,7 +782,6 @@ function onDbOpened() {
 		g_bDidInitialIntervalsSetup = true;
 		g_waiterLi.Decrease("dbOpened");
 	}
-	checkFirstTimeUse();
 
 	if (g_portBackground == null) {
 	    g_portBackground = chrome.runtime.connect({ name: "registerForChanges" });
@@ -911,7 +949,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
     if (!user)
         return; //safety in case trello DOM structure breaks
 
-    var topbarElem = $("#help_buttons_container");
+    var topbarElem = $("#agile_help_buttons_container");
     if (isPlusDisplayDisabled()) {
         configureSsLinksWorkerPostOauth(null, topbarElem, user, false);
         return;
@@ -1294,23 +1332,37 @@ function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
 	    }
 	}
 	urlUserElem.html(buildDailyTable(nameSsLink));
-	var trelloLogo = $(".header-logo-default");
-	if (trelloLogo.length > 0) {
-	    var parentLogo = trelloLogo.parent();
-	    parentLogo.hide();
-	    parentLogo.css("float", "right");
-	    parentLogo.css("left", "auto");
-	    parentLogo.css("margin-left", "-100px");
-	    parentLogo.css("margin-top", "-5px");
-	    parentLogo.insertAfter(b);
-	    parentLogo.show();
-	    //trelloLogo.parent().animate({ left: "350px" }, 1200, "easeInQuart");
-	}
 
-	b.fadeIn(300);
+	b.fadeIn(300, function () {
+	    checkTrelloLogo();
+	});
 	insertPlusFeed(g_bCreatedPlusHeader);
 	g_bCreatedPlusHeader = false;
 }
+
+function checkTrelloLogo() {
+    var trelloLogo = $(".header-logo-default");
+    var topbarElem = $("#agile_help_buttons_container");
+    if (trelloLogo.length == 0 || topbarElem.length == 0) {
+        setTimeout(checkTrelloLogo, 200);
+        return;
+    }
+
+
+    var rectLogo = trelloLogo[0].getBoundingClientRect();
+    var rectBar = topbarElem[0].getBoundingClientRect();
+    if (rectLogo.right>rectBar.left) {
+        var parentLogo = trelloLogo.parent();
+        parentLogo.hide();
+        parentLogo.css("float", "right");
+        parentLogo.css("left", "auto");
+        parentLogo.css("margin-left", "-100px");
+        parentLogo.css("margin-top", "-5px");
+        parentLogo.insertAfter(topbarElem);
+        parentLogo.show();
+    }
+}
+
 
 function updateSsLinks() {
 	doSyncDB(getCurrentTrelloUser(), true, false, true);
@@ -2309,7 +2361,7 @@ function checkCreateRecentFilter(header) {
 	header.append(elem);
 	updateShowAllButtonState(elem,true);
 	elem.click(function (e) {
-	    hitAnalytics("MoreLess", "click");
+	    hitAnalytics("MoreLess", "click", true);
 		e.preventDefault();
 	    //after set, we get again because set might have failed (over quota)
 		var bShowAllItemsNew = !g_bShowAllItems;
@@ -2402,7 +2454,7 @@ function checkTryPro() {
     const PROP_LS_MSLASTTRYPRO = "MSLastTryPro";
     const PROP_LS_DATELASTTRYPROCHECK = "DateLastTryProCheck";
     const PROP_LS_CTIMESSHOWNTRYPRO= "CTimesShownTryPro";
-    const MSDELTA_TRYPRO = 1000 * 60 * 60 * 24 * 50; //50 days
+    const MSDELTA_TRYPRO = 1000 * 60 * 60 * 24 * 40; //40 days
     const CTIMES_FINAL = 3;
     const msNow = Date.now();
 
@@ -2666,7 +2718,7 @@ function checkLi(bForce, bExpanded) {
             if (!bForce && (liData.li || liDataStripe.li))
                 return; //review zig expiration etc
 
-            var msLast = Math.max(liData.msLastCheck, liDataStripe.msLastCheck);
+            var msLast = Math.max(liData.msLastCheck || 0, liDataStripe.msLastCheck || 0);
             var bWaitCheck = !bForce;
             if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 35)) //35 hours
                 return;
@@ -2879,4 +2931,80 @@ Go to <a href='https://trello.com'>trello.com</a><br><br>");
 
         });
     });
+}
+
+function showEnableSyncDialog(callback) { //callback: STATUS_OK, dontask, cancel (later)
+    var divDialog = $("#agile_dialog_EnableSync");
+
+    if (divDialog.length == 0) {
+        //focus on h2 so it doesnt go to the first link
+        divDialog = $('\
+<dialog id="agile_dialog_EnableSync" style="cursor:pointer;text-align: center;width:24em;padding-top:0.5em;" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim_EnableSync">\
+    <div id="agile_EnableSync_title" tabindex="1" style="outline: none; text-align: center;cursor:pointer;">Click here to configure Plus for Trello</div> \
+    <div id="agile_EnableSync_content" style="display:none;"><br><b>Plus for Trello</b><br>\
+        <br>\
+        <p>You should pick a "sync" mode<br>to take advantage of most Plus features.</p>\
+        <br>\
+        <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_EnableSync_OK">Show me how</a>&nbsp;&nbsp;\
+        <a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_EnableSync_Cancel">Later</a>&nbsp;&nbsp;\
+        <a href="" class="button-link agile_dialog_Postit_button" style="" id="agile_dialog_EnableSync_DontAsk">Dont ask again</a><br>\
+    <\div>\
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $("#agile_dialog_EnableSync");
+    }
+
+    function initDialog() {
+        divDialog.off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            var content = divDialog.find("#agile_EnableSync_content");
+            if (content.is(":visible"))
+                return;
+            divDialog.find("#agile_EnableSync_title").hide();
+            divDialog.removeClass("agile_box_input_hilite");
+            content.slideDown(200);
+        });
+
+        function doCloseDialog(callbackBefore, callbackAfter) {
+            if (callbackBefore)
+                callbackBefore();
+            divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
+            setTimeout(function () {
+                divDialog[0].close();
+                if (callbackAfter)
+                    callbackAfter();
+            }, 300); //wait for animation to complete
+        }
+
+
+        divDialog.find("#agile_dialog_EnableSync_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault();
+            doCloseDialog(function () {
+                callback(STATUS_OK);
+            });
+        });
+
+        divDialog.find("#agile_dialog_EnableSync_Cancel").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            doCloseDialog(function () {
+                callback("cancel");
+            });
+        });
+
+
+        divDialog.find("#agile_dialog_EnableSync_DontAsk").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            e.preventDefault(); //link click would navigate otherwise
+            doCloseDialog(function () {
+                callback("dontask");
+            });
+        });
+
+        divDialog.find("#agile_EnableSync_title").show();
+        divDialog.find("#agile_EnableSync_content").hide();
+        hiliteOnce(divDialog, 3000);
+    }
+
+    initDialog();
+    showModlessDialog(divDialog[0]);
+    divDialog.find("#agile_dialog_EnableSync_OK").focus();
+    setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout
 }

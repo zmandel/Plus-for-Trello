@@ -200,7 +200,7 @@ function loadBurndown() {
 	var headerFilter = $("#headerFilter");
 	var containerFilter = $("#filtersContainer");
 
-	hitAnalytics("Burndown", "open");
+	hitAnalytics("Burndown", "open", true);
 
 	$("#saveBurndown").click(function (e) {
 	    e.preventDefault();

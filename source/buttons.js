@@ -5,7 +5,7 @@ var HelpButton = {
     strClass: 'agile_help_button',
     create: function () {
         var bPlusDisplayDisabled = isPlusDisplayDisabled();
-	    var b = $('<span id="help_buttons_container"></span>').addClass('notranslate header-btn header-notifications ' + this.strClass);
+        var b = $('<span id="agile_help_buttons_container"></span>').addClass('notranslate header-btn header-notifications ' + this.strClass);
 		b.hide();
 
 		var spanIcon = $('<span></span>').css('cursor', 'help');
@@ -155,7 +155,7 @@ function insertPlusFeedWorker(stateFeed, key) {
 
 	if (bShowNewIcon || bShowRecentIcon) {
 		if (icon.length == 0) {
-			var parent = $("#help_buttons_container");
+		    var parent = $("#agile_help_buttons_container");
 			spanIcon = $('<span></span>').css('cursor', 'pointer');
 			spanIcon.hide();
 			icon = $("<img>");
@@ -199,7 +199,9 @@ function insertPlusFeedWorker(stateFeed, key) {
 		    }
 		}
 		icon.attr("title", titleTip);
+		checkTrelloLogo();
 		spanIcon.fadeIn(600, function () {
+		    checkTrelloLogo();
 		    if (bShowNewIcon)
 		        spanIcon.fadeOut(300, function () {
 		            spanIcon.fadeIn(300);

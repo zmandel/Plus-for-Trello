@@ -108,9 +108,8 @@ var Help = {
 													else
 														thisObj.totalDbRowsHistoryNotSync = response.cRowsTotal;
 
-													var keySyncWarn = "bDontShowAgainSyncWarn";
-													chrome.storage.local.get([keySyncWarn], function (obj) {
-													    var value = obj[keySyncWarn];
+													chrome.storage.local.get([LOCALPROP_DONTSHOWSYNCWARN], function (obj) {
+													    var value = obj[LOCALPROP_DONTSHOWSYNCWARN];
 													    if (value !== undefined)
 													        thisObj.bDontShowAgainSyncWarn = value;
 
@@ -211,6 +210,17 @@ var Help = {
 	        }
 	    }
 
+	    function closeMiniDialog(selector) {
+	        var dialog = $(selector);
+
+	        if (dialog.length > 0 && dialog[0].open) {
+	            dialog[0].close();
+	        }
+	    }
+
+	    closeMiniDialog("#agile_dialog_EnableSync");
+	    closeMiniDialog("#agile_dialog_TryPro");
+
 	    if (bShowPro) {
 	        setTimeout(function () {
 	            var step = {
@@ -230,11 +240,7 @@ var Help = {
 	    keepSyncPaused(true);
 
 	    var container = $('<div id="agile_help_container" tabindex="0"></div>');
-	    function resizeHelp() {
-	        container.height($(window).innerHeight() - 20); //-20 prevents trello from adding a vertical scrollbar
-	    }
-	    resizeHelp();
-	    window.addEventListener('resize', resizeHelp);
+	    resizeHelp(container);
 
 	    container.keydown(function (evt) {
 	        evt.stopPropagation(); //dont let it bubble to document. in some pages like boards, document hooks into keyboard events for card navigation, which breaks scrolling here with down-arrow etc
@@ -244,15 +250,15 @@ var Help = {
 	    helpWin.m_extraElems = [];
 
 	    function onClosePane() {
-	        if (!helpWin.isSyncEnabled()) {
-	            var msgAlert = "You have not enabled sync. You will not see your team Spent/Estimates.\nClick OK to configure sync, or click Cancel to use without sync.";
+	        if (!helpWin.isSyncEnabled() && !helpWin.bDontShowAgainSyncWarn) {
+	            var msgAlert = "You have not enabled sync! You will not see full reports, Chrome Boards & Cards menu and team Spent & Estimates.\n\nClick Cancel to configure sync, or click OK to use without sync.";
 	            var bHiliteGSButton = false;
 	            if (g_strServiceUrl == "" && (comboSync.val() == SYNCMETHOD.googleSheetLegacy || comboSync.val() == SYNCMETHOD.googleSheetStealth)) {
-	                msgAlert = "You have not set a google spreadsheet sync url.\nClick OK to configure it, or click Cancel to use without sync.";
+	                msgAlert = "You have not set a google spreadsheet sync url.\nClick Cancel to configure it, or click OK to use without sync.";
 	                bHiliteGSButton = true;
 	            }
 
-	            if (confirm(msgAlert)) {
+	            if (!confirm(msgAlert)) {
 	                var section = $("#agile_help_trellosync");
 	                var top = section.offset().top;
 	                container.animate({
@@ -307,8 +313,6 @@ var Help = {
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
-	        hiliteOnce(elemFirstTime, 10000);
-	        g_bFirstTimeUse = false;
 	        helpWin.bStartTourBubbleOnClose = true;
 	    }
 
@@ -385,12 +389,12 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        });
 	    }
 	    helpWin.para('&nbsp');
-	    if (true) {
+	    if (!g_bFirstTimeUse) {
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
 	        
 	        helpWin.para('In the rare case you have issues with the display of trello pages:');
 	        var paraCheckDisable = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDisablePlus">Disable changing trello.com pages. </input>\
-<a href="">Tell me more</a>.');
+<a href="">Tell me more</a>');
 	        var checkDisablePlus = paraCheckDisable.children('input:checkbox:first');
 	        paraCheckDisable.children('a').click(function (ev) {
 	            helpTooltip(ev,"If checked, Plus will still sync and reports will continue working.<br>This is an emergency option so you can keep using Trello in the unlikely case of a conflict.");
@@ -425,25 +429,17 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    if (helpWin.totalDbMessages > 0) {
 	        helpWin.para('Alert: Error log has entries. <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>.').css("color", COLOR_ERROR);
 	    }
-	    if (bNotSetUp && helpWin.totalDbRowsHistory > 0) {
-	        helpWin.para('<b>Enable "sync" to see Reports, full Chrome Plus menu, team S/E and use from mobile.</b>').css("color", COLOR_ERROR);
-	        if (!g_bDisableSync) {
-	            var checkDontShowAgainSyncWarn = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontSW">Dont show this warning on startup.</input>').children('input:checkbox:first');
-	            if (helpWin.bDontShowAgainSyncWarn)
-	                checkDontShowAgainSyncWarn[0].checked = true;
-
-	            checkDontShowAgainSyncWarn.click(function () {
-	                var bValue = checkDontShowAgainSyncWarn.is(':checked');
-	                var pair = {};
-	                pair["bDontShowAgainSyncWarn"] = bValue;
-	                chrome.storage.local.set(pair, function () { });
-	            });
+	    if (bNotSetUp) {
+	        if (!g_bFirstTimeUse) {
+	            helpWin.para('<div class="agile_box_input_hilite_red" style="display:inline-block;border: 1px solid;border-radius:3px;border-color:RGB(77,77,77);padding:1em;">\
+Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use from mobile\
+</div><br><br>');
 	        }
 	    } else {
 	        if (!bSEByComments && helpWin.totalDbRowsHistoryNotSync > 0) {
 	            var strPre = "" + helpWin.totalDbRowsHistoryNotSync + ' S/E rows pending spreadsheet sync verification. ';
 	            if (helpWin.totalDbRowsHistoryNotSync > 9) { //simple sync test. could happen also if user entered a lot of S/E rows within 5 minutes.
-	                helpWin.para('If still not synced in 10 minutes, make sure spreadsheet sharing is setup correctly with Write access to you.').css("color", COLOR_ERROR);
+	                helpWin.para('If still not finished in 10 minutes, make sure spreadsheet sharing is setup correctly with Write access to you.').css("color", COLOR_ERROR);
 	            } else {
 	                helpWin.para(strPre + 'Plus will do so in the next 10 minutes.');
 	            }
@@ -465,15 +461,21 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpWin.para('&nbsp');
 	    }
 
-	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
-	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
-	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro!<br>\
+	    function addProSection() {
+	        helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
+	        var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
+	        var checkEnablePro = paraPro.children('input:checkbox:first');
+	        var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro!';
+
+	        if (bNotSetUp)
+	            textEnablePro += ' <a href="" id="agile_pro_more">Tell me more</a>';
+
+	        textEnablePro += '<br><div id="agile_pro_more_content" style="display:none;">\
 &bull; Card labels in charts and reports (view, group, filter, stack).<br>\
 &bull; Custom report columns, extra export options useful for integrations.<br>\
 &bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).<br>\
 &bull; Priority support and many planned "Pro" features.';
-	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
+	        textEnablePro += '<br /></div></div><div id="sectionPayProNow" style="display:none;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
 <a href="" id="agile_showLiDetails">Show license details</a> \
 <div id="agile_showLiDetails_contents" style="display:none;"><div id="sectionLiDetailsCS" style="display:none;">\
     <p><span class="agile_cs_licData"></span> <a href="" style="margin-left:1em;" id="agile_more_pmt_options" >More payment options</a></p>\
@@ -489,149 +491,160 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
     <input readonly class="agile_stripe_liUrl" size="80" title="copy and email this URL to the team" spellcheck="false" />\
 </div></div>';
 
-	    var paraProEnable = helpWin.para(textEnablePro);
-	    var sectionWhyPro = paraProEnable.find("#sectionWhyPro");
-	    var sectionPayProNow = paraProEnable.find("#sectionPayProNow");
-	    var sectionLiDetailsCS = paraProEnable.find("#sectionLiDetailsCS");
-	    var sectionLiDetailsStripe = paraProEnable.find("#sectionLiDetailsStripe");
-	    var elemLinkPay = sectionPayProNow.find("#linkPayProNow");
-	    checkEnablePro[0].checked = g_bProVersion;
+	        var paraProEnable = helpWin.para(textEnablePro);
+	        var sectionWhyPro = paraProEnable.find("#sectionWhyPro");
+	        var sectionPayProNow = paraProEnable.find("#sectionPayProNow");
+	        var sectionLiDetailsCS = paraProEnable.find("#sectionLiDetailsCS");
+	        var sectionLiDetailsStripe = paraProEnable.find("#sectionLiDetailsStripe");
+	        var elemLinkPay = sectionPayProNow.find("#linkPayProNow");
+	        checkEnablePro[0].checked = g_bProVersion;
 
-	    function onPayClick(callback) {
-	        if (!helpWin.isSyncEnabled()) {
-	            if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
-	                return;
-	        }
-	        Help.close(false);
-	        setTimeout(function () { //save the epileptics!
-	            callback();
-	        }, 1000);
+	        if (!bNotSetUp)
+	            paraProEnable.find("#agile_pro_more_content").show();
 
-	    }
-
-
-	    sectionLiDetailsCS.find("#agile_more_pmt_options_stripe").click(function (ev) {
-	        onPayClick(function () {
-	            checkLi(true, true);
+	        paraProEnable.find("#agile_pro_more").click(function () {
+	            paraProEnable.find("#agile_pro_more").hide();
+	            paraProEnable.find("#agile_pro_more_content").show();
 	        });
-	    });
 
-	    
-	    var btnshowLiDetails = paraProEnable.find("#agile_showLiDetails");
-	    btnshowLiDetails.click(function (ev) {
-	        btnshowLiDetails.hide();
-	        paraProEnable.find("#agile_showLiDetails_contents").show();
-	    });
-
-	    var btnMorePmtOptions = sectionLiDetailsCS.find("#agile_more_pmt_options");
-
-	    if (helpWin.hasLiStripe)
-	        btnMorePmtOptions.hide();
-
-	    btnMorePmtOptions.click(function (ev) {
-	        btnMorePmtOptions.hide();
-	        sectionLiDetailsCS.find("#agile_more_pmt_options_content").show();
-	        return false;
-	    });
-
-	    var btnEditLicense = sectionLiDetailsStripe.find("#editStripeLicense");
-	    btnEditLicense.click(function (ev) {
-	        if (!helpWin.liDataStripe)
-	            return;
-	        onPayClick(function () {
-	            handleStripePay();
-	        });
-	    });
-
-	    function showProSections(bProEnabled, bHilitePay) {
-	        var bShowPay = bProEnabled;
-	        var bShowWhyPro = !bProEnabled;
-	        var bShowLicDetailsCS = bProEnabled && helpWin.hasLiCS;
-	        var bShowLicDetailsStripe = bProEnabled && helpWin.hasLiStripe;
-	        if (helpWin.hasLiCS || helpWin.hasLiStripe)
-	            bShowPay = false;
-            
-	        if (bShowLicDetailsCS)
-	            sectionLiDetailsCS.find(".agile_cs_licData").html("<b>Chrome store License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataCS.msCreated)));
-
-	        if (bShowLicDetailsStripe) {
-	            sectionLiDetailsStripe.find(".agile_stripe_licData").html("<b>stripe.com License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataStripe.msCreated)) + " for " + (helpWin.liDataStripe.quantity || "0") + " Trello users.");
-	            sectionLiDetailsStripe.find(".agile_stripe_liUrl").val("https://trello.com/"+URLPART_PLUSLICENSE+"/" + helpWin.liDataStripe.userTrello + "/" + helpWin.liDataStripe.li);
-	            if (getCurrentTrelloUser() != helpWin.liDataStripe.userTrello) {
-	                btnEditLicense.hide();
-	                sectionLiDetailsStripe.find("#agile_stripe_liUrlOwnerNote").hide();
+	        function onPayClick(callback) {
+	            if (!helpWin.isSyncEnabled()) {
+	                if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
+	                    return;
 	            }
+	            Help.close(false);
+	            setTimeout(function () { //save the epileptics!
+	                callback();
+	            }, 1000);
+
 	        }
 
-	        elemShowHide(btnshowLiDetails, !bShowPay);
-	        elemShowHide(sectionPayProNow, bShowPay);
-	        elemShowHide(sectionLiDetailsCS, bShowLicDetailsCS);
-	        elemShowHide(sectionLiDetailsStripe, bShowLicDetailsStripe);
-	        elemShowHide(sectionWhyPro, bShowWhyPro);
 
-	        if (bShowPay && bHilitePay)
-	            hiliteOnce(elemLinkPay, 5000);
-	    }
-
-	    if (g_bProVersion)
-	        showProSections(true);
-
-	    elemLinkPay.click(function () {
-	        onPayClick(function () {
-	            checkLi(true, true);
+	        sectionLiDetailsCS.find("#agile_more_pmt_options_stripe").click(function (ev) {
+	            onPayClick(function () {
+	                checkLi(true, true);
+	            });
 	        });
-	    });
 
-        
-	    checkEnablePro.click(function () {
-	        var bValue = checkEnablePro.is(':checked');
-	        var pair = {};
-	        
-	        if (!bValue) {
-	            if (!confirm('Are you sure you want to turn off "Pro"?')) {
-	                checkEnablePro[0].checked = true;
+
+	        var btnshowLiDetails = paraProEnable.find("#agile_showLiDetails");
+	        btnshowLiDetails.click(function (ev) {
+	            btnshowLiDetails.hide();
+	            paraProEnable.find("#agile_showLiDetails_contents").show();
+	        });
+
+	        var btnMorePmtOptions = sectionLiDetailsCS.find("#agile_more_pmt_options");
+
+	        if (helpWin.hasLiStripe)
+	            btnMorePmtOptions.hide();
+
+	        btnMorePmtOptions.click(function (ev) {
+	            btnMorePmtOptions.hide();
+	            sectionLiDetailsCS.find("#agile_more_pmt_options_content").show();
+	            return false;
+	        });
+
+	        var btnEditLicense = sectionLiDetailsStripe.find("#editStripeLicense");
+	        btnEditLicense.click(function (ev) {
+	            if (!helpWin.liDataStripe)
 	                return;
+	            onPayClick(function () {
+	                handleStripePay();
+	            });
+	        });
+
+	        function showProSections(bProEnabled, bHilitePay) {
+	            var bShowPay = bProEnabled;
+	            var bShowWhyPro = !bProEnabled;
+	            var bShowLicDetailsCS = bProEnabled && helpWin.hasLiCS;
+	            var bShowLicDetailsStripe = bProEnabled && helpWin.hasLiStripe;
+	            if (helpWin.hasLiCS || helpWin.hasLiStripe)
+	                bShowPay = false;
+
+	            if (bShowLicDetailsCS)
+	                sectionLiDetailsCS.find(".agile_cs_licData").html("<b>Chrome store License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataCS.msCreated)));
+
+	            if (bShowLicDetailsStripe) {
+	                sectionLiDetailsStripe.find(".agile_stripe_licData").html("<b>stripe.com License</b> start date: " + makeDateCustomString(new Date(helpWin.liDataStripe.msCreated)) + " for " + (helpWin.liDataStripe.quantity || "0") + " Trello users.");
+	                sectionLiDetailsStripe.find(".agile_stripe_liUrl").val("https://trello.com/" + URLPART_PLUSLICENSE + "/" + helpWin.liDataStripe.userTrello + "/" + helpWin.liDataStripe.li);
+	                if (getCurrentTrelloUser() != helpWin.liDataStripe.userTrello) {
+	                    btnEditLicense.hide();
+	                    sectionLiDetailsStripe.find("#agile_stripe_liUrlOwnerNote").hide();
+	                }
 	            }
-	            saveCheck();
-	            hitAnalytics("ProCheckbox", "disabled");
-	            showProSections(false);
+
+	            elemShowHide(btnshowLiDetails, bShowLicDetailsCS || bShowLicDetailsStripe);
+	            elemShowHide(sectionPayProNow, bShowPay);
+	            elemShowHide(sectionLiDetailsCS, bShowLicDetailsCS);
+	            elemShowHide(sectionLiDetailsStripe, bShowLicDetailsStripe);
+	            elemShowHide(sectionWhyPro, bShowWhyPro);
+
+	            if (bShowPay && bHilitePay)
+	                hiliteOnce(elemLinkPay, 5000);
 	        }
-	        else {
-	            checkEnablePro[0].checked = false; //temporarily while we authorize
-	            handleProAproval(function (status) {
-	                if (status != STATUS_OK) {
-	                    bValue = false;
-	                    if (status != STATUS_CANCEL)
-	                        sendDesktopNotification(status, 10000);
+
+	        showProSections(g_bProVersion);
+
+	        elemLinkPay.click(function () {
+	            onPayClick(function () {
+	                checkLi(true, true);
+	            });
+	        });
+
+
+	        checkEnablePro.click(function () {
+	            var bValue = checkEnablePro.is(':checked');
+	            var pair = {};
+
+	            if (!bValue) {
+	                if (!confirm('Are you sure you want to turn off "Pro"?')) {
+	                    checkEnablePro[0].checked = true;
+	                    return;
 	                }
 	                saveCheck();
-	                if (bValue) {
-	                    hitAnalytics("ProCheckbox", "enabled");
-	                    showProSections(true, true);
-	                } else {
-	                    showProSections(false);
-	                }
-	            });
-	        }
+	                hitAnalytics("ProCheckbox", "disabled");
+	                showProSections(false);
+	            }
+	            else {
+	                checkEnablePro[0].checked = false; //temporarily while we authorize
+	                handleProAproval(function (status) {
+	                    if (status != STATUS_OK) {
+	                        bValue = false;
+	                        if (status != STATUS_CANCEL)
+	                            sendDesktopNotification(status, 10000);
+	                    }
+	                    saveCheck();
+	                    if (bValue) {
+	                        hitAnalytics("ProCheckbox", "enabled");
+	                        showProSections(true, true);
+	                    } else {
+	                        showProSections(false);
+	                    }
+	                });
+	            }
 
-	        function saveCheck() {
-	            pair[LOCALPROP_PRO_VERSION] = bValue;
-	            chrome.storage.local.set(pair, function () {
-	                if (chrome.runtime.lastError == undefined)
-	                    g_bProVersion = bValue;
-	                checkEnablePro[0].checked = g_bProVersion;
-	                setTimeout(updateBoardUI,100);
-	            });
-	        }
-	    });
+	            function saveCheck() {
+	                pair[LOCALPROP_PRO_VERSION] = bValue;
+	                chrome.storage.local.set(pair, function () {
+	                    if (chrome.runtime.lastError == undefined)
+	                        g_bProVersion = bValue;
+	                    checkEnablePro[0].checked = g_bProVersion;
+	                    setTimeout(updateBoardUI, 100);
+	                });
+	            }
+	        });
 
-	    helpWin.para('&nbsp');
+	        helpWin.para('&nbsp');
+	    }
+
+	    addProSection();
+
 	    helpWin.para("<h2 style='display:inline-block;'>Contents</h2><span style='color: #8c8c8c;margin-left:1em;'>click a section</span><ul id='tocAgileHelp'></ul>");
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 	    var bSpentBackendCase = isBackendMode();
 
 	    helpWin.para('<b><h2 id="agile_help_basichelp">Basics</h2></b>');
-	    helpWin.para('<A target="_blank" href="">Our Plus help board</A> is the best place to learn to use Plus.').children("A").click(function (e) {
+	    helpWin.para('<A target="_blank" href="">Our Plus help board</A> is the best place to learn about Plus.').children("A").click(function (e) {
 	        window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	        e.preventDefault();
 	    });
@@ -740,7 +753,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        e.preventDefault();
 	    });
 	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
-	    comboSync.append($(new Option("Sync off", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite"));
+	    comboSync.append($(new Option("Sync off", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite_red"));
 	    comboSync.append($(new Option("Trello card comments (recommended)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
 	    comboSync.append($(new Option("Stealth Google sync spreadsheet", SYNCMETHOD.googleSheetStealth)).addClass("agile_normalBackground"));
 	    comboSync.append($(new Option("Google sync spreadsheet (legacy)", SYNCMETHOD.googleSheetLegacy)).addClass("agile_normalBackground"));
@@ -895,9 +908,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            }
 
 	            if (bHilite)
-	                comboSync.addClass("agile_box_input_hilite");
+	                comboSync.addClass("agile_box_input_hilite_red");
 	            else
-	                comboSync.removeClass("agile_box_input_hilite");
+	                comboSync.removeClass("agile_box_input_hilite_red");
 	        }
 	    }
 
@@ -1271,7 +1284,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        comboWeekDeltaStart = $('<select style="width:auto">');
 	        comboWeekDeltaStart.appendTo(pComboWeekDelta);
 	        pComboWeekDelta.append("<span> </span>");
-	        pComboWeekDelta.append($('<a href="">Tell me more</a>.')).children('a').click(function (ev) {
+	        pComboWeekDelta.append($('<a href="">Tell me more</a>')).children('a').click(function (ev) {
 	            helpTooltip(ev, "Example: Start weeks on thursday by selecting 'monday' and a shift of +3, or previous thursday with a shift of -4.<br />Plus Supports  <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO weeks</A> starting sunday or monday. The 'ISO standard' has special rules for numbering weeks at the start or end of a year. A non-zero value first shifts the date, then applies the ISO rules. -7 and +7 shift by a whole week.");
 	        });
 	        elemEffectiveDow = $('<p />');
@@ -1395,7 +1408,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    if (true) {
 	        var paraPreventEstMod = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedPreventEstMod" \
->Prevent me (mostly) from increasing existing <b>E</b>stimates. Your manager does it for you or wants to prevent entry mistakes. </input> <a href="">Tell me more</a>.');
+>Prevent me (mostly) from increasing existing <b>E</b>stimates. Your manager does it for you or wants to prevent entry mistakes. </input> <a href="">Tell me more</a>');
 	        var checkPreventEstMod = paraPreventEstMod.children('input:checkbox:first');
 	        paraPreventEstMod.children('a').click(function (ev) {
 	            helpTooltip(ev, "Check to prevent users from accidentally increasing E (cause a +E) in the S/E bar and 'modify'.\
@@ -1899,6 +1912,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    if (bRestarting)
 	        return;
 	    objHelp.m_bShowing = false;
+	    g_bFirstTimeUse = false; //global only true on first time while help pane is up
 	    sendExtensionMessage({ method: "endPauseSync" }, function (response) {
 	        while (objHelp.m_extraElems && objHelp.m_extraElems.length > 0)
 	            objHelp.m_extraElems.pop().remove();

@@ -165,6 +165,13 @@ list-style-type:disc !important;
     transition: all 0.3s ease-out;  
 }
 
+.agile_dialog_Postit_Anim_EnableSync {
+    margin-top: -17em;
+    -webkit-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;  
+}
+
+
 .agile_dialog_Postit_Anim_TryPro {
     margin-top: -4em;
     -webkit-transition: all 0.3s ease-out;
@@ -1435,7 +1442,7 @@ table#tableMarkers td {
 }
 
 .agile_card_error {
-	background-color: #FF00FF !important;
+	background-color: #FF95D6 !important;
 }
 
 .agile_SER_negative *  {
@@ -1610,6 +1617,11 @@ table#tableMarkers td {
 
 .agile_box_input_hilite {
 	background: #FAF3C0 !important;
+    color:black !important;
+}
+
+.agile_box_input_hilite_red {
+	background: #EFB3AB !important;
     color:black !important;
 }
 
@@ -2078,6 +2090,8 @@ float:left;
 
 #agile_seContainer {
     margin-bottom:1.8em !important;
+    max-width: 1250px !important;
+    margin: 0 auto !important;
 }
 
 .agile_timer_popup {

@@ -178,6 +178,7 @@ function showFirstLicDialog(bExpanded, bShowWSOption, callback) {
             if (content.is(":visible"))
                 return;
             divDialog.find("#agile_FirstLic_title").hide();
+            divDialog.removeClass("agile_box_input_hilite");
             content.slideDown(200);
         });
 
@@ -446,7 +447,6 @@ function loadOptions(callback) {
     var keyHideLessMore = "bHideLessMore";
     var keyDowStart = "dowStart";
     var keyDowDelta = "dowDelta";
-    var keyMsStartPlusUsage = "msStartPlusUsage";
     var keySyncOutsideTrello = "bSyncOutsideTrello";
     var keybChangeCardColor = "bChangeCardColor";
     var keyPropbSumFilteredCardsOnly = "bSumFilteredCardsOnly";
@@ -474,7 +474,7 @@ function loadOptions(callback) {
     chrome.storage.sync.get([SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
@@ -501,7 +501,7 @@ function loadOptions(callback) {
                                  g_rgExcludedUsers = JSON.parse(objSync[keyrgExcludedUsers] || "[]");
                                  g_bDisableSync = objSync[keybDisabledSync] || false;
                                  g_bUserDonated = objSync[keyAlreadyDonated] || false;
-                                 g_msStartPlusUsage = objSync[keyMsStartPlusUsage] || null; //later we will try to initialize it when null, but may remain null
+                                 g_msStartPlusUsage = objSync[SYNCPROP_MSSTARTPLUSUSAGE] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
                                  g_bAlwaysShowSEBar = objSync[keyAlwaysShowSEBar] || false;
                                  g_bHideLessMore = objSync[keyHideLessMore] || false;

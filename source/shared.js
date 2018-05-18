@@ -27,8 +27,10 @@ var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage 
 var g_language = "en";
 var g_bProVersion = false;
 var g_bFromBackground = false;
+var g_msStartPlusUsage = null; //ms of date when plus started being used.
 const URLPART_PLUSLICENSE = "plus-license";
-const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
+const LOCALPROP_NEEDSHOWPRO = "keyNeedShowProInfo";
+const LOCALPROP_DONTSHOWSYNCWARN = "bDontShowAgainSyncWarn";
 
 const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
 
@@ -222,6 +224,7 @@ var SYNCPROP_MSLICHECK = "msLiCheck";
 var SYNCPROP_LIDATA = "LiData";  //for chrome store {  msLastCheck, msCreated, li}
 var SYNCPROP_LIDATA_STRIPE = "striLiData"; //for stripe { msLastCheck, msCreated, li, userTrello, emailOwner, quantity, nameCardOwner}
 var SYNCPROP_SERVIEWS = "SERViews";  // see g_serViews
+const SYNCPROP_MSSTARTPLUSUSAGE = "msStartPlusUsage";
 var LOCALPROP_EXTENSION_VERSIONSTORE = "chromeStoreExtensionVersion";
 
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
@@ -380,7 +383,6 @@ var DowMapper = {
 }.init();
 
 function loadSharedOptions(callback) {
-
     var keyAcceptSFT = "bAcceptSFT";
     var keyAcceptPFTLegacy = "bAcceptPFTLegacy";
     var keybEnableTrelloSync = "bEnableTrelloSync";
@@ -393,7 +395,7 @@ function loadSharedOptions(callback) {
 
     assert(typeof SYNCPROP_optAlwaysShowSpentChromeIcon  !== "undefined");
     //review zig: app.js has duplicate code for this
-    chrome.storage.sync.get([keyServiceUrl, SYNCPROP_bStealthSEMode, SYNCPROP_language, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
+    chrome.storage.sync.get([SYNCPROP_MSSTARTPLUSUSAGE, keyServiceUrl, SYNCPROP_bStealthSEMode, SYNCPROP_language, keybDontShowTimerPopups, keyUnits, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAcceptSFT, keybEnableTrelloSync, keybEnterSEByCardComments,
                             keyrgKeywordsforSECardComment, keybDisabledSync],
                              function (objSync) {
                                  if (chrome.runtime.lastError) {
@@ -403,7 +405,11 @@ function loadSharedOptions(callback) {
                                  g_strServiceUrl = objSync[keyServiceUrl]; //note: its still called serviceUrl even though now stores a sheet url (used to store a backend url in 2011)
                                  if (g_strServiceUrl === undefined || g_strServiceUrl == null)
                                      g_strServiceUrl = ""; //means simple trello. (do the same as in content script)
-
+                                 g_msStartPlusUsage = objSync[SYNCPROP_MSSTARTPLUSUSAGE] || null;
+                                 if (g_msStartPlusUsage == null) {
+                                     g_msStartPlusUsage = Date.now();
+                                     chrome.storage.sync.set({ [SYNCPROP_MSSTARTPLUSUSAGE]: g_msStartPlusUsage });
+                                 }
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;
                                  UNITS.current = objSync[keyUnits] || UNITS.current;
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
@@ -2332,7 +2338,7 @@ function isLicException() {
     return (navigator && navigator.userAgent && (navigator.userAgent.indexOf("Opera")>=0 || navigator.userAgent.indexOf("OPR/")>=0));
 }
 
-function hitAnalytics(category, action) {
-    sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action }, function (response) {
+function hitAnalytics(category, action, bSkipNewbie) {
+    sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action, bSkipNewbie: bSkipNewbie }, function (response) {
     });
 }
