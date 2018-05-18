@@ -1112,7 +1112,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('View board S/E by different dimensions.');
 	    helpWin.para('Useful when using <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> or "card title S/E" (Scrum for Trello and such).');
 	    helpWin.para('<img width="300" src="' + chrome.extension.getURL("images/dimensions.png") + '"/>');
-	    helpWin.para('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More "dimensions" help</A>.');
+	    helpWin.para('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More about "dimensions"</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');

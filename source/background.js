@@ -968,12 +968,14 @@ function updatePlusIconWorker(bTooltipOnly) {
                 colorBackground = colorOffline;
 
             g_bLastPlusMenuIconError = false; //reset
+            var nameFontSmall = "bold 8px Tahoma, Arial, sans-serif"; //tahoma is very readable at small sizes
+
             //draw spent counter on top of chrome badge
             if (g_optAlwaysShowSpentChromeIcon == OPT_SHOWSPENTINICON_ALWAYS && g_strTimerLast.length > 0 && g_strBadgeText.length > 0) {
 				//review zig: doesnt show offline/error visual status
                 ctx.fillStyle = PLUS_COLOR_SPENTBADGE;
                 ctx.strokeStyle = PLUS_COLOR_SPENTBADGE;
-                ctx.font = "bold 8px Tahoma, Arial, sans-serif"; //tahoma is very readable at small sizes
+                ctx.font = nameFontSmall;
                 var textBadgeSpent = getFormattedSpentBadgeText();
                 var width = ctx.measureText(textBadgeSpent).width;
                 var xStart = Math.max(16 - width, 1);
@@ -1026,7 +1028,15 @@ function updatePlusIconWorker(bTooltipOnly) {
                 ctx.stroke();
                 ctx.closePath();
             }
-
+            
+            if (isTestVersion()) {
+                ctx.fillStyle = '#000000';
+                ctx.strokeStyle = '#000000';
+                ctx.font = "bold 5px Tahoma, Arial, sans-serif";
+                var textBadgeDev = "•";
+                var xStartDev = 6;
+                ctx.fillText(textBadgeDev, xStartDev + 2,6);
+            }
             chrome.browserAction.setIcon({ imageData: ctx.getImageData(0, 0, 19, 19) });
         }
     });

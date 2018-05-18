@@ -6,19 +6,19 @@
 <link href="css/style.css" rel="stylesheet" type="text/css">
 <link href="css/tooltip.css" rel="stylesheet" type="text/css">
 <link href="css/jquery.qtip.min.css" rel="stylesheet" type="text/css">
-<link href="css/plottable.css" rel="stylesheet" type="text/css">
+<link href="css/plottable.old.css" rel="stylesheet" type="text/css">
 <link href="css/dashboard.css" rel="stylesheet" type="text/css">
 <script type="text/javascript" src="libs/jquery.min.js"></script>
 <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
 <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
 <script type="text/javascript" src="libs/jsapi.js"></script>
 <script type="text/javascript" src="libs/formatchart.js"></script>
-<script type="text/javascript" src="libs/d3.min.js"></script>
-<script type="text/javascript" src="libs/plottable.min.js"></script>
+<script type="text/javascript" src="libs/d3.min.old.js"></script>
+<script type="text/javascript" src="libs/plottable.min.old.js"></script>
+<script type="text/javascript" src="libs/dom-to-image.min.js"></script>
 <script type="text/javascript" src="shared.js"></script>
 <script type="text/javascript" src="sharedmobile.js"></script>
 <script type="text/javascript" src="sharedsync.js"></script>
-<script type="text/javascript" src="libs/svgpng.js"></script>
 <script type="text/javascript" src="dashboard.js"></script>
 </head>
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;color:#4D4D4D;margin:0px;padding:0px;">
@@ -65,12 +65,18 @@ Click for more information." style="display:none;margin-left:1em;" id="projectio
                 <div id="visualizationBottom" style="width: 80%; margin-bottom: 20px;"></div>
             </div>
         </div>
-            <div class="report_options_item" title="Check to not show due date card titles in the chart (instead, hover to see details)">
+            <div style="white-space:nowrap;display:inline-block;margin-bottom:1em;" class="report_options_item" title="Check to not show due date card titles in the chart (instead, hover to see details)">
                 <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
-                <label class="agile_unselectable" for="checkHideAnnotationTexts">Hide annotations</label>
+                <label class="agile_unselectable" for="checkHideAnnotationTexts">Hide annotations.</label>
+            </div>
+            <div style="white-space:nowrap;display:inline-block;margin-bottom:1em;margin-left:2em;" class="report_options_item">
+                <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideZoomArea" />
+                <label class="agile_unselectable" for="checkHideZoomArea">Hide bottom 'zoom' area.</label>
             </div>
             <div id="timelineDetail" style="margin-left:40px;margin-right:40px;min-height:3em;padding-top:1em;"></div>
+        <div id="timelinePrintContainer">
             <svg id="timeline" style="margin-top:20px;display: block;font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;"></svg>
+        </div>
         </div>
 </div>
 </body>

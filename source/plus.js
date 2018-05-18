@@ -871,7 +871,7 @@ function onDbOpened() {
 	        } else if (msg.event == EVENTS.EXTENSION_RESTARTING) {
 	            setTimeout(function () {
 	                location.reload();
-	            }, 200);
+	            }, 1500);
 	        }
 	    });
 	}

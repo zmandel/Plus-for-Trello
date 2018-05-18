@@ -13,6 +13,12 @@ var g_tl = { container: null, chartBottom: null, xAxisBottom: null, redrawAnnota
 var g_bUniqueBoard = false;
 var g_TimelineColors = ["#D25656", "#6F83AD", g_colorRemaining, "black"]; //red, blue, green (spent, estimate, remaining, annotation)
 
+var g_paramsLast = null;
+function replaceUrlState(params) {
+    window.history.replaceState('data', '', commonBuildUrlFromParams(params, "dashboard.html"));
+    g_paramsLast = getUrlParams();
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 	if (g_bLoaded)
 		return;
@@ -22,8 +28,10 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-function checkHideTimelineSpark() {
-    if (g_tl.chartBottom && g_tl.chartBottom.height() < 12) {
+function checkHideTimelineSpark(params) {
+    if (!params)
+        params = getUrlParams();
+    if (g_tl.chartBottom && (params["checkHideZoomArea"] || g_tl.chartBottom.height() < 12)) {
         g_tl.container.remove(g_tl.chartBottom);
         g_tl.container.remove(g_tl.xAxisBottom);
         g_tl.container.computeLayout();
@@ -86,6 +94,15 @@ function setSql(sql, values, elemsParam) {
 
     if (elems["deleted"] == "0")
         delete elems["deleted"];
+
+    var paramsUrl = getUrlParams(); //we need to ignore some params we receive, and use the ones from our UI
+    function fixField(field) {
+        elems[field] = paramsUrl[field];
+        if (elems[field] != "true")
+            delete elems[field];
+    }
+    fixField("checkHideAnnotationTexts");
+    fixField("checkHideZoomArea");
 
     updateBoardLinks(elems); //updates elems too
     window.history.replaceState('data', '', commonBuildUrlFromParams(elems, "dashboard.html"));
@@ -181,7 +198,8 @@ function updateBoardLinks(params) {
 function loadBurndown() {
     resetChartline();
     g_bDontQuery = false; //reset
-	var params = getUrlParams();
+    g_paramsLast = getUrlParams();
+    var params = g_paramsLast;
 	var paramIdBoard = params["idBoard"];
 	var paramNameBoard = params["board"];
 	var idBoard = null;
@@ -205,16 +223,29 @@ function loadBurndown() {
 	$("#saveBurndown").click(function (e) {
 	    e.preventDefault();
 	    var nameChart = window.prompt("Name for the PNG file:", "burndown");
-	    var elemChart = $("#timeline");
+	    var elemChart = $("#timelinePrintContainer");
         //hack alert: qtip library uses html titles, but SVG doesnt like them. Thus we strip all titles here from SVG (qtip sets oldTitle) 
 	    var elemsClean = document.querySelectorAll("[oldTitle]");
 	    for (var iClean = 0; iClean < elemsClean.length; iClean++) {
 	        elemsClean[iClean].removeAttributeNS(null, "title");
 	        elemsClean[iClean].removeAttributeNS(null, "oldTitle");
-	        elemsClean[iClean].removeAttributeNS(null, "oldtitle");
 	    }
-	    if (nameChart)
-	        saveSvgAsPng(elemChart[0], nameChart.trim() + ".png", { scale: window.devicePixelRatio || 1 });
+	    if (nameChart) {
+	        domtoimage.toBlob(elemChart[0], { bgcolor: "white"}).then(function (blob) {
+	            var link = document.createElement('a');
+	            var url = URL.createObjectURL(blob);
+	            link.style.display = 'none';
+	            document.body.appendChild(link);
+	            link.download = nameChart.trim() + '.png';
+	            link.href = url;
+	            link.onclick = function () {
+	                requestAnimationFrame(function () {
+	                    URL.revokeObjectURL(url);
+	                })
+	            };
+	            link.click();
+	        });
+	    }
 	});
 
 	function onDoneSlide() {
@@ -243,9 +274,25 @@ function loadBurndown() {
 	        params["checkHideAnnotationTexts"] = "true";
 	    else
 	        delete params["checkHideAnnotationTexts"];
-
-	    setSql(g_sql, g_valuesSql, params); //repeat last query
+	    replaceUrlState(params);
+	    redrawCharts(true);
 	});
+
+	var elemHideZoom = $("#checkHideZoomArea");
+	elemHideZoom[0].checked = (params["checkHideZoomArea"] == "true");
+	elemHideZoom.click(function () {
+	    if (!g_sql)
+	        return; //too early
+	    params = getUrlParams();
+	    if (elemHideZoom[0].checked)
+	        params["checkHideZoomArea"] = "true";
+	    else
+	        delete params["checkHideZoomArea"];
+
+	    replaceUrlState(params);
+	    redrawCharts(true);
+	});
+
     //review ugly
 	if (!idBoard && !boardName && !params["keyword"] && !params["sinceSimple"] && !params["weekStart"] && !params["weekEnd"] &&
          !params["monthStart"] && !params["monthEnd"] && !params["user"] && !params["team"] && !params["list"] && !params["card"] &&
@@ -385,7 +432,7 @@ function resetTDOutput(output) {
     output.html("");
 }
 
-function loadTimeline(series) {
+function loadTimeline(series, params) {
     var xScale = new Plottable.Scales.Time();
     var xAxis = new Plottable.Axes.Numeric(xScale, "bottom");
     var xFormatter = Plottable.Formatters.multiTime();
@@ -399,6 +446,7 @@ function loadTimeline(series) {
     var seriesAnnotation = new Plottable.Dataset(series.annotation, { name: "Annotation" });
 
     var bandPlotS = new Plottable.Plots.Area();
+    bandPlotS.deferredRendering(false);
     bandPlotS.addDataset(series1);
     bandPlotS.x(function (d) { return d.x; }, xScale).
         y(function (d) { return d.y; }, yScale).
@@ -407,14 +455,22 @@ function loadTimeline(series) {
 
 
     var plot = new Plottable.Plots.Line(xScale, yScale);
-    plot.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
+    plot.deferredRendering(false);
+    plot.x(function (d) {
+        return d.x;
+    }, xScale).y(function (d) {
+        return d.y;
+    }, yScale);
     plot.attr("stroke", function (d, i, dataset) { return d.stroke; });
     plot.addDataset(series1).addDataset(series2).addDataset(series3);
     plot.autorangeMode("y");
 
     var plotAnnotations = new Plottable.Plots.Scatter(xScale, yScale);
+    plotAnnotations.deferredRendering(false);
     plotAnnotations.addClass("tooltipped");
-    plotAnnotations.attr("title", function (d) { return '<div>' + d.tooltip + '</div><div>' + makeDateCustomString(d.x) + ' (' + getCurrentWeekNum(d.x) + ')</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>'; });
+    plotAnnotations.attr("title", function (d) {
+        return '<div>' + d.tooltip + '</div><div>' + makeDateCustomString(d.x) + ' (' + getCurrentWeekNum(d.x) + ')</div><div>Total S:' + d.sumSpent + '&nbsp;&nbsp;E:' + d.y + '&nbsp;&nbsp;R:' + d.sumR + '</div>';
+    });
     plotAnnotations.size(13);
     plotAnnotations.attr("fill","black");
     plotAnnotations.x(function (d) { return d.x; }, xScale).y(function (d) { return d.y; }, yScale);
@@ -422,15 +478,15 @@ function loadTimeline(series) {
     plotAnnotations.autorangeMode("y");
 
     var sparklineXScale = new Plottable.Scales.Time();
-    var sparklineXAxis = new Plottable.Axes.Time(sparklineXScale, "bottom");
-    sparklineXAxis.addClass("minichartBurndownXLine");
     var sparklineYScale = new Plottable.Scales.Linear();
     var sparkline = new Plottable.Plots.Line(xScale, sparklineYScale);
+    sparkline.deferredRendering(false);
     sparkline.x(function (d) { return d.x; }, sparklineXScale).y(function (d) { return d.y; }, sparklineYScale);
     sparkline.attr("stroke", function (d, i, dataset) { return d.stroke; });
     sparkline.addDataset(series1).addDataset(series2).addDataset(series3);
 
     var sparklineAnnotations = new Plottable.Plots.Scatter(xScale, sparklineYScale);
+    sparklineAnnotations.deferredRendering(false);
     sparklineAnnotations.size(8);
     sparklineAnnotations.attr("fill", "black");
     sparklineAnnotations.x(function (d) { return d.x; }, sparklineXScale).y(function (d) { return d.y; }, sparklineYScale);
@@ -466,10 +522,13 @@ function loadTimeline(series) {
     }
 
     function redrawAnnotations() {
+        if (!g_paramsLast)
+            g_paramsLast = getUrlParams();
         txtAnnotations.forEach(function (elem) {
             elem.txt.attr({
                 "x": xScale.scale(elem.x),
-                "y": yScale.scale(elem.y)
+                "y": yScale.scale(elem.y),
+                "visibility": g_paramsLast["checkHideAnnotationTexts"]=="true"?"hidden":"visible"
             });
         });
     }
@@ -498,7 +557,14 @@ function loadTimeline(series) {
     yScale.onUpdate(function () {
         redrawAnnotations();
     });
-    var miniChart = new Plottable.Components.Group([sparkline, sparklineAnnotations, dragBox]);
+    var miniChart = null;
+    var sparklineXAxis = null;
+
+    
+    miniChart = new Plottable.Components.Group([sparkline, sparklineAnnotations, dragBox]);
+    sparklineXAxis = new Plottable.Axes.Time(sparklineXScale, "bottom");
+    sparklineXAxis.addClass("minichartBurndownXLine");
+
     var pzi = new Plottable.Interactions.PanZoom(xScale, null);
     pzi.attachTo(plot);
 
@@ -522,8 +588,9 @@ function loadTimeline(series) {
     g_tl.container.rowWeight(2, 0.2);
     g_tl.container.renderTo("#timeline");
     onUpdateXScale(); //causes the gray selection on bottom chart to show all range selected
-
-    checkHideTimelineSpark(); //this before annotations, top chart height could change
+    setTimeout(function () {
+        checkHideTimelineSpark(params);
+    }, 200);
     series.annotation.forEach(function (annotation) {
         addAnnotationText(annotation.text, annotation.x, annotation.y);
     });
@@ -588,7 +655,7 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
     projection.circleStart = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "white").attr("r", 6);
     projection.circleMid = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", "black").attr("r", 3);
     projection.circleEnd = container.append("circle").attr("stroke", g_colorRemaining).attr("fill", g_colorRemaining).attr("r", 6).style("visibility", "hidden");
-    projection.labelBackground = container.append("rect").attr({ width: 0, height: 0, fill: "white", rx: 3, ry: 3, stroke: g_colorRemainingDark, "stroke-width":1 }).style("visibility", "hidden");
+    projection.labelBackground = container.append("rect").attr("width",0).attr("height",0).attr("fill", "white").attr("rx", 3).attr("ry", 3).attr("stroke", g_colorRemainingDark).attr("stroke-width",1).style("visibility", "hidden");
     projection.labelEnd = container.append("text").attr("stroke", g_colorRemainingDark).attr("stroke-width", 1).attr("stroke-opacity", 1);
     projection.bProjectionFirstClick = true;
 
@@ -597,6 +664,10 @@ function createProjectionLine(plot, xFormatter, xScale, yScale) {
         var attr = {};
         container.style("visibility", "visible");
         if (projection.bProjectionFirstClick) {
+            if (p.y >= yScale.scale(0)) {
+                sendDesktopNotification("Click on a point above the zero line.", 5000);
+                return;
+            }
             projection.labelEnd.text("");
             projection.labelBackground.style("visibility", "hidden");
             projection.circleEnd.style("visibility", "hidden");
@@ -711,7 +782,6 @@ function setChartData(rows, idBoard, params) {
 	var totalByUser = {};
 	const weekStart = params["weekStart"];
 	const weekEnd = params["weekEnd"];
-	const bHideAnnotation = (params["checkHideAnnotationTexts"] == "true");
 	var maxLength = 58; //hover tooltip shows full text
 
 	function shortenString(str) {
@@ -785,7 +855,7 @@ function setChartData(rows, idBoard, params) {
 		    seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
 		    seriesTimeline.remain.push({ x: date, y: remainTotalDisplay, stroke: g_TimelineColors[2], drill: objHtml });
 		    if (annotation)
-		        seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation ? "" : shortenString(annotation), tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
+		        seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: shortenString(annotation), tooltip: annotation, sumSpent: spentTotalDisplay, sumR: remainTotalDisplay });
 		}
 		else {
 		    if (row.dateDue) {
@@ -809,7 +879,7 @@ function setChartData(rows, idBoard, params) {
 		            seriesTimeline.est.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[1], drill: objHtml });
 
 		            var strNote = "Due: " + row.nameCard;
-		            seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: bHideAnnotation ? "" : shortenString(strNote), tooltip: strNote, sumSpent: 0, sumR: 0, isDue: true });
+		            seriesTimeline.annotation.push({ x: date, y: estTotalDisplay, stroke: g_TimelineColors[3], text: shortenString(strNote), tooltip: strNote, sumSpent: 0, sumR: 0, isDue: true });
 		        }
 		    }
 		}
@@ -849,7 +919,7 @@ function setChartData(rows, idBoard, params) {
 		chartBottom.show();
 		chartBottom.css("height", "" + heightUser);
 		elemTimeline.show();
-		loadTimeline(seriesTimeline);
+		loadTimeline(seriesTimeline, params);
 		g_chartUser = new google.visualization.BarChart(chartBottom[0]);
 		var chartLocal = g_chartUser;
 		g_chartUser.removeAction('drilldown'); //not sure if chart allows duplicate ids, so remove just in case

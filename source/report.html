@@ -11,18 +11,23 @@
     <link href="css/bsmselect.css" rel="stylesheet" type="text/css">
     <script type="text/javascript" src="libs/jquery.min.js"></script>
     <script type="text/javascript" src="libs/jquery-ui.custom.min.js"></script>
-    <script type="text/javascript" src="libs/jquery.qtip.min.js"></script>
     <script type="text/javascript" src="libs/jquery.tablesorter.js"></script>
     <script type="text/javascript" src="libs/dialog-polyfill.js"></script>
     <script type="text/javascript" src="libs/bsmselect.js"></script>
-    <script type="text/javascript" src="libs/svgpng.js"></script>
     <script type="text/javascript" src="libs/d3.min.js"></script>
     <script type="text/javascript" src="libs/plottable.min.js"></script>
     <script type="text/javascript" src="libs/excellentexport.js"></script>
+    <script type="text/javascript" src="libs/dom-to-image.min.js"></script>
     <script type="text/javascript" src="shared.js"></script>
     <script type="text/javascript" src="sharedmobile.js"></script>
     <script type="text/javascript" src="sharedsync.js"></script>
     <script type="text/javascript" src="report.js"></script>
+    <style>
+         .report_class_white_text {
+    color:white !important; /* Needs to be here and not in style.css, we dont want background to inherit, so when user copies and pastes to excel, text will be black, not white */
+  }
+
+    </style>
 </head>
 <body style="font-family: Helvetica Neue,Arial,Helvetica,sans-serif;font-size: 1em;margin-bottom:0px;margin-top:5px;overflow:hidden;" class="agile_report_minSize">
     <div id="divMain" style="margin:0;padding:0;display:none;">
@@ -61,7 +66,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
 
 'User' refers to those with S/E, not card members." class="agile_report_filter agile_groupby_report_section">
                     <p class="agile_report_filter_label">Group by</p>
-                    <select id="groupBy" style="width:8.5em;">
+                    <select id="groupBy" style="width:9.5em;">
                         <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
                         <option value="user">User</option>
                         <option value="idTeamH" title="Groups resulting cards and 'S/E rows' by team.\nColumns like 'date' use the newest row in each team.">Team</option>
@@ -235,9 +240,10 @@ Partially supports AND/OR:
 When using OR, no term can be negated: label1 OR label2 OR label3 
 When using AND, all terms must be negated: !label1 AND !label2 AND !label3
 
-Labels sync note: Plus automatic sync does not always detect all card labeling changes that happened within
-the last two minutes before sync, or label names on boards where the only change was a renamed label.
-To force fresh card label results in those cases, click on sync from the Chrome Plus menu or the top weekly report in Trello.
+Labels sync note: Plus automatic sync does not always detect all card labeling changes that happened
+within the last two minutes before sync, or label names on boards where the only change was a renamed label.
+To force fresh card label results in those cases click on sync from the Chrome Plus menu or
+the top weekly report in Trello.
 
 See reports help top-right.">
                     <p class="agile_report_filter_label">Label</p>
@@ -320,7 +326,11 @@ Do not check this option if you are only looking at Spent or card counts.">
                     <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
                     <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
-                        <label class="agile_unselectable" for="checkNoLabelColors">No color in labels</label>
+                        <label class="agile_unselectable" for="checkNoLabelColors">No color in labels in the Report tab</label>
+                    </div>
+                    <div class="report_options_item">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoBracketNotes" />
+                        <label class="agile_unselectable" for="checkNoBracketNotes">Remove all [bracket text] from notes in the Report tab</label>
                     </div>
                     <div class="report_options_item">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkSyncBeforeQuery" />
@@ -333,7 +343,8 @@ After clicking 'Query' try sorting by board then shift-click the card number col
                     </div>
                     
                     <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
-                    
+                    <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideZoomArea" />
+
                     <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
                         <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
@@ -448,8 +459,8 @@ Note: current week always ignores 'under' format.">
                     <div class="agile_report_container_byBoard agile_report_containerScroll" style="overflow: auto;"></div>
                 </div>
                 <div id="tabs-3" style="display:none;padding-left:6px;padding-right:6px;padding-top:6px;margin-bottom:1em;" class="agile_report_tab">
-                    <div style="height:2em;">
-                        <select id="chartView" >
+                    <div style="min-height:1.5em;margin-top:1em;">
+                        <select id="chartView" style="margin-bottom:1em;">
                             <option value="s">Spent</option>
                             <option value="e">Estimate</option>
                             <option value="r">Remaining</option>
@@ -459,7 +470,7 @@ Note: current week always ignores 'under' format.">
                             <option value="burndown">S.E.R. Burndown</option>
                             <option value="cardcount">Card count</option>
                         </select><span id="stackByPre" style="display:none;">&emsp;&emsp;Stack by </span>
-                        <select id="stackBy" style="display:none;">
+                        <select id="stackBy" style="display:none;margin-bottom:1em;">
                             <option value="">None</option>
                             <option value="user">S/E user</option>
                             <option value="idTeamH">team</option>
@@ -472,23 +483,36 @@ Note: current week always ignores 'under' format.">
                             <option value="comment">S/E note</option>
                             <option value="month">month</option>
                             <option value="week">week</option>
+                            <option value="dateString">date</option>
                         </select>
-                        <span title="Uncheck to use a transparent background">
+                        <div style="white-space:nowrap;display:inline-block;margin-bottom:1em;" title="Uncheck to use a transparent background">
                             <input style="margin-left:2em;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkBGColorChart" />
-                            <label class="agile_unselectable" for="checkBGColorChart">background: </label>
-                        </span><input id="colorChartBackground" class="agile_colorpicker" style="margin-top:-1px;" type="color" value="#FFFFFF" title="Change color"/>
+                            <label class="agile_unselectable" for="checkBGColorChart">Background: </label>
+                        </div><input id="colorChartBackground" class="agile_colorpicker" type="color" value="#FFFFFF" title="Change color"/>
                         
-                        <span class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
+                        <div style="white-space:nowrap;display:inline-block;margin-bottom:1em;" class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
                             <input class="agile_report_checkbox" style="margin-left:2em;" type="checkbox" value="checked" id="checkNoColorsChart" />
                             <label class="agile_unselectable" for="checkNoColorsChart">No bar colors</label>
+                        </div>
+
+                        <span class="report_options_item" id="spanChartHeight" style="display:none;margin-left:2em;white-space:nowrap;" title="Control the bar height. If its too small, bar labels wont show.">
+                            −<input style="height:0.6em;" type="range" value="0" step="1" id="heightZoomChart"  min="-10" max="10"  list="ticksChart" />+
+                            <datalist id="ticksChart">
+                                <option>0</option>
+                            </datalist>
+                            <label class="agile_unselectable" for="heightZoomChart">Bar height</label>
                         </span>
+
                         <img class="agile_drilldown_select"/>
                     </div>
                     <div id="chartMessage" style="margin-bottom:1em;"></div>
                     <div>
                         <div class="agile_report_containerScroll" style="overflow: auto;">
-                            <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;"></div>
-                            <svg id="chart" style="display:block;"></svg>
+                            <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;z-index: 2147483600"></div>
+                            <div id="chartPrintContainer" style="display:block;padding-left:1em;padding-right:2em;padding-bottom:1em;padding-top:1em;">
+                                <div id="chart" style="display:block;overflow:hidden;"></div>
+                                <div id="labelGetPro" style="font-size:90%;text-align: center;display:none;margin-top:3em;cursor:pointer !important;color:#838C91;">Enable the Pro version. Click for more.</div>
+                            </div>
                         </div>
                     </div>
                 </div>

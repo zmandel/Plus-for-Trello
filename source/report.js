@@ -24,6 +24,10 @@ var g_bNoGroupChart = false;
 const g_strMessageNoGroupChart = "To view this chart type, group by other than 'S/E rows'.";
 var g_lastGroupSelection = "";
 var g_mapColorFromName = {};
+var g_interactions = [];
+const g_heightLine = 28;
+const g_maxLegendsPerColumn = 30;
+const g_maxLegendColumns = 3;
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
@@ -733,7 +737,8 @@ function loadAll() {
 
     if (!g_bPopupMode)
         $("body").removeClass("agile_report_minSize");
-
+    else
+        $(".agile_report_filters").addClass("agile_report_filters_smaller");
 
     if (g_bBuildSqlMode) {
         $("#tabs").hide();
@@ -753,6 +758,7 @@ function loadAll() {
         $("#orderBy").prop('disabled', true);
 
     if (g_bPopupMode) {
+        $("#spanChartHeight").hide();
         $("#team").parent().hide();
         $("#archived").parent().hide();
         $("#deleted").parent().hide();
@@ -774,6 +780,7 @@ function loadAll() {
         }
     }
     else {
+        $("#spanChartHeight").show();
         $("#archived").parent().show();
         $("#deleted").parent().show();
     }
@@ -832,23 +839,38 @@ function loadAll() {
             }
         });
 
-        $("#stackBy").change(function () {
+        
+        $("#stackBy").change(function (evt) {
             var paramsOld = getUrlParams();
             var stackOld = paramsOld["stackBy"];
             var stack = $("#stackBy").val();
+            var valGroupByOld = $("#groupBy").val();
+            var valGroupByNew = valGroupByOld;
             updateURLPart("stackBy");
-            var pGroups = $("#groupBy").val().split("-");
+            var pGroups = valGroupByOld.split("-");
+            if (stackOld && !stack && pGroups.length>1 && pGroups.indexOf(stackOld) >= 0) {
+                if (confirm("Also remove '" + stackOld + "' from the Group-by?")) {
+                    pGroups = pGroups.filter(function (group) {
+                        return (group && group != stackOld);
+                    });
+                    valGroupByNew = pGroups.join("-");
+                }
+            }
+
             if (stack && pGroups.indexOf(stack) < 0) {
                 pGroups.push(stack);
-                var pGNew = pGroups.filter(function (group) {
+                pGroups = pGroups.filter(function (group) {
                     return (group && group != stackOld);
                 });
-                var valNew = pGNew.join("-");
+                valGroupByNew = pGroups.join("-");
+            }
+
+            if (valGroupByNew != valGroupByOld) {
                 var elemGroup = $("#groupBy");
-                elemGroup.val(valNew);
-                if (elemGroup.val() != valNew) {
-                    elemGroup.append(new Option(remapGroupByToDisplay(valNew), valNew));
-                    elemGroup.val(valNew);
+                elemGroup.val(valGroupByNew);
+                if (elemGroup.val() != valGroupByNew) {
+                    elemGroup.append(new Option(remapGroupByToDisplay(valGroupByNew), valGroupByNew));
+                    elemGroup.val(valGroupByNew);
                 }
                 updateURLPart("groupBy");
                 sendDesktopNotification("Plus modified the 'group-by' to accomodate this stacking.",6000);
@@ -912,6 +934,14 @@ Team - Board - List - Card - Hashtag1 - Hashtags - Labels - User - Note - Keywor
             updateURLPart("checkNoColorsChart");
             if (g_dataChart)
                 g_dataChart.params["checkNoColorsChart"] = ($("#checkNoColorsChart")[0].checked == true ? "true" : "");
+            fillChart(true);
+
+        });
+
+        $("#heightZoomChart").change(function () {
+            //updateURLPart("heightZoomChart");
+            if (g_dataChart)
+                g_dataChart.params["heightZoomChart"] = parseInt($("#heightZoomChart").val(),10) || 0;
             fillChart(true);
 
         });
@@ -1054,10 +1084,24 @@ function configChartTab() {
                 return;
             if (bCancelFromAlertLargeSize(domain, true))
                 return;
-            var elemChart = $("#chart");
+            var elemChart = $("#chartPrintContainer");
             var nameChart = window.prompt("Name for the PNG file:", "chart");
-            if (nameChart)
-                saveSvgAsPng(elemChart[0], nameChart.trim() + ".png", { scale: window.devicePixelRatio || 1 });
+            if (nameChart) {
+                domtoimage.toBlob(elemChart[0]).then(function (blob) {
+                    var link = document.createElement('a');
+                    var url = URL.createObjectURL(blob);
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.download =nameChart.trim()+'.png'; 
+                    link.href = url;
+                    link.onclick = function () {
+                        requestAnimationFrame(function () {
+                            URL.revokeObjectURL(url);
+                        })
+                    };
+                    link.click();
+                });
+            }
         });
     }
 }
@@ -1483,8 +1527,8 @@ function loadReport(params) {
         stackBy: "", checkNoColorsChart: "false", checkBGColorChart: "false", colorChartBackground: "#FFFFFF", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
-        checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
-        checkHideAnnotationTexts: "false", checkSyncBeforeQuery: "false", checkNoPartialE: "false"
+        checkNoLabelColors: "false", checkNoBracketNotes: false, checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
+        checkHideAnnotationTexts: "false", checkHideZoomArea: false, checkSyncBeforeQuery: "false", checkNoPartialE: "false"
     };
 
 
@@ -2009,7 +2053,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     
     var rgelemsFalse = ["checkNoCrop", "checkBGColorChart", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
     "checkSyncBeforeQuery", "checkOutputCardShortLink", "checkOutputBoardShortLink", "checkOutputCSV", 
-    "checkOutputCardIdShort", "checkHideAnnotationTexts"];
+    "checkOutputCardIdShort", "checkHideAnnotationTexts", "checkHideZoomArea", "checkNoBracketNotes"];
 
     rgelemsFalse.forEach(function (elem) {
         var obj = elems[elem];
@@ -2105,6 +2149,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                     bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
                                     bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
                                     bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
+                                    bNoBracketNotes: g_bProVersion && elems["checkNoBracketNotes"] == "true",
                                     bCountCards: (groupBy.length > 0),
                                     customColumns: customColumns,
                                     bCheckOutputCSV: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"]=="csv",
@@ -2878,15 +2923,16 @@ function dlabelRealFromEncoded(dlabel) {
 }
 
 function getCommonChartParts(elemChart, domain, colorsForScale, legendTexts) {
+    elemChart.parent().show(); //we hide it when it does not apply. needed because it might have a background color
     var colorBk = (g_dataChart.params["checkBGColorChart"] == "true" ? g_dataChart.params["colorChartBackground"] || "#FFFFFF" : null);
-    elemChart.css("background-color", colorBk || "transparent");
-    //elemChart.parent().parent().css("background-color", colorBk || "transparent");
+    $("#chartPrintContainer").css("background-color", colorBk || "transparent");
+
     var ret = {};
     ret.colorScale = new Plottable.Scales.Color().domain(legendTexts);
     if (colorsForScale)
         ret.colorScale.range(colorsForScale);
     if (colorsForScale.length > 1)
-        ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("top").maxEntriesPerRow(legendTexts.length > 20 ? 3 : 1);
+        ret.legend = new Plottable.Components.Legend(ret.colorScale).xAlignment("center").yAlignment("top").maxEntriesPerRow(legendTexts.length > g_maxLegendsPerColumn ? g_maxLegendColumns : 1);
     else
         ret.legend = null;
     ret.yScale = new Plottable.Scales.Category().domain(domain);
@@ -2901,16 +2947,20 @@ function getCommonChartParts(elemChart, domain, colorsForScale, legendTexts) {
 }
 
 function getCleanChartElem() {
+    clearInteractions();
     if (g_chartContainer) {
         g_chartContainer.destroy();
         g_chartContainer = null;
     }
+
     var elemChart = $("#chart");
     d3.select("chart").remove(); //jquery 'empty' breaks plottable interaction in card count chart
+    elemChart.parent().hide();
     return elemChart;
 }
 
 function prependChartTitle(table, dataChart, domain) {
+    var objRet = { bPrepended: false };
     var strTitle = "";
     if (dataChart.strNameBoardSingle)
         strTitle = dataChart.strNameBoardSingle;
@@ -2925,8 +2975,11 @@ function prependChartTitle(table, dataChart, domain) {
         }
     }
 
-    if (strTitle)
+    if (strTitle) {
         table.unshift([null, new Plottable.Components.TitleLabel(strTitle)]);
+        objRet.bPrepended = true;
+        objRet.strTitle = strTitle;
+    }
 
     if (domain.length == 1) {
         for (var i = 0; i < table.length; i++) {
@@ -2937,15 +2990,13 @@ function prependChartTitle(table, dataChart, domain) {
         }
     }
 
+    var elemLabelPro = $("#labelGetPro");
     if (!g_bProVersion) { 
-        var labelBottom = new Plottable.Components.Label('Enable the Pro version! Click for more.');
-        labelBottom.addClass("labelGetPro");
-        labelBottom.xAlignment("left");
-
+        elemLabelPro.show();
         var click = new Plottable.Interactions.Click(); //review: unknown why the interaction is lost after switching to another chart and back here
-        click.onClick(function (p) {
+        elemLabelPro.off("click.plusForTrello").on("click.plusForTrello", function (evt) {
             var pair = {};
-            pair[KEY_LS_NEEDSHOWPRO] = true;
+            pair[LOCALPROP_NEEDSHOWPRO] = true;
             chrome.storage.local.set(pair, function () {
                 if (chrome.runtime.lastError == undefined) {
                     window.open("https://trello.com", "_blank");
@@ -2953,18 +3004,37 @@ function prependChartTitle(table, dataChart, domain) {
                 }
             });
         });
-        click.attachTo(labelBottom);
-
-        //review: must be a better way to align this right. tried with css (labelGetPro) but couldnt control color or paddings
-        table.push([null, new Plottable.Components.Label("").padding(40)]);
-        table.push([null, labelBottom]);
-        table.push([null, new Plottable.Components.Label("").padding(1)]);
+    } else {
+        elemLabelPro.hide();
     }
+    return objRet;
+}
+
+function pushInteraction(evt, elem) {
+    g_interactions.push({ evt: evt, to: elem });
+}
+
+function clearInteractions() {
+    //when creating a new chart, the old deleted chart and elements do not detach from interactions.
+    //thus we keep track and detach here
+    const cInter = g_interactions.length;
+    var inter;
+    for (var iInter = 0; iInter < cInter; iInter++) {
+        inter = g_interactions[iInter];
+        if (inter.evt.detachFrom)
+            inter.evt.detachFrom(inter.to);
+    }
+    g_interactions = [];
 }
 
 function isReportWithPartialE(params) {
     var bRet = g_dataChart.params["sinceSimple"] && g_dataChart.params["checkNoPartialE"] !== "true";
     return bRet;
+}
+
+function chartSetup(chart) {
+    chart.labelsEnabled(true);
+    chart.deferredRendering(false); //note: could use combination of chart type and g_dataChart.bHasNegatives to optimize here, but opened to more issues. not worth it.
 }
 
 function chartSER(bForce, callbackCancel) {
@@ -3012,17 +3082,14 @@ function chartSER(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    var common = getCommonChartParts(elemChart, domain, g_dataChart.bRemain ? [colors[1]] : colors, g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
+    var colorsFinal = (g_dataChart.bRemain ? [colors[1]] : colors);
+    var legendTextsFinal = (g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
 
-    var datasets = {
-        ds: new Plottable.Dataset(g_dataChart.dataS),
-        dr: new Plottable.Dataset(g_dataChart.dataR)
-    };
+    var common = getCommonChartParts(elemChart, domain, colorsFinal, legendTextsFinal);
 
-    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).labelsEnabled(true).addClass("chartReportStyle");
-    if (false && !g_dataChart.bHasNegatives) //review caused problems in popup and with negative values (scale changed), not well tested to enable in non popup
-        chart.deferredRendering(true);
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.BarOrientation.horizontal).labelsEnabled(true).addClass("chartReportStyle");
 
+    chartSetup(chart);
 
     if (bNoColors)
         chart.attr("stroke", "black");
@@ -3031,14 +3098,15 @@ function chartSER(bForce, callbackCancel) {
         chart.animated(!bForce);
 
     if (!g_dataChart.bRemain)
-        chart.addDataset(datasets.ds);
+        chart.addDataset(new Plottable.Dataset(g_dataChart.dataS, { iColor: 0 }));
     if (g_dataChart.bShowR)
-        chart.addDataset(datasets.dr);
+        chart.addDataset(new Plottable.Dataset(g_dataChart.dataR, { iColor: 1 }));
 
     chart.x(function (d) { return d.x; }, common.xScale).
         y(function (d) { return d.y; }, common.yScale).
         attr("fill", function (d, i, dataset) {
-            return (dataset == datasets.ds ? colors[0] : colors[1]);
+            var md = dataset.metadata();
+            return colors[md.iColor];
         });
 
     var table = [
@@ -3047,12 +3115,12 @@ function chartSER(bForce, callbackCancel) {
       [null, common.xAxis]
     ];
 
-    prependChartTitle(table, g_dataChart, domain);
+    var dataPrepended = prependChartTitle(table, g_dataChart, domain);
     g_chartContainer = new Plottable.Components.Table(table);
-
-    elemChart.attr('height', (domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
-    
+    const heightLegend = g_heightLine * 4;
+    elemChart.css('height', heightLegend + getChartHeight(domain, g_dataChart.cPartsGroupFinal, dataPrepended));
     g_chartContainer.renderTo("#chart");
+    handleMouseMoveTooltips(elemChart, chart, common, legendTexts);
 }
 
 
@@ -3078,16 +3146,15 @@ function charte1vse(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
+    elemChart.parent().show();
     var common = getCommonChartParts(elemChart, domain, colors, legendTexts);
     common.yScale.innerPadding(0).outerPadding(0);
-    var datasets = {
-        de1: new Plottable.Dataset(g_dataChart.dataEFirst),
-        de2: new Plottable.Dataset(g_dataChart.dataE)
-    };
 
-    var chart = new Plottable.Plots.ClusteredBar(Plottable.Plots.ClusteredBar.ORIENTATION_HORIZONTAL).
-        addDataset(datasets.de1).addDataset(datasets.de2).labelsEnabled(true).addClass("chartReportStyle");
-
+    var chart = new Plottable.Plots.ClusteredBar(Plottable.Plots.BarOrientation.horizontal).
+        addDataset(new Plottable.Dataset(g_dataChart.dataEFirst, { iColor: 0 })).
+        addDataset(new Plottable.Dataset(g_dataChart.dataE, { iColor: 1 })).
+        labelsEnabled(true).addClass("chartReportStyle");
+    chartSetup(chart);
 
     if (bNoColors)
         chart.attr("stroke", "black");
@@ -3098,7 +3165,8 @@ function charte1vse(bForce, callbackCancel) {
     chart.x(function (d) { return d.x; }, common.xScale).
         y(function (d) { return d.y; }, common.yScale).
         attr("fill", function (d, i, dataset) {
-            return (dataset == datasets.de1 ? colors[0] : colors[1]);
+            var md = dataset.metadata();
+            return colors[md.iColor];
         });
 
     var table = [
@@ -3106,12 +3174,13 @@ function charte1vse(bForce, callbackCancel) {
       [common.yAxis, chart],
       [null, common.xAxis]
     ];
-    prependChartTitle(table, g_dataChart, domain);
+    var dataPrepended = prependChartTitle(table, g_dataChart, domain);
     g_chartContainer = new Plottable.Components.Table(table);
+    const heightLegend = g_heightLine * 4;
+    elemChart.css('height', heightLegend + getChartHeight(domain, g_dataChart.cPartsGroupFinal, dataPrepended, 2));
 
-
-    elemChart.attr('height', (domain.length + 3) * 1.3 * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
     g_chartContainer.renderTo("#chart");
+    handleMouseMoveTooltips(elemChart, chart, common, legendTexts);
 }
 
 function addChartEstWarning(elemChartMessage) {
@@ -3159,6 +3228,7 @@ function charteChange(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
+
     var common = getCommonChartParts(elemChart, domain, colors, legendTexts);
 
     var dPlus = [];
@@ -3170,19 +3240,16 @@ function charteChange(bForce, callbackCancel) {
     for (var ids = 0; ids < dE1.length; ids++) {
         delta = dE2[ids].x - dE1[ids].x;
         if (delta > 0)
-            dPlus.push({ x: "+" + parseFixedFloat(delta), y: dE1[ids].y }); //trick: add + so it gets displayed with "+", but will still get interpreted correctly
+            dPlus.push({ x: parseFixedFloat(delta), y: dE1[ids].y });
         if (delta < 0)
             dMinus.push({ x: parseFixedFloat(delta), y: dE1[ids].y });
     }
-    var datasets = {
-        d0: new Plottable.Dataset(g_dataChart.dataEFirst),
-        d1: new Plottable.Dataset(dPlus),
-        d2: new Plottable.Dataset(dMinus)
-    };
 
-    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
-        addDataset(datasets.d0).addDataset(datasets.d1).addDataset(datasets.d2).labelsEnabled(true).addClass("chartReportStyle");
-
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.BarOrientation.horizontal).
+        addDataset(new Plottable.Dataset(g_dataChart.dataEFirst, {iColor:0, type: "dataEFirst"})).
+        addDataset(new Plottable.Dataset(dPlus, {iColor:1, type: "dPlus"})).
+        addDataset(new Plottable.Dataset(dMinus, { iColor: 2, type: "dMinus" })).labelsEnabled(true).addClass("chartReportStyle");
+    chartSetup(chart);
     if (bNoColors)
         chart.attr("stroke", "black");
 
@@ -3192,10 +3259,17 @@ function charteChange(bForce, callbackCancel) {
     chart.x(function (d) { return d.x; }, common.xScale).
         y(function (d) { return d.y; }, common.yScale).
         attr("fill", function (d, i, dataset) {
-            return (dataset == datasets.d0 ? colors[0] : (dataset == datasets.d1 ? colors[1] : colors[2]));
+            var md = dataset.metadata();
+            return colors[md.iColor];
         }).labelFormatter(
-            function (text) {
-                return "" + text; //review put + on the red boxes labels. cant differenciate so far from other boxes`
+            function (text, datum, i, ds) {
+                var pre = "";
+                if (ds) {
+                    var md = ds.metadata();
+                    if (md && md.type == "dPlus")
+                        pre = "+";
+                }
+                return pre + text;
             });
 
     var table = [
@@ -3203,11 +3277,80 @@ function charteChange(bForce, callbackCancel) {
       [common.yAxis, chart],
       [null, common.xAxis]
     ];
-    prependChartTitle(table, g_dataChart, domain);
+    var dataPrepended = prependChartTitle(table, g_dataChart, domain);
     g_chartContainer = new Plottable.Components.Table(table);
 
-    elemChart.attr('height', (domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
+    const heightLegend = g_heightLine * 6;
+    elemChart.css('height', heightLegend + getChartHeight(domain, g_dataChart.cPartsGroupFinal, dataPrepended));
+
     g_chartContainer.renderTo("#chart");
+    handleMouseMoveTooltips(elemChart, chart, common, legendTexts);
+}
+
+function getChartZoomFactor() {
+    var factor=1;
+    
+    const minFactor = 0.1;
+    const maxFactor = 3;
+    const steps = 10;
+    const middle = 0;
+    const zoomMin = -10;
+    const zoomMax = 10;
+    var zoom = g_dataChart.params["heightZoomChart"] || middle;
+    if (zoom < middle) {  //-10 to 0, distribute (1-minFactor)
+        factor = minFactor + ((1 - minFactor) / zoomMax) * (zoom + zoomMax);
+    } else if (zoom > middle) { //0 to 10, distribute so 10 maps to 3
+        factor = 1 + ((zoom * maxFactor) / zoomMax);
+    }
+    return factor;
+}
+
+function getChartHeight(domain, cPartsGroupFinal, dataPrepended, cBars, heightMinDefault) {
+    heightMinDefault = heightMinDefault || 0;
+    //  groups: 1 to N
+    //  title: iff dataPrepended.bPrepended
+    //
+    //          chartStacked            Title
+    //
+    //         |
+    //         |--------------
+    //  group1 |             |          
+    //  group2 |      7      |  7
+    //  group3 |             |
+    //         |--------------
+    //         |--------
+    //    -    |       |
+    //    -    |   4   |  4             Bars
+    //    -    |       |
+    //         ---------
+    //         |------------
+    //    -    |           |
+    //    -    |     6     |  6
+    //    -    |           |
+    //         |------------
+    //         |--------------------    X axis, ticks and labels
+    //         |   |   |   |   |
+    //         0   2   4   6   8
+    //
+    //
+    // A "line" is like a line of text in the chart
+    // a bar has minimum 2 lines, even if it has 1 group otherwise label doesnt show
+    cBars = cBars || 1;
+    const cLinesPerBar = Math.max(2, cPartsGroupFinal);
+    const heightBar = g_heightLine * cLinesPerBar * cBars;
+    const heightBarSpacing = g_heightLine * 0.6;
+    const heightXAxis = g_heightLine * 3;
+    const heightMargins = g_heightLine * 2;
+    var heightTitle = 0;
+    const factor = getChartZoomFactor();
+    if (dataPrepended.bPrepended) {
+        var cLinesTitle = dataPrepended.strTitle.split("\n").length;
+        heightTitle=heightTitle*cLinesTitle*2;
+    }
+    var heightChartCalc = (domain.length * (heightBar + heightBarSpacing)) + heightXAxis + heightMargins + heightTitle;
+    if (heightMinDefault)
+        heightChartCalc = Math.max(heightMinDefault, heightChartCalc);
+    return heightChartCalc * factor;
 }
 
 function chartStacked(type, bForce, callbackCancel) {
@@ -3421,10 +3564,9 @@ function chartStacked(type, bForce, callbackCancel) {
         datasets[partNew].push({ x: itemCur.x, y: prepend + parts.join(g_yFieldSeparator), iColor: mapLegendToIColor[partNew.toLowerCase()] });
     }
 
-    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.StackedBar.ORIENTATION_HORIZONTAL).
+    var chart = new Plottable.Plots.StackedBar(Plottable.Plots.BarOrientation.horizontal).
         labelsEnabled(true).addClass("chartReportStyle");
-
-    
+    chartSetup(chart);
     if (bNoColors)
         chart.attr("stroke", "black");
 
@@ -3433,8 +3575,9 @@ function chartStacked(type, bForce, callbackCancel) {
         if (dsAdd)
             chart.addDataset(new Plottable.Dataset(dsAdd));
     }
+
     if (!g_bPopupMode)
-        chart.animated(!bForce);
+    	chart.animated(!bForce);
 
     function IColorRemapFromD(d) {
         var iColor = d.iColor || 0;
@@ -3443,8 +3586,12 @@ function chartStacked(type, bForce, callbackCancel) {
         return (iColor % colors.length);
     }
 
-    chart.x(function (d) { return d.x; }, common.xScale).
-        y(function (d) { return d.y; }, common.yScale).
+    chart.x(function (d) {
+        return d.x;
+    }, common.xScale).
+        y(function (d) {
+            return d.y;
+        }, common.yScale).
         attr("fill", function (d) {
             var iColor = IColorRemapFromD(d);
             return colors[iColor];
@@ -3472,58 +3619,69 @@ function chartStacked(type, bForce, callbackCancel) {
         ];
     }
 
-    prependChartTitle(table, g_dataChart, domain);
+    var dataPrepended = prependChartTitle(table, g_dataChart, domain);
     g_chartContainer = new Plottable.Components.Table(table);
-    const barWidthMax = 50 + (cPartsGroupFinal < 3 ? 0 : 15 * (cPartsGroupFinal - 2));
-    var heightChartCalc = (domain.length + 3) * barWidthMax;
-    elemChart.attr('height', heightChartCalc);
-
-    //START hack alert: plottable 3.0 solves this but for now, we hack the layout code to cap the bar width.
-    //needed so that when we size the chart bigger, the bars dont keep growing needlessly (try with a single bar)
-    //then, we again might resize the chart height so that its exactly the table height. So when the chart PNG is downloaded, the background color
-    //covers the entire height. Otherwise, a short chart with many labels (try a single board stacked by card) will be too short (labels overflow the chart background)
-    chart._saved_updateBarPixelWidth = chart._updateBarPixelWidth;
-    chart._updateBarPixelWidth = function () {
-        this._saved_updateBarPixelWidth();
-        if (chart._barPixelWidth > barWidthMax)
-            chart._barPixelWidth = barWidthMax;
-    };
-    g_chartContainer.renderTo("#chart");
-    var heightFinal = g_chartContainer.requestedSpace(g_chartContainer._width, Infinity).minHeight;
-    if (heightFinal>heightChartCalc)
-        elemChart.attr('height', heightFinal);
-    //END hack alert
-
-    if (iGroupStack >= 0) {
-        var elemTooltip = $("#tooltipChart");
-        // Setup Interaction.Pointer
-        var pointer = new Plottable.Interactions.Pointer(); //review: unknown why the interaction is lost after switching to another chart and back here
-        pointer.onPointerMove(function (p) {
-            var bHide = true;
-            var closest = chart.entitiesAt(p);
-            if (closest && closest[0]) {
-                closest = closest[0];
-                if (closest.datum != null) {
-                    elemTooltip.css("left", p.x + elemChart.offset().left + (common.yAxis._width || 0) + 20);
-                    elemTooltip.css("top", closest.position.y + elemChart.offset().top);
-                    var iColor = 0;
-                    if (typeof (closest.datum.iColor) !== "undefined")
-                        iColor = closest.datum.iColor;
-                    elemTooltip.html(escapeHtml(legendTexts[iColor]) + "<br \>" + closest.datum.x);
-                    elemTooltip.show();
-                    bHide = false;
-                }
-            }
-            if (bHide)
-                elemTooltip.hide();
-        });
-
-        pointer.onPointerExit(function () {
-            elemTooltip.hide();
-        });
-
-        pointer.attachTo(chart);
+    function getLegendHeightApprox(length) {
+        if (length > g_maxLegendsPerColumn) {
+            length = Math.ceil(length / g_maxLegendColumns);
+        }
+        return length * g_heightLine * 0.7;
     }
+
+    var heightChartCalc = getChartHeight(domain, cPartsGroupFinal, dataPrepended, 1, getLegendHeightApprox(legendTexts.length));
+    elemChart.css('height', heightChartCalc);
+    g_chartContainer.renderTo("#chart");
+    if (iGroupStack >= 0 && !bNoColors) { //when there are too many legend items and few bars, the legend might get cropped.
+        var heightLegend = common.legend.requestedSpace(common.legend._width, Infinity).minHeight;
+        if (heightLegend > heightChartCalc)
+            elemChart.css('height', heightLegend);
+    }
+    handleMouseMoveTooltips(elemChart, chart, common, legendTexts);
+}
+
+function handleMouseMoveTooltips(elemChart, chart, common, legendTexts) {
+    var elemTooltip = $("#tooltipChart");
+    // Setup Interaction.Pointer
+    var pointer = new Plottable.Interactions.Pointer(); //review: unknown why the interaction is lost after switching to another chart and back here
+    pointer.onPointerMove(function (p) {
+        var bHide = true;
+        var closest = chart.entitiesAt(p);
+        if (closest && closest[0]) {
+            closest = closest[0];
+            if (closest.datum != null) {
+                elemTooltip.css("left", p.x + elemChart.offset().left + (common.yAxis._width || 0) + 20);
+                elemTooltip.css("top", closest.position.y + elemChart.offset().top);
+                var iColor = undefined;
+                var legendText = "";
+                if (typeof (closest.datum.iColor) !== "undefined")
+                    iColor = closest.datum.iColor;
+                else {
+                    var md = closest.dataset.metadata();
+                    if (md)
+                        iColor = md.iColor;
+                }
+                if (typeof (iColor) !== "undefined") {
+                    legendText = legendTexts[iColor];
+                    if (legendText)
+                        legendText = escapeHtml(legendText) + "<br \>";
+                }
+
+                var yText = dlabelRealFromEncoded(closest.datum.y);
+                elemTooltip.html(yText + "<br \>" + legendText + closest.datum.x);
+                elemTooltip.show();
+                bHide = false;
+            }
+        }
+        if (bHide)
+            elemTooltip.hide();
+    });
+
+    pointer.onPointerExit(function () {
+        elemTooltip.hide();
+    });
+
+    pointer.attachTo(chart);
+    pushInteraction(pointer, chart);
 }
 
 function fillPivotTables(rows, elemByUser, elemByBoard, urlParams, bNoTruncate) {
@@ -4249,7 +4407,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
             pushCol({ type: "R", name: remainCalc, bNoTruncate: true }); //type "R" just so it generates the transparent zero
         }
         if (bShowComment)
-            pushCol({ name: escapeHtml(row.comment), bNoTruncate: bNoTruncate });
+            pushCol({ name: escapeHtml(options.bNoBracketNotes ? removeBracketsInNote(row.comment) : row.comment), bNoTruncate: bNoTruncate });
 
         if (bShowEtype)
             pushCol({ name: nameFromEType(row.eType), bNoTruncate: true });

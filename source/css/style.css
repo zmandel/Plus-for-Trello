@@ -727,7 +727,7 @@ div#agile_help_container h1 {
 }
 
 div#agile_help_container img {
-	border-radius: 5px;
+	border-radius: 2px;
 }
 
 div#agile_help_container a {
@@ -1094,11 +1094,7 @@ table#tableMarkers td {
     -webkit-user-select: none;  
     user-select: none;
 }
-}
 
- .report_class_white_text {
-            color:white; /* Needs to be here and not in style.css, we dont want background to inherit, so when user copies and pastes to excel, text will be black, not white */
-  }
 
 .report_label_color {
     padding-top:2px;
@@ -1828,7 +1824,8 @@ table#tableMarkers td {
     background: #E8EBEE !important;
 }
 
-.agile_report_filters {
+.agile_report_filters_smaller * {
+    font-size:93%;
 }
 
 .agile_report_filter_label {
