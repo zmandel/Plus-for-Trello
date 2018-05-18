@@ -1590,16 +1590,30 @@ function loadReport(params) {
 
     var headerOptions = $("#headerOptions");
     var containerOptions = $("#optionsContainer");
+    var headerTemplates = $("#headerTemplates");
+    var containerTemplates = $("#templatesContainer");
 
     if (g_bBuildSqlMode)
         containerOptions.hide();
-    else
+    else 
         containerOptions.show();
+    
+    if (g_bBuildSqlMode || g_bPopupMode)
+        containerTemplates.hide();
+    else
+        containerTemplates.hide();
+        
+    headerTemplates.off().click(function () {
+        handleSectionSlide(containerTemplates, $("#templates_section"), undefined, undefined, function () {
+            selectTab(g_iTabCur, undefined, true);
+        });
+    });
+
+
     headerOptions.off().click(function () {
         handleSectionSlide(containerOptions, $("#report_options_section"), undefined, undefined, function () {
             selectTab(g_iTabCur, undefined, true);
         });
-        
     });
 
     btn.off().click(function () {

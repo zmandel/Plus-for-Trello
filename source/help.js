@@ -273,6 +273,7 @@ var Help = {
 	    var pComboLang = helpWin.para('<select style="width:auto"></select>');
 	    var comboLang = pComboLang.children('select');
 	    comboLang.append($(new Option("English", "en")));
+	    comboLang.append($(new Option("Chinese - 中文", "zh-CN")));
 	    comboLang.append($(new Option("Danish - Dansk", "da")));
 	    comboLang.append($(new Option("Dutch - Nederlands", "nl")));
 	    comboLang.append($(new Option("French - Français", "fr")));

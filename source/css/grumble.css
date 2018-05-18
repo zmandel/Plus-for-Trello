@@ -7,6 +7,10 @@
     z-index: 99998;
     }
 
+    .grumble-textTallLines {
+        line-height: 17px !important;
+    }
+
     .grumble-text {
         position:absolute !important;
         text-align:center;

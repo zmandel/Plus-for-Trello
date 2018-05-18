@@ -6,6 +6,8 @@
 
 
 var liveBubbles = []; //review zig. for hiding all bubbles. should be done extending the jquery plugin instead of this global
+var g_bTallLines = false;
+
 function removeAllGrumbleBubbles(bDontClearTour) {
     if (bDontClearTour === undefined || !bDontClearTour) {
         stopTour();
@@ -95,7 +97,9 @@ function hasLiveBubbles() {
             this.text
                 .css(this.css)
                 .addClass('grumble-text' + this.options.size);
-
+            if (g_bTallLines) {
+                this.text.addClass('grumble-textTallLines');
+            }
             this.bubble
                 .css(this.css)
                 .addClass(this.options.type + 'grumble' + this.options.size);

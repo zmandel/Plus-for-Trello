@@ -552,7 +552,8 @@ var g_bRetryWhenNotLoadedOK = true;
 
 function setUninstallURLCustom() {
     //review zig: modify to include &pro=true when g_bProVersion. First requires to keep g_bProVersion up to date (its not in many cases)
-    chrome.runtime.setUninstallURL("http://www.plusfortrello.com/p/goodbye.html?from=uninstall", function () { });
+    if (chrome.runtime.setUninstallURL) //none in some ubuntu
+        chrome.runtime.setUninstallURL("http://www.plusfortrello.com/p/goodbye.html?from=uninstall", function () { });
 }
 
 var g_loaderDetector = {

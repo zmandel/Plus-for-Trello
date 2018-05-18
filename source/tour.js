@@ -10,6 +10,10 @@
  *
  **/
 
+var g_wideLag = {
+    "zh-CN": true
+};
+
 var g_tour = {
     bAutoShowTour: false,
     name: "",
@@ -740,7 +744,7 @@ function showCurrentBubble(delta) {
 
 function showBubbleFromStep(step, bFirst, bLast, delta, bNoClose) {
     //delta != 0 means its on a tour
-
+    g_bTallLines = (g_wideLag[g_language] == true);
     removeAllGrumbleBubbles(true);
 
     //timeout in case the grumble code doesnt finish right away

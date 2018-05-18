@@ -34,7 +34,7 @@
                     <span id="report_title_rightLinks" style="display:none;">
                         <button id="buttonMarkallRead" style="margin-left: 2em; margin-top: 0; margin-bottom: 0;display: none; ">Mark all viewed</button>
                         <a style="float:right;text-decoration:none;cursor:help;font-size:110%;margin-right:1em;" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html" target="_blank" title="¡dlǝɥ">Help</a>
-                        <span id="agile_reload_page">data changed since queried. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
+                        <span id="agile_reload_page">data changed. <b><a href="" target="_self" id="agile_reload_page_link">Reload</a></b>&nbsp;</span>
                     </span>
                     <img src="" style="display:none;" class="agile_img_popup" id="dockoutImg" title='Dock out' />
                     <img src="" style="display:none;" class="agile_img_popup" id="backImg" title='Back' />
@@ -290,6 +290,12 @@ E 1st: rows with a first estimate
                     </select>
                 </div>
             </div>
+
+            <div style="display:none;" id="templatesContainer" class="agile_arrow_closed agile_arrow_container">
+                <p title="Use one of our many templates as a starting point for your report or chart." id="headerTemplates" class="agile_arrow_title"><b>Templates</b></p>
+                <div style="display:none;" id="templates_section"></div>
+            </div>
+
             <div style="display:none;" id="optionsContainer" class="agile_arrow_closed agile_arrow_container">
                 <p title="Click to change options.
 To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
