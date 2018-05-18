@@ -415,10 +415,10 @@ After clicking 'Query' try sorting by board then shift-click the card number col
 Note: current week always ignores 'under' format.">
                         <span>under </span>
                         <input class="agile_format_under" type="number"  />
-                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color" value="#E8EBEE" />
                         <span style="margin-left:15px;">over </span>
                         <input class="agile_format_over" type="number" />
-                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color" value="#E8EBEE" />
                         <select class="agile_report_optionsFormat" style="margin-left: 15px;">
                             <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
                             <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
@@ -434,10 +434,10 @@ Note: current week always ignores 'under' format.">
 Note: current week always ignores 'under' format.">
                         <span>under </span>
                         <input class="agile_format_under" type="number" />
-                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color." value="#E8EBEE" />
+                        <input class="agile_colorpicker agile_colorpicker_colorUnder" type="color" title="Change color" value="#E8EBEE" />
                         <span style="margin-left:15px;">over </span>
                         <input class="agile_format_over" type="number" />
-                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color." value="#E8EBEE" />
+                        <input class="agile_colorpicker agile_colorpicker_colorOver" type="color" title="Change color" value="#E8EBEE" />
                         <select class="agile_report_optionsFormat" style="margin-left: 15px;">
                             <option value="smooth" title="Smooth coloring. Note: current week always ignores 'under' format.">Smooth format</option>
                             <option value="strict" title="Exact coloring. Note: current week always ignores 'under' format.">Strict format</option>
@@ -473,18 +473,23 @@ Note: current week always ignores 'under' format.">
                             <option value="month">month</option>
                             <option value="week">week</option>
                         </select>
+                        <span title="Uncheck to use a transparent background">
+                            <input style="margin-left:2em;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkBGColorChart" />
+                            <label class="agile_unselectable" for="checkBGColorChart">background: </label>
+                        </span><input id="colorChartBackground" class="agile_colorpicker" style="margin-top:-1px;" type="color" value="#FFFFFF" title="Change color"/>
+                        
                         <span class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
-                            <input class="agile_report_checkbox" style="margin-left:1em;" type="checkbox" value="checked" id="checkNoColorsChart" />
-                            <label class="agile_unselectable" for="checkNoColorsChart">No colors</label>
+                            <input class="agile_report_checkbox" style="margin-left:2em;" type="checkbox" value="checked" id="checkNoColorsChart" />
+                            <label class="agile_unselectable" for="checkNoColorsChart">No bar colors</label>
                         </span>
                         <img class="agile_drilldown_select"/>
                     </div>
                     <div id="chartMessage" style="margin-bottom:1em;"></div>
-                    
-                    <div class="agile_report_containerScroll" style="overflow: auto;">
-                      <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;"></div>
-                      <svg id="chart" style="display:block;"></svg>
-                        
+                    <div>
+                        <div class="agile_report_containerScroll" style="overflow: auto;">
+                            <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;"></div>
+                            <svg id="chart" style="display:block;"></svg>
+                        </div>
                     </div>
                 </div>
             </div>

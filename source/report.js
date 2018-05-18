@@ -600,7 +600,7 @@ function updateURLPart(part) {
     var params = getUrlParams();
     var elem = $("#" + part);
     var val = elem.val();
-    if (typeof (elem[0].checked) != "undefined")
+    if (elem[0].type == "checkbox")
         val = (elem[0].checked ? "true" : "");
     if (params[part] != val) {
         params[part] = val;
@@ -909,6 +909,31 @@ Team - Board - List - Card - Hashtag1 - Hashtags - Labels - User - Note - Keywor
             updateURLPart("checkNoColorsChart");
             if (g_dataChart)
                 g_dataChart.params["checkNoColorsChart"] = ($("#checkNoColorsChart")[0].checked == true ? "true" : "");
+            fillChart(true);
+
+        });
+
+        function onBkColorChartChange(bFillChart) {
+            updateURLPart("checkBGColorChart");
+            if (g_dataChart)
+                g_dataChart.params["checkBGColorChart"] = ($("#checkBGColorChart")[0].checked == true ? "true" : "");
+            if (bFillChart)
+                fillChart(true);
+        }
+
+        $("#checkBGColorChart").change(function () {
+            onBkColorChartChange(true);
+        });
+
+
+        $("#colorChartBackground").change(function () {
+            updateURLPart("colorChartBackground");
+            if (g_dataChart)
+                g_dataChart.params["colorChartBackground"] = $("#colorChartBackground").val();
+            if (!$("#checkBGColorChart")[0].checked) {
+                $("#checkBGColorChart")[0].checked = true;
+                onBkColorChartChange(false);
+            }
             fillChart(true);
 
         });
@@ -1452,7 +1477,7 @@ function loadReport(params) {
     }
 
     var elems = {
-        stackBy: "", checkNoColorsChart: "false", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
+        stackBy: "", checkNoColorsChart: "false", checkBGColorChart: "false", colorChartBackground: "#FFFFFF", chartView: g_chartViews.s, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
@@ -1978,7 +2003,8 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (elems["archived"] === "")
         elems["archived"] = "0"; //default to "Not archived"
 
-    var rgelemsFalse = ["checkNoCrop", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
+    
+    var rgelemsFalse = ["checkNoCrop", "checkBGColorChart", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
     "checkSyncBeforeQuery", "checkOutputCardShortLink", "checkOutputBoardShortLink", "checkOutputCSV", 
     "checkOutputCardIdShort", "checkHideAnnotationTexts"];
 
@@ -2848,7 +2874,10 @@ function dlabelRealFromEncoded(dlabel) {
     return dlabelDisplay;
 }
 
-function getCommonChartParts(domain, colorsForScale, legendTexts) {
+function getCommonChartParts(elemChart, domain, colorsForScale, legendTexts) {
+    var colorBk = (g_dataChart.params["checkBGColorChart"] == "true" ? g_dataChart.params["colorChartBackground"] || "#FFFFFF" : null);
+    elemChart.css("background-color", colorBk || "transparent");
+    elemChart.parent().parent().css("background-color", colorBk || "transparent");
     var ret = {};
     ret.colorScale = new Plottable.Scales.Color().domain(legendTexts);
     if (colorsForScale)
@@ -2908,7 +2937,7 @@ function prependChartTitle(table, dataChart, domain) {
     if (!g_bProVersion) { 
         var labelBottom = new Plottable.Components.Label('Enable the Pro version! Click for more.');
         labelBottom.addClass("labelGetPro");
-        labelBottom.xAlignment("left").yAlignment("bottom");
+        labelBottom.xAlignment("left");
 
         var click = new Plottable.Interactions.Click(); //review: unknown why the interaction is lost after switching to another chart and back here
         click.onClick(function (p) {
@@ -2980,7 +3009,7 @@ function chartSER(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    var common = getCommonChartParts(domain, g_dataChart.bRemain ? [colors[1]] : colors, g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
+    var common = getCommonChartParts(elemChart, domain, g_dataChart.bRemain ? [colors[1]] : colors, g_dataChart.bRemain ? [legendTexts[1]] : legendTexts);
 
     var datasets = {
         ds: new Plottable.Dataset(g_dataChart.dataS),
@@ -3019,6 +3048,7 @@ function chartSER(bForce, callbackCancel) {
     g_chartContainer = new Plottable.Components.Table(table);
 
     elemChart.attr('height', (domain.length + 3) * (50 + (g_dataChart.cPartsGroupFinal < 3 ? 0 : 20 * (g_dataChart.cPartsGroupFinal - 2))));
+    
     g_chartContainer.renderTo("#chart");
 }
 
@@ -3045,7 +3075,7 @@ function charte1vse(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    var common = getCommonChartParts(domain, colors, legendTexts);
+    var common = getCommonChartParts(elemChart, domain, colors, legendTexts);
     common.yScale.innerPadding(0).outerPadding(0);
     var datasets = {
         de1: new Plottable.Dataset(g_dataChart.dataEFirst),
@@ -3126,7 +3156,7 @@ function charteChange(bForce, callbackCancel) {
     var domain = g_dataChart.domains[dname];
     if (callbackCancel(dname))
         return;
-    var common = getCommonChartParts(domain, colors, legendTexts);
+    var common = getCommonChartParts(elemChart, domain, colors, legendTexts);
 
     var dPlus = [];
     var dMinus = [];
@@ -3358,7 +3388,7 @@ function chartStacked(type, bForce, callbackCancel) {
         mapLegendToIColor[textSet.toLowerCase()] = iSet;
     }
 
-    var common = getCommonChartParts(domain, colors, legendTexts);
+    var common = getCommonChartParts(elemChart, domain, colors, legendTexts);
     if (bNoColors)
         common.legend = null;
     common.xScale.tickGenerator(Plottable.Scales.TickGenerators.integerTickGenerator());

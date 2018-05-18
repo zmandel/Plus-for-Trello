@@ -2511,7 +2511,7 @@ function checkBackendEnabledPay(callback) {
             if (obj == null || !obj._value)
                 return;
 
-            if (obj._value == "ENABLED")
+            if (obj._value && obj._value.indexOf("ENABLED")==0)
                 callback();
             return;
         }

@@ -13,6 +13,7 @@ var g_bDetectTrelloNetworkActivity = false;
 var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
 var g_mapTimerWindows = {}; // {idWindow, can be undefined or invalid }
+const PROP_LS_cViewedBuyDialog = "cViewedBuyDialog"; //count stored as string
 
 chrome.runtime.onInstalled.addListener(function (details) {
     if (details && details.reason && details.reason == "install") {
@@ -1747,7 +1748,6 @@ function showTimerWindowAsNotification(idCard, nameCard, nameBoard) {
             appIconMaskUrl: chrome.extension.getURL("images/icon32alpha.png"),
             title: "00:00:00s",
             message: nameCard,
-            //message: strTruncate(nameCard, 20) + "\r\n" + strTruncate(nameBoard, 20),
             contextMessage:strTruncate(nameBoard, 40),
             requireInteraction: true,
             buttons: [{ title: "Minimize", iconUrl: chrome.extension.getURL("images/minimize.png")}]
@@ -2214,25 +2214,46 @@ var g_analytics = {
 
         var valCD1Prev = localStorage[PROP_LS_CD1LAST] || "";
         var cslCD1Cur = (g_bProVersion ? "Pro" : "Basic");
-        if (valCD1Prev != cslCD1Cur) { //analytics docs recommend to only send the parameter when it changed, for performance.
+        if (valCD1Prev != cslCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
             payload = payload + "&cd1=" + cslCD1Cur;
 
-        }
-        setTimeout(function () {
-            var xhr = new XMLHttpRequest();
-            var url = "https://ssl.google-analytics.com/collect";
+        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+            if (chrome.runtime.lastError) {
+                console.error(chrome.runtime.lastError.message);
+                return;
+            }
 
-            xhr.onreadystatechange = function (e) {
-                if (xhr.readyState == 4 && xhr.status == 200) {
-                    if (valCD1Prev != cslCD1Cur)
-                        localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
-                }
-            };
+            var liData = obj[SYNCPROP_LIDATA];
+            const PROP_LS_CD2LAST = "CD2LAST";
 
-            xhr.open("POST", url, true);
-            //xhr.setRequestHeader("Content-length", payload.length); //unsafe in chrome
-            xhr.send(payload);
-        }, msDelay);
+            var valCD2Prev = localStorage[PROP_LS_CD2LAST] || "";
+            var cViewedBuyDialog = localStorage[PROP_LS_cViewedBuyDialog] || "0";
+            var cslCD2Cur = (liData && liData.li ? "Active": "Inactive") + "-" + cViewedBuyDialog;
+            if (valCD2Prev != cslCD2Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
+                payload = payload + "&cd2=" + cslCD2Cur;
+
+
+            setTimeout(function () {
+                var xhr = new XMLHttpRequest();
+                var url = "https://ssl.google-analytics.com/collect";
+
+                xhr.onreadystatechange = function (e) {
+                    if (xhr.readyState == 4 && xhr.status == 200) {
+                        if (valCD1Prev != cslCD1Cur)
+                            localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
+
+                        if (valCD2Prev != cslCD2Cur)
+                            localStorage[PROP_LS_CD2LAST] = cslCD2Cur;
+                    }
+                };
+
+                xhr.open("POST", url, true);
+                //xhr.setRequestHeader("Content-length", payload.length); //unsafe in chrome
+                xhr.send(payload);
+            }, msDelay);
+        });
+
+
     },
     //private
     generateQuickGuid: function () {
@@ -2390,6 +2411,13 @@ function handleCheckLi(sendResponse) {
     }
 
     function doPurchase() {
+        var cViewed = localStorage[PROP_LS_cViewedBuyDialog];
+        if (cViewed)
+            cViewed = parseInt(cViewed,10) || 0;
+        else
+            cViewed = 0;
+        cViewed++;
+        localStorage[PROP_LS_cViewedBuyDialog]=cViewed.toString();
         //note this window is not modal. In theory the user could leave it open an cause re-entry. callers check not to overwrite storage based on msLastCheck
         google.payments.inapp.buy({
             'parameters': { 'env': 'prod' },
