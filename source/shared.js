@@ -186,6 +186,8 @@ function setOptAlwaysShowSpentChromeIcon(opt) {
 }
 
 var STATUS_OK = "OK"; //for messaging status with background page. all responses should have response.status=STATUS_OK when ok
+var STATUS_CANCEL = "cancelled";
+
 var COLOR_ERROR = "#D16C6C";
 var MS_TRELLOAPI_WAIT = (1000 / 30); //review zig: possible to optimize this by substraction from prev. api call time, but not worth it yet
 var CMAX_THREADS = 4;
@@ -2287,4 +2289,8 @@ function elemShowHide(elem, bShow) {
         elem.show();
     else
         elem.hide();
+}
+
+function isLicException() {
+    return (navigator && navigator.userAgent && navigator.userAgent.indexOf("Opera")>=0);
 }

@@ -52,7 +52,7 @@ function isSpecialPayTestUser() {
     } else
         randUser = parseInt(randUser, 10);
 
-    return (randUser%10 == 0);
+    return (randUser%5 == 0);
 }
 
 var g_waiterLi = CreateWaiter(2, function () {
@@ -116,7 +116,7 @@ function showAproveGoogleSyncPermissions(callback) {
 function handleProAproval(callback) {
     showApproveProTrialDialog(function (bOK) {
         if (!bOK) {
-            callback("cancelled");
+            callback(STATUS_CANCEL);
         }
         else {
             sendExtensionMessage({ method: "requestProPermission" }, function (response) {
@@ -139,8 +139,9 @@ function showApproveProTrialDialog(callback) {
 <p align="justify">\
 <h3>Which features are "Pro"?</h3>\
 <ul class="agile_help_Pro_ul"></li>\
+<li>Pick which S,E,R boxes show in boards, lists and cards.</li>\
 <li>Trello labels in reports, charts and burn-downs (filter, group, stack, count by labels).</li>\
-<li>Custom report columns and more export options.</li>\
+<li>Pick and order report columns and more export options.</li>\
 <li>Some of our <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">future features</a> will also be "Pro".\
 </ul>\
 <\p>\
@@ -155,10 +156,10 @@ We have never sacrificed quality but without charging we can only go so fast.<br
 <h3>How to enable "Pro"?</h3>\
 <p id="agile-scrolldown-alert-pro" style="display:none;"><b>Scroll down to see the Approval buttons.</b></p>\
 <p align="justify">\
-By Pressing "Approve", you accept to purchase later this year the "Pro" license for $9.⁹⁹ yearly per user through the Chrome store (*). Until then, "Pro" features will run as free trial.<br>\
+By Pressing "Approve", you agree to later purchase the "Pro" license for $9.⁹⁹ a year through the Chrome store (*) for all your devices signed-in Chrome with the same Google account.<br>\
 You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement</A>.<br>\
 <\p>\
-<br>Once you click "Approve", Plus also asks your approval for:\
+<br>Once you click "Approve" Plus also asks your approval for:\
 <ul class="agile_help_Pro_ul">\
 <li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store, googleapis.com: To verify your "Pro" license once free trial is over.</p></li>\
 <li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and make "Pro" users shape the future of Plus. Our mobile app and power-up already do this.</p></li>\
@@ -2435,6 +2436,9 @@ function checkLi(bForce) {
             var msLast = liData.msLastCheck;
             var bWaitCheck = !bForce;
             if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 6)) //6 hours
+                return;
+
+            if (isLicException())
                 return;
 
             liData.msLastCheck = msNow;

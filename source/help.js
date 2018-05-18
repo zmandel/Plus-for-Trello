@@ -435,9 +435,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
 	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro!<br>\
-&bull; <b>Card labels</b> in charts and reports (view, group, filter, stack).<br>\
-&bull; <b>Custom report columns</b> and extra export options useful for integrations.<br>\
-&bull; <b>Custom board views</b>. Pick which S, E, R boxes to show in boards, lists and cards (see Preferences.)';
+&bull; Card labels in charts and reports (view, group, filter, stack).<br>\
+&bull; Custom report columns, extra export options useful for integrations.<br>\
+&bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).';
 	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>\
 <div id="sectionLiDetails" style="display:none;margin-top:0.5em;"></div>';
 
@@ -474,6 +474,10 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            if (!confirm("You have not yet enabled Plus sync. You can activate the license now but you will need to return to this help pane to enable Sync. Continue activation?"))
 	                return;
 	        }
+	        if (isLicException()) {
+	            alert("Dear Opera user, please pay for the Pro license from a Chrome browser.");
+	            return;
+	        }
 	        Help.close(false);
 	        setTimeout(function () { //save the epileptics!
 	            checkLi(true);
@@ -497,8 +501,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        else {
 	            checkEnablePro[0].checked = false; //temporarily while we authorize
 	            handleProAproval(function (status) {
-	                if (status != STATUS_OK)
+	                if (status != STATUS_OK) {
 	                    bValue = false;
+	                    if (status != STATUS_CANCEL)
+	                        sendDesktopNotification(status, 10000);
+	                }
 	                saveCheck();
 	                if (bValue) {
 	                    hitAnalytics("ProCheckbox", "enabled");
