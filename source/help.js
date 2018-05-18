@@ -221,15 +221,8 @@ var Help = {
 	    });
 	    helpWin.m_container = container;
 	    helpWin.m_extraElems = [];
-	    setTimeout(function () {
-	        //NOTE: these two fixed elements must go outside of the scrolling element to avoid an issue (most likely a chrome bug) where the element is not painted unless the window is very wide.
-	        //in that case, while resizing the window, a transparent area starts to cover these fixed elements. After much debugging, I found that when the help pane has no scrollbar, the issue goes away,
-            //this is likely related to stacking context changes in chrome, in this case there are two scrollbars: one in trello and another in the help pane.
-	        //This was fixed by moving these two elements out of the pane, make them topmost, and track them with m_extraElems
-	        var containerFixed = $(body);
-	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_almostTopmost1" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
-	        helpWin.m_extraElems.push(elemClose);
-	    elemClose.click(function () {
+
+	    function onClosePane() {
 	        if (!helpWin.isSyncEnabled()) {
 	            var msgAlert = "You have not enabled sync. You will not see your team Spent/Estimates.\nClick OK to configure sync, or click Cancel to use without sync.";
 	            var bHiliteGSButton = false;
@@ -253,26 +246,35 @@ var Help = {
 	            }
 	        }
 	        Help.close(false);
-	    });
+	    }
 
-	    var elemTop = helpWin.raw('<img class="agile_help_top agile_almostTopmost1" src="' + chrome.extension.getURL("images/helptop.png") + '"></img>', containerFixed);
-	    helpWin.m_extraElems.push(elemTop);
-	    elemTop.click(function () {
-	        helpWin.m_container.animate({ scrollTop: helpWin.m_container.offset().top }, 350);
-	    });
-	    //dim help button after a few seconds. css hover will make it black again
 	    setTimeout(function () {
-	        elemClose.animate({
-	            opacity: 0.33
-	        }, 4000);
-	        elemTop.animate({
-	            opacity: 0.33
-	        }, 4000);
-	    }, 8000);
+	        //NOTE: these two fixed elements must go outside of the scrolling element to avoid an issue (most likely a chrome bug) where the element is not painted unless the window is very wide.
+	        //in that case, while resizing the window, a transparent area starts to cover these fixed elements. After much debugging, I found that when the help pane has no scrollbar, the issue goes away,
+            //this is likely related to stacking context changes in chrome, in this case there are two scrollbars: one in trello and another in the help pane.
+	        //This was fixed by moving these two elements out of the pane, make them topmost, and track them with m_extraElems
+	        var containerFixed = $(body);
+	        var elemClose = helpWin.raw('<img id="agile_help_close" class="agile_close_button agile_almostTopmost1" src="' + chrome.extension.getURL("images/close.png") + '"></img>', containerFixed);
+	        helpWin.m_extraElems.push(elemClose);
+	        elemClose.click(onClosePane);
+
+	        var elemTop = helpWin.raw('<img class="agile_help_top agile_almostTopmost1" src="' + chrome.extension.getURL("images/helptop.png") + '"></img>', containerFixed);
+	        helpWin.m_extraElems.push(elemTop);
+	        elemTop.click(function () {
+	            helpWin.m_container.animate({ scrollTop: helpWin.m_container.offset().top }, 350);
+	        });
+	        //dim help button after a few seconds. css hover will make it black again
+	        setTimeout(function () {
+	            elemClose.animate({
+	                opacity: 0.33
+	            }, 4000);
+	            elemTop.animate({
+	                opacity: 0.33
+	            }, 4000);
+	        }, 8000);
 	    }, 200);
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
 	    helpWin.raw('<span style="float:right;padding-right:6em;">version ' + g_manifestVersion + '&nbsp;&nbsp<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Give Plus 5 stars and help spread the word!">Rate</A>&nbsp;&nbsp \
-			<A target="_blank" href="https://chrome.google.com/webstore/support/gjjpophepkbhejnglcmkdnncmaanojkf">Feedback</a>&nbsp;&nbsp\
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/collection/khxOc" rel="publisher" target="_blank"> \
 <img src="https://ssl.gstatic.com/images/icons/gplus-16.png" title="Follow the official news page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
@@ -280,6 +282,7 @@ var Help = {
 <img src="https://abs.twimg.com/favicons/favicon.ico" title="Follow us on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://www.linkedin.com/in/zigmandel" rel="publisher" target="_blank"> \
 <img src="https://www.linkedin.com/favicon.ico" title="Connect at LinkedIn" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
+	    helpWin.para("<button style='float:right'>Close</button>").children("button").click(onClosePane);
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
@@ -353,7 +356,15 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	            });
 	        });
 	    }
-
+	    
+	    if (true) {
+	        helpWin.para("<h3><A target='_blank' href=''>Plus Help board</A></h3>").find("A").click(function (e) {
+	            window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
+	            e.preventDefault();
+	        });
+	    }
+	    helpWin.para("Learn about configuring and using Plus in that Trello board.");
+	    helpWin.para('&nbsp');
 	    if (true) {
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
 	        
@@ -537,21 +548,26 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    var bSpentBackendCase = isBackendMode();
 
 	    helpWin.para('<b><h2 id="agile_help_basichelp">Basics</h2></b>');
-	    helpWin.para('<A target="_blank" href="https://www.youtube.com/watch?v=xj7zEaZ_NVc">One-minute intro video</A>');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/about.html">Quick introduction to Plus for Trello</A>');
-	    helpWin.para('Charts, reports, the Chrome Plus menu, hashtags and more/less are for all Trello users, no setup needed besides "Sync".');
-	    helpWin.para('Other features like spent and estimate, burn-downs, timers and recurring cards are useful to those that measure card S/E (Spent and Estimate).');
-	    helpWin.para('Once you close this help Plus will offer to run the product tour.');
-	    helpWin.para('Do enable "Sync" (in this help below). Most Plus features need it even if you do not use Spent / Estimates.');
+	    helpWin.para('<A target="_blank" href="">Our Plus help board</A> is the best place to learn to use Plus.').children("A").click(function (e) {
+	        window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
+	        e.preventDefault();
+	    });
+	    helpWin.para('Plus has features for all Trello users, even if not using Spent & Estimates');
+	    if (helpWin.bStartTourBubbleOnClose)
+	        helpWin.para('Once you close this help Plus will offer to run a built-in product tour to locate Plus features.');
+	    if (bAddFirstSyncNote)
+	        helpWin.para('You need to pick the right "sync" mode that best fits your needs (later below).');
+	    helpWin.para('<br>');
+	    helpWin.para("<b>Plus header</b>");
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s3.png") + '"/>');
-	    helpWin.para("This <b>Plus header</b> is useful mostly to those using S/E.");
+	    
 	    helpWin.para("The <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO week</A> as in 2014-W49 is 2014's week 49. Weeks start on Sunday unless you change it in <b>Preferences</b>.");
 	    helpWin.para('Click the week to change the view on trello.com charts and reports. <A href="https://plus.google.com/photos/+PlusfortrelloNews/albums/6004371895359551937/6004371896981799010"  target="_blank"><br>Click chart titles</A> in trello.com to zoom charts to full window.');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b>Plus Board toolbar</b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s2.png") + '"/>');
-	    helpWin.para('The full toobar shows when the board has S/E. Otherwise shows the report icon.');
+	    helpWin.para('The full toobar shows when the board has Spent & Estimates. Otherwise shows the report icon.');
 	    helpWin.para('Boxes display <b>S</b>pent / <b>E</b>stimate / <b>R</b>emaining totals of all visible cards. Mouse-over them to see <b>% complete</b>.');
         helpWin.para('&nbsp');
 
@@ -561,14 +577,17 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('<img src="' + chrome.extension.getURL("images/showsebar.png") + '"/>');
         helpWin.para('&nbsp');
         
-        helpWin.para('<b>S</b>pend units from your estimate.');
-        helpWin.para('<b>E</b>stimate the units needed to finish a card, for "me" (you) or other users.');
+        helpWin.para('<b>E</b>stimate the units needed to finish a card, for you or other users.');
+        helpWin.para('<b>S</b>pend units from the estimate.');
+        helpWin.para('<b>R</b>emain units: How many more units until all Estimate is Spent (Remain = Estimate minus Spent)');
+
 
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
         helpWin.para('<hr><br>');
         helpWin.para('<b><h2 id="agile_help_sesystem">The Plus Spent / Estimate system</h2></b>');
         helpWin.para('<h3>An analogy with time tracking on a spreadsheet</h3>');
+        helpWin.para('<A href="#seHelpAfterSpreadsheet">Skip this analogy</A>');
         helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus. Is similar to summing rows on a spreadsheet.');
         helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">See this section on the web</A>');
         helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:');
@@ -579,17 +598,17 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('In the sample above, the current Spent is 13, the sum of all spend history.');
         helpWin.para('Plus uses the same concept for estimates: Enter a "first estimate" on the first row, then increase or decrease it in later rows if needed:');
         helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-est-table.png") + '"/>');
-        helpWin.para('This gives much more information that just the previous "spent history" table because it shows a first estimate of 11, which was later increased by 2 hours.');
+        helpWin.para('This gives more information that just the previous "spent history" table because it shows a first estimate of 11, later increased by 2 hours.');
         helpWin.para('Plus reports and charts can show you these estimate changes per user, board, label, hashtag and much more. Knowing the actual estimate gives you burn-downs and projected end dates as Plus knows how much work Remains and how it changed over time.');
         helpWin.para('Plus automatically fills the "Estimate" column as you type "Spent" or stop timers, calculating any Estimate increases needed (which you can overwrite.)');
         helpWin.para('The difference in Trello is that Plus shows the rows from latest to earliest because that is how Trello displays card comments, and Plus also has an extra "User" column for each S/E row as Plus keeps Spent and Estimates per user.');
         helpWin.para('Use the Plus "Card S/E bar" to add more rows, or directly modify the running totals using "Modify"  (which adds a row for you with the needed differences, positive or negative).');
         helpWin.para('&nbsp');
 
-        helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
+        helpWin.para('<img id="seHelpAfterSpreadsheet" src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
 
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
-        helpWin.para('The table above the card S/E bar shows totals per user.');
+        helpWin.para('The table above the "card S/E bar" shows totals per user.');
         helpWin.para('Ideally you first enter an estimate as in 0/2 (S:blank, E:2) and later spend it with 2/0 (S:2, E:blank)');
         helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it on the same "row".');
         helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
@@ -612,7 +631,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" in the card front report.');
-	    helpWin.para('&bull; Also use "modify" if you prefer to think about total S/E instead of adding/substracting with the card S/E bar.');
+	    helpWin.para('&bull; Also use "modify" if you prefer to think about total S/E instead of adding/substracting with the "card S/E bar".');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do the math for you and enter the needed S/E as a new row.');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
 	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
@@ -891,7 +910,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b>★</b> To measure changed E the team (or the manager) should increase E as needed so <b>R</b> reflects actual <b>R</b>emaining work.');
 	    helpWin.para('<b>★</b> When a user finishes a card but has <b>R</b>emaining, use "modify" and blank or zero <b>R</b> (which reduces E).');
 	    helpWin.para('<b>★</b> Similarly if S goes over E, increase E so R is not negative.');
-	    helpWin.para('<b>★</b> The card S/E bar and "modify" automatically pre-fill increased E to help you prevent negative R.');
+	    helpWin.para('<b>★</b> The "card S/E bar" and "modify" automatically pre-fill increased E to help you prevent negative R.');
 	    helpWin.para('<b>★</b> Prevent accidental E increases with the preference to "Prevent me from increasing existing E".');
 	    helpWin.para('<b>★</b> You may use the units:subunits <b>colon format</b> to enter S/E. (as in hours:minutes when using "hour" units)');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;1:25 in hour units = 1 hour 25 minutes = 1.42 hours. Note one uses a <i>colon:</i> and the other uses a <i>period.</i>');
@@ -1345,7 +1364,7 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	    
 	    if (true) {
 	        var checkAlwaysShowSEBar = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedAlwaysShowSEBar">\
-Always show the card S/E bar.</input>').children('input:checkbox:first');
+Always show the "card S/E bar".</input>').children('input:checkbox:first');
 	        if (g_bAlwaysShowSEBar)
 	            checkAlwaysShowSEBar[0].checked = true;
 
@@ -1756,7 +1775,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para("<button style='float:right'>Close</button>").children("button").click(onClosePane);
 	    var body = $('body');
 	    container.hide();
 	    var toc = container.find("#tocAgileHelp");

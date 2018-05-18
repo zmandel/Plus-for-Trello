@@ -496,6 +496,28 @@ function doAllUpdates() {
         if (idBoard)
             sendExtensionMessage({ method: "notifyBoardTab", idBoard: idBoard }, function (response) { });
     }
+
+    if (document.URL.toLowerCase() == "https://trello.com/plus-emergency-settings") {
+        var linkReset = $("#plusEmergencyReset");
+        elemDetect = $(".big-message h1");
+        if (linkReset.length == 0 && elemDetect.length > 0) {
+            elemDetect.text("");
+            $(".big-message p").text("");
+            linkReset = $("<button id='plusEmergencyReset'>Plus emergency 'Reset Sync'</button>");
+            $("#content").append(linkReset);
+            linkReset = $("#plusEmergencyReset");
+            linkReset.click(function (e) {
+                e.preventDefault();
+                ResetPlus();
+            });
+            var linkPlusHelpPane = $("<br><button >Show the Plus help pane</button>");
+            $("#content").append(linkPlusHelpPane);
+            linkPlusHelpPane.click(function (e) {
+                e.preventDefault();
+                Help.display();
+            });
+        }
+    }
 }
 
 

@@ -2356,7 +2356,23 @@ function handleCheckLi(sendResponse) {
         sendResponse({ status: status });
     }
 
-    checkPurchased(false);
+    //Note: store api does not require this getAuthToken. its an attempt to fix many errors when users try to pay
+    chrome.identity.getAuthToken({ interactive: true, scopes: ["https://www.googleapis.com/auth/chromewebstore.readonly"] }, function (token) {
+        if (token) {
+            checkPurchased(false);
+            return;
+        } else {
+            var message = "";
+            if (chrome.runtime.lastError)
+                message = chrome.runtime.lastError.message;
+            if (!message)
+                message = "Not signed-in to Chrome, or no permission for the Chrome webstore.";
+            handleShowDesktopNotification({
+                notification: message, timeout: 10000
+            });
+        }
+    });
+    
 
     function BLastErrorDetected() {
         if (chrome.runtime.lastError) {

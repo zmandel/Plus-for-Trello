@@ -575,23 +575,6 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
     var elemDetect = null;
     if (boardCur == null || g_remainingTotal == null) {
         var idCardParsed = getIdCardFromUrl(document.URL);
-        if (!boardCur && !idCardParsed && document.URL.toLowerCase() == "https://trello.com/plusreset") {
-            var linkReset = $("#plusEmergencyReset");
-            elemDetect = $(".big-message h1");
-            if (linkReset.length == 0 && elemDetect.length > 0) {
-                elemDetect.text("");
-                $(".big-message p").text("");
-                linkReset = $("<button id='plusEmergencyReset'>click to perform a Plus emergency 'Reset'</button>");
-                $("#content").append(linkReset);
-                linkReset = $("#plusEmergencyReset");
-                linkReset.click(function (e) {
-                    linkReset.prop('disabled', true);
-                    linkReset.hide();
-                    e.preventDefault();
-                    ResetPlus();
-                });
-            }
-        }
 
         if (boardCur == null && idCardParsed) {
             //see if its a deleted card
