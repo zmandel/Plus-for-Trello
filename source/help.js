@@ -125,12 +125,13 @@ var Help = {
 																    sendExtensionMessage({ method: "detectLegacyHistoryRows" },
                                                                     function (response) {
                                                                         thisObj.hasLegacyRows = response.hasLegacyRows;
-                                                                        chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
+                                                                        chrome.storage.sync.get([SYNCPROP_CARDPOPUPTYPE, SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
                                                                             if (chrome.runtime.lastError) {
                                                                                 console.error(chrome.runtime.lastError.message);
                                                                                 return;
                                                                             }
 
+                                                                            thisObj.cardPopupType = obj[SYNCPROP_CARDPOPUPTYPE] || CARDPOPUPTYPE.DEFAULT;
                                                                             var liData = obj[SYNCPROP_LIDATA];
                                                                             var liDataStripe = obj[SYNCPROP_LIDATA_STRIPE];
                                                                             thisObj.liDataCS = null;
@@ -303,7 +304,11 @@ var Help = {
 	        }, 8000);
 	    }, 200);
 	    helpWin.raw('<span style="font-size:1.7em;font-weight:bold;">Plus for Trello Help</span>');
-	    helpWin.raw('<span style="float:right;padding-right:6em;"><A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Love Plus?">Rate us!</A>&nbsp;&nbsp \
+	    
+	    if (!g_bFirstTimeUse) {
+	        helpWin.raw('<span style="float:right;padding-right:6em;">\
+<A href="#agile_help_prefs">Preferences</A>&nbsp;&nbsp\
+<A target="_blank" href="https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf/reviews" title="Love Plus?">Rate us!</A>&nbsp;&nbsp \
 <a href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Change log</A>&nbsp;&nbsp\
 			<a class="agile_link_noUnderlineNever"  href="https://plus.google.com/collection/khxOc" rel="publisher" target="_blank"> \
 <img src="https://ssl.gstatic.com/images/icons/gplus-16.png" title="Follow the official news page" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
@@ -311,7 +316,9 @@ var Help = {
 <img src="https://abs.twimg.com/favicons/favicon.ico" title="Follow us on Twitter" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A>&nbsp;&nbsp\
 <a class="agile_link_noUnderlineNever" href="https://www.linkedin.com/in/zigmandel" rel="publisher" target="_blank"> \
 <img src="https://www.linkedin.com/favicon.ico" title="Connect at LinkedIn" style="margin-bottom:-3px;margin-right:1px;border:0;width:16px;height:16px;"/></A></span>');
+	    }
 	    helpWin.para("version " + g_manifestVersion + "&nbsp;&nbsp<button style='float:right'>Close</button>").children("button").click(onClosePane);
+	    
 	    helpWin.para("&nbsp;");
 	    if (g_bFirstTimeUse) {
 	        var elemFirstTime = helpWin.raw("<div class='agile-help-firstTime'><b>To show this help again click <img src='" + chrome.extension.getURL("images/iconspenthelp.png") + "' style='width:22px;height:22px;' /> next to the tour <img style='padding-left:4px;padding-bottom:5px' src='" + chrome.extension.getURL("images/helparrow.png") + "' /></b></div>");
@@ -385,7 +392,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 	    
 	    if (true) {
-	        helpWin.para("<div style='display:inline-block;border: 1px solid;border-radius:3px;border-color:RGB(77,77,77);padding:1em;background-color: #E4F0F6;'>Open the <span style='font-weight:bold;font-size:110%;'><A target='_blank' href=''>Plus Help board</A></span> for the best place to learn about Plus.</div>").find("A").click(function (e) {
+	        helpWin.para("<div style='display:inline-block;border: 1px solid;border-radius:3px;border-color:RGB(77,77,77);padding:1em;background-color: #E4F0F6;'>Visit the <span style='font-weight:bold;font-size:110%;'><A target='_blank' href=''>Plus Help board</A></span> for the best place to learn about Plus.</div>").find("A").click(function (e) {
 	            window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	            e.preventDefault();
 	        });
@@ -1132,12 +1139,6 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
-	    helpWin.para('<b><h2 id="agile_help_scrumNote">For "Scrum for Trello" extension users</h2></b>');
-	    helpWin.para('Plus can read S/E from card titles. If so, the S/E boxes in the card back are gray instead of white.');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
-	    helpWin.para('&nbsp');
-	    helpWin.para('<hr class="agile_hr_help"><br>');
-
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
 	    if (true) { //units
@@ -1477,7 +1478,7 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	    if (true) {
 	        var checkAlwaysShowSEBar = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedAlwaysShowSEBar">\
 Always show the "card S/E bar".</input>', null,
-"If you leave unchecked, you need to click the card front \'S/E & Help\' menu to show the Plus S/E bar.").children('input:checkbox:first');
+"If you leave unchecked, you need to click the card front \'S/E & More\' menu to show the Plus S/E bar.").children('input:checkbox:first');
 	        if (g_bAlwaysShowSEBar)
 	            checkAlwaysShowSEBar[0].checked = true;
 
@@ -1576,7 +1577,7 @@ Do not warn when starting a timer when another timer is active.</input>').childr
 	    }
 
 	    if (true) { //always show Spent in the Chrome icon, even when a timer is active.
-	        var comboSpentOnAppIcon = helpWin.para('Show your weekly spent on the Chrome Plus icon? <select style="width:auto">').children('select:first');
+	        var comboSpentOnAppIcon = helpWin.para('Show your weekly spent on the Chrome Plus icon? <select style="width:auto"></select>').children('select:first');
 	        comboSpentOnAppIcon.append($(new Option("Yes except when there is an active timer", OPT_SHOWSPENTINICON_NORMAL)));
 	        comboSpentOnAppIcon.append($(new Option("Yes always (even with an active timer)", OPT_SHOWSPENTINICON_ALWAYS)));
 	        comboSpentOnAppIcon.append($(new Option("No, never show it.", OPT_SHOWSPENTINICON_NEVER)));
@@ -1614,10 +1615,31 @@ Do not show daily spent total popup notifications every time you enter spent.</i
 	        });
 	    }
 
+        //Options to show mini-me card popups
+	    if (true) { 
+	        var comboCardPopupStyle = helpWin.para('Use <A href="https://trello.com/c/ZduasRWD/138-mini-me-card-popups" target="_blank">mini-me card popups</A> in reports? <select style="width:auto"></select>').children('select:first');
+	        comboCardPopupStyle.append($(new Option("Yes, as small card popups (limited funcionality)", CARDPOPUPTYPE.POPUP_NOACTIONS)));
+	        comboCardPopupStyle.append($(new Option("Yes, as medium card popups (with more functionality)", CARDPOPUPTYPE.POPUP_SOMEACTIONS)));
+	        comboCardPopupStyle.append($(new Option("No, instead open the Trello card in a Chrome tab", CARDPOPUPTYPE.NO_POPUP)));
+	        comboCardPopupStyle.val(helpWin.cardPopupType);
+
+	        comboCardPopupStyle.change(function () {
+	            var val = comboCardPopupStyle.val();
+	            var pair = {};
+	            pair[SYNCPROP_CARDPOPUPTYPE] = val;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    helpWin.cardPopupType = val;
+	                comboCardPopupStyle.val(helpWin.cardPopupType);
+	                });
+	        });
+	    }
+
+
 	    //option to not show timer popups
 	    if (true) {
 	        var checkDontShowTimerPopups = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDontShowTimerPopups">\
-Do not show timer popup notifications.</input>').children('input:checkbox:first');
+Do not show floating timers (just show them inside the Chrome menu).</input>').children('input:checkbox:first');
 	        if (g_bDontShowTimerPopups)
 	            checkDontShowTimerPopups[0].checked = true;
 
@@ -1895,6 +1917,12 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; To find all boards where you are not a member, see the <A href="#agile_help_trellosync">"Sync" section</A> above (only if using the "card comments" sync mode)');
+	    helpWin.para('&nbsp');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
+
+	    helpWin.para('<b><h2 id="agile_help_scrumNote">For "Scrum for Trello" extension users</h2></b>');
+	    helpWin.para('Plus can read S/E from card titles. If so, the S/E boxes in the card back are gray instead of white.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 

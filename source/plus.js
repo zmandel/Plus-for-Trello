@@ -2150,7 +2150,7 @@ function finishSpentChartConfig(waiter, idElem, elem, data, posLegend, pxLeft, p
 			text: 'Drill-down',	   // The text displayed in the tooltip.
 			action: function () {		   // When clicked, the following runs.
 			    cancelZoomin(function () {
-			        handleDrilldownWindow(chartParams.chart, drilldowns, getHtmlDrillDownTooltip, colExclude, 1100, bReverse);
+			        handleDrilldownWindow(chartParams.chart, drilldowns, getHtmlDrillDownTooltip, colExclude, 950, bReverse);
 			        drawSpentWeekChart(chartParams);
 			    });
 			}

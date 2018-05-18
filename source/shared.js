@@ -218,6 +218,9 @@ var PROP_TRELLOUSER = "plustrellouser";
 var PROP_SHOWBOARDMARKERS = "showboardmarkers";
 var COLUMNNAME_ETYPE = "E. type";
 var g_bPopupMode = false; //running as popup? (chrome browse action popup) REVIEW zig: cleanup, only reports need this?
+
+
+var SYNCPROP_CARDPOPUPTYPE = "cardPopupType"; //one of CARDPOPUPTYPE
 var SYNCPROP_ACTIVETIMER = "cardTimerActive";
 var SYNCPROP_optAlwaysShowSpentChromeIcon = "bAlwaysShowSpentChromeIcon"; //"b" because it used to be a boolean
 var SYNCPROP_bShowedFeatureSEButton = "bShowedFeatureSEButton";
@@ -331,6 +334,13 @@ var EVENTS = {
     DB_CHANGED: "dbchanged",
     FIRST_SYNC_RUNNING: "firstsyncrunning",
     EXTENSION_RESTARTING: "extensionRestarting"
+};
+
+var CARDPOPUPTYPE = {
+    POPUP_NOACTIONS: "noactions",
+    POPUP_SOMEACTIONS: "someactions",
+    NO_POPUP: "nopopup",
+    DEFAULT: "someactions"
 };
 
 
@@ -990,7 +1000,7 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 	var htmlTop = '';
 
 	if (!bOnlyTable) {
-	    htmlTop = htmlTop + '<div class="agile_tooltipContainer agile_arrow_opened">';
+	    htmlTop = htmlTop + '<div class="agile_tooltipContainer agile_arrow_opened agile_almostTopmost1">';
 	}
 	
 	var html = "";
@@ -1114,7 +1124,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	bOnlyTable = bOnlyTable || false;
 
 	if (container.length == 0)
-		container = $("<div class='agile_topLevelTooltipContainer notranslate'></div>");
+	    container = $("<div class='agile_topLevelTooltipContainer notranslate'></div>");
 	container.empty();
 	container[0].innerHTML = html;
 	var tooltip = null;
@@ -1147,7 +1157,7 @@ function makeReportContainer(html, widthWindow, bOnlyTable, elemParent, bNoScrol
 	          var url = t.prop("href");
 	          var idCard = getIdCardFromUrl(url);
 	          if (idCard) {
-	              sendExtensionMessage({ method: "openCardWindow", idCard: idCard }, function (response) { });
+	              sendExtensionMessage({ method: "openCardWindow", idCard: idCard, position: { x: ev.screenX, y: ev.screenY }, bForceTab: ev.ctrlKey || ev.shiftKey }, function (response) { });
 	              ev.preventDefault();
 	              bRet= false;
 	          } else {
@@ -1390,10 +1400,10 @@ if (typeof jQuery !== 'undefined') {
 
 function setPopupClickHandler(elem, url) {
 
-    function create() {
+    function create(ev) {
         var idCard = getIdCardFromUrl(url);
         if (idCard) {
-            sendExtensionMessage({ method: "openCardWindow", idCard: idCard }, function (response) { });
+            sendExtensionMessage({ method: "openCardWindow", idCard: idCard, bForceTab: (ev && (ev.ctrlKey || ev.shiftKey)) }, function (response) { });
             return;
         } else {
             var idBoard = getIdBoardFromUrl(url);
@@ -1407,13 +1417,13 @@ function setPopupClickHandler(elem, url) {
 
     elem.click(function (event) {
         event.preventDefault();
-	    create();
+        create(event);
 		return false;
 	});
 	elem.keypress(function (event) {
 		var keycode = (event.keyCode ? event.keyCode : event.which);
 		if (keycode == '13') { //enter key
-		    create();
+		    create(event);
 			return false;
 		}
 	});

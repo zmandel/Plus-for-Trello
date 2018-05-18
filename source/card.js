@@ -410,7 +410,7 @@ function showSEButtonBubble(elem) {
 function createSEButton() {
     var parent = $(".new-comment .comment-box-options");
     if (parent.length == 1) {
-        var a = $("<A class='comment-box-options-item agile-addSEButton' href='#' title='Add Plus S/E...'>");
+        var a = $("<A class='comment-box-options-item agile-addSEButton' href='#' title='Add Plus S/E'>");
         var spanIcon = $("<span class='icon-sm'/>");
         var icon = $("<img style='margin-top:2px;'>").attr("src", chrome.extension.getURL("images/iconaddse.png"));
 
@@ -1833,15 +1833,16 @@ function createSEMenu(divParent) {
     comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", 'transfer "E 1ˢᵗ" between users.\n\
 Useful to transfer from a global estimate to a specific user.'));
 
-    comboSE.append($(new Option("❔ Show S/E Help", "help")));
-    comboSE.append($(new Option("❔ Show the Plus help pane", "helppane")));
-    comboSE.append($(new Option("❔ Start the card tour", "tour")));
+    comboSE.append($(new Option("? Show S/E Help", "help")));
+    comboSE.append($(new Option("? Show the Plus help pane", "helppane")));
+    comboSE.append($(new Option("? Start the card tour", "tour")));
+    comboSE.append($(new Option("Mini-me", "minime")));
     comboSE.val(""); //unselect
     divParent.append(comboSE);
     comboUpdateView();
 
     function comboUpdateView() {
-        comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "S/E & Help", dropdownCss: "overflow:hidden;", dropdownAutoWidth: true });
+        var scombo=comboSE.select2({ minimumResultsForSearch: Infinity, placeholder: "S/E & More", dropdownAutoWidth: true });
     }
 
     function clearSelection() {
@@ -1880,13 +1881,18 @@ Useful to transfer from a global estimate to a specific user.'));
             return false; //handled
         }
 
-
         if (val == "helppane") {
             clearSelection();
             Help.display();
             return false; //handled
         }
 
+        if (val == "minime") {
+            var idCard = getIdCardFromUrl(document.URL);
+            clearSelection();
+            sendExtensionMessage({ method: "openCardWindow", idCard: idCard, bForcePopup: true }, function (response) {});
+            return false; //handled
+        }
     });
 
     if (g_tour.bAutoShowTour)
@@ -2799,7 +2805,7 @@ function showSEHelpDialog(section) {
 <div class="agile_sehelpsection" id="agile_sehelp_addest">\
 <img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
 <br><br>\
-<p><b>Add a user estimate:</b> Pick "add Estimate" from the "S/E & Help" menu in the card front.</p>\
+<p><b>Add a user estimate:</b> Pick "add Estimate" from the "S/E & More" menu in the card front.</p>\
 <p>Pick the user in the S/E bar (or "me" for yourself), Estimate, optional note, and Enter.</p>\
 <p>The estimate may increase or decrease later if you keep adding more E entries with the S/E bar or with "modify".<p>\
 <p>Keep E up-to-date so Plus can calculate a realistic Remain "R" for reports and burndowns.</p>\
@@ -2812,7 +2818,7 @@ function showSEHelpDialog(section) {
 <div class="agile_sehelpsection" id="agile_sehelp_addspent">\
 <img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
 <br><br>\
-<p>Pick "add Spent" from the "S/E & Help" menu in the card front.</p>\
+<p>Pick "add Spent" from the "S/E & More" menu in the card front.</p>\
 <p>Pick the user in the S/E bar (or "me" for yourself), type the spent, optional note, and Enter.</p>\
 <p>If the spent is not for "now", pick the date from the "now" date selector.</p>\
 <br>\
@@ -2841,7 +2847,7 @@ function showSEHelpDialog(section) {
 <p>Normally, you should not modify S/E comments you already entered (or sheet rows for stealth sync users) even if mistaken. Use "modify" or see the "Fix mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
 </div>\
 <div class="agile_sehelpsection" id="agile_sehelp_transfere">\
-<p>Pick "transfer Estimate" from the "S/E & Help" menu in the card front.<\p>\
+<p>Pick "transfer Estimate" from the "S/E & More" menu in the card front.<\p>\
 <p>Transfer "E 1ˢᵗ" between users, usually from a "global" estimate to an actual user.<\p>\
 <br>\
 <p>A "global" estimate is E assigned to the "global" user.<\p>\

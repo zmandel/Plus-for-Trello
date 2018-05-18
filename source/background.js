@@ -1078,13 +1078,16 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponseParam) {
     var idTab = null;
-    if (sender && sender.tab)
+    var idWindow = null;
+    if (sender && sender.tab) {
         idTab = sender.tab.id || null;
-    return handleExtensionMessage(request, sendResponseParam, idTab);
+        idWindow = sender.tab.windowId || null;
+    }
+    return handleExtensionMessage(request, sendResponseParam, idTab, idWindow);
 });
 
 
-function handleExtensionMessage(request, sendResponseParam, idTabSender) {
+function handleExtensionMessage(request, sendResponseParam, idTabSender, idWindowSender) {
     var responseStatus = { bCalled: false };
 
 
@@ -1161,12 +1164,16 @@ function handleExtensionMessage(request, sendResponseParam, idTabSender) {
             handlenotifyBoardTab(request.idBoard, idTabSender);
             sendResponse({ status: STATUS_OK });
         }
+        else if (request.method == "cardPopupWindowResize") {
+            chrome.windows.update(idWindowSender, { width: request.width, height: request.height });
+            sendResponse({ status: STATUS_OK });
+        }
         else if (request.method == "showAllActiveTimerNotifications") {
             handleShowAllActiveTimers();
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "openCardWindow") {
-            doOpenCardInBrowser(request.idCard);
+            doOpenCardInBrowser(request.idCard, request.position, request.bForceTab, request.bForcePopup);
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "openBoardWindow") {
@@ -1486,7 +1493,7 @@ function handleNotifClick(notificationId) {
 
     function openCard(status) {
         assert(status == STATUS_OK);
-        doOpenCardInBrowser(idCard);
+        doOpenCardInBrowser(idCard, undefined, true);
     }
 
     function checkDeletedCard(response) {
@@ -1507,9 +1514,34 @@ function handleNotifClick(notificationId) {
     });
 }
 
-function doOpenCardInBrowser(idCard) {
+function doOpenCardInBrowser(idCard, pos, bForceTab, bForcePopup) {
+
     function openCardAsUrl() {
         window.open("https://trello.com/c/" + idCard, "_blank"); //this activates the window if chrome is minimized or not active. (chrome.tabs.create does not)
+    }
+
+    function openCard() {
+        if (!bForceTab) {
+            chrome.storage.sync.get([SYNCPROP_CARDPOPUPTYPE], function (obj) {
+                if (chrome.runtime.lastError) {
+                    console.error(chrome.runtime.lastError.message);
+                    return;
+                }
+
+                var cardPopupType = obj[SYNCPROP_CARDPOPUPTYPE] || CARDPOPUPTYPE.DEFAULT;
+                if (cardPopupType == CARDPOPUPTYPE.NO_POPUP)
+                    openCardAsUrl();
+                else
+                    makeCardPopupWindow(idCard, pos, cardPopupType);
+            });
+            return;
+        }
+        openCardAsUrl();
+    }
+
+    if (!bForceTab && bForcePopup) {
+        openCard();
+        return;
     }
 
     var mapCardWindow = g_mapCardToTab[idCard];  // { tabid: tabid, ms: Date.now() };
@@ -1524,12 +1556,12 @@ function doOpenCardInBrowser(idCard) {
                 idCardCur = getIdCardFromUrl(tab.url);
 
             if (idCardCur != idCard)
-                openCardAsUrl();
+                openCard();
             else {
                 //first select the window. else chrome can get weird about selecting the tab while the window is not active
                 chrome.windows.update(tab.windowId, { focused: true }, function (window) {
                     if (chrome.runtime.lastError || !window)
-                        openCardAsUrl();
+                        openCard();
                     else {
                         //finally, select the tab
                         chrome.tabs.update(tabid, { active: true, highlighted: true }, function (tab) {
@@ -1538,14 +1570,14 @@ function doOpenCardInBrowser(idCard) {
                                 idCardCur = getIdCardFromUrl(tab.url);
 
                             if (idCardCur != idCard)
-                                openCardAsUrl();
+                                openCard();
                         });
                     }
                 });
             }
         });
     } else {
-        openCardAsUrl();
+        openCard();
     }
 }
 
@@ -1619,6 +1651,65 @@ function makeTimerPopupWindow(notificationId, bMinimized) {
     }
     );
 }
+
+function makeCardPopupWindow(idCard, pos, cardPopupType) {
+    assert(cardPopupType != CARDPOPUPTYPE.NO_POPUP);
+    var marginSafety = 20;
+    var width = 329;
+    var height = 224;
+    if (cardPopupType == CARDPOPUPTYPE.POPUP_NOACTIONS)
+        height = 183;
+    var topPos = window.screen.availHeight/2;
+    var leftPost = screen.availWidth/2;
+    if (pos) {
+        topPos = pos.y-100;
+        leftPost = pos.x-100;
+    }
+
+    var idWindow = g_mapCardToMiniPopupWindow[idCard];
+
+    if (!idWindow)
+        create();
+    else
+        caseWindow();
+
+    function caseWindow() {
+        chrome.windows.get(idWindow, null, function (window) {
+            if (chrome.runtime.lastError || !window) {
+                if (idWindow == g_mapCardToMiniPopupWindow[idCard]) {
+                    delete g_mapCardToMiniPopupWindow[idCard];
+                    create();
+                }
+            } else {
+                chrome.windows.update(idWindow, { focused: true }, function (window) {
+                    
+                });
+            }
+        });
+    }
+
+    function create() {
+        const lsprop_shownCardMiniMePopup = "shownCardMiniMePopup";
+        if (!localStorage[lsprop_shownCardMiniMePopup]) {
+            localStorage[lsprop_shownCardMiniMePopup] = true;
+            handleShowDesktopNotification({
+                notification: "See Plus Preferences to control mini-me card popups.",
+                timeout: 9000
+            });
+        }
+        chrome.windows.create({
+            url: chrome.extension.getURL("cardwin.html") + "?idCard=" + idCard + "&cpt=" + cardPopupType,
+            width: width, height: height, type: "popup", left: leftPost, top: topPos
+        },
+        function (window) {
+            if (window) {
+                g_mapCardToMiniPopupWindow[idCard] = window.id;
+            }
+        }
+        );
+    }
+}
+
 
 function handleOfflineBoardNotificationClick(notificationId) {
     var parts = notificationId.split(":");
@@ -2351,6 +2442,7 @@ function injectTrelloFrame() {
     g_bInjectedTrelloFrame = true;
 }
 
+var g_mapCardToMiniPopupWindow = {};
 var g_mapCardToTab = {}; //we keep this map to know which tab has which card currently open. This method works without needing to add the "tabs" permission to the extension.
 var g_mapBoardToTab = {}; //we keep this map to know which tab has which card currently open. This method works without needing to add the "tabs" permission to the extension.
 

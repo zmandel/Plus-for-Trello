@@ -132,7 +132,7 @@ function configureTimerElem(callback) {
                 update();
                 
                 button.click(function () {
-                    sendExtensionMessage({ method: "openCardWindow", idCard: idCardTimer }, function (response) { });
+                    sendExtensionMessage({ method: "openCardWindow", idCard: idCardTimer, bForceTab: true }, function (response) { });
                 });
             });
         }
@@ -182,6 +182,7 @@ function loadPopup() {
 
 
 function configData() {
+
     openPlusDb(function (response) {
         if (response.status != STATUS_OK) {
             showError(response.status);

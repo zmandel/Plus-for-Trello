@@ -2,6 +2,7 @@
 /// <reference path="trellosync.js" />
 /// <reference path="tour.js" />
 /// <reference path="timerwin.js" />
+/// <reference path="cardwin.js" />
 /// <reference path="sql.js" />
 /// <reference path="report.js" />
 /// <reference path="popup.js" />

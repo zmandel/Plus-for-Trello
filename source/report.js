@@ -224,6 +224,14 @@ function loadTabs(parent) {
     }
 }
 
+function doResizeFromParent() {
+    assert(g_bBuildSqlMode);
+    
+    setTimeout(function () {
+        window.parent.resizeMe(document.body.clientHeight + 60);
+    }, 0);
+}
+
 window.addEventListener('resize', function () {
     if (g_iTabCur != null)
         selectTab(g_iTabCur, undefined, true);
@@ -232,12 +240,8 @@ window.addEventListener('resize', function () {
         if (g_chartContainer)
             g_chartContainer.redraw();
     }
-
-    if (g_bBuildSqlMode) {
-        setTimeout(function () {
-            window.parent.resizeMe(document.body.clientHeight + 60);
-        }, 0);
-    }
+    if (g_bBuildSqlMode)
+        doResizeFromParent();
 });
 
 function selectTab(iTab, href, bForce) {
@@ -749,7 +753,7 @@ function loadAll() {
         $("body").css("margin-top", "0px");
         $("#report_top_section").css("margin-bottom", "0px");
         refreshBuildSqlMode(params);
-
+        doResizeFromParent();
     }
 
     loadTabs($("#tabs"));
