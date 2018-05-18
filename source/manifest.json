@@ -1,7 +1,7 @@
 ﻿{
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "4.3.4",
+  "version": "4.3.5",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -50,6 +50,7 @@
         "libs/select2.full.min.js",
         "shared.js",
         "sharedmobile.js",
+        "sharedsync.js",
         "app.js",
         "card.js",
         "cardetransfer.js",

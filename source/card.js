@@ -1274,9 +1274,9 @@ function showSETotalEdit(idCardCur, user) {
         doEnter();
     });
 
-    elemS.unbind().bind("input", function (e) { updateMessage(true); });
-    elemE.unbind().bind("input", function (e) { updateMessage(true); });
-    elemR.unbind().bind("input", function (e) { updateEFromR(); updateMessage(false); });
+    elemS.unbind("input").bind("input", function (e) { updateMessage(true); });
+    elemE.unbind("input").bind("input", function (e) { updateMessage(true); });
+    elemR.unbind("input").bind("input", function (e) { updateEFromR(); updateMessage(false); });
     $(".agile_mtse_units").text(UNITS.getLongFormat(UNITS.current, g_bDisplayPointUnits));
     showModalDialog(divDialog[0]);
     setTimeout(function () {
