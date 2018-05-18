@@ -282,7 +282,7 @@ function handlePlusMenuSync(sendResponse) {
 function handleRequestProPermission(sendResponse) {
     chrome.permissions.request({
         permissions: ["alarms","gcm"],
-        origins: ['http://www.plusfortrello.com/', 'https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
+        origins: ['https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
     }, function (granted) {
         if (chrome.runtime.lastError) {
             sendResponse({ status: chrome.runtime.lastError.message || "Error" });
@@ -1347,21 +1347,42 @@ If you instead want to disable timer popups do so from Plus preferences.");
 
 function handleCopyClipboard(html, sendResponse) {
     if (window.getSelection && document.createRange) {
-        var elemReplace = document.getElementById("selectionPlaceholder");
-            elemReplace.innerHTML = html;
-        var sel = window.getSelection();
-        var range = document.createRange();
-        range.selectNodeContents(elemReplace);
-        sel.removeAllRanges();
-        sel.addRange(range);
-        document.execCommand("Copy");
-        setTimeout(function () {
-            //blank it when done. Delay is to attempt fix on a user that says rows at the end dont get copied,
-            //which maybe happens because "copy" could be running in parallel and replacing the html could hurt it.
-                elemReplace.innerHTML = "";
-        }, 3000);
 
-        sendResponse({ status: STATUS_OK });
+        function handleRequestPermission(sendResponse) {
+            chrome.permissions.request({
+                permissions: ["clipboardWrite"]
+            }, function (granted) {
+                if (chrome.runtime.lastError) {
+                    sendResponse({ status: chrome.runtime.lastError.message || "Error" });
+                    return;
+                }
+                if (!granted) {
+                    sendResponse({ status: "error: permission not granted." });
+                    return;
+                }
+
+                sendResponse({ status: STATUS_OK});
+            });
+        }
+
+        handleRequestPermission(function (response) {
+            if (response.status == STATUS_OK) {
+                var elemReplace = document.getElementById("selectionPlaceholder");
+                elemReplace.innerHTML = html;
+                var sel = window.getSelection();
+                var range = document.createRange();
+                range.selectNodeContents(elemReplace);
+                sel.removeAllRanges();
+                sel.addRange(range);
+                document.execCommand("Copy");
+                setTimeout(function () {
+                    //blank it when done. Delay is to attempt fix on a user that says rows at the end dont get copied,
+                    //which maybe happens because "copy" could be running in parallel and replacing the html could hurt it.
+                    elemReplace.innerHTML = "";
+                }, 3000);
+            }
+            sendResponse(response);
+        });
     }
     else {
         sendResponse({ status: "Cannot copy to clipboard." });

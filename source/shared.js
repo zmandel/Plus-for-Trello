@@ -788,8 +788,10 @@ function selectElementContents(el) {
 		sel.addRange(range);
 
 		sendExtensionMessage({ method: "copyToClipboard", html: el.innerHTML }, function (response) {
-			if (response.status != STATUS_OK)
-				return;
+		    if (response.status != STATUS_OK) {
+		        sendDesktopNotification(response.status || "Error");
+		        return;
+		    }
 			setTimeout(function () {
 			    removeSelection();
 			    sendDesktopNotification("Copied to the clipboard.\nPaste anywhere like excel or email.");
@@ -2088,17 +2090,20 @@ function removeBracketsInNote(note) {
 function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
 
     var ret = [];
+    var i = 0;
+    const cMax = rowsOrig.length;
+    var row = null;
+
     //group
     if (propertyGroup.length > 0) {
-        var i = 0;
+
         var map = {};
         var mapCardsPerGroup = {};
-        const cMax = rowsOrig.length;
         var pGroups = propertyGroup.split("-");
         var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
         var propDateTimeString = "dtString";
-        var row = null;
-        for (; i < cMax; i++) {
+
+        for (i=0; i < cMax; i++) {
             row = rowsOrig[i];
 
             if (row.bSkip)
@@ -2116,14 +2121,18 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
             for (; iProp < pGroups.length; iProp++) {
                 var propname = pGroups[iProp];
                 var valCur = "";
-                if (propname == "hashtagFirst" || propname == "hashtags") {
+                if (propname == "dowName") { //review zig: not yet in UI
+                    if (!row.dowName)
+                        row.dowName = getWeekdayName(new Date(row.date * 1000).getDay(), false); //NOTE we modify the row here. needed by reports
+                    valCur = row.dowName;
+                } else if (propname == "hashtagFirst" || propname == "hashtags") {
                     if (row.hashtagFirst === undefined) { //splitRows might have already loaded them
                         var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
                         if (rgHash.length > 0)
                             valCur = rgHash[0];
                         else
                             valCur = "";
-                        row.hashtagFirst = valCur; //NOTE we modify the row here
+                        row.hashtagFirst = valCur; //NOTE we modify the row here. needed by reports
                     } else {
                         valCur = row.hashtagFirst;
                     }
@@ -2187,6 +2196,18 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
     } else {
         ret = cloneObject(rowsOrig); //so sorting doesnt mess with rowsOrig
     }
+
+    if (propertySort == "dow") { //review zig: not yet in UI
+        for (i = 0; i < ret.length; i++) {
+            row = ret[i];
+
+            if (row.bSkip)
+                continue;
+            if (!row.dow)
+                row.dow = new Date(row.date * 1000).getDay(); //NOTE we modify the row here. needed by reports
+        }
+    }
+        
 
     //sort
     //note: propDateString might not be in rows at this point (is here only if there was grouping)

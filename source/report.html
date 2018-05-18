@@ -72,15 +72,15 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                         <option value="idBoardH-nameList-user" title="Groups by board, list & card S/E user">Board-List-User</option>
                         <option value="idBoardH-hashtagFirst" title="Groups by board & first #tag in the card">Board-Hashtag1</option>
                         <option value="idBoardH-user" title="Groups resulting 'S/E rows' by board & user combination.\n'user' groups are only for 'S/E rows'.">Board-User</option>
-                        <option value="comment" title="Groups by the S/E note">Note</option>
+                        <option value="comment" title="Groups by the S/E note">S/E Note</option>
                         <option value="labels" title="Groups by labels in the card (makes duplicated rows on cards with multiple labels)">Labels</option>
                         <option value="hashtags" title="Groups by #tags in the card (makes duplicated rows on cards with multiple #tags)">Hashtags</option>
                         <option value="hashtagFirst" title="Groups by the first #tag in the card">Hashtag1</option>
                         <option value="user-hashtagFirst" title="Groups by user & first #tag in the card">User-Hashtag1</option>
                         <option value="idCardH" title="Groups resulting cards and 'S/E rows' by their card.\nColumns like 'date' use the newest row in each card.">Card</option>
                         <option value="idCardH-user" title="Groups resulting 'S/E rows' by card & user combination.\n'user' groups are only for 'S/E rows'.">Card-User</option>
-                        <option value="week">Week</option>
                         <option value="month">Month</option>
+                        <option value="week">Week</option>
                         <option value="idBoardH-week">Board-Week</option>
                         <option value="idBoardH-month">Board-Month</option>
                         <option value="user-week">User-Week</option>
@@ -444,17 +444,20 @@ Note: current week always ignores 'under' format.">
                             <option value="echange">E change</option>
                             <option value="burndown">S.E.R. Burndown</option>
                             <option value="cardcount">Card count</option>
-                        </select>
+                        </select><span id="stackByPre" style="display:none;">&emsp;&emsp;Stack by </span>
                         <select id="stackBy" style="display:none;">
-                            <option value="">No stacking</option>
-                            <option value="user">Stack by S/E user</option>
-                            <option value="nameList">Stack by list</option>
-                            <option value="hashtagFirst">Stack by hashtag1</option>
-                            <option value="labels">Stack by labels</option>
-                            <option value="keyword">Stack by keyword</option>
-                            <option value="comment">Stack by note</option>
-                            <option value="week">Stack by week</option>
-                            <option value="month">Stack by month</option>
+                            <option value="">None</option>
+                            <option value="user">S/E user</option>
+                            <option value="idTeamH">team</option>
+                            <option value="idBoardH">board</option>
+                            <option value="idCardH">card</option>
+                            <option value="nameList">list</option>
+                            <option value="hashtagFirst">hashtags</option>
+                            <option value="labels">labels</option>
+                            <option value="keyword">keyword</option>
+                            <option value="comment">S/E note</option>
+                            <option value="month">month</option>
+                            <option value="week">week</option>
                         </select>
                         <span class="report_options_item" id="spancheckNoColorsChart" title="Check to use white for stacks with value or gray otherwise.">
                             <input class="agile_report_checkbox" style="margin-left:1em;" type="checkbox" value="checked" id="checkNoColorsChart" />

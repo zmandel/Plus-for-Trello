@@ -53,16 +53,17 @@ const g_dnames = {
 };
 
 //maps dependencies between a column and card fields.
+//Those on the RIGHT have a unique LEFT property (a card can only have one team and one board, so it appears under team and board)
 //used for detecting if a grouped report column contains unique or "last" (*) values.
 //see also https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
 const g_columnData = {
-    note: ["note"],
     user: ["user"],
     team: ["idTeamH","idBoardH","idCardH"],
     board: ["idBoardH", "idCardH"],
     nameList: ["nameList", "idCardH"],
     hashtagFirst: ["hashtags", "hashtagFirst", "idCardH"],
     card: ["idCardH"],
+    dowName: ["dateString"],
     week: ["week", "dateString"],
     month: ["month", "dateString"],
     dateString: ["dateString"],
@@ -79,7 +80,7 @@ const g_columnData = {
     e1st: ["e1st"],
     eType: ["eType"],
     labels: ["labels","idCardH"],
-    note: ["note"],
+    note: ["comment"],
     r: ["r"],
     s: ["s"]
 };
@@ -620,6 +621,7 @@ var g_mapNameFieldToInternal = {
     user: "user",
     keyword: "keyword",
     date: "dateString",
+    dowName: "dowName",
     week: "week",
     month: "month",
     note: "comment"
@@ -828,7 +830,8 @@ function loadAll() {
 
         $("#stackBy").change(function () {
             updateURLPart("stackBy");
-            fillChart(true);
+            $("#buttonFilter").click(); //review zig: ugly but currently only way to get updated groupBy in case used changed it following stackby error from missing groupby
+            //fillChart(true); //we used to do this instead of reloading the entire report, but since allowing group by id elements (team,board,card) chaert stacking can fail
         });
 
         var elemGroupBy = $("#groupBy");
@@ -2504,7 +2507,7 @@ function saveDataChart(rows, urlParams, options) {
     const bAllDates = (urlParams["sinceSimple"] == "");
     const bSingleBoard = (!!urlParams["idBoard"]);
     const bRemain = (urlParams["orderBy"] == "remain");
-
+    const stackBy = urlParams["stackBy"];
     if (!groupBy || urlParams["checkNoCharts"] == "true") {
         return;
     }
@@ -2543,8 +2546,9 @@ function saveDataChart(rows, urlParams, options) {
             bDateGroups = true;
         //use prepend ids to cover cases where two domain parts are identical (like two cards with the same title)
         //Thus, all parts are prepended with the ids where they came from.
-        if (bId)
+        if (bId && stackBy != pCur)
             prependIds.push(pCur);
+        
         if (bStop)
             break;
     }
@@ -2587,9 +2591,11 @@ function saveDataChart(rows, urlParams, options) {
                 iPartGroupExclude = iProp;
                 continue;
             }
-            var val = (yField.length > 0 ? g_yFieldSeparator : "") + (rowCur[propNameLoop] || "-");
+            var valProp = rowCur[propNameLoop];
             if (propNameLoop == "comment")
-                val = removeBracketsInNote(val);
+                valProp = removeBracketsInNote(valProp);
+            var val = (yField.length > 0 ? g_yFieldSeparator : "") + (valProp || "-");
+
             yField += val;
         }
         //NOTE: code uses "dlabel" (data label) to distinguish from trello labels.
@@ -2680,12 +2686,15 @@ var g_lastChartFilled = "";
 function fillChart(bForce) {
     var typeChart = $("#chartView").val();
     var elemStack = $("#stackBy");
+    var elemStackPre = $("#stackByPre");
     var spanNoColors = $("#spancheckNoColorsChart");
     var bStacked = (typeChart == g_chartViews.s || typeChart == g_chartViews.e || typeChart == g_chartViews.r);
     if (typeChart == g_chartViews.cardcount || bStacked) {
+        elemStackPre.show();
         elemStack.show();
     }
     else {
+        elemStackPre.hide();
         elemStack.hide();
     }
 
@@ -3147,8 +3156,12 @@ function chartStacked(type, bForce, callbackCancel) {
     if (stackBy) {
         var pGroups = g_dataChart.params["groupBy"].split("-");
         iGroupStack = pGroups.indexOf(stackBy);
+
+        if (iGroupStack < 0 && stackBy == "hashtagFirst") //review zig: ugly side-effect of having those two groups (historical note: hashtags added later, hashtagFirst kept for backwards compatibility)
+            iGroupStack = pGroups.indexOf("hashtags");
+
         if (iGroupStack < 0) {
-            sendDesktopNotification("Error: the report 'Group by' must contain your stacking. Pick 'Custom' from the group-by dropdown and append it, then Query.", 20000);
+            sendDesktopNotification("Error: the report 'Group by' must contain your stacking. Pick 'Custom' from the group-by dropdown and append it, then Query.", 10000);
             $("#stackBy").val("");
             updateURLPart("stackBy");
         } else if (g_dataChart.iPartGroupExclude >= 0 && g_dataChart.iPartGroupExclude < iGroupStack)
