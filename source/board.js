@@ -175,7 +175,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
                 bRecurring = (se.titleNoSE.indexOf(TAG_RECURRING_CARD) >= 0);
                 var cloneTitleTag = null;
-                var originalTitleSiblings = originalTitleTag.siblings('a.agile_clone_title');
+                var originalTitleSiblings = originalTitleTag.siblings('.agile_clone_title');
                 if (originalTitleSiblings.size() == 0) {
                     cloneTitleTag = originalTitleTag.clone();
                     originalTitleTag.addClass('agile_hidden');
@@ -215,7 +215,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             //
             // Card Badges
             //
-            var badges = $(card).children('.list-card-details').eq(0).children('div.badges');
+            var badges = $(card).children('.list-card-details').eq(0).children('.badges');
             var bNoBadges = (spent == 0 && estimation == 0);
             var remain = parseFixedFloat(estimation - spent);
             var szClassSEFromTitle="agile_seFromTitle";
@@ -224,7 +224,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
                 bNoBadges = false;
 
         // Card Remaining
-            var remainBadge = badges.children('div.' + BadgeFactory.remainingBadgeClass());
+            var remainBadge = badges.children('.' + BadgeFactory.remainingBadgeClass());
             if (remainBadge.size() == 0) {
                 if (!bNoBadges) {
                     remainBadge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_cardback").attr('title', 'R');
@@ -241,7 +241,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
 
        // Card Estimate
-            var estimateBadge = badges.children('div.' + BadgeFactory.estimateBadgeClass());
+            var estimateBadge = badges.children('.' + BadgeFactory.estimateBadgeClass());
             if (estimateBadge.size() == 0) {
                 if (!bNoBadges) {
                     estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardback").attr('title', 'E');
@@ -258,7 +258,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
             
 
         // Card Spent
-            var spentBadge = badges.children('div.' + BadgeFactory.spentBadgeClass());
+            var spentBadge = badges.children('.' + BadgeFactory.spentBadgeClass());
 
             if (spentBadge.size() == 0) {
                 if (!bNoBadges) {
@@ -731,7 +731,7 @@ function getCurrentBoard() {
 			return null;
 		g_bNewTrello = true;
 	} 
-	var boardNameElem = boardNameContainerElem.children(g_bNewTrello ? ".board-header-btn-text" : ".text");
+	var boardNameElem = boardNameContainerElem.children(".board-header-btn-text");
 	if (boardNameElem.length == 0)
 		return null;
 	var ret = boardNameElem.text().trim();
@@ -742,29 +742,19 @@ function getCurrentBoard() {
 
 var List = {
     all: function () {
-        if (g_bNewTrello)
-            return $('.list-header-name');
-        return $('div.list-title');
+        return $('.list-header-name');
     },
     cards: function (list) {
         var cardsContainer = $(list).parent();
-        cardsContainer = cardsContainer.siblings('div.list-cards').eq(0);
-        var cards = $(cardsContainer).children('a.list-card');
-        if (cards.length == 0)
-            cards = $(cardsContainer).children('div.list-card'); //old trello layout
+        cardsContainer = cardsContainer.siblings('.list-cards').eq(0);
+        var cards = $(cardsContainer).children('.list-card');
         return cards;
     }
 };
 
 var InfoBoxManager = {
     update: function () {
-        var boardHeader = null;
-
-        if (g_bNewTrello)
-            boardHeader = $('div.board-header');
-        else
-            boardHeader = $('div#board-header');
-
+        var boardHeader = $('.board-header');
 
         if (boardHeader.length == 0)
             return;

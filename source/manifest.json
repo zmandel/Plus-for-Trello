@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "4.5.99",
+  "version": "4.6.99",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
