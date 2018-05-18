@@ -212,6 +212,7 @@ function calculateSyncDelay(callback) {
     });
 }
 
+//review: cache this list globally, patch it as cards get renamed (hard to tell when an entry goes away)
 function handleGetAllHashtags(sendResponse) {
     var request = { sql: "SELECT name FROM cards WHERE name LIKE '%#%' AND bDeleted=0 AND idBoard in (SELECT idBoard from Boards where bArchived=0)", values: [] };
     handleGetReport(request,
@@ -519,11 +520,16 @@ function handleQueryTrelloDetectionCount(sendResponse) {
 var g_bPlusExtensionLoadedOK = false;
 var g_bRetryWhenNotLoadedOK = true;
 
+function setUninstallURLCustom() {
+    //review zig: modify to include &pro=true when g_bProVersion. First requires to keep g_bProVersion up to date (its not in many cases)
+    chrome.runtime.setUninstallURL("http://www.plusfortrello.com/p/goodbye.html?from=uninstall", function () { });
+}
+
 var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
 
-        chrome.runtime.setUninstallURL("http://www.plusfortrello.com/p/goodbye.html?from=uninstall", function () { });
+        setUninstallURLCustom();
         //prevent too old Chrome versions.
         //Must support at least Promises (Chrome 33) http://caniuse.com/#feat=promises
         //<dialog>: polyfilled so we dont check. http://caniuse.com/#feat=dialog (native since Chrome 37)
@@ -627,7 +633,15 @@ var g_loaderDetector = {
 
             chrome.storage.sync.get([keySyncOutsideTrello], function (obj) {
                 var bSyncOutsideTrello = obj[keySyncOutsideTrello];
-                if (!bSyncOutsideTrello || g_bDisableSync)
+
+                if (g_bDisableSync)
+                    return;
+
+
+                //if we already did at least one sync during this chrome session, and the last error was "offline", do try to sync again (bypassing bSyncOutsideTrello)
+                var bLastErrorWasOffline = (g_lastStatusSyncCache && (g_lastStatusSyncCache.statusRead == Language.NOINTERNETCONNECTION || g_lastStatusSyncCache.statusWrite == Language.NOINTERNETCONNECTION));
+
+                if (!bSyncOutsideTrello && !bLastErrorWasOffline)
                     return;
 
                 if (g_optEnterSEByComment.IsEnabled() && (localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true")

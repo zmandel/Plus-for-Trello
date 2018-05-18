@@ -25,6 +25,8 @@ var VAL_COMBOVIEWKW_REPORTKW = VAL_COMBOVIEWKW_PREFIX + "reportkw";
 var VAL_COMBOVIEWKW_HEADER = VAL_COMBOVIEWKW_PREFIX + "header";
 var VAL_COMBOVIEWKW_SEP = VAL_COMBOVIEWKW_PREFIX + "sep";
 
+var g_globalUser = ""; //saved in sync storage
+
 //for sync performance, we keep the preference as a single string
 //it can be one of the special values above, or a keyword string
 var g_dimension = VAL_COMBOVIEWKW_ALL;
@@ -1360,7 +1362,10 @@ function processUserSENotifications(sToday,sWeek) {
 			factor = 100;
 		var sBadge = Math.round(sWeek * factor) / factor;
 		if (sBadge >= 1000)
-			sBadge = "+999";
+		    sBadge = "+999";
+
+		if (sBadge == 0)
+		    sBadge = ""; //dont show badge when zero spent, its annoying to those not using S/E (even thou it can be turned off from preferences)
 		sendExtensionMessage({ method: "setBadgeData", text: "" + sBadge, weeknum: getCurrentWeekNum()});
 		var dtToday = new Date();
 		var key = "spentLastNotified";

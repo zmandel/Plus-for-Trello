@@ -7,6 +7,8 @@ var STR_UNKNOWN_LIST = "Unknown list";
 var STR_UNKNOWN_BOARD = "Unknown board";
 var STR_UNKNOWN_CARD = "Unknown card";
 
+var g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
+
 var g_msRequestedSyncPause = 0; //sync can be paused for a few seconds with the "beginPauseSync" message. this way we avoid a pause/unpause pair that may break when user closes the tab.
 var LS_KEY_detectedErrorLegacyUpgrade = "detectedErrorLegacyUpgrade";
 
@@ -663,7 +665,8 @@ function handleMakeNonRecurring(tx, idCard) {
         " END END where idCard=?";
     tx.executeSql(sqlUpdateEtype, [idCard], function (tx2, results) {
         var sqlUpdate2 = "update history set eType=" +
-            ETYPE_NEW + " where rowid in (select min(rowid) from history  where idCard=? and (spent<>0 OR est<>0) group by user,idCard)";
+            ETYPE_NEW + " where (rowid in (select min(rowid) from history  where idCard=? and (spent<>0 OR est<>0) group by user,idCard)) \
+OR (est<>0 AND comment LIKE '%" + g_prefixCommentTransfer + "%')";
         tx2.executeSql(sqlUpdate2, [idCard], function (tx3, results) {},
             function (tx3, error) {
                 logPlusError(error.message);
@@ -809,7 +812,7 @@ function handleRecurringChange(tx, idCard, nameOld, nameNew) {
 }
 
 
-function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
+function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard, eTypeRow) {
     var row = rowParam;
     if (row.spent == 0 && row.est == 0) //see updateCardRecurringStatusInHistory, handleMakeNonRecurring usage of min(rowid)
         return;
@@ -824,14 +827,16 @@ function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
 			    if (row.est!=0)
 			        eType = ETYPE_NEW; //recurring cards never increase/decrease estimates, all reporting is considered "new"
 			}
+			else if (row.est != 0 && rowParam.comment && rowParam.comment.indexOf(g_prefixCommentTransfer) >= 0) {
+			    eType = ETYPE_NEW;
+			}
 			else if (row.est > 0)
 			    eType = ETYPE_INCR;
 			else if (row.est < 0)
 			    eType = ETYPE_DECR;
 
-			if (eType == ETYPE_NONE)
-				return; //skip since the HISTORY row was inserted with ETYPE_NONE
-		    //review zig: set row.eType to correct value so we can instead check for eType==row.eType and not assume it was set like that
+			if (eType == eTypeRow)
+				return; //skip
 
 			var strExecute2 = "UPDATE HISTORY SET eType=? WHERE rowid=?";
 			tx2.executeSql(strExecute2, [eType, rowidParam],
@@ -843,7 +848,7 @@ function handleUpdateCardBalances(rowParam, rowidParam, tx, nameCard) {
 			);
 		},
 		function (tx3, error) {
-			logPlusError(error.message);
+		 	logPlusError(error.message);
 			return true; //stop
 		}
 	);
@@ -949,12 +954,13 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	        //bSynced arquitecture note: bSynced denotes if the row came from the spreadsheet. When it doesnt come from the ss, it comes from
 	        //the user interface, which will eventually be written to the ss, and eventually read again and set the 0 into 1 below.
 	        //
-	        //eType note: use ETYPE_NONE so later we save a row commit if its really ETYPE_NONE
-	        //
 	        //idBoard note: idBoard should always match the db card.idBoard, however for short periods this may not be the case.
-	        //the strategy we use here is to always trust the idBoard if it came from the interface (plus S/E card bar of current user), because the db has a higher chance of being wrong (pending sync)
+	        //the strategy here is to always trust the idBoard if it came from the interface (plus S/E card bar of current user), because the db has a higher chance of being wrong (pending sync)
 	        //but if the row comes from the spreadsheet, we will correct the row (if needed) to match the card's idBoard. Later, trello sync will take care of correcting it again if the card's board changes.
-	        tx.executeSql(strExecute, [row.idHistory, Math.floor(row.date), row.idBoard, row.idCard, row.spent, row.est, row.user, row.week, row.month, row.comment, bSynced, ETYPE_NONE, row.keyword],
+	        var eTypeRow = ETYPE_NONE; //initial hint. can be changed later below.
+	        if (row.comment && row.comment.indexOf(g_prefixCommentTransfer) >= 0)
+	            eTypeRow = ETYPE_NEW; //only a hint. minor optimization to later it doesnt need to change it
+	        tx.executeSql(strExecute, [row.idHistory, Math.floor(row.date), row.idBoard, row.idCard, row.spent, row.est, row.user, row.week, row.month, row.comment, bSynced, eTypeRow, row.keyword],
                 function onOkInsertHistory(tx2, resultSet) {
                     if (resultSet.rowsAffected != 1) { //is row there already?
                         if (bFromSource)
@@ -2081,7 +2087,8 @@ function updateCardRecurringStatusInHistory(t) {
 
     t.executeSql(sqlUpdateEtype, [], function (tx2, results) {
         var sqlUpdate2 = "update history set eType=" +
-            ETYPE_NEW + " where rowid in (select min(rowid) from history where (spent<>0 OR est<>0) and idCard in (select idCard from cards where name NOT LIKE '%[R]%') group by user,idCard)";
+            ETYPE_NEW + " where (rowid in (select min(rowid) from history where (spent<>0 OR est<>0) and idCard in (select idCard from cards where name NOT LIKE '%[R]%') group by user,idCard)) \
+OR (est<>0 AND comment LIKE '%" + g_prefixCommentTransfer + "%')";
         tx2.executeSql(sqlUpdate2, [], function (tx3, results) { },
             function (tx3, error) {
                 logPlusError(error.message);
@@ -2092,8 +2099,6 @@ function updateCardRecurringStatusInHistory(t) {
         logPlusError(error.message);
         return true; //stop
     });
-
-    var test = 1;
 }
 
 function handleUpdateRowEtype(row, mapBalance, tx) {
@@ -2104,6 +2109,8 @@ function handleUpdateRowEtype(row, mapBalance, tx) {
             if (row.est!=0)
 	            eType = ETYPE_NEW;
 	    }
+	    else if (row.est != 0 && row.comment && row.comment.indexOf(g_prefixCommentTransfer) >= 0)
+	        eType = ETYPE_NEW;
 	    else if (row.est > 0)
 	        eType = ETYPE_INCR;
 	    else if (row.est < 0)
@@ -2125,7 +2132,7 @@ function handleUpdateRowEtype(row, mapBalance, tx) {
 }
 
 function updateAllETypes(tx) {
-	var sql = "SELECT H.user, H.idCard, H.spent, H.est, H.eType,H.rowid,C.name as nameCard FROM HISTORY H JOIN CARDS C ON H.idCard=C.idCard order by H.rowid ASC";
+	var sql = "SELECT H.user, H.idCard, H.spent, H.est, H.eType,H.rowid, H.comment, C.name as nameCard FROM HISTORY H JOIN CARDS C ON H.idCard=C.idCard order by H.rowid ASC";
 	tx.executeSql(sql, [],
 			function (tx2, results) {
 				var i = 0;

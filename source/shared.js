@@ -10,7 +10,7 @@ var IDLABEL_DUMMY = "//"; //the one dummy label cards share.
 var g_bDummyLabel = false; //not used. just kept to keep the code as it inserts itself in interesting spots
 
 var PREFIX_ERROR_SE_COMMENT = "[error: "; //always use this to prefix error SE rows.
-var PREFIX_COMMAND_SE_COMMENT = "[^";
+var PREFIX_COMMAND_SE_RESETCOMMAND = "[^resetsync";
 var g_msFetchTimeout = 15000; //ms to wait on urlFetches. update copy on plus.js
 var g_cchTruncateDefault = 50;
 var g_cchTruncateShort = 20;
@@ -45,6 +45,7 @@ function replaceString(string, regex, replace) {
     if (typeof (string) != "string")
         string = String(string);
 
+    regex.lastIndex = 0;
     if (!regex.test(string))
         return string; //prevent recreating string in the most common case
 
@@ -196,10 +197,11 @@ var g_regexExcludeList = /\[\s*exclude\s*\]/;
 var g_userTrelloBackground = null;
 var ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
 var PLUSCOMMAND_RESET = "^resetsync";
+var PLUSCOMMAND_ETRANSFER = "^etransfer";
 var PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
 var g_regexWords = /\S+/g; //parse words from an s/e comment. kept global in hopes of increasing perf by not having to parse the regex every time
 
-//regex is easy to break. check well your changes. consider newlines in comments.
+//regex is easy to break. check well your changes. consider newlines in comments. NOTE command could also be in the note. For historical reasons, the command here only covers ^resetsync
 //                          users               days           spent                      command           /        estimate              spaces   note
 var g_regexSEFull= new RegExp("^((\\s*@\\w+\\s+)*)((-[0-9]+)[dD]\\s+)?(([+-]?[0-9]*[.:]?[0-9]*)|(\\^[a-zA-Z]+))?\\s*(/?)\\s*([+-]?[0-9]*[.:]?[0-9]*)?(\\s*)(\\s[\\s\\S]*)?$");
 
@@ -214,8 +216,11 @@ var SYNCPROP_bShowedFeatureSEButton = "bShowedFeatureSEButton";
 var SYNCPROP_bStealthSEMode = "bStealthSEMode";
 var SYNCPROP_language = "language";
 var SYNCPROP_BOARD_DIMENSION = "board_dimension";
+var SYNCPROP_GLOBALUSER = "global_user";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()
+
+var DEFAULTGLOBAL_USER = "global";
 
 var g_strServiceUrl = null; //null while not loaded. set to empty string or url NOTE initialized separately in content vs background
 var SEKEYWORD_DEFAULT = "plus!";
@@ -288,8 +293,14 @@ Array.prototype.appendArray = function (other_array) {
     other_array.forEach(function (v) { this.push(v); }, this);
 };
 
+//var g_rgiDayName = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
+var g_rgiDayName = [null, null, null, null, null, null, null];
 function getWeekdayName(num) {
-    var g_rgiDayName = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
+    if (!g_rgiDayName[num]) {
+        assert(num >= 0 && num <= 6);
+        var dateKnown = new Date(2016, 10, 6+num, 12, 0, 0, 0); //midday of known sunday + delta, to avoid daylight-saving issues
+        g_rgiDayName[num]=dateKnown.toLocaleString(window.navigator.language, { weekday: 'short' });
+    }
     return g_rgiDayName[num];
 }
 
@@ -463,7 +474,7 @@ function errFromXhr(xhr) {
         errText = errText + "\n" + xhr.statusText + "\n" + xhr.responseText;
     }
     else if (xhr.status == 0)
-        errText = "No internet connection.";
+        errText = Language.NOINTERNETCONNECTION;
     console.log(errText);
     return errText;
 }
@@ -949,7 +960,7 @@ function getHtmlBurndownTooltipFromRows(bShowTotals, rows, bReverse, header, cal
 		    var commentLow = tds[iColComment].name.toLowerCase();
 		    if (commentLow.indexOf(PREFIX_ERROR_SE_COMMENT) >= 0)
 		        strClassRow = strClassRow + " agile-drilldown-row-error";
-		    else if (commentLow.indexOf(PREFIX_COMMAND_SE_COMMENT) >= 0)
+		    else if (commentLow.indexOf(PREFIX_COMMAND_SE_RESETCOMMAND) >= 0)
 		        strClassRow = strClassRow + " agile-drilldown-row-command";
 		}
 		var html = "<tr class='"+strClassRow+"'" + strPost + ">";

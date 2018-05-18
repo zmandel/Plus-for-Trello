@@ -466,7 +466,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
-	    helpWin.para("<h2>Contents</h2><ul id='tocAgileHelp'></ul>");
+	    helpWin.para("<h2 style='display:inline-block;'>Contents</h2><span style='color: #8c8c8c;margin-left:1em;'>click a section</span><ul id='tocAgileHelp'></ul>");
 	    helpWin.para('&nbsp');
 	    var bSpentBackendCase = isBackendMode();
 
@@ -501,7 +501,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
         helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
-        helpWin.para('<A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">See this section on the web</A>');
+        helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">See this section on the web</A>');
         helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:');
         helpWin.para('Using the Plus "Card S/E bar" is like adding new rows to the table below and moving the running total down:');
         helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-table.png") + '"/>');
@@ -1231,6 +1231,32 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 
 	    helpWin.para('&nbsp');
 
+	    //global user
+	    if (true) {
+	        var paraGlobalUser = helpWin.para('Global estimates user name: <input style="display:inline;width:15em;" type="text" spellcheck="false" maxlength="20"/>&nbsp;<input type="button" value="Save"/>');
+	        var inputGlobalUser = paraGlobalUser.children('input:text:first');
+	        var buttonSaveGlobalUser = paraGlobalUser.children('input:button:first');
+
+	        inputGlobalUser.val(g_globalUser);
+	        buttonSaveGlobalUser.click(function () {
+	            doSave(true);
+
+	            function doSave(bShowSavedMessage) {
+	                var val = inputGlobalUser.val().trim() || DEFAULTGLOBAL_USER;
+	                inputGlobalUser.val(val);
+	                chrome.storage.sync.set({ SYNCPROP_GLOBALUSER: val }, function () {
+	                    if (chrome.runtime.lastError !== undefined) {
+	                        alert(chrome.runtime.lastError.message);
+	                        return;
+	                    }
+	                    g_globalUser = val;
+	                    if (bShowSavedMessage)
+	                        alert("Saved.");
+	                });
+	            }
+	        });
+	    }
+
 	    //ignore these users in the users dropdown
 	    if (true) {
 	        var paraExcludeUsers = helpWin.para('Exclude these users from the card bar. Separate users with comma:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="500"/>&nbsp;<input type="button" value="Save list"/>');
@@ -1378,11 +1404,12 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    var toc = container.find("#tocAgileHelp");
 
 	    helpWin.enableIntervalScroll(true);
+        //add all H2 to the index
 	    container.find("h2").each(function () {
 	        var el = $(this);
 	        var title = el.text();
 	        var id = el.attr("id");
-	        if (id) {
+	        if (id && id != "agile_pro_section") {
 	            var link = "#" + id;
 	            var li = $("<li style='line-height: 1.5em;'><span>&nbsp;&nbsp</span></li>");
 	            var a = $("<a class='agile_toc_link agile_link_noUnderline'>").attr("href", link).text(title);

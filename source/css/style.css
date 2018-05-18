@@ -299,6 +299,29 @@ div.agile_total_box {
     font-size: 14px !important;
 }
 
+.agile_dialog_SEHelp {
+    width:54em;
+    min-height: 27em;
+}
+
+.agile_sehelp_otheritem li {
+    margin-bottom: 0.5em;
+}
+
+.agile_sehelpsection {
+    padding:1em;
+}
+
+#agile_dialog_SEHelp_OK {
+    position:absolute;
+    bottom:0.5em;
+}
+
+#agile_sehelp_combotopic {
+    width:auto !important;
+    font-size:120%;
+}
+
 .agile_miniHelp_container {
     margin-top:-7px !important;
     float:right !important;
@@ -890,9 +913,8 @@ th.agile_drill_th_extend {
     white-space: nowrap !important;
 }
 
-.agile_card_report_link {
-    margin-bottom:2px;
-    width:auto !important;
+.agile_se_checks {
+    color: #8c8c8c !important;
 }
 
 .agile-se-bar-table {
@@ -1521,6 +1543,7 @@ table#tableMarkers td {
     color:#8C8C8C !important;
     font-size:12px !important;
     cursor: pointer;
+    margin-right:1em;
 }
 
 .agile_linkSoftColor:hover {
@@ -1866,7 +1889,7 @@ float:left;
     color: gray !important;
 }
 
-.agile_hashtags_list {
+.agile_card_combo {
     width:auto;
     border:none;
     background-color:#EDEFF0;

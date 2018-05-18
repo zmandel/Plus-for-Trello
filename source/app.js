@@ -294,7 +294,7 @@ function loadOptions(callback) {
     }
 
     //get options from sync
-    chrome.storage.sync.get([SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
+    chrome.storage.sync.get([SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
                              keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
@@ -302,6 +302,7 @@ function loadOptions(callback) {
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
+                                 g_globalUser = objSync[SYNCPROP_GLOBALUSER] || DEFAULTGLOBAL_USER;
                                  g_dimension = objSync[SYNCPROP_BOARD_DIMENSION] || VAL_COMBOVIEWKW_ALL;
                                  g_language = objSync[SYNCPROP_language] || "en";
                                  g_bDontShowTimerPopups = objSync[keybDontShowTimerPopups] || false;

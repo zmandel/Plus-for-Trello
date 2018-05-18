@@ -505,7 +505,7 @@ var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -x
 //code taken from spent backend
 function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByName) {
     var tableRet = [];
-    var id = action.id;
+    var id = action.id; 
     var from = null;
     var memberCreator = action.memberCreator; //may be undefined
 
@@ -532,7 +532,7 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
             logPlusError("error: unexpected card comment from unknown board/card");
         return tableRet;
     }
-    var bPlusBoardCommand = false;
+
     if (!alldata.boards[idBoardShort]) {
         //review zig: this happens rarely. the card could have moved to a board that the user no longer has access, but if so the comments should have moved there too.
         //might be timing-related to trello db.
@@ -550,6 +550,7 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         return tableRet;
 
     g_optEnterSEByComment.rgKeywords.every(function (keywordParam) {
+        var bPlusBoardCommand = false;
         var keyword = keywordParam.toLowerCase();
         var txtPre = keyword + " ";
         var i = textNotifyOrig.toLowerCase().indexOf(txtPre);
@@ -559,7 +560,7 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         var textNotify = textNotifyOrig.substr(txtPre.length + i).trim(); //remove keyword
         var idForSs = "" + id; //clone it
         var cardTitle = action.data.card.name;
-        var parseResults = matchCommentParts(textNotify, date, cardTitle.indexOf(TAG_RECURRING_CARD)>=0);
+        var parseResults = matchCommentParts(textNotify, date, cardTitle.indexOf(TAG_RECURRING_CARD)>=0, from);
         var comment = "";
 
         function pushErrorObj(strErr) {
@@ -588,30 +589,47 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         var e = 0;
         comment = parseResults.comment;
 
-        if (parseResults.strCommand) {
-            function failCommand() {
-                pushErrorObj("bad command format");
-            }
-            //note before v3.2.13 board commands were allowed in comments when s/e = 0/0. This is no longer allowed for commands.
-            if (parseResults.strEstimate || parseResults.strSpent || parseResults.days || parseResults.rgUsers.length>0) {
-                failCommand();
-                return true; //continue
-            }
-            bPlusBoardCommand = (parseResults.strCommand.indexOf("markboard") == 1 || parseResults.strCommand.indexOf("unmarkboard") == 1);
-            if (bPlusBoardCommand || parseResults.strCommand.indexOf(PLUSCOMMAND_RESET) == 0) {
-                comment = "["+parseResults.strCommand + " command] " + comment; //we want to create a history row so users can see commands in reports
-            }
-            else {
-                failCommand();
-                return true; //continue
-            }
-        }
-
         if (parseResults.strSpent)
-            s = parseFixedFloat(parseResults.strSpent,false);
+            s = parseFixedFloat(parseResults.strSpent, false);
 
         if (parseResults.strEstimate)
             e = parseFixedFloat(parseResults.strEstimate, false);
+
+        var bETransfer = false;
+        if (parseResults.strCommand) {
+            //note before v3.2.13 there were "board commands", (markboard, unmarkboard) no longer used
+            bPlusBoardCommand = (parseResults.strCommand.indexOf("markboard") == 1 || parseResults.strCommand.indexOf("unmarkboard") == 1);
+            
+            function failCommand() {
+                pushErrorObj("bad command format");
+            }
+            
+            //general fields not allowed in commands
+            if (s!=0 || parseResults.days) {
+                failCommand();
+                return true; //continue
+            }
+            
+            if (bPlusBoardCommand || parseResults.strCommand.indexOf(PLUSCOMMAND_RESET) == 0) {
+                if (e!=0 || parseResults.rgUsers.length > 0) {
+                    failCommand();
+                    return true; //continue
+                }
+                comment = "["+parseResults.strCommand + " command] " + comment; //keep command in history row for traceability
+            } else {
+                if (parseResults.strCommand.indexOf(PLUSCOMMAND_ETRANSFER) == 0) {
+                    bETransfer = true;
+                    //note: do not yet modify the comment. we include the command later only on the first history row
+                    if (e<0 || parseResults.rgUsers.length != 2) {
+                        failCommand();
+                        return true; //continue
+                    }
+                } else {
+                    failCommand();
+                    return true; //continue
+                }
+            }
+        }
 
         var deltaDias = parseResults.days;
         var deltaParsed = 0;
@@ -645,13 +663,13 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
         for (iRowPush = 0; iRowPush < rgUsersProcess.length; iRowPush++) {
             var idForSsUse = idForSs;
             var commentPush = comment;
+            var datePush = date;
             if (iRowPush > 0)
                 idForSsUse = idForSs + "." + iRowPush;
             if (action.idPostfix)
                 idForSsUse = idForSsUse + action.idPostfix;
-            var userCur = rgUsersProcess[iRowPush].toLowerCase();
-            if (userCur == g_strUserMeOption)
-                userCur = from; //allow @me shortcut (since trello wont autocomplete the current user)
+            var userCur = rgUsersProcess[iRowPush];
+            
             if (userCur != from) {
                 commentPush = "[by " + from + "] " + commentPush;
                 //update usersMap to fake users that may not be real users
@@ -662,15 +680,30 @@ function readTrelloCommentDataFromAction(action, alldata, usersMap, usersMapByNa
                     usersMapByName[userCur] = idMemberFake;
                 }
             }
+
+            var bSpecialETransferFrom = (bETransfer && iRowPush === 0);
+            var bSpecialETransferTo = (bETransfer && iRowPush === 1);
+            
+            if (bSpecialETransferFrom) {
+                commentPush = g_prefixCommentTransfer + " to " + rgUsersProcess[1] + "] " + commentPush;
+            } else if (bSpecialETransferTo) {
+                commentPush = g_prefixCommentTransfer + " from " + rgUsersProcess[0] + "] " + commentPush;
+                datePush = new Date(date.getTime() + 1000); //TO is a litte after, so reports sort correctly. note we use 1000 because its later rounded to seconds.
+            }
+
             var idCardForRow = idCardShort;
             if (bPlusBoardCommand)
                 idCardForRow = ID_PLUSBOARDCOMMAND;
-            var obj = makeHistoryRowObject(date, idCardForRow, idBoardShort, strBoard, strCard, userCur, s, e, commentPush, idForSsUse, keyword);
+            var obj = makeHistoryRowObject(datePush, idCardForRow, idBoardShort, strBoard, strCard, userCur, s, e, commentPush, idForSsUse, keyword);
             obj.bError = false;
             if (parseResults.strCommand)
-                obj.command = parseResults.strCommand.substring(1);
+                obj.command = parseResults.strCommand.substring(1); //review: unused
             if (idCardForRow != idCardShort)
-                obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time
+                obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time. review: seems only used in the unused handleBoardCommand
+            if (bSpecialETransferFrom) {
+                assert(e > 0);
+                obj.est = -obj.est;
+            }
             tableRet.push(obj);
         }
         return false; //stop

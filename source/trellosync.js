@@ -10,6 +10,7 @@ var SQLQUERY_PREFIX_LABELDATA = "select idLabel,name, idBoardShort, color ";
 var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
 
 var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
+var g_lastStatusSyncCache = {}; //needed for later checking if the last sync had errors easily (not async) statusRead, statusWrite, date could all be undefined)
 
 /* array of cards where card = {
         status: "OK", //ignore it
@@ -158,7 +159,8 @@ function handleGetTrelloBoardData(request, sendResponseParam) {
 function makeLastStatusSync(statusRead, statusWrite, date) {
     if (!date)
         date = Date.now();
-    return { statusRead: statusRead, statusWrite: statusWrite, date: date };
+    g_lastStatusSyncCache = { statusRead: statusRead, statusWrite: statusWrite, date: date };
+    return g_lastStatusSyncCache;
 }
 
 /* handleSyncBoards
@@ -1509,6 +1511,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                     //by the command: those users could reset sync as a last resort.
                     var commentLower = comment.toLowerCase();
                     if (!bFirstSync && commentLower.indexOf(PLUSCOMMAND_RESET) >= 0) { //this "if" just prevents running the regex on every comment
+                        g_regexWords.lastIndex = 0;
                         var words = commentLower.substring(iStart + keyword.length).match(g_regexWords); //http://stackoverflow.com/a/9402526/2213940
                         if (words.length > 0 && words[0] == PLUSCOMMAND_RESET) {
                             if (actionCur.data.card && actionCur.data.board) { //really should assert these
@@ -1631,13 +1634,26 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
                 }
 
                 if (response.items && response.items.length > 0) {
+                    var dateLast = "";
+                    var itemResetLast = null;
                     response.items.forEach(function (item) {
                         //when reseting a card, we will zero s/e of entered items (not delete them) thus we must use
                         //a different action id by adding a postfix
                         assert(cardData.idActionReset);
                         item.idPostfix = "~" + cardData.idActionReset; //use ~ as - is reserved in makeHistoryRowObject
-                        alldata.rgCommentsSE.push(item); 
+                        //just add all comments. later we will check if its really an S/E comment
+                        var comment = item.data.text.toLowerCase();
+                        if (comment.indexOf(PLUSCOMMAND_RESET)<0) //note: this isnt perfect as user could include the string anywhere. but good enough to prevent duplication of resetsyncs
+                            alldata.rgCommentsSE.push(item);
+                        else {
+                            if (dateLast < item.date) {
+                                dateLast = item.date;
+                                itemResetLast = item;
+                            }
+                        }
                     });
+                    if (itemResetLast) //push a single resetsync item at the end. This prevents writting again all previous resetsync
+                        alldata.rgCommentsSE.push(itemResetLast);
 
                     if (lengthOriginal < limit) {
                         callPost(response.status);
@@ -2658,7 +2674,7 @@ function earliest_trello_date() {
 }
 
 //code based on spent backend
-function matchCommentParts(text,date, bRecurringCard) {
+function matchCommentParts(text,date, bRecurringCard, userFrom) {
     //note that comment gets cropped to 200 characters
     //? is used to force non-greedy
     var i_users = 1;
@@ -2703,6 +2719,12 @@ function matchCommentParts(text,date, bRecurringCard) {
     }
 
     rgResults[i_note] = rgResults[i_note].trim();
+    if (!rgResults[i_command] && rgResults[i_note].indexOf(PREFIX_PLUSCOMMAND) == 0) {
+        //for historical compatibility reasons, command in regex is only parsed when no S/E (resetsync case), but we need to manually parse it out of the comment otherwise.
+        var words = rgResults[i_note].split(" ");
+        rgResults[i_command] = words[0];
+        rgResults[i_note] = rgResults[i_note].substring(words[0].length).trim();
+    }
     var ret = {};
     var users = rgResults[i_users].trim();
     var rgUsers = [];
@@ -2711,8 +2733,12 @@ function matchCommentParts(text,date, bRecurringCard) {
         var i = 0;
         for (; i < listUsers.length; i++) {
             var item = listUsers[i].trim().toLowerCase();
-            if (item.length != 0)
+            if (item.length != 0) {
+                item = item.toLowerCase();
+                if (item == g_strUserMeOption)
+                    item = userFrom; //allow @me shortcut (since trello wont autocomplete the current user)
                 rgUsers.push(item);
+            }
         }
     }
     ret.rgUsers = rgUsers;

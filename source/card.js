@@ -452,14 +452,16 @@ function createSEButton() {
     }
 }
 
-function showSEBarContainer(bDontRemember, bFocusS) {
+function showSEBarContainer(bDontRemember, bFocusS, bFocusE) {
     $(".agile-se-bar-entry").show();
-    $(".agile_plushelp_cardCommentHelp").show();
     if (!bDontRemember)
         g_bShowSEBar = true;
-    if (bFocusS) {
+    if (bFocusS || bFocusE) {
         setTimeout(function () {
-            $(".agile_spent_box_input").focus();
+            var elemSE = $(bFocusS ? ".agile_spent_box_input" : ".agile_estimation_box_input");
+            elemSE.focus();
+            hiliteOnce(elemSE);
+            hiliteOnce($("#plusCardCommentUsers"));
         }, 0);
         }
 }
@@ -483,7 +485,7 @@ function fillDaysList(comboDays, cDaySelected) {
             title = "" + iDays + (iDays == 1 ? " day ago" : " days ago");
             var dateNow = new Date();
             dateNow.setDate(dateNow.getDate() - iDays);
-            title = title + ": " + dateNow.toLocaleDateString();
+            title = title + ": " + getWeekdayName(dateNow.getDay()) + " " + dateNow.toLocaleDateString();
         }
         var optAdd = new Option(str, str);
         if (bStrSelected)
@@ -624,7 +626,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 	        }
 	});
 	var spinS = setNormalFont($('<input id="plusCardCommentSpent" placeholder="S"></input>').addClass("agile_spent_box_input agile_placeholder_small agile_focusColorBorder"));
-	spinS.attr("title", "Click to type Spent.");
+	spinS.attr("title", "Click to type Spent.\nIf needed, Plus will increase E (right) when your total S goes over E.");
 	spinS[0].onkeypress = function (e) { validateSEKey(e); checkEnterKey(e); };
     //thanks for "input" http://stackoverflow.com/a/14029861/2213940
 	spinS.bind("input", function (e) { updateEOnSChange(); });
@@ -716,6 +718,12 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 			if (s == 0 && e == 0 && valComment.length == 0) {
 			    hiliteOnce(spinS, 500);
 			    hiliteOnce(spinE, 500);
+			    return;
+			}
+
+			if (valComment && valComment.length > 0 && valComment.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
+			    alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from the S/E bar.");
+			    hiliteOnce(comment, 500);
 			    return;
 			}
 			function onBeforeStartCommit() {
@@ -1016,7 +1024,15 @@ function fillCardSEStats(tableStats,callback) {
                         estimateBadge = BadgeFactory.makeEstimateBadge().addClass("agile_badge_cardfront").attr('title', 'E sum\nall users');
                         spentBadge = BadgeFactory.makeSpentBadge().addClass("agile_badge_cardfront agile_badge_cardfrontFirst").attr('title', 'S sum\nall users');
                         remainBadge = BadgeFactory.makeRemainingBadge().addClass("agile_badge_cardfront").attr('title', 'R sum\nall users');
-                        containerStats.prepend($('<a class="agile_card_report_link agile_link_noUnderline no-print" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank">Card Report - Plus</a>'));
+                        if (false) {
+                            var elemTransferE = $('<a class="agile_linkSoftColor no-print" href="" target="_blank" title="Transfer estimates between users">transfer E</a>');
+                            elemTransferE.click(function () {
+                                showTransferEDialog();
+                            });
+                            containerStats.prepend(elemTransferE);
+                        }
+
+                        containerStats.prepend($('<a class="agile_card_report_link agile_linkSoftColor no-print" href="' + chrome.extension.getURL("report.html?idCard=") + encodeURIComponent(idCard) + '" target="_blank" title="Open a detailed S/E rows report">Report</a>'));
                         containerStats.prepend(remainBadge);
                         containerStats.prepend(estimateBadge);
                         containerStats.prepend(spentBadge);
@@ -1570,36 +1586,11 @@ function addCardCommentHelp() {
 
 			if (true) {
 				var classSpentCommentHelp = "agile_plushelp_cardCommentHelp";
-				if (elem.eq(0).children("." + classSpentCommentHelp).length == 0) {
-				    var helpComment = null;
-
-				    var kw = g_optEnterSEByComment.getDefaultKeyword();
-				    helpComment = setSmallFont($("<A class='quiet-button' style='margin-left:10px;display:inline-block;' href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>S/E help</A>").addClass(classSpentCommentHelp), 0.85);
-				    var strTip = "Click for Plus S/E help";
-				    if (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length > 0) {
-				        strTip += "\n\nQuick comment format help:\n" + kw + " 0/4  :  adds 4 to your estimate\n\n\
-" + kw + " -2d 5/3 fix doc : adds 2days ago 5/3 with note 'fix doc'\n\n\
-" + kw + " @john 0/6 : adds to john 6 estimate\n\n\
-" + kw + " @john @paul -2d 3/3 codereview : adds to john and paul -2days ago 3/3 with note 'codereview'\n\n\
-use @me as shortcut to add yourself.\n\n\
-" + kw + " 7 : (without '/') spends 7/0 or 7/7 for recurring [R] cards.\n\n\
-Click for more.";
-				    }
-				    helpComment.prop("title", strTip);
-				    if (!g_bShowSEBar)
-				        helpComment.hide();
-				    var commentControls = elem.find(".comment-controls");
-
-				    if (commentControls.length === 1) {
-				        if (helpComment)
-				            commentControls.append(helpComment);
-				    }
-				}
 				var elemWindowTop = elemParent;
 				while (!elemWindowTop.hasClass("window-wrapper"))
 				    elemWindowTop = elemWindowTop.parent();
 				var div = $("<div class='no-print'></div>");
-				div.append(createRecurringCheck()).append(createHashtagsList()).append(createSELink());
+				div.append(createRecurringCheck()).append(createHashtagsList()).append(createSEMenu());
 				elemWindowTop.find(".window-header").eq(0).append(createMiniHelp()).append(div);
 				
 				createCardSEInput(elemParent, idCardCur, board);
@@ -1693,17 +1684,49 @@ function updateRecurringCardImage(bRecurring, icon) {
         icon.hide();
 }
 
-function createSELink() {
-    var elem = $("<A href='' class='agile_linkSoftColor agile_AddSELink' style='text-decoration:none;'>Add S/E</A>");
-    elem.click(function (evt) {
-        showSEBarContainer(false, true);
-        return false; //handled
+function createSEMenu() {
+    var comboSE = $("<select class='agile_AddSELink agile_card_combo agile_linkSoftColor'></select>");
+    comboSE.prop("title", "Plus Spent and Estimates.");
+    comboSE.append($(new Option("Spent / Estimate", "", false, true)).attr('disabled', 'disabled'));
+    comboSE.append($(new Option("add Spent", "S")).prop("title", "Add Spent to a user.\nuser's Spent = sum of all their 'S' entries."));
+    comboSE.append($(new Option("add Estimate", "E")).prop("title", "Create or add Estimate for a user.\nuser's Estimate = sum of all 'E' entries."));
+    if (false)
+		comboSE.append($(new Option("transfer Estimate", "TE")).prop("title", "transfer E 1ˢᵗ between users.\n\
+Useful to transfer from a global estimate to a specific user."));
+
+    comboSE.append($(new Option("S/E Help", "help")));
+
+    comboSE.on("change", function () {
+        var val = comboSE.val();
+        if (val == "S") {
+            comboSE.val("");
+            showSEBarContainer(false, true);
+            return false; //handled
+        }
+
+        if (val == "E") {
+            comboSE.val("");
+            showSEBarContainer(false, false, true);
+            return false; //handled
+        }
+
+        if (val == "TE") {
+            comboSE.val("");
+            showTransferEDialog();
+            return false; //handled
+        }
+
+        if (val == "help") {
+            showSEHelpDialog();
+            comboSE.val("");
+            return false; //handled
+        }
     });
 
     if (!isTourRunning()) {
         chrome.storage.sync.get([SYNCPROP_bShowedFeatureSEButton], function (obj) {
             if (!obj[SYNCPROP_bShowedFeatureSEButton]) {
-                showSEButtonBubble(elem);
+                showSEButtonBubble(comboSE);
                 obj[SYNCPROP_bShowedFeatureSEButton] = true;
                 chrome.storage.sync.set(obj, function () {
                     if (chrome.runtime.lastError !== undefined)
@@ -1713,11 +1736,11 @@ function createSELink() {
         });
     }
 
-    return elem;
+    return comboSE;
 }
 
 function createHashtagsList() {
-    var comboK = $("<select class='agile_hashtags_list agile_linkSoftColor'></select>");
+    var comboK = $("<select class='agile_hashtags_list agile_card_combo agile_linkSoftColor'></select>");
     comboK.prop("title", "Add Plus #tags which are searchable from Reports.");
     var txtOther = "other...";
     var elemOther = null;
@@ -1926,11 +1949,11 @@ function updateTimerTooltip(timerElem, bRunning, bRemoveSmallTimerHelp, bUpdateC
 	var strClassRunning = "agile_timer_running";
 	if (bRunning) {
 		timerElem.addClass(strClassRunning);
-        title = "Click to stop the timer.";
+		title = "Click to stop or pause the Plus timer.";
 	}
 	else {
 		timerElem.removeClass(strClassRunning);
-		title = "Click to start the timer.";
+		title = "Click to start the Plus timer.";
 	}
 
 	timerElem.attr('title', title);
@@ -2535,4 +2558,185 @@ function doInsert00History(idCardCur, idBoardNew, boardNameNew, userCur, boardCu
 		});
 }
 
+function showTransferEDialog() {
+}
 
+
+function showSEHelpDialog() {
+
+    var divDialog = $(".agile_dialog_SEHelp");
+    if (divDialog.length == 0) {
+        var bSECommentsMode = (g_optEnterSEByComment.IsEnabled() && g_optEnterSEByComment.rgKeywords.length > 0);
+        var kw = g_optEnterSEByComment.getDefaultKeyword();
+        //note: tabindex="1" will set focus to the title. this is to prevent focus to other elements that may cause a scroll down of the dialog on small screens.
+        divDialog = $('\
+<dialog class="agile_dialog_SEHelp agile_dialog_DefaultStyle"> \
+<h2 id="agile_dialog_SEHelp_Top" style="outline: none;" align="center">Spent / Estimates help</h2>\
+<select tabindex="1" id="agile_sehelp_combotopic">\
+    <option value="welcome">Click here to pick a help topic</option>\
+    <option value="addest">Add user estimate or global estimate</option>\
+    <option value="addspent">Add user spent</option>\
+    <option value="modspent">Modify total spent</option>\
+    <option value="modest">Modify total estimate</option>\
+    <option value="transfere">Transfer from a global estimate to a given user</option>\
+    <option value="modfirstest">Modify mistakes or a 1ˢᵗ estimate</option>\
+    <option value="addannotation">Add a burndown annotation</option>'+
+    (bSECommentsMode?'<option value="secommentexamples">Examples of S/E card comments</option>':'')+
+    '<option value="setprefs">Set your Plus S/E preferences</option>\
+    <option value="otherhelp">Other s/e help topics</option>\
+</select>\
+<div class="agile_sehelpsection" id="agile_sehelp_secommentexamples">'+
+'<p><b>' + kw + ' 0/4</b>  :  add 4 to your estimate.</p>\
+<p><b>' + kw + ' -2d 5/3 fix doc</b> : add 2days ago 5/3 with note "fix doc".</p>\
+<p><b>' + kw + ' @john 0/6</b> : add to john 6 estimate.</p>\
+<p><b>' + kw + ' @john @paul -2d 3/3 code review</b> : add to john and paul -2days ago 3/3 with note "code review".</p>\
+<p><i>use @me as shortcut to add yourself. @me is always the comment owner.</i></p>'+
+(true?'':'<p><b>' + kw + ' @global @me /7 ^etransfer</b> : transfer 7 "E 1ˢᵗ" from global to me.</p>')+
+'<p><b>' + kw + ' 7</b> : (without "/") spends 7/0 or 7/7 for Plus recurring "[R]" cards.</p>\
+<br>\
+<A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">More Plus S/E comment help.</A>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_welcome">\
+&nbsp;<br>\
+<img style="margin-left:5em;" src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>\
+&nbsp;<br>\
+&nbsp;<br>\
+<p><b>R</b>emain = <b>E</b>stimate - <b>S</b>pent</p>\
+<p><b>E</b>stimate = <b>S</b>pent + <b>R</b>emain</p>\
+<p><b>E</b>stimate = <b>E 1ˢᵗ</b> + "E changes" (<b>+E</b> & <b>-E</b> "E. type" in Reports)\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_addannotation">\
+<p>To add an annotation, first pick the annotation date in the S/E bar, then type type your annotation as a note starting with "<b>!</b>" and Enter.</p>\
+<p>Typing S/E is optional when adding an annotation.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_addest">\
+<img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
+<br><br>\
+<p><b>Add a user estimate:</b> Pick "add Estimate" from the "Spent / Estimate" menu in the card front.</p>\
+<p>Pick the user in the S/E bar (or "me" for yourself), Estimate, optional note, and Enter.</p>\
+<p>The estimate may increase or decrease later if you keep adding more E entries with the S/E bar or with "modify".<p>\
+<p>Keep E up-to-date so Plus can calculate a realistic Remain "R" for reports and burndowns.</p>\
+<p>Plus keeps track of the first estimate (E 1ˢᵗ) per user to compare with their current E. See the "Modify total estimate" and "Transfer from a global estimate" topics above.</p>\
+<br>\
+<p><b>Add a global estimate</b> by assigning it to the "global" user. Useful to later transfer E to specific users.</p>\
+<p><b>NOTE: This transfer command is not yet available in Plus. We will enable it in a few days.</b></p>\
+<p>When transfering estimates, Plus always transfers E 1ˢᵗ. This can cause "global" to reach negative E 1ˢᵗ when its estimate was increased and later transfered to a user.</p>\
+<p>Change the "global" name in Plus Preferences.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_addspent">\
+<img src="' + chrome.extension.getURL("images/plusbarlabeled.png") + '" />\
+<br><br>\
+<p>Pick "add Spent" from the "Spent / Estimate" menu in the card front.</p>\
+<p>Pick the user in the S/E bar (or "me" for yourself), type the spent, optional note, and Enter.</p>\
+<p>If the spent is not for "now", pick the date from the "now" date selector.</p>\
+<br>\
+<p>Keep adding more Spent entries with the S/E bar, "modify", or directly as card comments (if using that sync mode).</p>\
+<p>Total Spent is always the sum of all S entries.</p>\
+<br>\
+<p>If you type S in the S/E bar with empty E (or not enough to cover the Spent about to be added) Plus automatically prefills the missing E in the S/E bar so R=0, to prevent R from going negative. This behaviour can be turned off from Preferences.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_modspent">\
+<img src="' + chrome.extension.getURL("images/cardsemodify.png") + '" />\
+<br><br>\
+<p>Use "modify" to correct mistakes or if you prefer to modify total S directly instead of thinking about increases and decreases. "modify" will create the S/E entry (calculating the needed difference).</p>\
+<br>\
+<p>You can also use the S/E bar with negative S to substract from total Spent as an easy way to undo a mistake.</p>\
+<br>\
+<p>Do not modify S/E comments you already entered (or sheet rows for stealth sync users). Use "modify" or see the "Modify mistakes" topic above.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_modest">\
+<img src="' + chrome.extension.getURL("images/cardsemodify.png") + '" />\
+<br><br>\
+<p>Use "modify" to change E directly instead of thinking about increases and decreases. "modify" will create the needed S/E entry when you edit total Estimate</p>\
+<br>\
+<p>You may also use the S/E bar with negative numbers to substract from the total Estimate. However, just like the S/E bar, it does not modify "E 1ˢᵗ".</p>\
+<br>\
+<p>Do not modify S/E comments you already entered (or sheet rows for stealth sync users). Use "modify" or see the "Modify mistakes" topic above to modify "E 1ˢᵗ" or other changes.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_transfere">\
+<p><b>NOTE: This transfer command is not yet available in Plus. We will enable it in a few days.</b></p>\
+<p>Pick "transfer Estimate" from the "Spent / Estimate" menu in the card front.<\p>\
+<p>Transfer E 1ˢᵗ between users, usually from a "global" estimate to an actual user.<\p>\
+<br>\
+<p>A "global" estimate is simply E assigned to the "global" user.<\p>\
+<p>You may change "global" to a different name in Plus Preferences.<\p>\
+<p></p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_modfirstest">\
+<p>To fix mistakes with Spent or with modifying estimate, just use "modify" to undo.</p>\
+<p>However, that will not change a 1ˢᵗ Estimate. It\'s possible to modify E 1ˢᵗ when using the "Card comments" sync mode by entering a special S/E comment with the "^resetsync" command.<\p>\
+<p>First, modify the card comment where the S/E entry was made for the 1ˢᵗ Estimate. Note that only the Trello user that made the comment can modify it.<br>\
+<p>Then, issue the command:</p>\
+<p><b>'+g_optEnterSEByComment.getDefaultKeyword()+' ^resetsync</b> as a card comment. Plus will re-read all S/E comments just for that card.</p>\
+<p>This command may be used to modify any S/E row, not just E 1ˢᵗ. However, note that Plus will keep a record in reports of the old S/E values for traceability.</p>\
+<br>\
+<p>Read more about the <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html#resetsynccommand" target="_blank">card "^resetsync" command</A>.</p>\
+<p>You may also force Plus to re-read all S/E including E 1ˢᵗ (for all sync modes) from the Plus help pane Utilities, however this would need to be done by all team members too and can take a a few minutes on many boards.</p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_setprefs">\
+<p>From the Plus help pane jump to Preferences to set your Units (minutes, hours, days), whether to use Estimates, background sync and much more.</p>\
+<p>Set your S/E sync method and keywords form the help pane\'s Sync section.</p>\
+<p>View more in the help pane from any Trello page by clicking its icon: <img src="' + chrome.extension.getURL("images/iconspenthelp.png") + '" style="width:22px;height:22px;" /></p>\
+</div>\
+<div class="agile_sehelpsection" id="agile_sehelp_otherhelp">\
+<p>For more help, open the Plus help pane from any Trello page by clicking its icon: <img src="' + chrome.extension.getURL("images/iconspenthelp.png") + '" style="width:22px;height:22px;" /></p>\
+<p>or visit these pages:</p>\
+<ul class="agile_sehelp_otheritem">\
+<li>&bull; <A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">How Plus tracks Spent and Estimate</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/s-e-entry-methods.html" target="_blank">Spent / Estimate entry methods</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">Entering Spent / Estimate as card comments</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">Using multiple keywords</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/sync-features.html" target="_blank">How Plus syncs Trello data</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html" target="_blank">Support for S/E inside card titles</A></li>\
+<li>&bull; <A href="http://www.plusfortrello.com/p/faq.html" target="_blank">Hashtags, week numbers, troubleshooting and more in the FAQ</A></li>\
+</ul>\
+</div>\
+<br \>&nbsp;\
+<button class="button-link" id="agile_dialog_SEHelp_OK">Close</button>\
+</dialog>');
+        $("body").append(divDialog);
+        divDialog = $(".agile_dialog_SEHelp");
+    } 
+
+    function doFinish(bOK) {
+        divDialog[0].close();
+    }
+
+    function detectEscape(ev) {
+        if (ev.keyCode == 27) {
+            ev.preventDefault();
+            doFinish(false);
+            return false;
+        }
+    }
+
+    divDialog.off("keydown.plusForTrello").on("keydown.plusForTrello", function (e) {
+        return detectEscape(e);
+    });
+
+    divDialog.find("#agile_dialog_SEHelp_OK").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+        doFinish(true);
+    });
+
+    function hideAllSections() {
+        divDialog.find(".agile_sehelpsection").addClass("agile_hidden");
+    }
+
+    var elemCombo = divDialog.find("#agile_sehelp_combotopic");
+    elemCombo.off("keydown.plusForTrello").on("keydown.plusForTrello", function (e) {
+        return detectEscape(e);
+    });
+
+    elemCombo.off("change.plusForTrello").on("change.plusForTrello", function (e) {
+        var val = $(this).val();
+        showSection(val);
+    });
+
+    function showSection(section) {
+        hideAllSections();
+        divDialog.find("#agile_sehelp_" + section).removeClass("agile_hidden");
+    }
+    hideAllSections();
+    showSection("welcome");
+    showModalDialog(divDialog[0]);
+}
