@@ -1897,11 +1897,12 @@ function createHashtagsList(divParent) {
                 tag.text = "Add new: #" + tag.text;
                 data.push(tag);
             },
-            minimumResultsForSearch: 0, placeholder: "Add #tags", width: 'auto', dropdownAutoWidth: true,
+            minimumResultsForSearch: 0, placeholder: "Add #tags", width: 'auto', dropdownAutoWidth: true
         });
     }
     comboK.on("change", function () {
         var val = comboK.val() || "";
+        var iHash = null;
         if (val == "")
             return;
         if (val == txtOther) {
@@ -1911,7 +1912,7 @@ function createHashtagsList(divParent) {
                 return;
             }
             newHash = newHash.trim();
-            var iHash = newHash.indexOf("#");
+            iHash = newHash.indexOf("#");
             if (iHash == 0)
                 newHash = newHash.substring(1);
             else if (iHash > 0) {
@@ -1960,7 +1961,7 @@ function createHashtagsList(divParent) {
 
         var titleCur = elem.text().trim();
         var rgHash = getHashtagsFromTitle(titleCur);
-        for (var iHash = 0; iHash < rgHash.length;iHash++) {
+        for (iHash = 0; iHash < rgHash.length;iHash++) {
             if (rgHash[iHash].toLowerCase() == val.toLowerCase()) {
                 //silently ignore
                 sendDesktopNotification("hashtag #"+val+" is already in the card.");

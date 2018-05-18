@@ -52,7 +52,7 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		    container.append(setFont($('<span > or put the team spreadsheet url from your team administrator.</span>')));
 		divInput.append(setFont(input));
 		container.append(divInput);
-		container.append(setFont($('<p>Example: https://docs.google.com/spreadsheets/d/blahblah/edit#gid=0  or https://docs.google.com/...?key=blahblah#gid=0</p>')));
+		container.append(setFont($('<p>Example: https://docs.google.com/spreadsheets/d/abcabydo/edit#gid=0</p>')));
 		if (g_strServiceUrl != null && g_strServiceUrl != "") {
 		    var urlClean = g_strServiceUrl.split("#")[0];
 		    var strSharingNote = " <A target='_blank' href='" + urlClean + (urlClean.indexOf("?")<0 ? "?" : "&") + "usp=sharing&userstoinvite=type_users_emails_here'>Configure spreadsheet sharing</A>.";
@@ -115,6 +115,11 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 		    if (thisLocal.bClosed) //not sure if it can happen. for safety in case it gets on a partial failure state.
 		        return;
 
+		    var userElem = getCurrentTrelloUser();
+		    if (userElem == null) {
+		        alert("Unexpected error: cannot detect current Trello user.");
+		        return;
+		    }
 		    var url = input.val().trim();
 		    var bError = false;
 		    var bReset = thisLocal.bReset;
@@ -145,22 +150,17 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
 
 		        if (url.indexOf("/d/") >= 0) {
 		            var parts = url.split("#gid=");
-		            if (parts.length < 2 || parts[1] != "0") {
-		                alert("Only new google sheets with #gid=0 can be accepted.");
+		            if (parts.length < 2) {
+		                alert("Invalid url format: missing '#gid='");
 		                return;
 		            }
 		        }
 		        if (bSimplePlus && ((url.indexOf("key=") < 0 && url.indexOf("/d/") < 0) || url.indexOf("#gid=") < 0)) {
-		            alert("Invalid Google spreadsheet url format. Make sure it has #gid=");
+		            alert("Invalid Google spreadsheet url format. Possibly missing #gid=");
 		            return;
 		        }
 
 		        var strOldStorage = g_strServiceUrl;
-
-		        if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length > 0) {
-		            if (!confirm("By changing the URL, all S/E rows will be cleared locally and re-read from the new spreadsheet.\nAre you sure you want to modify this setup URL?"))
-		                return;
-		        }
 
 		        sendExtensionMessage({ method: "isSyncing" },
                     function (response) {
@@ -232,21 +232,32 @@ You need to be signed-into Chrome to use this sync mode.</p>')));
                                     });
                                 }
 
-                                if (!bReset && bSimplePlus && (strOldStorage == null || strOldStorage.trim() == "")) {
-                                    //preserve storage if its going from 'no sync' -> 'sync'
-                                    chrome.storage.sync.set({ 'serviceUrl': g_strServiceUrl },
-                                        function () {
-                                            if (chrome.runtime.lastError) {
-                                                alert(chrome.runtime.lastError.message);
-                                                return;
-                                            }
+                                var promiseClearStorage = null;
+                                if (!bReset && bSimplePlus && (strOldStorage == null || strOldStorage.trim() == ""))
+                                    promiseClearStorage = Promise.resolve(false);
+                                else if (!bReset && strOldStorage != null && strOldStorage.trim() != "" && url.length > 0)
+                                    promiseClearStorage = DeleteOrMergeNewSyncSource();
+                                else
+                                    promiseClearStorage = Promise.resolve(true);
+
+                                promiseClearStorage.then(function (bClearStorage) {
+                                    if (!bClearStorage) {
+                                        chrome.storage.sync.set({ 'serviceUrl': g_strServiceUrl },
+                                            function () {
+                                                if (chrome.runtime.lastError) {
+                                                    alert(chrome.runtime.lastError.message);
+                                                    return;
+                                                }
+
+                                                reloadConfigData(url, function () {
+                                                    setLocalUrlAndRestart();
+                                                });
+                                            });
+                                    } else {
+                                        clearAllStorage(function () { //review zig misnamed. clears all storage except a few like the sync url.
                                             setLocalUrlAndRestart();
                                         });
-                                    return;
-                                }
-
-                                clearAllStorage(function () { //review zig misnamed. clears all storage except a few like the sync url.
-                                    setLocalUrlAndRestart();
+                                    }
                                 });
                             });
                     });
@@ -319,6 +330,7 @@ function clearAllStorage(callback) {
                         'bHidePendingCards': g_bHidePendingCards,
                         'bHideLessMore': g_bHideLessMore,
                         'dowStart': DowMapper.getDowStart(),
+                        'dowDelta': DowMapper.getDowDelta(),
                         'msStartPlusUsage': g_msStartPlusUsage,
                         'bSyncOutsideTrello': g_bSyncOutsideTrello,
                         'bChangeCardColor': g_bChangeCardColor,
@@ -347,4 +359,24 @@ function clearAllStorage(callback) {
 
 function RequestNotificationPermission(callback) {
 	window.webkitNotifications.requestPermission(callback);
+}
+
+function reloadConfigData(url, callback) {
+    //purpose is to pass bSkipCache: true so the cache gets recalculated
+    var userElem = getCurrentTrelloUser();
+    if (userElem == null) {
+        alert("Unexpected error: cannot detect current Trello user.");
+        return;
+    }
+    sendExtensionMessage({ method: "getConfigData", userTrello: userElem, urlService: url, bSkipCache: true },
+        function (respConfig) {
+            if (respConfig.config) {
+                if (respConfig.config.status != STATUS_OK) {
+                    sendExtensionMessage(respConfig.config.status);
+                    return;
+                }
+                g_configData = respConfig.config; //can be null. probably not necesary to refresh this global as we are about to restart, but seems safer to do so
+                callback();
+            }
+        });
 }

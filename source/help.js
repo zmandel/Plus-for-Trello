@@ -480,7 +480,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s3.png") + '"/>');
 	    helpWin.para("This <b>Plus header</b> is useful mostly to those using S/E.");
 	    helpWin.para("The <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO week</A> as in 2014-W49 is 2014's week 49. Weeks start on Sunday unless you change it in <b>Preferences</b>.");
-	    helpWin.para('Click the week to change the view on trello.com charts and reports. <A href="https://plus.google.com/photos/+PlusfortrelloNews/albums/6004371895359551937/6004371896981799010"  target="_blank">Click chart titles to zoom-in</A>.');
+	    helpWin.para('Click the week to change the view on trello.com charts and reports. <A href="https://plus.google.com/photos/+PlusfortrelloNews/albums/6004371895359551937/6004371896981799010"  target="_blank"><br>Click chart titles</A> in trello.com to zoom charts to full window.');
 	    helpWin.para('&nbsp');
 
 	    helpWin.para('<b>Plus Board toolbar</b>');
@@ -537,6 +537,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
 	    helpWin.para('Easily enter Spent with card timers, or manually enter S/E with the Plus card bar.');
 	    helpWin.para('Example of entering S/E starting from the bottom (oldest) card comment:');
+	    helpWin.para('Note that Plus makes the "plus" card comments when using the S/E bar (unless using the stealth sync mode).');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" in the card front report.');
@@ -544,7 +545,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do the math for you and enter the needed S/E as a new row.');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
 	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
-	    helpWin.para('&bull; Keyboard use: Use TAB to move between fields. ENTER from the "note" field.');
+	    helpWin.para('&bull; Keyboard use: Use TAB or SHIFT+TAB to move between fields. Enter with the "Enter" key or button.');
 	    helpWin.para('<b>More:</b> <A target="_blank" href="http://www.plusfortrello.com/p/s-e-entry-methods.html">Which S/E entry method should you use?</A>');
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
@@ -625,12 +626,17 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Plus will ask you for permission to access your Google spreadsheets once configured below.', divCur);
 	    spanButtonGSStealth = setupPlusConfigLink(divCur, true);
 	    helpWin.para("&nbsp;", divCur);
-	    if (g_strServiceUrl == "")
-	        helpWin.para('Not yet configured.', divCur);
-	    else {
-	        helpWin.para('Current sync spreadsheet url:', divCur);
-	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
+
+	    function showCurrentSpreadsheetLink() {
+	        if (g_strServiceUrl == "")
+	            helpWin.para('Not yet configured.', divCur);
+	        else {
+	            helpWin.para('Current sync spreadsheet url:', divCur);
+	            setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
+	        }
 	    }
+
+	    showCurrentSpreadsheetLink();
 	    helpWin.para("&nbsp;", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
@@ -643,12 +649,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Thus in this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
 	    spanButtonGS = setupPlusConfigLink(divCur);
 	    helpWin.para("&nbsp;", divCur);
-	    if (g_strServiceUrl == "")
-	        helpWin.para('Not yet configured.', divCur);
-	    else {
-	        helpWin.para('Current sync spreadsheet url:', divCur);
-	        setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
-	    }
+	    showCurrentSpreadsheetLink();
 	    helpWin.para("&nbsp;", divCur);
 
 	    var valCombo = null;
@@ -990,23 +991,68 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        });
 	    }
 
-	    //option to change week start day
+	    helpWin.raw('<p><b>Week numbering</b>. All users must have the same week settings.</p>');
+	    const idNotificationWeekUpgrade = "upgradeWeekNumbering";	    //option to change week start day
+
+	    var comboDowStart = null;
+	    var comboWeekDeltaStart = null;
+	    var elemEffectiveDow = null;
+
+	    function getDowStartFromCombo() {
+	        return (comboDowStart ? (parseInt(comboDowStart.val(), 10) || 0) : DowMapper.getDowStart());
+	    }
+
+	    function getWeekDeltaStartFromCombo() {
+	        return (comboWeekDeltaStart ? (parseInt(comboWeekDeltaStart.val(), 10) || 0) : DowMapper.getDowDelta());
+	    }
+
+	    function updateEffectiveDow() {
+	        if (!elemEffectiveDow)
+	            return;
+	        var delta = DowMapper.getDowDelta();
+	        var dowStart = DowMapper.getDowStart();
+	        var strEffectiveDow = "";
+	        if (delta != 0) {
+
+	            var dowStartFinal = DowMapper.dowFromPosWeek(0);
+	            var strPrefix = "";
+	            if (delta > 0)
+	                strPrefix = "the following ";
+	            else
+	                strPrefix = "the previous ";
+	            strEffectiveDow = " <b>Week effectively starts on " + strPrefix + getWeekdayName(DowMapper.dowFromPosWeek(0), true).toLowerCase() + "</b>. Set shift to zero above to undo. ";
+	        }
+	        var dateNowTemp = new Date();
+	        strEffectiveDow += "<br>Today's week is " + getCurrentWeekNum(dateNowTemp, dowStart, delta) + " with these settings.";
+	        if (delta != 0)
+	            strEffectiveDow += " Would be " + getCurrentWeekNum(dateNowTemp, dowStart, 0) + " with zero shift.";
+	        elemEffectiveDow.html(strEffectiveDow);
+	    }
+
+	    function updateOnWeekNumChange() {
+	        var userCur = getCurrentTrelloUser();
+	        var configCur = g_configData;
+	        var elemComboWeeks = $("#spentRecentWeeks");
+	        updateEffectiveDow();
+	        fillRecentWeeksList(elemComboWeeks);
+	        hiliteOnce(elemComboWeeks,4000);
+	        doWeeklyReport(configCur, userCur, true, false);
+	    }
+
+        //Week starts on
 	    if (true) {
-	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>');
-	        var comboDowStart = $('<select style="width:auto">');
-	        pComboDow.append(comboDowStart);
+	        var pComboDow = helpWin.raw('<p><span>Week starts on </span></p>').addClass('agile_help_indent1');
+	        comboDowStart = $('<select style="width:auto">');
+	        comboDowStart.appendTo(pComboDow);
 	        //comboDowStart.append($(new Option("saturday", "6"))); //dom: saturday not ready. many edge cases not handled.
 	        comboDowStart.append($(new Option("sunday", "0")));
 	        comboDowStart.append($(new Option("monday", "1")));
 	        comboDowStart.val(DowMapper.getDowStart());
-	        pComboDow.append($('<span>. Change it anytime. All users should have the same setting.</span>'));
-	        var statusDow = $("<b></b>").hide();
-	        pComboDow.append(statusDow);
-	        pComboDow.append(setSmallFont($('<br>If the next year starts before the middle of the week, it is week #1 of that year.'), 0.9));
+
 	        comboDowStart.change(function () {
 	            var pair = {};
 	            comboDowStart.attr('disabled', 'disabled');
-	            var valComboDow = parseInt(comboDowStart.val(), 10) || 0;
+	            var valComboDow = getDowStartFromCombo();
 	            var bError = true;
 	            var strError = "";
 	            pair["dowStart"] = valComboDow;
@@ -1016,15 +1062,18 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	                    comboDowStart.val(DowMapper.getDowStart()); //reset
 	                } else {
-	                    strError = " Saved... ";
+	                    strError = " Saving...";
 	                    bError = false;
 	                }
-	                statusDow.text(strError);
-	                statusDow.show();
+	                if (strError)
+	                    sendDesktopNotification(strError, 6000, idNotificationWeekUpgrade);
 	                if (bError) {
 	                    comboDowStart.removeAttr('disabled');
 	                    return;
 	                }
+
+	                var valComboWeekDelta = getWeekDeltaStartFromCombo();
+
 	                openPlusDb(
                         //re-open the db right away. This doesnt refresh everything but at least it triggers conversion asap.
                         //note that if conversion fails for any reason, it will be done at the next openPlusDb from the content script
@@ -1032,17 +1081,90 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
                             if (response.status != STATUS_OK)
                                 strError += response.status;
                             else {
-                                var userCur = getCurrentTrelloUser();
-                                var configCur = g_configData;
-                                doWeeklyReport(configCur, userCur, true, false);
+                                updateOnWeekNumChange();
                                 strError += "Database upgraded OK.";
                             }
-                            statusDow.text(strError);
+                            sendDesktopNotification(strError, 6000, idNotificationWeekUpgrade);
                             comboDowStart.removeAttr('disabled');
-                        }, { dowStart: valComboDow });
+                        }, { dowStart: valComboDow, dowDelta: valComboWeekDelta });
 	            });
 	        });
 	    }
+
+	    //enable support for custom weeks
+	    if (true) {
+	        var pComboWeekDelta = helpWin.raw('<p><span>Support any start day by shifting the week +forward or -backwards: </span></p>').addClass('agile_help_indent1');
+	        comboWeekDeltaStart = $('<select style="width:auto">');
+	        comboWeekDeltaStart.appendTo(pComboWeekDelta);
+	        pComboWeekDelta.append("<span> </span>");
+	        pComboWeekDelta.append($('<a href="">Tell me more.</a>')).children('a').click(function (ev) {
+	            helpTooltip(ev, "Example: Start weeks on thursday by selecting 'monday' and a shift of +3, or previous thursday with a shift of -4.<br />Plus Supports  <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO weeks</A> starting sunday or monday. The ISO standard has special rules for numbering weeks at the beginning or end of a year. A non-zero value first shifts the date, then applies the ISO rules to calculate the week number. -7 and 7 are provided if you wish to shift by a whole week.");
+	        });
+	        elemEffectiveDow = $('<p />');
+	        pComboWeekDelta.append(elemEffectiveDow);
+	        comboWeekDeltaStart.append($(new Option("-7")));
+	        comboWeekDeltaStart.append($(new Option("-6")));
+	        comboWeekDeltaStart.append($(new Option("-5")));
+	        comboWeekDeltaStart.append($(new Option("-4")));
+	        comboWeekDeltaStart.append($(new Option("-3")));
+	        comboWeekDeltaStart.append($(new Option("-2")));
+	        comboWeekDeltaStart.append($(new Option("-1")));
+	        comboWeekDeltaStart.append($(new Option("0 (no shift)","0")));
+	        comboWeekDeltaStart.append($(new Option("+1", "1")));
+	        comboWeekDeltaStart.append($(new Option("+2", "2")));
+	        comboWeekDeltaStart.append($(new Option("+3", "3")));
+	        comboWeekDeltaStart.append($(new Option("+4", "4")));
+	        comboWeekDeltaStart.append($(new Option("+5", "5")));
+	        comboWeekDeltaStart.append($(new Option("+6", "6")));
+	        comboWeekDeltaStart.append($(new Option("+7", "7")));
+	        comboWeekDeltaStart.val(DowMapper.getDowDelta());
+	        updateEffectiveDow();
+	        comboWeekDeltaStart.change(function () {
+	            var pair = {};
+	            comboWeekDeltaStart.attr('disabled', 'disabled');
+	            var valComboWeekDelta = getWeekDeltaStartFromCombo();
+	            var bError = true;
+	            var strError = "";
+	            pair["dowDelta"] = valComboWeekDelta;
+	            
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError !== undefined) {
+	                    strError = " Error. Not saved.";
+
+	                    comboWeekDeltaStart.val(DowMapper.getDowDelta());
+	                } else {
+	                    strError = " Saving... ";
+	                    bError = false;
+	                }
+
+	                updateEffectiveDow();
+                    if (strError)
+	                    sendDesktopNotification(strError, 6000, idNotificationWeekUpgrade);
+
+                    if (bError) {
+                        comboWeekDeltaStart.removeAttr('disabled');
+	                    return;
+                    }
+
+                    var valComboDow = getDowStartFromCombo();
+                    //note: openPlusDb will update dowStart in DowMapper just before returning
+	                openPlusDb(
+                        //re-open the db right away. This doesnt refresh everything but at least it triggers conversion asap.
+                        //note that if conversion fails for any reason, it will be done at the next openPlusDb from the content script
+                        function (response) {
+                            if (response.status != STATUS_OK)
+                                strError += response.status;
+                            else {
+                                updateOnWeekNumChange();
+                                strError += "Database upgraded OK.";
+                            }
+                            sendDesktopNotification(strError, 6000, idNotificationWeekUpgrade);
+                            comboWeekDeltaStart.removeAttr('disabled');
+                        }, { dowStart: valComboDow, dowDelta: valComboWeekDelta });
+	            });
+	        });
+	    }
+
 
 	    if (true) {
 	        var checkIgnoreZeroEst = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedIgnoreZeroEstimates" \

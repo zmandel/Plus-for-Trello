@@ -1785,7 +1785,7 @@ function buildSql(elems) {
                     sql += (state.cFilters > 0 ? " AND" : " WHERE") + " C.idCard" + (advancedParams.bNegateAll ? " NOT" : "") + " in (" + sqlLabels + ")";
                 }
             } else {
-                sendDesktopNotification("To filter by labels enable 'Pro' from the Plus help pane.", 10000);;
+                sendDesktopNotification("To filter by labels enable 'Pro' from the Plus help pane.", 10000);
             }
         }
 
@@ -1975,7 +1975,6 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                             var rows = response.rows;
                             try {
                                 var groupBy = elems["groupBy"];
-
                                 var options = {
                                     bNoTruncate: elems["checkNoCrop"] == "true",
                                     bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
@@ -1987,6 +1986,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                 };
 
                                 elemProgress.text("Filling...").show();
+
                                 setReportData(rows, options, elems, sqlQuery, function onOK() {
                                     elemProgress.text("").hide();
                                 });
@@ -2048,6 +2048,7 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
     const bCountCards = options.bCountCards;
     const weekStart = urlParams["weekStart"];
     const weekEnd = urlParams["weekEnd"];
+    const bPivotByWeek = (urlParams["pivotBy"] == PIVOT_BY.week);
 
     if (sqlQuery.bHasUnion) {
         assert(groupBy.length > 0);
@@ -2069,6 +2070,15 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
 
     if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
         rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
+    if (rowsGrouped.length > 3000 && bPivotByWeek) { //week is the default. else user likely changed it on purpose so dont keep reminding this tip
+        const bNoCharts = (urlParams["checkNoCharts"] == "true");
+        var strAlert = "To speed up the report, consider:";
+        strAlert += "\n• Set pivot by 'Year'";
+
+        if (!bNoCharts)
+            strAlert += "\n• In this report options section, check 'No charts'";
+        sendDesktopNotification(strAlert, 6000);
+    }
 
     var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0); //review zig: dup elsewhere
     var mapIdCards = {};

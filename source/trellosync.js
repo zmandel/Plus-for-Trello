@@ -3,7 +3,7 @@
 var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
 var g_bProcessCardCommentCopies = false; //Trello optionally copies card comment when making a card copy REVIEW must handle in comment parser
-
+var g_bUpdateSyncNotificationProgress = false;
 
 var SQLQUERY_PREFIX_CARDDATA = "select dateCreated, dateDue, idBoard, name, dateSzLastTrello, idList, idLong, idCard, idShort, bArchived, bDeleted ";
 var SQLQUERY_PREFIX_LISTDATA = "select idBoard, name, dateSzLastTrello, idList, bArchived, pos ";
@@ -122,7 +122,7 @@ var g_syncStatus = {
 };
 
 //review zig: tokenTrello is not used. some callers already pass null
-function processThreadedItemsSync(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, bDontUpdateSyncStatus) {
+function processThreadedItemsSync(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, bDontUpdateSyncStatus, needsProcessItemDelay) {
 
     function onFinishedEach(status) {
         if (status == STATUS_OK) {
@@ -133,7 +133,7 @@ function processThreadedItemsSync(tokenTrello, items, onPreProcessItem, onProces
         }
     }
 
-    processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, onFinishedEach);
+    processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, onFinishedEach, needsProcessItemDelay);
 }
 
 function handleGetTrelloCardData(request, sendResponseParam) {
@@ -224,6 +224,7 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
     var strKeyTokenTrelloLast = "tokenTrelloLast";
     var tokenTrelloStored = localStorage[strKeyTokenTrelloLast];
 
+    g_bUpdateSyncNotificationProgress = false; //reset
     if (!tokenTrello) {
         if (!tokenTrelloStored) {
             //note: currently the token is not actually used during sync, but might be used in the future
@@ -258,7 +259,9 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
 
         cardsByLong: {}, //hash idLong -> shortLink.
         boardsByLong: {}, //hash idLong -> shortLink.
-        hasBoardAccess: {}, //hash by shortLink -> true iff user has access to that board
+        hasBoardAccessDirect: {}, //hash by shortLink -> true iff user has access to that board (note: means user has no direct access, but may still have access throigh team membership)
+        hasNoBoardAccess: {}, //hash by shortLink -> true iff user has NO board access.
+        hasBoardAccess : {}, //hash by shortLink -> true iff user has access to that board. Not here does not mean user has no access.
         rgCommentsSE: [], //all possible S/E comments
         rgCardResetData: [], //array of {idCard: shortLink, idBoard: shortLink, dateSzBefore, idActionReset: action with resetsync command } of cards needing reset
         dateLastLabelsSyncStrOrig: null, //when not null, indicates original value from GLOBALS
@@ -319,9 +322,12 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
                 }, ms);
             }
             broadcastMessage({ event: EVENTS.FIRST_SYNC_RUNNING, status: STATUS_OK });
+            g_bUpdateSyncNotificationProgress = true;
             handleShowDesktopNotification({
-                notification: "Sync is running for the first time and may take a few minutes to finish.\n\nSee progress by hovering the Plus icon on the top-right of Chrome.",
-                timeout: 30000
+                notification: Language.FIRSTSYNC_PRE,
+                timeout: 15000,
+                idUse: IDNOTIFICATION_FIRSTSYNCPRORESS,
+                dontClose: true
             });
         }
 
@@ -361,7 +367,7 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
                     sendResponse(response);
             }
 
-            processTrelloActions(tokenTrello, alldata, responseGetActions.actions, responseGetActions.boards, responseGetActions.hasBoardAccess, processAllCardsRename);
+            processTrelloActions(tokenTrello, alldata, responseGetActions.actions, responseGetActions.boards, responseGetActions.hasBoardAccessDirect, processAllCardsRename);
         }
     }
 }
@@ -544,7 +550,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
 }
 
 function completeMissingCardDateCreated(tokenTrello, alldata, sendResponse) {
-    var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where dateCreated is NULL", values: [] };
+    var request = { sql: SQLQUERY_PREFIX_CARDDATA + "FROM CARDS where dateCreated is NULL AND idLong is not NULL", values: [] };
     handleGetReport(request,
         function (responseReport) {
             if (responseReport.status != STATUS_OK) {
@@ -581,9 +587,13 @@ function completeMissingListCardData(tokenTrello, alldata, sendResponse) {
     }
 
     g_syncStatus.setStage("Completing card's lists", cardsToFix.length);
-    processThreadedItemsSync(tokenTrello, cardsToFix, null, onProcessItem, onFinishedAll);
+    processThreadedItemsSync(tokenTrello, cardsToFix, null, onProcessItem, onFinishedAll, false, needsProcessItemDelay);
 
-    function onProcessItem(tokenTrello, card, iitem, postProcessItem) {
+    function needsProcessItemDelay(card, iitem) {
+        return (!(card.idBoard && alldata.hasNoBoardAccess[card.idBoard]));
+    }
+
+    function onProcessItem(tokenTrello, card, iitem, postProcessItem)  {
         
         function callPost(status) {
             postProcessItem(status, card, iitem);
@@ -604,17 +614,36 @@ function completeMissingListCardData(tokenTrello, alldata, sendResponse) {
             }
             else {
                 card.idList = IDLIST_UNKNOWN;
+                card.bArchived = true; //not really true but this prevents later attempts at completing card data.
                 //not setting card.idBoard = IDBOARD_UNKNOWN; //review zig: this would be good for consistency, but may not be a good idea when a card was deleted or loses permission we dont want to lose the board it beloged to
                 //thus, because of this currently its not always true that a card's list belongs to the same board as the card in the db
                 if (cardData.bDeleted) {
                     card.bDeleted = true;
                     card.bArchived = true;
                 }
+
+                if (!cardData.bForced) {
+                    if (card.idBoard && card.idBoard != IDBOARD_UNKNOWN && !alldata.hasNoBoardAccess[card.idBoard] && !alldata.hasBoardAccessDirect[card.idBoard] && !alldata.hasBoardAccess[card.idBoard]) {
+                        //optimization: check board status so later we dont have to keep checking all board cards
+                        getBoardData(tokenTrello, false, card.idBoard, "fields=dateLastActivity", function (boardData) {
+                            if (!boardData.hasPermission)
+                                alldata.hasNoBoardAccess[card.idBoard] = true;
+                            else
+                                alldata.hasBoardAccess[card.idBoard] = true;
+                            callPost(cardData.status);
+                        });
+                        return;
+                    }
+                }
             }
             callPost(cardData.status);
         }
+
         assert(card.idLong || card.idCard);
-        getCardData(tokenTrello, card.idLong || card.idCard, "id,idList", false, callbackCard);
+        if (!needsProcessItemDelay(card, iitem))
+            callbackCard({status:STATUS_OK, hasPermission:false, bForced:true}); //optimization
+        else
+            getCardData(tokenTrello, card.idLong || card.idCard, "id,idList", false, callbackCard);
     }
 
     function onFinishedAll(status) {
@@ -654,19 +683,26 @@ function completeMissingListData(tokenTrello, alldata, sendResponse) {
     function onProcessItem(tokenTrello, item, iitem, postProcessItem) {
 
         var idListCur = item.idList;
+        assert(idListCur);
+        var listDb = alldata.lists[idListCur];
 
         function finish() {
+            if (listDb.idBoard != IDBOARD_UNKNOWN && !alldata.hasBoardAccessDirect[listDb.idBoard] && !alldata.hasBoardAccess[listDb.idBoard]) {
+                if (alldata.hasNoBoardAccess[listDb.idBoard]) {
+                    callbackList({ status: STATUS_OK, hasPermission :false, bForced: true}); //optimize trello calls
+                    return;
+                }
+            }
             getListData(tokenTrello, idListCur, "name,idBoard,closed,pos", callbackList);
         }
 
 
-        assert(idListCur);
-        var listDb = alldata.lists[idListCur];
+       
         if (listDb.idBoard == IDBOARD_UNKNOWN) {
             //could be in db. if not, get it with the trello api
             getThisListFromDb(alldata, idListCur, function () {
-                listdb = alldata.lists[idListCur];
-                if (listdb.idBoard == IDBOARD_UNKNOWN)
+                listDb = alldata.lists[idListCur];
+                if (listDb.idBoard == IDBOARD_UNKNOWN)
                     finish();
                 else
                     callPost(STATUS_OK);
@@ -703,6 +739,18 @@ function completeMissingListData(tokenTrello, alldata, sendResponse) {
             else {
                 listDb.pos = -1; //fake pos. this prevents from continuing to attempt getting pos from lists with "null" pos during upgrade to this pos feature
                 listDb.bArchived = true; //this might not be really true but prevents certain repeated queries to update the list
+
+                if (!listData.bForced && listDb.idBoard && listDb.idBoard != IDBOARD_UNKNOWN && !alldata.hasNoBoardAccess[listDb.idBoard] && !alldata.hasBoardAccessDirect[listDb.idBoard] && !alldata.hasBoardAccess[listDb.idBoard]) {
+                    //optimization: check board status so later we dont have to keep checking all board cards
+                    getBoardData(tokenTrello, false, listDb.idBoard, "fields=dateLastActivity", function (boardData) {
+                        if (!boardData.hasPermission)
+                            alldata.hasNoBoardAccess[listDb.idBoard] = true;
+                        else
+                            alldata.hasBoardAccess[listDb.idBoard] = true;
+                        callPost(listData.status);
+                    });
+                    return;
+                }
             }
 
             callPost(listData.status);
@@ -1159,7 +1207,7 @@ function bUpdateAlldataList(lists, list, idBoard, dateList) {
 }
 
 
-function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAccess, sendResponseParam) {
+function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAccessDirect, sendResponseParam) {
     var bProcessCommentSE = g_optEnterSEByComment.IsEnabled();
     var rgKeywords = [];
     var mapHandledCardCommand = {};
@@ -1167,7 +1215,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
     if (bProcessCommentSE)
         rgKeywords = cloneObject(g_optEnterSEByComment.rgKeywords); //prevent issues if object changes during sync
 
-    alldata.hasBoardAccess = hasBoardAccess;
+    alldata.hasBoardAccessDirect = hasBoardAccessDirect;
     function postComplete(response) {
 
         if (response.status != STATUS_OK) {
@@ -2007,7 +2055,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
         return;
     }
     var limit = g_cLimitActionsPerPage;
-    var statusProcess = { boards: [], iBoard: -1, hasBoardAccess: {} };
+    var statusProcess = { boards: [], iBoard: -1, hasBoardAccessDirect: {} };
     var results = [];
     var bReturned = false;
     var cNeedProcess = 0;
@@ -2084,7 +2132,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                     assert(board.dateLastActivity); //normalized above
                     var idTeamNew = board.idOrganization || null;
 
-                    statusProcess.hasBoardAccess[board.shortLink] = true;
+                    statusProcess.hasBoardAccessDirect[board.shortLink] = true;
 
 
                     var actionLast = board.actions[0];
@@ -2304,7 +2352,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
                         saveAsFile(statusProcess, "statusProcess.json");
                     }
 
-                    sendResponse({ status: status, actions: results, boards: statusProcess.boards, hasBoardAccess: statusProcess.hasBoardAccess });
+                    sendResponse({ status: status, actions: results, boards: statusProcess.boards, hasBoardAccessDirect: statusProcess.hasBoardAccessDirect });
                 }
 
                 function onPreProcessItem(board) {

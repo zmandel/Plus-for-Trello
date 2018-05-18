@@ -18,7 +18,7 @@ var g_cchTruncateShort = 20;
 var g_cchTruncateChartDlabel = 35;
 var g_regexpHashtags = /#([\S-]+)/g;
 var g_colorTrelloBlack = "#4D4D4D";
-
+const IDNOTIFICATION_FIRSTSYNCPRORESS = "firstSyncProgress";
 var OPT_SHOWSPENTINICON_NORMAL = 0;
 var OPT_SHOWSPENTINICON_ALWAYS = 1;
 var OPT_SHOWSPENTINICON_NEVER = 2;
@@ -301,10 +301,20 @@ Array.prototype.appendArray = function (other_array) {
 
 //var g_rgiDayName = ['su', 'mo', 'tu', 'we', 'th', 'fr', 'sa'];
 var g_rgiDayName = [null, null, null, null, null, null, null];
-function getWeekdayName(num) {
+var g_rgiDayNameLong = [null, null, null, null, null, null, null];
+function getWeekdayName(num, bLong) {
+    var dateKnown;
+    if (bLong) {
+        if (!g_rgiDayNameLong[num]) {
+            assert(num >= 0 && num <= 6);
+            dateKnown = new Date(2016, 10, 6 + num, 12, 0, 0, 0); //midday of known sunday + delta, to avoid daylight-saving issues
+            g_rgiDayNameLong[num] = dateKnown.toLocaleString(window.navigator.language, { weekday: 'long' });
+        }
+        return g_rgiDayNameLong[num];
+    }
     if (!g_rgiDayName[num]) {
         assert(num >= 0 && num <= 6);
-        var dateKnown = new Date(2016, 10, 6+num, 12, 0, 0, 0); //midday of known sunday + delta, to avoid daylight-saving issues
+        dateKnown = new Date(2016, 10, 6+num, 12, 0, 0, 0); //midday of known sunday + delta, to avoid daylight-saving issues
         g_rgiDayName[num]=dateKnown.toLocaleString(window.navigator.language, { weekday: 'short' });
     }
     return g_rgiDayName[num];
@@ -386,35 +396,42 @@ var MAP_UNITS = {
  * the week starts with the day at position 0.
  *
  * getDowStart()
- * setDowStart(dow)
+ * setDowStart(dow,delta)
  * posWeekFromDow(dow)
  * dowFromPosWeek(pos)
  *
  * Plus strategy for dealing with week numbers:
  * each HISTORY stores its week number, so its easier to query without worrying about producing the right week query. Without it its hard to deal correctly
  * with boundary weeks, for example week 53 of a given year might fall into the next year thus a query by year would crop the results.
- * One the week number is stored, we need a way to  know what standard was used (week's start day) for the row. We dont keep that standard in browser storage because it wouldnt
+ * Once the week number is stored, we need a way to  know what standard was used (week's start day) for the row. We dont keep that standard in browser storage because it wouldnt
  * be possible to atomically change a row and setting. Thus the setting is saved in a table GLOBALS which has a single row and a column 'dowStart'
  * Additionally, we keep in storage.sync the last dowStart the user configured, and during openDb it checks if the db needs converting.
  * By convension, only openDb from the content script will cause conversion. the other callers just use the db setting. In practice, unless there is a rare case of failure,
- * the sync setting and the db setting will be in sync. The sync setting has precedence and will continue attempting to make them in sync at the next openDb call (window refresh)
+ * the sync setting and the db setting will be in sync. The sync setting has precedence and will continue attempting to make them in sync at the next openDb call (window refresh or new tab)
  *
  **/
 var DowMapper = {
     //public:
     DOWSTART_DEFAULT:0, //sunday default
     getDowStart: function () { return this.m_dowStart; },   //set dow with position 0
-    setDowStart: function (dow) { this.m_dowStart = dow; }, //get dow with position 0
+    getDowDelta: function () { return this.m_dowDelta; },
+    setDowStart: function (dow, delta) {
+        assert(typeof(delta) !== "undefined");
+        this.m_dowStart = dow;
+        this.m_dowDelta = delta;
+    }, //get dow with position 0
     posWeekFromDow: function (dow) {                        //position for a given dow
-        var pos = dow - this.m_dowStart;
+        var pos = dow - this.m_dowStart - this.m_dowDelta;
         if (pos < 0)
-            pos = pos + 7; //mod is faster but this is easier to understand
+            pos = 14 + pos;
+        pos = pos % 7;
         return pos;
     },
     dowFromPosWeek: function (pos) {                        //dow in given position
-        var dowNew = pos + this.m_dowStart;
-    if (dowNew > 6)
-        dowNew = dowNew - 7; //mod is faster but this is easier to understand
+        var dowNew = pos + this.m_dowStart + this.m_dowDelta;
+        if (dowNew < 0)
+            dowNew = 14 + dowNew;
+        dowNew = dowNew % 7;
     return dowNew;
     },
     
@@ -423,7 +440,8 @@ var DowMapper = {
     init: function () {        
         //initialize the object. see http://stackoverflow.com/questions/4616202/self-references-in-object-literal-declarations
         this.m_dowStart = this.DOWSTART_DEFAULT;
-        delete this.init; //dont you ever call me back again you...
+        this.m_dowDelta = 0;
+        delete this.init; //dont call me back again
         return this;
     }
 }.init();
@@ -573,8 +591,10 @@ function buildSyncErrorTooltip(status) {
 function openPlusDb(sendResponse, options) {
     sendExtensionMessage({ method: "openDB", options: options },
 			function (response) {
-			    if (response.dowStart !== undefined)
-			        DowMapper.setDowStart(response.dowStart);
+			    if (response.dowStart !== undefined) {
+			        assert(response.dowDelta !== undefined);
+			        DowMapper.setDowStart(response.dowStart, response.dowDelta);
+			    }
 			    sendResponse(response);
 			});
 }
@@ -1444,7 +1464,7 @@ function getCurrentMonthFormatted(date) {
 
 var g_weekNumUse = null; //"2015-W05"; //set for testing only
 
-function getCurrentWeekNum(date, dowStartOpt) {
+function getCurrentWeekNum(date, dowStartOpt, dowDeltaOpt) {
 	if (date === undefined) {
 		if (g_weekNumUse != null)
 			return g_weekNumUse; //default week num, from plus header week selector
@@ -1453,6 +1473,12 @@ function getCurrentWeekNum(date, dowStartOpt) {
    
 	if (dowStartOpt === undefined)
 	    dowStartOpt = DowMapper.getDowStart();
+	if (dowDeltaOpt === undefined)
+	    dowDeltaOpt = DowMapper.getDowDelta();
+	if (dowDeltaOpt != 0) {
+	    date = new Date(date.getTime()); //clone
+	    date.setDate(date.getDate() - dowDeltaOpt);
+	}
 	var weeknum = getWeekNumCalc(date, dowStartOpt); //week starts at g_dowStart (0=sunday)
 	var year = date.getFullYear();
 	var month = date.getMonth();
@@ -1699,7 +1725,7 @@ function showTimerPopup(idCard) {
  * status == STATUS_OK when succeeds.
  *
  **/
-function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, onFinishedEach) {
+function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessItem, onFinishedAll, onFinishedEach, needsProcessItemDelay) {
     var cNeedProcess = 0;
     var cReadyToWait = false;
     var bReturned = false;
@@ -1747,6 +1773,8 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
 
         item.bPendingQuery = true;
         //timeout is to reduce chances of a trello quota. Note that even if we get a quota issue, it will be retried.
+        if (needsProcessItemDelay && !needsProcessItemDelay(item, iitem))
+            ms = 0;
         setTimeout(function () {
             try {
                 onProcessItem(tokenTrello, item, iitem, postProcessItem);

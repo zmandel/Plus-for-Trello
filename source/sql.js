@@ -330,23 +330,20 @@ function handleSyncDBWorker(request, sendResponseParam) {
                 idSs + "/" + idSheet +
                 "/private/basic";
 
-            var idSsLastSync = localStorage["idSsLastSync"];
             var rowSyncStart = 1;
             var iRowEndLastSpreadsheet = rowSyncStart - 1; //0
-            if (idSsLastSync && idSsLastSync == idSs) {
-                var rowSyncEndLast = localStorage["rowSsSyncEndLast"];
-                if (rowSyncEndLast) {
-                    iRowEndLastSpreadsheet = parseInt(rowSyncEndLast, 10) || 0;
+            var allssData = getRowSSEndLastData({ idSs: idSs, idSheet: idSheet }); //as this is the first call in the sync process, we pass defaults to deal with conversion from versions before 2016-12-16
+            var indexMap = idSs + "/" + idSheet;
+            if (allssData[indexMap]) {
+                iRowEndLastSpreadsheet = allssData[indexMap];
                     rowSyncStart = iRowEndLastSpreadsheet + 1;
                 }
-            } else {
-                localStorage["rowSsSyncEndLast"] = 0; //detect idssChange so that its automatic on archive+new ss.
-                localStorage["idSsLastSync"] = idSs;
-            }
+
             var dataAll = [];
             var cPage = 500; //get rows by chunks.
             //thanks to https://groups.google.com/forum/#!topic/google-spreadsheets-api/dSniiF18xnM
             var params = { 'alt': 'json', 'start-index': rowSyncStart, 'max-results': cPage };
+            var ssInfo = { idSs: idSs, idSheet: idSheet, indexMap: indexMap, retConfig:retConfig, iRowEndLastSpreadsheet: iRowEndLastSpreadsheet };
             handleApiCall(url, params, true, function myCallback(resp) {
                 try {
                     if (resp !== undefined && resp.data !== undefined && resp.data.feed !== undefined) {
@@ -361,7 +358,7 @@ function handleSyncDBWorker(request, sendResponseParam) {
                         }
                         updatePlusIcon(true);
                         if (!entry || entry.length < cPage) {
-                            processNewRows(dataAll, sendResponse, iRowEndLastSpreadsheet);
+                            processNewRows(dataAll, sendResponse, ssInfo);
                             return;
                         }
 
@@ -455,19 +452,19 @@ function setLastWriteStatus(status) {
 function appendRowsToSpreadsheet(rows, iRow, idSsUser, idUserSheetTrello, response) {
 	if (rows.length == iRow) {
 		if (rows.length == 0)
-		    setLastWriteStatus(STATUS_OK); //gets set while writting rows so set it here too for the no-rows case
+		    setLastWriteStatus(STATUS_OK);
 		response();
 		return;
 	}
 	appendRowToSpreadsheet(rows[iRow], idSsUser, idUserSheetTrello, function () {
 		//wait a little per row to not overwhelm quotas
-		//note: the only common case where there is more than 1 row to write is when the user firt sets up sync after using Plus without sync.
+		//note: the only common case where there is more than 1 row to write is when the user first sets up sync after using Plus without sync.
 		//so its not worth it to optimize that case, it will just take longer to complete the write sync.
 		//note that it actually takes longer than the timeout, since a row waits for the previous one to finish (serial)
 		if (g_strLastWriteSyncStatus != STATUS_OK)
 			response();
 		else
-			setTimeout(function () { appendRowsToSpreadsheet(rows, iRow + 1, idSsUser, idUserSheetTrello, response); }, 2000);
+			setTimeout(function () { appendRowsToSpreadsheet(rows, iRow + 1, idSsUser, idUserSheetTrello, response); }, 1200);
 	});
 }
 
@@ -485,22 +482,24 @@ function dateToSpreadsheetString(date) {
 }
 
 function appendRowToSpreadsheet(row, idSsUser, idUserSheetTrello, sendResponse) {
+    //note this serializes all appends, so we dont overwhelm google quotas
 	var date = new Date(row.date * 1000);
 	var atom = makeRowAtom(dateToSpreadsheetString(date), row.board, row.card, row.spent, row.est,
 				   row.user, row.week, row.month, row.comment, row.idBoard, row.idCard, row.idHistory);
 	var url = "https://spreadsheets.google.com/feeds/list/" + idSsUser + "/" + idUserSheetTrello + "/private/full";
 	handleApiCall(url, {}, true, function (response) {
 	    setLastWriteStatus(response.status);
-		sendResponse(); //note this serializes all appends, so we dont overwhelm google quotas
+		sendResponse(); 
 	}, atom);
 }
 
 function appendLogToPublicSpreadsheet(message, sendResponse) {
+    //note this serializes all appends, so we dont overwhelm google quotas
     assert(false); //no longer used
 	var atom = makeMessageAtom(message);
 	var url = "https://spreadsheets.google.com/feeds/list/" + "xxxxxxx" + "/" + gid_to_wid(0) + "/private/full";
 	onAuthorized(url, {}, function (response) {
-	    sendResponse(); //note this serializes all appends, so we dont overwhelm google quotas
+	    sendResponse(); 
 	}, null, true, atom);
 }
 
@@ -643,14 +642,14 @@ function cleanupStringSpreadsheet(str) {
 	return str;
 }
 
-function processNewRows(rowsInput, sendResponse, iRowEndLastSpreadsheet) {
+function processNewRows(rowsInput, sendResponse, ssInfo) {
 
     var rows = new Array(rowsInput.length);
 	
 	for (var i = 0; i < rowsInput.length; i++) {
 		rows[i]=parseNewHistoryRow(rowsInput[i]);
 	}
-	insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet);
+	insertIntoDB(rows, sendResponse, ssInfo);
 
 }
 
@@ -871,20 +870,20 @@ function loadBackgroundOptions(callback) {
     });
 }
 
-function insertIntoDB(rows, sendResponse, iRowEndLastSpreadsheet) {
+function insertIntoDB(rows, sendResponse, ssInfo) {
     loadBackgroundOptions(function () {
-        insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet);
+        insertIntoDBWorker(rows, sendResponse, ssInfo);
     });
 }
 
-function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTrelloComments) {
+function insertIntoDBWorker(rows, sendResponse, ssInfo, bFromTrelloComments) {
     assert(g_db);
     var i = 0;
     var idMemberMapByName = {}; //populated at the beginning with all existing users by name
 	var cProcessedTotal = 0;
 	var cInsertedTotal = 0;
 	var cRows = rows.length;
-	var bFromSpreadsheet = (iRowEndLastSpreadsheet !== undefined);
+	var bFromSpreadsheet = (ssInfo !== undefined);
 	var bFromSource = (bFromSpreadsheet || bFromTrelloComments); //otherwise it comes from the interface
 	var rowidLastInserted = null; //will be set to the rowid of the last inserted row
 	var data = {
@@ -1049,8 +1048,11 @@ function insertIntoDBWorker(rows, sendResponse, iRowEndLastSpreadsheet, bFromTre
 	}
 
 	function okTransaction() {
-		if (iRowEndLastSpreadsheet !== undefined) //undefined when inserting from interface, not spreadsheet
-		    localStorage["rowSsSyncEndLast"] = iRowEndLastSpreadsheet + cProcessedTotal;
+	    if (ssInfo !== undefined) { //undefined when inserting from interface, not spreadsheet
+	        var allSsData = getRowSSEndLastData();
+	        allSsData[ssInfo.indexMap] = ssInfo.iRowEndLastSpreadsheet + cProcessedTotal;
+	        saveRowSSEndLastData(allSsData);
+	    }
 
 		if (rowidLastInserted !== null) {
 		    var pair = {};
@@ -1317,7 +1319,7 @@ function handleDeleteDB(request, sendResponseParam) {
 			console.error("Error!: %s", err.message);
 		sendResponse({ status: "error: handleDeleteDB" });
 	}, function () {
-		localStorage["rowSsSyncEndLast"] = 0; //just in case, thou should be set also when opening the db on migration 1.
+	    saveRowSSEndLastData({}); //just in case, thou should be set also when opening the db on migration 1.
 		g_db = null;
 		sendResponse({ status: STATUS_OK });
 	});
@@ -1384,7 +1386,7 @@ function startWritePublicLog(messages) {
     window.open(urlForm,"_blank");
 }
 
-function convertDowStart(dowStart,sendResponse, response) {
+function convertDowStart(dowStart,dowDelta, sendResponse, response) {
     if (!g_db) {  //dont use isDbOpened since its called while opening
         var error = "db not open";
         logPlusError(error);
@@ -1401,7 +1403,7 @@ function convertDowStart(dowStart,sendResponse, response) {
 			    for (; i < results.rows.length; i++) {
 			        var item = results.rows.item(i);
 			        var dateCur = new Date(item.date * 1000);
-			        tx2.executeSql("UPDATE HISTORY SET week=? WHERE rowid=?", [getCurrentWeekNum(dateCur,dowStart),item.rowid],
+			        tx2.executeSql("UPDATE HISTORY SET week=? WHERE rowid=?", [getCurrentWeekNum(dateCur, dowStart, dowDelta),item.rowid],
                         function (tx3, results) {
                             //nothing
                         },
@@ -1417,8 +1419,8 @@ function convertDowStart(dowStart,sendResponse, response) {
 			});
 
 
-        var sql2 = "UPDATE GLOBALS SET dowStart=?";
-        tx.executeSql(sql2, [dowStart],
+        var sql2 = "UPDATE GLOBALS SET dowStart=?, dowDelta=?";
+        tx.executeSql(sql2, [dowStart, dowDelta],
            function (tx2, results) {
            },
            function (tx2, error) {
@@ -1435,7 +1437,8 @@ function convertDowStart(dowStart,sendResponse, response) {
 
 	function okTransaction() {
 	    response.dowStart = dowStart;
-	    DowMapper.setDowStart(dowStart); //init background's version of this global
+	    response.dowDelta = dowDelta;
+	    DowMapper.setDowStart(dowStart, dowDelta); //init background's version of this global
 	    sendResponse(response);
 	});
 }
@@ -1524,20 +1527,23 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             }
             //wrapper to handle db conversion on dowStart mismatch
             //review zig: currently called also when g_db is already cached. when fixed, consider case where this fails (thisResponse.status)
-            var sql = "select dowStart FROM GLOBALS LIMIT 1";
+            var sql = "select dowStart, dowDelta FROM GLOBALS LIMIT 1";
             var request = { sql: sql, values: [] };
             handleGetReport(request,
                 function (response) {
                     if (response.status == STATUS_OK && response.rows && response.rows.length == 1) {
                         var dowStart = response.rows[0].dowStart;
+                        var dowDelta = response.rows[0].dowDelta;
                         if (!(dowStart === undefined || dowStart < 0 || dowStart > 6)) {
-                            if (options && typeof (options.dowStart) == "number" && (options.dowStart != dowStart)) {
-                                convertDowStart(options.dowStart, finalResponse, thisResponse);
+                            if (options && typeof (options.dowStart) == "number" && (options.dowStart != dowStart || options.dowDelta != dowDelta)) {
+                                assert(options.dowDelta !== undefined);
+                                convertDowStart(options.dowStart, options.dowDelta, finalResponse, thisResponse);
                                 return;
                             }
                             else {
-                                DowMapper.setDowStart(dowStart); //init background version of the global
+                                DowMapper.setDowStart(dowStart, dowDelta); //init background version of the global
                                 thisResponse.dowStart = dowStart;
+                                thisResponse.dowDelta = dowDelta;
                                 finalResponse(thisResponse);
                                 return;
                             }
@@ -1581,7 +1587,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             delete localStorage["oauth_token" + scopeOld];
             delete localStorage["oauth_token_secret" + scopeOld];
 
-            localStorage["rowSsSyncEndLast"] = 0; //reset when creating database
+            saveRowSSEndLastData({}); //reset when creating database
 
             t.executeSql('CREATE TABLE IF NOT EXISTS BOARDS ( \
 							idBoard TEXT PRIMARY KEY  NOT NULL, \
@@ -2046,6 +2052,10 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
             t.executeSql('CREATE INDEX IF NOT EXISTS idx_cardsByDateCreated ON CARDS(dateCreated ASC)');
         });
 
+        M.migration(40, function (t) {
+            t.executeSql('ALTER TABLE GLOBALS ADD dowDelta INT DEFAULT 0');
+        });
+
         M.doIt();
     }
 }
@@ -2167,8 +2177,7 @@ function makeRowAtom(date, board, card, spenth, esth, who, week, month, comment,
 	var names = ['date', 'board', 'card', 'spenth', 'esth', 'who', 'week', 'month', 'comment', 'cardurl', 'idtrello'];
 	var values = [date, xmlEscape(board), xmlEscape(card), spenth, esth, xmlEscape(who), week, month, xmlEscape(comment), cardurl, xmlEscape(ssRowId)];
 
-	//Note: everything is escaped with ' to escape problems with different spreadsheet regional settings.
-	//this means that the raw spreadsheets can no longer be used to make spreadsheet reports that extract info from the date or amounts
+	//Note: everything is escaped with ' to escape problems with different spreadsheet regional settings or numbers that plus can parse but sheets cant
 	var i = 0;
 	for (; i < names.length; i++) {
 		atom += makeRowGsxField(names[i], "'" + values[i]);
@@ -2183,4 +2192,31 @@ function makeMessageAtom(message) {
 	atom += makeRowGsxField("message", "'" + message);
 	atom += '</entry>';
 	return atom;
+}
+
+function saveRowSSEndLastData(data) {
+    assert(typeof (data) == "object"); //old way stored number as string 
+    localStorage["rowSsSyncEndLast"] = JSON.stringify(data);
+}
+
+function getRowSSEndLastData(defaults) {
+    var data = localStorage["rowSsSyncEndLast"];
+    if (typeof (data) !== "undefined" && typeof (data) == "string" && data.indexOf("{")!=0) {
+        //older format that stored just the index of a single sheet as string (before 2016-12-12)
+        assert(defaults);
+        var idSs = defaults.idSs;
+        assert(idSs);
+        var idSheet = defaults.idSheet;
+        assert(typeof(idSheet) == 'string');
+        var iRow = parseInt(data, 10) || 0;
+        data = {};
+        //convert to new format
+        data[idSs+"/"+idSheet] = iRow;
+        saveRowSSEndLastData(data);
+    }
+    if (!data)
+        data = {};
+    if (typeof (data) == "string")
+        data = JSON.parse(data);
+    return data;
 }

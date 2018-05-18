@@ -271,6 +271,7 @@ function loadOptions(callback) {
     var keyHidePendingCards = "bHidePendingCards";
     var keyHideLessMore = "bHideLessMore";
     var keyDowStart = "dowStart";
+    var keyDowDelta = "dowDelta";
     var keyMsStartPlusUsage = "msStartPlusUsage";
     var keySyncOutsideTrello = "bSyncOutsideTrello";
     var keybChangeCardColor = "bChangeCardColor";
@@ -298,7 +299,7 @@ function loadOptions(callback) {
     chrome.storage.sync.get([keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyDowStart, keyDowDelta, keyMsStartPlusUsage, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
@@ -322,7 +323,7 @@ function loadOptions(callback) {
                                  g_bHideLessMore = objSync[keyHideLessMore] || false;
 
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
-                                 DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT);
+                                 DowMapper.setDowStart(objSync[keyDowStart] || DowMapper.DOWSTART_DEFAULT, objSync[keyDowDelta] || 0);
                                  g_bAcceptSFT = objSync[keyAcceptSFT];
                                  if (g_bAcceptSFT === undefined)
                                      g_bAcceptSFT = true;

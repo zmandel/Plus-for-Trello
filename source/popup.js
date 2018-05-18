@@ -35,7 +35,7 @@ function updateNewLink() {
             rowidLastSync = rowidLastSyncNew;
             var urlReport = chrome.extension.getURL("report.html");
             var elem = $("#reportLinkNew");
-            elem.attr("href", urlReport + "?afterRow=" + rowidLastSyncViewed + "&setLastRowViewed=true&deleted=-1");
+            elem.attr("href", urlReport + "?chartView=s&pivotBy=year&orderBy=date&archived=-1&deleted=-1&afterRow=-1&afterRow=" + rowidLastSyncViewed + "&setLastRowViewed=true");
             if (rowidLastSync !== undefined && (rowidLastSyncViewed < 0 || rowidLastSyncViewed < rowidLastSync)) {
                 $("#reportLinkNewDisabled").hide();
                 elem.show();

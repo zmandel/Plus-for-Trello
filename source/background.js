@@ -99,15 +99,18 @@ function doGetJsonConfigSimplePlus(url, user) {
 	return objRet;
 }
 
-// string to number
-function wid_to_gid(wid) {
-	return (parseInt(String(wid), 36) ^ 31578);
-}
 
 // number to string
 function gid_to_wid(gid) {
-	// (gid xor 31578) encoded in base 36
-	return parseInt((gid ^ 31578), 10).toString(36);
+    //thanks for new sheets support to http://stackoverflow.com/a/26893526/2213940
+    var idIsNewStyle = gid > 31578;
+    var xorValue = idIsNewStyle ? 474 : 31578;
+    var postValue = parseInt((gid ^ xorValue), 10).toString(36);
+    if (idIsNewStyle) {
+        return 'o' + postValue;
+    } else {
+        return postValue;
+    }
 }
 
 function standarizeSpreadsheetValue(value) {
@@ -810,28 +813,28 @@ function updatePlusIconWorker(bTooltipOnly) {
 
         //returns false if there is no sync error
         function setTooltipSyncStatus() {
-            var tooltip = "Plus for Trello\n";
-
+            var tooltipPre = "Plus for Trello\n";
+            var tooltip = "";
             if (bNew)
-                tooltip = tooltip + "New S/E rows\n";
+                tooltipPre = tooltipPre + "New S/E rows\n";
             
             if (g_dataTotalSpentThisWeek.str == null || g_strTimerLast.length>0)
                 setIconBadgeText("", g_strTimerLast.length > 0);
             
             if (g_dataTotalSpentThisWeek.str)
-                tooltip = tooltip + g_dataTotalSpentThisWeek.weeknum + ": " + g_dataTotalSpentThisWeek.str + " Spent \n\n";
+                tooltipPre = tooltipPre + g_dataTotalSpentThisWeek.weeknum + ": " + g_dataTotalSpentThisWeek.str + " Spent \n\n";
 
             if (msplus_datesync_last !== undefined)
-                tooltip = tooltip + "Last sync " + getTimeDifferenceAsString(msplus_datesync_last,true) + "\n";
+                tooltipPre = tooltipPre + "Last sync " + getTimeDifferenceAsString(msplus_datesync_last, true) + "\n";
 
             var syncStatus = "";
             if (g_cWriteSyncLock == 0 && g_cReadSyncLock == 0 && !g_syncStatus.bSyncing) {
                 if (g_msRequestedSyncPause > 0) {
-                    tooltip = tooltip + "Sync is paused until help is closed.\n";
+                    tooltipPre = tooltipPre + "Sync is paused until help is closed.\n";
                 }
                 if (statusLastSync)
                     syncStatus = buildSyncErrorTooltip(statusLastSync);
-                tooltip = tooltip + syncStatus;
+                tooltipPre = tooltipPre + syncStatus;
             }
 
             if (g_cWriteSyncLock > 0)
@@ -847,9 +850,23 @@ function updatePlusIconWorker(bTooltipOnly) {
                         tooltip = tooltip + (g_syncStatus.cProcessed + " of " + g_syncStatus.cSteps + "\n");
             }
 
+            
+            if (g_bUpdateSyncNotificationProgress) {
+                if (g_cWriteSyncLock == 0 && g_cReadSyncLock == 0 && !g_syncStatus.bSyncing) {
+                    g_bUpdateSyncNotificationProgress = false; //reset
+                    chrome.notifications.clear(IDNOTIFICATION_FIRSTSYNCPRORESS, function (bWasCleared) { });
+                } else {
+                    chrome.notifications.update(IDNOTIFICATION_FIRSTSYNCPRORESS,
+                        {
+                            message: Language.FIRSTSYNC_PRE + tooltip
+                        }, function (notificationId) {});
+                }
+            }
+
             if (g_bOffline)
                 tooltip = tooltip + "\nChrome is offline.";
-            chrome.browserAction.setTitle({ title: tooltip });
+            chrome.browserAction.setTitle({ title: tooltipPre + tooltip });
+
             var dateLastStatus = (statusLastSync && statusLastSync.date) || msNow;
             return (syncStatus.length ==0 || (msNow-dateLastStatus>1000*60*20)); //pretend there wasnt a sync error if its old (over 20 min)
         }
@@ -1764,7 +1781,8 @@ function handleShowDesktopNotification(request) {
 	g_strLastNotification = request.notification;
 	var timeout = request.timeout || 5000;
 	var idUse = request.idUse || request.notification || "";
-
+	if (request.dontClose)
+	    timeout = 0;
 	function clearPendingTimeout() {
 	    if (g_mapNotificationToTimeoutClose[idUse]) {
 	        clearTimeout(g_mapNotificationToTimeoutClose[idUse]);
@@ -1773,7 +1791,7 @@ function handleShowDesktopNotification(request) {
 	}
 
 	clearPendingTimeout();
-	var notification = chrome.notifications.create(idUse,
+    chrome.notifications.create(idUse,
         {
             type:"basic",
             iconUrl: chrome.extension.getURL("images/icon128.png"),
@@ -1827,7 +1845,7 @@ function handleCreateSs(sendResponse) {
             if (response.status != STATUS_OK)
                 sendResponse({ status: response.status, id: null });
             else
-                handleConfigNewSs(id, gid_to_wid(0), sendResponse); //gid_to_wid(0) works with new sheets as well
+                handleConfigNewSs(id, gid_to_wid(0), sendResponse);
         }, JSON.stringify(postData), "application/json");
     }
 }

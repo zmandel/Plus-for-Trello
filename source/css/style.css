@@ -39,6 +39,10 @@
         cursor:pointer !important;
 }
 
+.agile_help_indent1 {
+    margin-left: 1em !important;
+}
+
 .agile_section_comboTitle {
 font-weight:bold !important;
 font-size:16px !important;

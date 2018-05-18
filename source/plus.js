@@ -216,12 +216,24 @@ function configureSsLinks(bParam) {
 				    //config changed from another device.
 				    
 				    if (strUrlOld && strUrlOld != "") {
-				        alert("Google sync spreadsheet changed. Plus will reset sync.");
-				        g_strServiceUrl = strUrlNew; //needed for clearAllStorage. in other cases its handled by continueConfig
-				        clearAllStorage(function () {
+				        function saveLocalAndRestart() {
 				            saveLocalUrl(function () {
 				                restartPlus("Refreshing with updated sync setting.");
 				            });
+				        }
+
+				        var promiseClearStorage = DeleteOrMergeNewSyncSource("Google sync spreadsheet changed. ");
+				        promiseClearStorage.then(function (bClearStorage) {
+				            g_strServiceUrl = strUrlNew;
+				            if (!bClearStorage) {
+				                reloadConfigData(strUrlNew, function () {
+				                    saveLocalAndRestart();
+				                });
+				            } else {
+				                clearAllStorage(function () {
+				                    saveLocalAndRestart();
+				                });
+				            }
 				        });
 				    }
 				    else {
@@ -597,7 +609,7 @@ function startOpenDB(config, user) {
 						doSyncDB(user, false, false, false);
 					});
 				}
-			},{ dowStart: DowMapper.getDowStart() });
+			}, { dowStart: DowMapper.getDowStart(), dowDelta: DowMapper.getDowDelta() });
 }
 
 
@@ -1058,26 +1070,31 @@ function getSQLReport(sql, values, callback) {
 }
 
 
+function fillRecentWeeksList(combo) {
+    var date = new Date();
+    var dateEnd = new Date();
+    var daysDelta = DowMapper.posWeekFromDow(date.getDay());
+    var i = 0;
+    combo.empty();
+    for (; i < 15; i++) {
+        date.setDate(date.getDate() - daysDelta);
+        var text = getCurrentWeekNum(date);
+        var title = date.toLocaleDateString();
+        dateEnd.setDate(date.getDate() + 6);
+        title = title + " - " + dateEnd.toLocaleDateString();
+        combo.append($(new Option(text, text)).addClass('agile_weeks_combo_element').attr("title", title));
+        daysDelta = 7;
+    }
+
+    if (g_weekNumUse != null)
+        combo.val(g_weekNumUse);
+}
+
 function getRecentWeeksList() {
     var combo = $('<select id="spentRecentWeeks" />').addClass("agile_weeks_combo agile_boldfont");
 	combo.css('cursor', 'pointer');
 	combo.attr("title","click to change the week being viewed.");
-	var date = new Date();
-	var dateEnd = new Date();
-	var daysDelta = DowMapper.posWeekFromDow(date.getDay());
-	var i = 0;
-	for (; i < 15; i++) {
-	    date.setDate(date.getDate() - daysDelta);
-		var text = getCurrentWeekNum(date);
-		var title = date.toLocaleDateString();
-		dateEnd.setDate(date.getDate() + 6);
-		title = title + " - " + dateEnd.toLocaleDateString();
-		combo.append($(new Option(text, text)).addClass('agile_weeks_combo_element').attr("title",title));
-		daysDelta = 7;
-	}
-	
-	if (g_weekNumUse != null)
-	    combo.val(g_weekNumUse);
+	fillRecentWeeksList(combo);
 	combo.change(function () {
 		if (!g_bReadGlobalConfig) {
 			combo[0].selectedIndex = 0;
@@ -1367,7 +1384,7 @@ function processUserSENotifications(sToday,sWeek) {
 
 		if (sBadge == 0)
 		    sBadge = ""; //dont show badge when zero spent, its annoying to those not using S/E (even thou it can be turned off from preferences)
-		sendExtensionMessage({ method: "setBadgeData", text: "" + sBadge, weeknum: getCurrentWeekNum()});
+		sendExtensionMessage({ method: "setBadgeData", text: "" + sBadge, weeknum: getCurrentWeekNum(new Date()) });
 		var dtToday = new Date();
 		var key = "spentLastNotified";
 		var strToday = makeDateCustomString(dtToday);
@@ -2326,4 +2343,23 @@ function updateShowAllButtonState(elem, bFirstTime) {
 function testExtensionAndcommitPendingPlusMessages() {
 	if (!g_bErrorExtension)
 		testExtension(); //this attempts commit of pending queue
+}
+
+//resolves to true (delete) or false (merge)
+function DeleteOrMergeNewSyncSource(prefix) {
+    assert(window.Promise); //we check this on extension background
+    var bDelete = confirm((prefix || "")+"When changing the sync spreadsheet you have two options:\n\n1) Press OK to clear all rows before adding the ones in this spreadsheet, or\n\n2) Press Cancel to merge existing rows with this new spreadsheet.");
+    return Promise.resolve(bDelete);
+}
+
+
+function testModifySyncStorageUrl(url) {
+    chrome.storage.sync.set({ "serviceUrl": (url || "")}, function () {
+        if (chrome.runtime.lastError != undefined) {
+            console.log(chrome.runtime.lastError.message);
+            return;
+        } else {
+            console.log("set " + url);
+        }
+    });
 }
