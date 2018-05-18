@@ -364,9 +364,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    if (bNeedUpgrade) {
 	        helpWin.para("<h3>New version available!</h3>");
-	        helpWin.para("There is a new version of Plus for Trello. Click below to install now version " + g_verStore + ".");
-	        helpWin.para("If you dont install now, Chrome will eventually install the upgrade automatically.");
+	        helpWin.para("There is a new version of Plus for Trello. Click below to install it now.");
 	        var paraUpgrade = helpWin.para("Installing now will close any open Plus chart/reports and refresh all Trello pages.<br><input type='button' value='Install now' />");
+	        helpWin.para("If you dont install now, Chrome will eventually install the upgrade automatically.");
 	        var buttonUpgrade = paraUpgrade.children('input:button:first');
 	        helpWin.para('&nbsp');
 	        helpWin.para('&nbsp');
@@ -748,15 +748,15 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 
 	    helpWin.para('<b><h2 id="agile_help_trellosync">&#10148; Sync (by Card comment keywords or Stealth)</h2></b>');
 	    helpWin.para('<b>Pick your team\'s sync method. It defines whether Plus stores information inside or outside Trello.</b>');
-	    helpWin.para('Enable sync even if you do not use Spent / Estimate / Points. <A target="_blank" href="">Our Plus help board</A> has more information.').children("A").click(function (e) {
+	    helpWin.para('Enable sync even if you wont use Spent or Estimates. Our <A target="_blank" href="">Plus help board</A> has more information.').children("A").click(function (e) {
 	        window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	        e.preventDefault();
 	    });
-	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
+	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto;height:2em;">').children('select');
 	    comboSync.append($(new Option("Sync off", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite_red"));
-	    comboSync.append($(new Option("Trello card comments (recommended)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
-	    comboSync.append($(new Option("Stealth Google sync spreadsheet", SYNCMETHOD.googleSheetStealth)).addClass("agile_normalBackground"));
-	    comboSync.append($(new Option("Google sync spreadsheet (legacy)", SYNCMETHOD.googleSheetLegacy)).addClass("agile_normalBackground"));
+	    comboSync.append($(new Option("Recommended - Store inside Trello (S/E in Trello card comments)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
+	    comboSync.append($(new Option("Stealth - Store outside Trello (S/E in Google spreadsheet)", SYNCMETHOD.googleSheetStealth)).addClass("agile_normalBackground"));
+	    comboSync.append($(new Option("Legacy - Store outside Trello (S/E in Google spreadsheet)", SYNCMETHOD.googleSheetLegacy)).addClass("agile_normalBackground"));
 	    var syncSectionsMap = {};
 	    for (var sMethod in SYNCMETHOD) {
 	        var div = $('<div class="helpSectionAnim"></div>').hide();
@@ -767,12 +767,12 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    var bAddFirstSyncNote = !g_bEnableTrelloSync;
 	    var bDisplayedLegacyNote = false;
 	    if (helpWin.hasLegacyRows) {
-	        helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
+	        helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google spreadsheet sync" users read here</A>.');
 	        bDisplayedLegacyNote = true;
 	    }
 	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally or close it, it will not affect sync.");
 	    helpWin.para('If you switch sync methods or change keywords, "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
-	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here</A> for more sync details.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">More</A>');
 
 	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
 	    helpWin.para("Do not leave 'off' unless you are having a sync issue (very rare). Once enabled you get:", divCur);
@@ -787,8 +787,8 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('&bull; Enter S/E using the card plus bar, mobile app, power-up or as a manual card comment.', divCur);
 	    helpWin.para('&bull; This is the only method compatible with Butler for Trello to <A target="_blank" href="http://www.plusfortrello.com/p/automated-time-tracking-with-butler-plus.html">track time spent in lists</A>.', divCur);
 	    if (g_strServiceUrl)
-	        helpWin.para('Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.', divCur);
-	    var txtSEByCardComments = 'Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> with comma.';
+	        helpWin.para('Plus will no longer use the Google spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.', divCur);
+	    var txtSEByCardComments = '<br>Use the default single keyword "plus!" to store and read S/E from card comments. Customize it here:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> with comma.';
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>Home charts and the weekly report in the header can be filtered by keywords, see Preferences.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
@@ -815,9 +815,9 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1ˢᵗ sync option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
         helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
-        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>', divCur);
-        helpWin.para('&bull; Enter S/E using the "card S/E bar", never as card comments nor from mobile, power-up or other browsers.', divCur);
-	    helpWin.para('&bull; No "multiple keywords" feature.', divCur);
+        helpWin.para('&bull; Requires you to be <A target="_blank" href="https://www.google.com/chrome/browser/signin.html">signed-into Chrome</A>', divCur);
+        helpWin.para('&bull; Enter S/E using the "card S/E bar", not as card comments nor from mobile, power-up or other browsers.', divCur);
+        helpWin.para('&bull; No <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">multiple keywords</A> feature.', divCur);
 	    helpWin.para('&bull; No board-based permissions. Share the private spreadsheet using Google permissions.', divCur);
 	    helpWin.para('&bull; No mobile app or power-up support yet.', divCur);
 	    helpWin.para("&nbsp;", divCur);
@@ -827,7 +827,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 
 	    function showCurrentSpreadsheetLink() {
 	        if (g_strServiceUrl == "")
-	            helpWin.para('Not yet configured.', divCur);
+	            helpWin.para('Spreadsheet not yet configured.', divCur);
 	        else {
 	            helpWin.para('Current sync spreadsheet url:', divCur);
 	            setSmallFont(helpWin.para(g_strServiceUrl, divCur), 0.85);
@@ -839,13 +839,14 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 
 	    divCur = syncSectionsMap[SYNCMETHOD.googleSheetLegacy];
 	    if (!bDisplayedLegacyNote)
-	        helpWin.para('Legacy "Google sync" users <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
-	    helpWin.para('This legacy mode was used before the new Trello card comments sync existed. Choose it if your team still hasn\'t upgraded or tell your team that its <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">easy to upgrade</A> to the new "Trello card comments" sync mode.', divCur);
-	    helpWin.para('Disadvantages: Requires Chrome sign-in, no multiple keywords, no board-based permissions, no mobile app support.', divCur);
-	    helpWin.para('Advantages: Permission is based on using the same spreadsheet url, regardless of board membership. Also, card titles are renamed to include total S/E thus you can see total card S/E from mobile or other browsers.', divCur);
-	    helpWin.para('S/E is not synced from card comments, only from the spreadsheet even thou it does add a card S/E comment.', divCur);
-	    helpWin.para('Thus in this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
-	    helpWin.para('Because this mode also adds card S/E comments, its easy to later change to the recommended 1ˢᵗ sync option.', divCur);
+	        helpWin.para('Legacy "Google spreadsheet sync" users <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">read here</A>.', divCur);
+	    helpWin.para('This legacy mode was how Plus initially worked, before the other two modes existed. Choose it if your team still hasn\'t <A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">upgraded</A>.', divCur);
+	    helpWin.para('Disadvantages: Requires <A href="https://www.google.com/chrome/browser/signin.html" target="_blank">Chrome sign-in</A>, no <A href="http://www.plusfortrello.com/p/faq.html#use_keywords" target="_blank">multiple keywords</A>, no board-based permissions, no <A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">mobile/powerup</A> support.', divCur);
+	    helpWin.para('Advantages: Permission is based on the spreadsheet\'s permissions, regardless of board membership.', divCur);
+	    helpWin.para('S/E is not stored in card comments thou it does add a card S/E comment as well.', divCur);
+	    helpWin.para('This legacy mode also renames card titles to append total S/E.', divCur);
+	    helpWin.para('To prevent adding card comments or renaming card titles but still use spreadsheets, see the Stealth sync mode.', divCur);
+	    helpWin.para('In this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
 	    spanButtonGS = setupPlusConfigLink(divCur);
 	    helpWin.para("&nbsp;", divCur);
 	    showCurrentSpreadsheetLink();
@@ -857,10 +858,10 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	        var valComboOld = valCombo;
 	        valCombo = comboSync.val();
 	        var bHilite = false;
-
+	        var elemShow = null;
 	        for (var sMethod in syncSectionsMap) {
 	            if (sMethod == valCombo) {
-	                syncSectionsMap[sMethod].show();
+	                elemShow = syncSectionsMap[sMethod];
 	            }
 	            else
 	                syncSectionsMap[sMethod].hide();
@@ -912,6 +913,9 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	            else
 	                comboSync.removeClass("agile_box_input_hilite_red");
 	        }
+
+	        if (elemShow)
+	            elemShow.show();
 	    }
 
 	    comboSync.change(onComboSyncChange);
@@ -1064,7 +1068,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para("&bull; Timers measure time in your units from Preferences.");
 	    helpWin.para("&bull; Timers always fill Spent using 'decimal format' and not 'colon format'. See more under 'Best practices'.");
 		helpWin.para("&bull; Minimize a timer by clicking on '↓'");
-		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://support.google.com/chrome/answer/185277'>signed-into Chrome</A>.");
+		helpWin.para("&bull; Use timers started from another device when you are <A target='_blank' href='https://www.google.com/chrome/browser/signin.html'>signed-into Chrome</A>.");
 	    helpWin.para("&bull; If you forgot to start a timer, type the spent so far in the 'S' box and start the timer.");
 	    helpWin.para("&bull; Pause the timer to pre-fill the 'S' box. Add an optional estimate or note and press ENTER.");
 	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
@@ -1942,7 +1946,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 };
 
 function setupPlusConfigLink(bParam, bStealth) {
-    var title = (bStealth ? "Click to setup Stealth Google sync" : "Click to setup Google sync");
+    var title = (bStealth ? "Click to setup Stealth Google spreadsheet sync" : "Click to setup Google spreadsheet sync");
     var span = $('<span></span>').addClass('header-btn-text agile_help_setup_link').text(title);
     span.appendTo(bParam);
     span.click(function () {

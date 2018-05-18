@@ -15,6 +15,7 @@ var g_bShowHomePlusSections = true;
 var g_bSkipUpdateSsLinks = false; //used by dimensions dropdown to hack arround legacy way to start sync
 var g_bInsertedStripeScript = false;
 const PROP_LS_MSLASTNOSYNCWARN = "msLastSyncWarn"; //warning: can be in the future. date since last time we showed the configure warning. 
+const PROP_LS_MSLAST_IGNORE_EXTUPGRADE = "msLastIgnoreExtUpg";
 
 //board dimensions combo
 //sync see SYNCPROP_BOARD_DIMENSION
@@ -67,13 +68,52 @@ var g_waiterLi = CreateWaiter(2, function () {
     checkFirstTimeUse(function (bShowedDialog) {
         if (bShowedDialog)
             return;
-        sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
-            if (response && response.status == STATUS_OK && response.bCompletedFirstSync) {
-                setTimeout(checkLi, 2000);
-            }
+        checkNeedsExtensionUpdate(function (bShowedDialog) { //review: should also check regularly for users that never close the trello tab
+            if (bShowedDialog)
+                return;
+            sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
+                if (response && response.status == STATUS_OK && response.bCompletedFirstSync) {
+                    setTimeout(checkLi, 2000);
+                }
+            });
         });
     });
 });
+
+function checkNeedsExtensionUpdate(callback) {
+    sendExtensionMessage({ method: "getDateUpdateNotificationReceived" }, function (response) {
+        if (response && response.status == STATUS_OK) {
+            var msNow = Date.now();
+            var bShowUpdateNeeded = false;
+            var bUrgent = false;
+            if (response.msDate > 0 && msNow - response.msDate > 1000 *60 *60 * 8) { //8 hours of pending update. so we dont bother users right away (give a chance for chrome to autoupdate)
+                bShowUpdateNeeded = true;
+                if (msNow - response.msDate > 1000 * 60 * 60 * 24 * 3) // 3 days old
+                    bUrgent = true;
+            }
+
+            if (newerStoreVersion(true)) {
+                bShowUpdateNeeded = true;
+                bUrgent = true;
+            }
+
+            callback(bShowUpdateNeeded); //return it, even if later here we dont end up showing a dialog
+            if (!bShowUpdateNeeded)
+                return;
+            
+            var msDateLastWarn = parseInt(localStorage[PROP_LS_MSLAST_IGNORE_EXTUPGRADE] || "0", 10) || 0;
+            if (msDateLastWarn > 0) {
+                var msDelta = Date.now() - msDateLastWarn;
+                var msLimit = (bUrgent ? 1000 * 60 * 40 : 1000 * 60 * 60 * 8); //40 minutes or 8 hours
+                if (msDelta < msLimit)
+                    bShowUpdateNeeded = false;
+            }
+            if (bShowUpdateNeeded)
+                showExtensionUpgradedError(null, true);
+        }
+    });
+}
+
 
 function resizeHelp(container) {
     if (!container)
@@ -829,7 +869,7 @@ function onDbOpened() {
 	        } else if (msg.event == EVENTS.EXTENSION_RESTARTING) {
 	            setTimeout(function () {
 	                location.reload();
-	            }, 2000);
+	            }, 200);
 	        }
 	    });
 	}
@@ -1343,8 +1383,12 @@ function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
 function checkTrelloLogo() {
     var trelloLogo = $(".header-logo-default");
     var topbarElem = $("#agile_help_buttons_container");
+
+    if (trelloLogo.length == 0 || !trelloLogo.is(":visible"))
+        trelloLogo = $(".header-logo-pride");
+
     if (trelloLogo.length == 0 || topbarElem.length == 0) {
-        setTimeout(checkTrelloLogo, 200);
+        setTimeout(checkTrelloLogo, 300);
         return;
     }
 

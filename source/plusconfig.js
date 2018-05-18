@@ -26,11 +26,11 @@ var PlusConfig = {
 		container.append($('<H2 text-align="center"><b>Setup Google sync</b></H2>'));
 		if (!bStealth)
 		    container.append(setFont($('<p><b>Google sync (legacy) renames card titles to include total S/E.</b></p>')));
-		container.append(setFont($('<p>If you have not <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>, \
-Chrome will prompt you to do so if you create or type a spreadsheet url. <b><br>This is not the same as being signed into your Gmail. </b>\
+		container.append(setFont($('<p>If you have not <A target="_blank" href="https://www.google.com/chrome/browser/signin.html">signed-into Chrome</A>, \
+Chrome will prompt you to do so. <b><br><i>This is not the same as being signed into your Gmail</i>. </b>\
 You need to be signed-into Chrome to use this sync mode.</p>')));
 		container.append(setFont($('<p>Configure one device only. Your other devices signed-into Chrome will automatically pick up the new configuration. <b>')));
-		container.append(setFont($('<p><A target="_blank" href="http://www.plusfortrello.com/2014/01/plus-for-trello-configuration-options.html">Read here</A> to compare "Google sync" with "card comments sync"<b>')));
+		container.append(setFont($('<p><A target="_blank" href="http://www.plusfortrello.com/p/google-sync-configuration-options.html">Read here</A> to compare "Google sync" with "card comments sync"<b>')));
 		container.append($('<p>&nbsp</p>'));
 		var btnCreate = setFont($('<button id="buttonCreateSs"></button>')).css('margin-bottom', '5px');
 		var strCreate = "Create a new sync spreadsheet";

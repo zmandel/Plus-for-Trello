@@ -89,7 +89,7 @@ function insertCardTimer(containerBar) {
 
 var g_bErrorExtension = false;
 
-function showExtensionUpgradedError(e) {
+function showExtensionUpgradedError(e, bNeedsBackgroundUpgrade) {
     if (g_bErrorExtension)
         return;
     g_bErrorExtension = true;
@@ -105,7 +105,7 @@ function showExtensionUpgradedError(e) {
         divDialog = $('\
 <dialog id="agile_dialog_ExtensionUpgraded" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim">\
 <h3 tabindex="1" style="outline: none;">Chrome updated Plus for Trello</h3><br> \
-<p>Reload this page to use Plus. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
+<p>Reload to continue. <A href="http://www.plusfortrello.com/p/change-log.html" target="_blank">Whats new?</A></p> \
 <p id="agile_dialog_ExtensionUpgraded_message"></p> \
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_ExtensionUpgraded_Refresh">Reload</a> \
 <a title="Ignore to keep working on this page.\nSome Plus features may not work until you Reload." href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_ExtensionUpgraded_Ignore">Ignore</a> \
@@ -116,14 +116,29 @@ function showExtensionUpgradedError(e) {
         var imgReload = $("<img>").attr("src", chrome.extension.getURL("images/reloadchrome.png")).addClass('agile_reload_ext_button_img');
         var reload = divDialog.find("#agile_dialog_ExtensionUpgraded_Refresh");
         reload.append($("<span>").append(imgReload));
+        var bOnReload = false;
         reload.off("click.plusForTrello").on("click.plusForTrello", function (e) {
             e.preventDefault();
+            if (bOnReload)
+                return; //extra reentry safety
+            bOnReload = true;
             setTimeout(function () { //timeout so the button reacts to the click uxwise
-                location.reload(); //note not passing false per http://stackoverflow.com/questions/16873263/load-from-cache-with-window-location-reload-and-hash-fragment-in-chrome-doesnt
+                if (bNeedsBackgroundUpgrade) {
+                    reload.text("Installing...");
+                    reload.prop('disabled', true);
+                    sendExtensionMessage({ method: "reloadExtension" }, function (response) {
+                        //do nothing. we catch EXTENSION_RESTARTING and reload all trello windows
+                    });
+                } else {
+                    location.reload(); //note not passing false per http://stackoverflow.com/questions/16873263/load-from-cache-with-window-location-reload-and-hash-fragment-in-chrome-doesnt
+                }
             }, 10);
         });
 
         divDialog.find("#agile_dialog_ExtensionUpgraded_Ignore").off("click.plusForTrello").on("click.plusForTrello", function (e) {
+            if (bNeedsBackgroundUpgrade)
+                localStorage[PROP_LS_MSLAST_IGNORE_EXTUPGRADE] = Date.now();
+
             e.preventDefault(); //link click would navigate otherwise
             divDialog.removeClass("agile_dialog_Postit_Anim_ShiftToShow");
             setTimeout(function () { divDialog[0].close(); }, 300+10); //wait for animation to complete
@@ -356,20 +371,25 @@ function loadExtensionVersion(callback) {
     });
 }
 
-function newerStoreVersion() {
+function newerStoreVersion(bUrgentOnly) {
     var bNeedUpgrade = false;
     if (g_verStore && g_verStore != g_manifestVersion) {
         var partsCurrent = g_manifestVersion.split(".");
         var partsStore = g_verStore.split(".");
-        if (partsStore.length != partsCurrent.length)
-            bNeedUpgrade = true;
+        var vCur;
+        var vStore;
+        if (partsStore.length != partsCurrent.length) {
+            //this shouldnt happent, but protect anyway
+            bNeedUpgrade = false; //to prevent possible endless loop
+        }
         else {
             for (var iPartsVersion = 0; iPartsVersion < partsStore.length; iPartsVersion++) {
-                var vCur = parseInt(partsCurrent[iPartsVersion], 10);
-                var vStore = parseInt(partsStore[iPartsVersion], 10);
-                if (vStore > vCur) {
+                vCur = parseInt(partsCurrent[iPartsVersion], 10);
+                vStore = parseInt(partsStore[iPartsVersion], 10);
+                if (vStore > vCur)
                     bNeedUpgrade = true;
-                    break;
+                if (bNeedUpgrade && bUrgentOnly && iPartsVersion == partsStore.length-1) {
+                    bNeedUpgrade = (vStore == 99); //overwrite previous. 99 is a special emergency value to force update
                 }
             }
         }

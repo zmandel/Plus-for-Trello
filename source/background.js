@@ -14,6 +14,7 @@ var g_cTrelloActivitiesDetected = 0;
 var g_bLastPlusMenuIconError = false;  //remembers if the icon last drew the red error X
 var g_mapTimerWindows = {}; // {idWindow, can be undefined or invalid }
 const PROP_LS_cViewedBuyDialog = "cViewedBuyDialog"; //count stored as string
+var g_msUpdateNotificationReceived = 0; //0 means not received
 
 chrome.runtime.onInstalled.addListener(function (details) {
     if (details && details.reason && details.reason == "install") {
@@ -30,7 +31,12 @@ function handleUpdateExtension(details) {
         return;
     var pair = {};
     pair[LOCALPROP_EXTENSION_VERSIONSTORE] = versionNew;
-    chrome.storage.local.set(pair, function () {});
+    chrome.storage.local.set(pair, function () {
+        if (chrome.runtime.lastError)
+            console.log(chrome.runtime.lastError.message);
+        else
+            g_msUpdateNotificationReceived = Date.now();
+    });
 }
 
 chrome.runtime.onUpdateAvailable.addListener(function (details) {
@@ -1177,6 +1183,9 @@ function handleExtensionMessage(request, sendResponseParam, idTabSender) {
         else if (request.method == "hitAnalyticsEvent") {
             handleHitAnalyticsEvent(request.category, request.action, false, request.bSkipNewbie);
             sendResponse({ status: STATUS_OK });
+        }
+        else if (request.method == "getDateUpdateNotificationReceived") {
+            sendResponse({ status: STATUS_OK, msDate: g_msUpdateNotificationReceived });
         }
         else if (request.method == "showTimerWindow") {
             var keybDontShowTimerPopups = "bDontShowTimerPopups";
