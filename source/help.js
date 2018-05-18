@@ -501,6 +501,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
         helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('<A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">See this section on the web</A>');
         helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:');
         helpWin.para('Using the Plus "Card S/E bar" is like adding new rows to the table below and moving the running total down:');
         helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-table.png") + '"/>');
@@ -513,7 +514,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('Plus reports and charts can show you these estimate changes per user, board, label, hashtag and much more. Knowing the actual estimate gives you burn-downs and projected end dates as Plus knows how much work Remains and how it changed over time.');
         helpWin.para('Plus automatically fills the "Estimate" column as you type "Spent" or stop timers, calculating any Estimate increases needed (which you can overwrite.)');
         helpWin.para('The difference in Trello is that Plus shows the rows from latest to earliest because that is how Trello displays card comments, and Plus also has an extra "User" column for each S/E row as Plus keeps Spent and Estimates per user.');
-        helpWin.para('Use the Plus "Card S/E bar" or directly modify the running totals using "Modify".');
+        helpWin.para('Use the Plus "Card S/E bar" to add more rows, or directly modify the running totals using "Modify"  (which adds a row for you with the needed differences, positive or negative).');
         helpWin.para('&nbsp');
 
         helpWin.para('<img src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');

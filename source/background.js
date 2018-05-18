@@ -284,9 +284,45 @@ var g_idCardTimerLast = null;
 
 function handleShowAllActiveTimers() {
     findAllActiveTimers(function (rgIdCards) {
-        rgIdCards.forEach(function (idCard) {
-            doShowTimerWindow(idCard);
-        });
+        var cTotal = rgIdCards.length;
+        var cProcessed = 0;
+        var cMinimized = 0;
+        var cExisting = 0;
+
+        function onFinishedAll() {
+            var strNotification = null;
+
+            if (cExisting == cTotal) {
+                strNotification = "No more active timers to show.";
+                if (cMinimized > 0)
+                    strNotification += " Note: some timers are minimized.";
+            }
+
+            if (strNotification) {
+                handleShowDesktopNotification({
+                    notification: strNotification,
+                    timeout: 5000
+                });
+            }
+        }
+
+        if (rgIdCards.length == 0)
+            onFinishedAll(); //edge or impossible case
+        else {
+            rgIdCards.forEach(function (idCard) {
+                doShowTimerWindow(idCard, function (status, properties) {
+                    cProcessed++;
+                    if (status == STATUS_OK && properties && properties.bExisted) {
+                        cExisting++;
+                        if (properties.bMinimized)
+                            cMinimized++;
+                    }
+
+                    if (cProcessed == cTotal)
+                        onFinishedAll();
+                });
+            });
+        }
     });
 }
 
@@ -1122,9 +1158,6 @@ If you instead want to disable timer popups do so from Plus preferences.");
                 animateFlip();
             sendResponse({ status: STATUS_OK });
         }
-        else if (request.method == "checkLoggedIntoChrome") {
-            handleCheckLoggedIntoChrome(sendResponse);
-        }
         else if (request.method == "setBadgeData") { //str, weeknum, text
             if (request.text !== undefined) {
                 g_dataTotalSpentThisWeek.str = request.text;
@@ -1352,7 +1385,7 @@ function doOpenCardInBrowser(idCard) {
         //verify the tab is alive and well
         chrome.tabs.get(tabid, function (tab) {
             var idCardCur = null;
-            if (tab)
+            if (!chrome.runtime.lastError && tab && tab.url)
                 idCardCur = getIdCardFromUrl(tab.url);
 
             if (idCardCur != idCard)
@@ -1360,13 +1393,13 @@ function doOpenCardInBrowser(idCard) {
             else {
                 //first select the window. else chrome can get weird about selecting the tab while the window is not active
                 chrome.windows.update(tab.windowId, { focused: true }, function (window) {
-                    if (!window)
+                    if (chrome.runtime.lastError || !window)
                         openCardAsUrl();
                     else {
                         //finally, select the tab
                         chrome.tabs.update(tabid, { active: true, highlighted: true }, function (tab) {
                             var idCardCur = null;
-                            if (tab)
+                            if (!chrome.runtime.lastError && tab && tab.url)
                                 idCardCur = getIdCardFromUrl(tab.url);
 
                             if (idCardCur != idCard)
@@ -1617,12 +1650,12 @@ function doShowTimerWindow(idCard, callbackParam) {
     var data = g_mapTimerWindows[idCard];
     var bCalledCallback = false;
 
-    function callback(status) {
+    function callback(status, properties) {
         if (bCalledCallback)
             return;
         bCalledCallback = true;
         if (callbackParam)
-            callbackParam(status);
+            callbackParam(status, properties);
     }
 
     if (data === undefined)
@@ -1641,10 +1674,10 @@ function doShowTimerWindow(idCard, callbackParam) {
                     delete g_mapTimerWindows[idCard];
                     create(idCard);
                 } else {
-                    callback(STATUS_OK);
+                    callback(STATUS_OK, { bExisted: true, bMinimized: (data.idWindow!=null) });
                 }
             } else {
-                callback("Error");
+                callback(STATUS_OK, { bExisted: true, bMinimized: true });
             }
         });
     }
@@ -1656,7 +1689,7 @@ function doShowTimerWindow(idCard, callbackParam) {
                 delete g_mapTimerWindows[idCard];
                 create(idCard);
             } else {
-                callback(STATUS_OK);
+                callback(STATUS_OK, { bExisted: true, bMinimized: false});
             }
         });
     }
@@ -1687,12 +1720,12 @@ function doShowTimerWindow(idCard, callbackParam) {
 
                     if (g_mapTimerWindows[idCard]) {
                         //very hard (impossible?) to happen, but it takes time (open db, make report) since last map check. windows could have been created from a previous request.
-                        callback(STATUS_OK);
+                        callback(STATUS_OK, { bExisted: true, bMinimized: (g_mapTimerWindows[idCard].idWindow!=null) });
                         return;
                     }
 
                     showTimerWindowAsNotification(idCard, nameCard, nameBoard);
-                    callback(STATUS_OK);
+                    callback(STATUS_OK, { bExisted: false, bMinimized: false });
                     return;
                 });
         });
@@ -1701,11 +1734,6 @@ function doShowTimerWindow(idCard, callbackParam) {
 
 var g_bSignedIn = false;
 
-/* review zig: enable when chrome adds this api to release channel, and re-test
-chrome.identity.onSignInChanged.addListener(function(account, signedIn) {
-	g_bSignedIn = signedIn;
-});
-*/
 
 //note: ntofications are done from background from here so they work correctly when navigating during notification, and chrome has them preaproved
 var g_strLastNotification = "";
@@ -1751,11 +1779,6 @@ function handleShowDesktopNotification(request) {
                 g_mapNotificationToTimeoutClose[idUse] = timeoutLast;
             }
         });
-}
-
-function handleCheckLoggedIntoChrome(sendResponse) {
-	sendResponse({ status: (!g_bSignedIn) ? "error" : STATUS_OK });
-	return;
 }
 
 

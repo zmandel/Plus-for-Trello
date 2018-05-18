@@ -2219,7 +2219,7 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
 
 
 function getXFromUrl(url, prefix) {
-    if (url.indexOf(prefix) != 0)
+    if (!url || url.indexOf(prefix) != 0)
         return null;
 
     var remainUrl = url.slice(prefix.length);
