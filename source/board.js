@@ -528,7 +528,7 @@ function showSFTDialog() {
             var pairSFTWarn = {};
             pairSFTWarn[PROP_SFTDontWarnAgain] = bChecked;
             chrome.storage.sync.set(pairSFTWarn);
-            setTimeout(function () { divDialog[0].close(); }, 400); //wait for animation to complete
+            setTimeout(function () { divDialog[0].close(); }, 300+10); //wait for animation to complete
         });
         showModlessDialog(divDialog[0]);
         setTimeout(function () { divDialog.addClass("agile_dialog_Postit_Anim_ShiftToShow"); }, 200); //some dialog conflict prevents animation from working without timeout

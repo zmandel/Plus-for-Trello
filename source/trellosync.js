@@ -1,6 +1,6 @@
 ﻿/// <reference path="intellisense.js" />
 
-var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow
+var g_cMaxCallstack = 400; //400 is a safe size. Larger could cause stack overflow. must be large else is too slow in chrome canary.
 var g_cLimitActionsPerPage = 900; //the larger the better to avoid many round-trips and consuming more quota. trello allows up to 1000 but I feel safer with a little less.
 var g_bProcessCardCommentCopies = false; //Trello optionally copies card comment when making a card copy REVIEW must handle in comment parser
 var g_bUpdateSyncNotificationProgress = false;
@@ -1212,6 +1212,9 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
     var rgKeywords = [];
     var mapHandledCardCommand = {};
     var bFirstSync = ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") != "true");
+    var iAction = -1;
+    var cCalls = 1; //prevent  zero remain at the beginning
+
     if (bProcessCommentSE)
         rgKeywords = cloneObject(g_optEnterSEByComment.rgKeywords); //prevent issues if object changes during sync
 
@@ -1310,7 +1313,6 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
         
     }
 
-    var iAction = -1;
     //preload alldata boards. note "boards" is an array, while alldata.boards is a map.
     for (var iBoard = 0; iBoard < boards.length; iBoard++) {
         var boardLoop = boards[iBoard];
@@ -1328,6 +1330,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             return;
         }
         iAction++;
+        cCalls++;
         g_syncStatus.cProcessed = iAction;
         if ((iAction % 200) == 0)
             updatePlusIcon(true);
@@ -1341,7 +1344,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
         }
 
         var actionCur = actions[iAction];
-        if (checkMaxCallStack(iAction)) { //reduce long callstacks. must be large else is slow in canary
+        if (checkMaxCallStack(cCalls)) { //reduce long callstacks
             setTimeout(function () {  
                 processCurrent(actionCur);
             });
@@ -1360,22 +1363,39 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
         //doing it this way I think its simpler because im avoiding deep nested callbacks and the flow+error handling is centralized and easily visible
 
         function stepDone(status) {
-            if (status != STATUS_OK)
-                sendResponse({ status: status });
-            else if (queue.length==0)
-                nextAction();
-            else {
-                try {
-                    var pending = queue.shift();
-                    if (actionCur.ignore) {
-                        stepDone(STATUS_OK);
-                        return;
-                    }
+            cCalls++;
 
-                    pending.call();
-                } catch (ex) {
-                    logException(ex);
-                    sendResponse({ status: ex.message });
+            if (checkMaxCallStack(cCalls)) { //reduce long callstacks
+                setTimeout(function () {
+                    worker();
+                });
+            } else {
+                worker();
+            }
+
+            function worker() {
+                if (status != STATUS_OK) {
+                    sendResponse({ status: status });
+                    return;
+                }
+
+
+
+                if (queue.length == 0)
+                    nextAction();
+                else {
+                    try {
+                        var pending = queue.shift();
+                        if (actionCur.ignore) {
+                            stepDone(STATUS_OK);
+                            return;
+                        }
+
+                        pending.call();
+                    } catch (ex) {
+                        logException(ex);
+                        sendResponse({ status: ex.message });
+                    }
                 }
             }
         }
@@ -1399,7 +1419,6 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
             var queueLists = [actionCur.data.listBefore, actionCur.data.listAfter, actionCur.data.list];
             //note: there are cases where trello doesnt make actions for created lists, for example when duplicating a board.
             //in those cases, lists may suddenly appear without a "createList" action. So, detect them here.
-            var iQueue = 0;
             function processCur() {
                 if (queueLists.length == 0) {
                     stepDone(STATUS_OK);
@@ -1423,6 +1442,7 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                     });
                 }
             }
+
             processCur();
         }
 

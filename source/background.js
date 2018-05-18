@@ -18,7 +18,7 @@ chrome.runtime.onInstalled.addListener(function (details) {
     if (details && details.reason && details.reason == "install") {
         handleShowDesktopNotification({
             notification: "Welcome!\nRefresh or open a trello.com page to start.",
-            timeout: 20000
+            timeout: 8000
         });
     }
 });
@@ -282,7 +282,7 @@ function handlePlusMenuSync(sendResponse) {
 function handleRequestProPermission(sendResponse) {
     chrome.permissions.request({
         permissions: ["alarms","gcm"],
-        origins: ['http://www.plusfortrello.com/', 'https://www.plusfortrello.com/', 'https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
+        origins: ['http://www.plusfortrello.com/', 'https://ssl.google-analytics.com/', 'https://www.googleapis.com/']
     }, function (granted) {
         if (chrome.runtime.lastError) {
             sendResponse({ status: chrome.runtime.lastError.message || "Error" });
@@ -1931,8 +1931,8 @@ function handleCheckChromeStoreToken(sendResponse) {
     }
 
     handleShowDesktopNotification({
-        notification: "Please wait a few seconds for additional permission screens the first time you enable Pro.",
-        timeout: 10000
+        notification: "Please wait a few seconds for additional permission screens the first time you enable 'Pro'.",
+        timeout: 9000
     });
 
     if (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf") {
@@ -2268,7 +2268,7 @@ function handleCheckLi(sendResponse) {
             var liData = { msLastCheck: Date.now(), msCreated:0, li: "" };
             for (var i = 0; i < count; i++) {
                 var license = licenses[i];
-                if (licence.state == "ACTIVE" && licence.sku == 'plus_pro_single') {
+                if (licence.sku == 'plus_pro_single' && licence.state == "ACTIVE") {
                     liData.msCreated = parseInt(license.createdTime, 10);
                     liData.li = licence.itemId;
                 }
@@ -2277,22 +2277,22 @@ function handleCheckLi(sendResponse) {
             var objNew = {};
             objNew[SYNCPROP_LIDATA] = liData;
             chrome.storage.sync.set(objNew, function () {
-                //ok if fails
+                //ok if fails 
                 if (BLastErrorDetected())
                     console.error(chrome.runtime.lastError.message);
-                
+                if (!liData.li)
+                    doPurchase();
+                else {
+                    respond("hasLicence");
+                    return;
+                }
             });
-            if (!liData.li)
-                doPurchase();
-            else {
-                respond("hasLicence");
-                return;
-            }
         }
 
     }
 
     function doPurchase() {
+        //note this window is not modal. In theory the user could leave it open an cause re-entry. callers check not to overwrite storage based on msLastCheck
         google.payments.inapp.buy({
             'parameters': { 'env': 'prod' },
             'sku': 'plus_pro_single',

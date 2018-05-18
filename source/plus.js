@@ -26,6 +26,7 @@ var VAL_COMBOVIEWKW_HEADER = VAL_COMBOVIEWKW_PREFIX + "header";
 var VAL_COMBOVIEWKW_SEP = VAL_COMBOVIEWKW_PREFIX + "sep";
 
 var g_globalUser = ""; //saved in sync storage
+var g_rgKeywordsHome = [];
 
 //for sync performance, we keep the preference as a single string
 //it can be one of the special values above, or a keyword string
@@ -122,17 +123,17 @@ function showApproveProTrialDialog(callback) {
 <p align="justify">\
 <h3>Which features are "Pro"?</h3>\
 <ul class="agile_help_Pro_ul"></li>\
-<li>Labels in reports and burn-downs.</li>\
+<li>Trello labels in reports, charts and burn-downs (filter, group, stack, count by labels).</li>\
 <li>Custom report columns and more export options.</li>\
-<li>Some of our <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">future features</a> will also we "Pro".\
+<li>Some of our <a target="_blank" href="http://www.plusfortrello.com/p/future-features.html">future features</a> will also be "Pro".\
 </ul>\
 <\p>\
 <br>\
 <h3>Why?</h3>\
 <p align="justify">\
-We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 50K daily users and 180+ updates since 2013! Writing great software takes a lot of effort, talent and knowledge.<br>\
+We want more great features, faster. You already know the amazing quality and speed of Plus. Zero issues, 60K daily users and 200+ updates since 2013!<br>\
 We have never sacrificed quality but without charging we can only go so fast.<br />\
-<br \>Can\'t pay Pro? No problem Bro! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them.<\p>\
+<br \>Can\'t pay? No problem! <b>All other non-Pro Plus features will always be free</b> and we\'ll continue to improve them.<\p>\
 <\p>\
 <br \>\
 <h3>How to enable "Pro"?</h3>\
@@ -144,11 +145,10 @@ You also accept our <A target="_blank" href="http://www.plusfortrello.com/p/eula
 <br>Once you click "Approve", Plus also asks your approval for:\
 <ul class="agile_help_Pro_ul">\
 <li><p align="justify">Chrome <A target="_blank" href="https://support.google.com/chrome/answer/185277">sign-in</A> and Web Store, googleapis.com: To verify your "Pro" licence once free trial is over.</p></li>\
-<li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and help us shape the future of Plus. Our mobile app already does this.</p></li>\
-<li><p align="justify">plusfortrello.com: So our help pages can talk with the extension to better help you.</p></li>\
+<li><p align="justify">google-analytics.com: We analyze anonymous statistical feature usage data to know which are the popular features and make "Pro" users shape the future of Plus. Our mobile app and power-up already do this.</p></li>\
 </ul>\
 <br>\
-* We won\'t ask for payment information right now. Plus will remind you after June 2016. Without payment Plus will continue working, just without "Pro" features.<br>\
+* We won\'t ask for payment information right now. Plus will remind you around March 2017.<br>Amount may vary slightly per country.<br>\
 <br>\
 <button id="agile_dialog_showAprovePro_OK">Approve</button>&nbsp;\
 <button id="agile_dialog_showAprovePro_Cancel">Cancel</button>\
@@ -905,6 +905,9 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
 }
 
 function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshCardReport) {
+    if (!user)
+        return; //safety in case trello DOM structure breaks
+
     var topbarElem = $("#help_buttons_container");
     if (isPlusDisplayDisabled()) {
         configureSsLinksWorkerPostOauth(null, topbarElem, user, false);
@@ -927,8 +930,24 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
 	if (weekCur != getCurrentWeekNum(dateToday))
 		sToday = null; //means we are not tracking "today" because the week selection is not the current week.
 
-	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,B.idBoard, H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? order by user asc, date desc, H.rowid desc";
+	var sql = "select H.idCard, H.user,H.spent,H.est,H.comment,C.name as nameCard, strftime('%w',H.date,'unixepoch','localtime') as dow, H.date, B.name as nameBoard,B.idBoard, H.eType from HISTORY H JOIN BOARDS B ON H.idBoard=B.idBoard JOIN CARDS C ON H.idCard=C.idCard AND C.bDeleted=0 WHERE week=? ";
 	var values = [weekCur];
+	if (g_rgKeywordsHome.length > 0) {
+	    
+	    sql += " AND keyword IN (";
+	    var bFirst = true;
+	    g_rgKeywordsHome.forEach(function (kw) {
+	        values.push(kw);
+	        if (bFirst) {
+	            sql += "?";
+	            bFirst = false;
+	        }
+	        else
+	            sql += ",?";
+	    });
+	    sql += ")";
+	}
+	sql += " order by user asc, date desc, H.rowid desc";
 	g_cRowsWeekByUser = 0;
 	getSQLReport(sql, values,
 		function (response2) {
@@ -1501,11 +1520,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		    refreshAll();
 		    g_bShowHomePlusSections = bShowSaved;
 		    if (g_bShowHomePlusSections) {
-		        setTimeout(function () {//using timeout and animationFrame in hopes of improving animation sync with page dom load
-		            window.requestAnimationFrame(function () { 
-		                handleSectionSlide(seContainer, divSpentItems);
-		            });
-		        },300);
+		            handleSectionSlide(seContainer, divSpentItems);
 		    }
 		});
 
@@ -2394,17 +2409,49 @@ function checkLi() {
             if (liData.li)
                 return; //review zig expiration
 
-            if (false) {
-                var msLast = liData.msLastCheck;
-                if (msNow - msLast < 1000 * 60 * 60 * 24 * 5) //5 days
-                    return;
+            var msLast = liData.msLastCheck;
+            var bWaitCheck = false;
+            if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 6)) //6 hours
+                return;
+            
+            liData.msLastCheck = msNow;
+
+
+            function saveLi(liData) {
+                var objNew = {};
+                //update msLastCheck
+                objNew[SYNCPROP_LIDATA] = liData;
+                chrome.storage.sync.set(objNew, function () {
+                    if (chrome.runtime.lastError)
+                        console.error(chrome.runtime.lastError.message);
+                });
             }
 
             setTimeout(function () {
-                alert("Plus will activate your Pro licence now.");
-                sendExtensionMessage({ method: "checkLi" }, function (response) {
-                    if (response.status == STATUS_OK)
-                        sendDesktopNotification("Successful purchase. Enjoy!");
+                 showFirstLicDialog(function (status) {
+                    if (status == STATUS_OK) {
+                        sendExtensionMessage({ method: "checkLi" }, function (response) {
+                            if (response.status == STATUS_OK)
+                                sendDesktopNotification("Successful purchase. Enjoy!");
+                            else if (response.status == "hasLicence")
+                                sendDesktopNotification("Existing licence found, no need to purchase again. Enjoy!"); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
+                            else {
+                                //update msLastCheck if needed. must reload storage
+                                chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+                                    if (chrome.runtime.lastError)
+                                        return;
+                                    var msLastCheckLast = liData.msLastCheck;
+                                    liData = obj[SYNCPROP_LIDATA] || liData;
+                                    if (liData.msLastCheck < msLastCheckLast) {
+                                        liData.msLastCheck = msLastCheckLast;
+                                        saveLi(liData);
+                                    }
+                                });
+                            }
+                        });
+                    } else {
+                        saveLi(liData);
+                    }
                 });
             }, 2000);
         });

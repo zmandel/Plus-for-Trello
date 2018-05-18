@@ -15,6 +15,28 @@ function helpTooltip(ev, html) {
     target.replaceWith("<p>" + html + "</p>");
 }
 
+function putKeywordsStringInUi(rg, inputKeywords) {
+    var strKeywords = "";
+    rg.forEach(function (keyword) {
+        if (strKeywords.length == 0)
+            strKeywords = keyword;
+        else
+            strKeywords = strKeywords + ", " + keyword;
+    });
+    inputKeywords.val(strKeywords);
+}
+
+function convertKWListToArray(inputKeywords) {
+    var rg = inputKeywords.val().split(",");
+    var rgNew = [];
+    rg.forEach(function (keyword) {
+        var k = keyword.trim().toLowerCase();
+        if (k)
+            rgNew.push(k); //skip blanks etc
+    });
+    return rgNew;
+}
+
 
 var Help = {
     m_bShowing: false, //necessary to catch the possibility of null m_container on a consecutive display call
@@ -296,7 +318,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        
 	        helpWin.para('In the rare case you have issues with the display of trello pages:');
 	        var paraCheckDisable = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedDisablePlus">Disable changing trello.com pages. </input>\
-<a href="">Tell me more.</a>');
+<a href="">Tell me more</a>.');
 	        var checkDisablePlus = paraCheckDisable.children('input:checkbox:first');
 	        paraCheckDisable.children('a').click(function (ev) {
 	            helpTooltip(ev,"If checked, Plus will still sync and reports will continue working.<br>This is an emergency option so you can keep using Trello in the unlikely case of a conflict.");
@@ -374,15 +396,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    else
 	        bInsertDonationAsSection = true;
 	    if (cDaysUsingPlus > 7) {
-	        helpWin.para('I need <b>your help</b> to keep improving Plus! There are many useful features pending:', divDonations);
-	        helpWin.para("&bull; Card's time spent per list", divDonations);
-	        helpWin.para("&bull; Mobile iOS/Android app features", divDonations);
-	        helpWin.para("&bull; Track unanswered card comments sent or received", divDonations);
+	        helpWin.para('We appreciate <b>your help</b> to keep improving Plus! There are many useful features pending:', divDonations);
+	        helpWin.para("&bull; Mobile Apple/Android app improvements.", divDonations);
+	        helpWin.para("&bull; Track unresolved card comments sent or received", divDonations);
 	        helpWin.para('&bull; Board flowcharts for task count or time per list over time and much more!', divDonations);
 	        helpWin.para('&nbsp;', divDonations);
 	    }
 	    else {
-	        helpWin.para('I need <b>your</b> help to keep improving Plus!', divDonations);
+	        helpWin.para('We appreciate <b>your help</b> to keep improving Plus!', divDonations);
 	    }
 	    helpWin.para('Donate securely with Paypal. <b>You don\'t need a Paypal account</b> just a credit card.', divDonations);
 	    helpWin.para('<form action="https://www.paypal.com/cgi-bin/webscr" method="post" target="_blank">\
@@ -555,9 +576,9 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp');
 	    helpWin.para('&nbsp');
 
-	    helpWin.para('<b><h2 id="agile_help_trellosync">Sync (by Card comment keywords or Stealth)</h2></b>');
+	    helpWin.para('<b><h2 id="agile_help_trellosync">&#10148; Sync (by Card comment keywords or Stealth)</h2></b>');
 	    helpWin.para('Select your team\'s sync method:');
-	    helpWin.para('Enable sync to use Reports and the Plus menu, even if you do not use S/E.');
+	    helpWin.para('<b>Enable sync</b> to use Reports and the Plus menu, even if you do not use Spent / Estimate / Points.');
 	    comboSync = helpWin.para('<select id="agile_idComboSync" style="width:auto">').children('select');
 	    comboSync.append($(new Option("Sync off", SYNCMETHOD.disabled)).addClass("agile_box_input_hilite"));
 	    comboSync.append($(new Option("Trello card comments (recommended)", SYNCMETHOD.trelloComments)).addClass("agile_normalBackground"));
@@ -576,30 +597,29 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html">Legacy "Google sync" users read here</A>.');
 	        bDisplayedLegacyNote = true;
 	    }
-	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally. You may close Trello but leave at least one Chrome window open until sync finishes.");
+	    var paraFirstSync = helpWin.para("<b>Your first sync will start after you close help</b>.\nKeep using Trello normally or close it, it will not affect sync.");
 	    helpWin.para('If you switch sync methods or change keywords, "Reset Sync" from <A href="#agile_help_utilities">Utilities</A>.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here</A> for more sync details.');
 
 	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
-	    helpWin.para("To get all Plus features enable sync from the list above. Once enabled you will get:", divCur);
-	    helpWin.para("&bull; Chrome Plus menu", divCur);
-	    helpWin.para("&bull; Plus reports", divCur);
-	    helpWin.para("&bull; Team S/E", divCur);
-	    helpWin.para("&bull; Changes to cards, lists and boards is automatically handled.", divCur);
-	    helpWin.para("&bull; Use from other devices, mobile trello or mobile Plus.", divCur);
-	    helpWin.para('<br>If you leave sync off (not recommended) you can still use Plus and get those features later once enabled.', divCur);
+	    helpWin.para("Do not leave 'off' unless you are having a sync issue (super rare). Once enabled you will get:", divCur);
+	    helpWin.para("&bull; Chrome Plus menu (top-right in Chrome)", divCur);
+	    helpWin.para("&bull; Plus reports (full columns), charts, burn-downs.", divCur);
+	    helpWin.para("&bull; View team Spent/Estimate/Points, not just yours.", divCur);
+	    helpWin.para("&bull; Use from other devices, mobile or power-up.", divCur);
 
 	    divCur = syncSectionsMap[SYNCMETHOD.trelloComments];
-	    helpWin.para('This is the recommended sync method, even if you do not use S/E.', divCur);
-	    helpWin.para('Plus syncs all boards which you are a <b>member</b>.', divCur);
-	    helpWin.para('Enter S/E using the card plus bar or directly as card comments.', divCur);
-	    helpWin.para('Enter S/E from mobile or other browsers as a card comment. Users can view all S/E of their joined boards.',divCur);
+	    helpWin.para('&bull; This is the recommended sync method, even if you do not use S/E.', divCur);
+	    helpWin.para('&bull; Users must be <b>direct board members</b> to view a board S/E.', divCur);
+	    helpWin.para('&bull; Enter S/E using the card plus bar, mobile app, power-up or as a manual card comment.', divCur);
+	    helpWin.para('&bull; This is the only method compatible with Butler for Trello to <A target="_blank" href="http://www.plusfortrello.com/p/automated-time-tracking-with-butler-plus.html">track time spent in lists</A>.', divCur);
 	    if (g_strServiceUrl)
 	        helpWin.para('Plus will no longer use the Google sync spreadsheet or rename card titles. You can also remove existing S/E inside card titles from Utilities.', divCur);
 	    var txtSEByCardComments = 'Enter and read card S/E using card comments that start with these keywords:<br><input style="display:inline;text-transform: lowercase;" type="text" spellcheck="false" maxlength="150" />&nbsp;<input type="button" value="Save keywords" /> Separate <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">multiple keywords</A> with comma.';
 	    txtSEByCardComments = txtSEByCardComments + "<br>Your team should use the same keyword unless you want to further categorize or separate multiple subteams.";
+	    txtSEByCardComments = txtSEByCardComments + "<br>Home charts and the weekly report in the header can be filtered by keywords, see Preferences.";
 	    txtSEByCardComments = txtSEByCardComments + "<br>See <A href='http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html' target='_blank'>card comment format help</A> for advanced features and keyword configuration ideas.";
-	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before december 2014, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
+	    txtSEByCardComments = txtSEByCardComments + "<br><br>If your team entered S/E in Plus before 2015, also add 'plus s/e' as your last keyword. <A target='_blank' href='http://www.plusfortrello.com/2014/11/plus-for-trello-upgrade-from-legacy.html'>More</A>";
 
 	    var buttonshowNonMemberBoardsDialog = null; 
 
@@ -619,14 +639,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('The other sync modes make a card comment each time you enter S/E.', divCur);
 	    helpWin.para('Only those that use the same sync spreadsheet will see the team S/E, regardless of Trello board permissions.', divCur);
 	    helpWin.para("&nbsp;", divCur);
-	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1st option and use a different "keyword".', divCur);
+	    helpWin.para('If you only want to prevent your S/E from appearing other user\'s reports and do not mind S/E appearing in card comments, you should instead use the 1st sync option and use a different "keyword".', divCur);
 	    helpWin.para("&nbsp;", divCur);
         helpWin.para('How is this mode different from "Trello card comments" sync:', divCur);
         helpWin.para('&bull; Requires you to be <A target="_blank" href="https://support.google.com/chrome/answer/185277">signed-into Chrome</A>', divCur);
-        helpWin.para('&bull; Enter S/E using the "card S/E bar", never as card comments nor from mobile or other browsers.', divCur);
+        helpWin.para('&bull; Enter S/E using the "card S/E bar", never as card comments nor from mobile, power-up or other browsers.', divCur);
 	    helpWin.para('&bull; No "multiple keywords" feature.', divCur);
 	    helpWin.para('&bull; No board-based permissions. Share the private spreadsheet using Google permissions.', divCur);
-	    helpWin.para('&bull; No mobile app support, but will be added in the future.', divCur);
+	    helpWin.para('&bull; No mobile app or power-up support yet.', divCur);
 	    helpWin.para("&nbsp;", divCur);
 	    helpWin.para('Plus will ask you for permission to access your Google spreadsheets once configured below.', divCur);
 	    spanButtonGSStealth = setupPlusConfigLink(divCur, true);
@@ -652,6 +672,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Advantages: Permission is based on using the same spreadsheet url, regardless of board membership. Also, card titles are renamed to include total S/E thus you can see total card S/E from mobile or other browsers.', divCur);
 	    helpWin.para('S/E is not synced from card comments, only from the spreadsheet even thou it does add a card S/E comment.', divCur);
 	    helpWin.para('Thus in this mode you must enter all S/E using the "card S/E bar" from Chrome, never directly as comments nor from mobile.', divCur);
+	    helpWin.para('Because this mode also adds card S/E comments, its easy to later change to the recommended 1st sync option.', divCur);
 	    spanButtonGS = setupPlusConfigLink(divCur);
 	    helpWin.para("&nbsp;", divCur);
 	    showCurrentSpreadsheetLink();
@@ -736,30 +757,13 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    comboSync.val(valComboNew);
 	    onComboSyncChange();
 
-	    function putKeywordsStringInUi(rg) {
-	        var strKeywords = "";
-	        rg.forEach(function (keyword) {
-	            if (strKeywords.length == 0)
-	                strKeywords = keyword;
-	            else
-	                strKeywords = strKeywords + ", " + keyword;
-	        });
-	        inputKeywords.val(strKeywords);
-	    }
-
-	    putKeywordsStringInUi(g_optEnterSEByComment.rgKeywords);
+	    putKeywordsStringInUi(g_optEnterSEByComment.rgKeywords, inputKeywords);
 
 	    function doSaveKeywords(bShowSavedMessage) {
-	        var rg = inputKeywords.val().split(",");
-	        var rgNew = [];
-	        rg.forEach(function (keyword) {
-	            var k = keyword.trim().toLowerCase();
-	            if (k)
-	                rgNew.push(k); //skip blanks etc
-	        });
+	        var rgNew = convertKWListToArray(inputKeywords);
 	        if (rgNew.length == 0)
 	            rgNew.push(SEKEYWORD_DEFAULT);
-	        putKeywordsStringInUi(rgNew);
+	        putKeywordsStringInUi(rgNew, inputKeywords);
 	        chrome.storage.sync.set({ 'rgKWFCC': JSON.stringify(rgNew) }, function () {
 	            if (chrome.runtime.lastError !== undefined) {
 	                alert(chrome.runtime.lastError.message);
@@ -849,7 +853,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Plus always converts to "decimal format".');
 	    helpWin.para('<b>★</b> Add <b>[exclude]</b> to list names to exclude them from board sums on the Trello board page.<br>\
 &nbsp;&nbsp;&nbsp;To exclude those also in reports set the list filter to "![exclude]".');
-	    helpWin.para('<b>★</b> Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more.</a>').children('a').click(function (ev) {
+	    helpWin.para('<b>★</b> Renaming a Trello user is not renamed in Plus. It will appear as a new user until you "Reset sync". <a href="">Tell me more</a>.').children('a').click(function (ev) {
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
 	    });
 		helpWin.para('&nbsp');
@@ -1043,13 +1047,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 
 	    function updateOnWeekNumChange() {
-	        var userCur = getCurrentTrelloUser();
-	        var configCur = g_configData;
 	        var elemComboWeeks = $("#spentRecentWeeks");
 	        updateEffectiveDow();
 	        fillRecentWeeksList(elemComboWeeks);
 	        hiliteOnce(elemComboWeeks,4000);
-	        doWeeklyReport(configCur, userCur, true, false);
+	        doWeeklyReport(g_configData, getCurrentTrelloUser(), true, false);
 	    }
 
         //Week starts on
@@ -1110,7 +1112,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        comboWeekDeltaStart = $('<select style="width:auto">');
 	        comboWeekDeltaStart.appendTo(pComboWeekDelta);
 	        pComboWeekDelta.append("<span> </span>");
-	        pComboWeekDelta.append($('<a href="">Tell me more.</a>')).children('a').click(function (ev) {
+	        pComboWeekDelta.append($('<a href="">Tell me more</a>.')).children('a').click(function (ev) {
 	            helpTooltip(ev, "Example: Start weeks on thursday by selecting 'monday' and a shift of +3, or previous thursday with a shift of -4.<br />Plus Supports  <A target='_blank' href='http://en.wikipedia.org/wiki/ISO_week_date'>ISO weeks</A> starting sunday or monday. The 'ISO standard' has special rules for numbering weeks at the start or end of a year. A non-zero value first shifts the date, then applies the ISO rules. -7 and +7 shift by a whole week.");
 	        });
 	        elemEffectiveDow = $('<p />');
@@ -1180,7 +1182,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    if (true) {
 	        var paraPreventEstMod = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedPreventEstMod" \
->Prevent me (mostly) from increasing existing <b>E</b>stimates. Your manager does it for you or wants to prevent entry mistakes. </input> <a href="">Tell me more.</a>');
+>Prevent me (mostly) from increasing existing <b>E</b>stimates. Your manager does it for you or wants to prevent entry mistakes. </input> <a href="">Tell me more</a>.');
 	        var checkPreventEstMod = paraPreventEstMod.children('input:checkbox:first');
 	        paraPreventEstMod.children('a').click(function (ev) {
 	            helpTooltip(ev, "Check to prevent users from accidentally increasing E (cause a +E) in the S/E bar and 'modify'.\
@@ -1463,7 +1465,9 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	                    alert("The username cannot contain @, spaces, quotes or commas.");
 	                    return;
 	                }
-	                chrome.storage.sync.set({ SYNCPROP_GLOBALUSER: val }, function () {
+	                var objSave = {};
+	                objSave[SYNCPROP_GLOBALUSER] = val;
+	                chrome.storage.sync.set(objSave, function () {
 	                    if (chrome.runtime.lastError !== undefined) {
 	                        alert(chrome.runtime.lastError.message);
 	                        return;
@@ -1516,6 +1520,47 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	                    g_rgExcludedUsers = rgNew;
 	                    if (bShowSavedMessage)
 	                        alert("Saved.");
+	                });
+	            }
+	        });
+	    }
+
+        //keywords filter in home and header
+	    if (true) {
+	        var paraKWHome = helpWin.para('Only include these <A target="_blank" href="http://www.plusfortrello.com/p/faq.html#use_keywords">keywords</A> (separated by comma) in the Trello header report and home charts:<br><input style="display:inline;width:40em;" type="text" spellcheck="false" maxlength="200"/>&nbsp;<input type="button" value="Save list"/>');
+	        var inputKWHome = paraKWHome.children('input:text:first');
+	        var buttonKWHome = paraKWHome.children('input:button:first');
+	        putKeywordsStringInUi(g_rgKeywordsHome, inputKWHome);
+	     
+	        buttonKWHome.click(function () {
+	            doSave(true);
+
+	            function doSave(bShowSavedMessage) {
+	                var rgNew = convertKWListToArray(inputKWHome);
+	                if (!rgNew.every(function (kw) {
+	                    if (g_optEnterSEByComment.rgKeywords.indexOf(kw) < 0) {
+	                        alert("The keyword '" + kw + "' is not in your keywords list. See the Sync by card comments section.");
+	                        return false;
+	                    }
+	                    return true;
+	                })) {
+	                    return;
+	                }
+
+	                var objSave = {};
+	                objSave[SYNCPROP_KEYWORDS_HOME] = JSON.stringify(rgNew);
+	                chrome.storage.sync.set(objSave, function () {
+	                    if (chrome.runtime.lastError !== undefined) {
+	                        alert(chrome.runtime.lastError.message);
+	                        return;
+	                    }
+	                    g_rgKeywordsHome = rgNew;
+	                    putKeywordsStringInUi(g_rgKeywordsHome, inputKWHome);
+	                    doWeeklyReport(g_configData, getCurrentTrelloUser(), true, false);
+	                    setTimeout(function () { //timeout allows the charts UI to update
+	                        if (bShowSavedMessage)
+	                            alert("Saved.");
+	                    }, 200);
 	                });
 	            }
 	        });

@@ -21,7 +21,8 @@ var g_namedReport = null; //stores named report from initial url param
 var g_excludedColumns = {};
 var g_bAllowNegativeRemaining = false;
 var g_bNoGroupChart = false;
-const g_strMessageNoGroupChart = "To view a chart, make a report that is grouped by other than 'S/E rows'.";
+const g_strMessageNoGroupChart = "To view this chart type, group by other than 'S/E rows'.";
+var g_lastGroupSelection = "";
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
@@ -51,14 +52,16 @@ const g_dnames = {
     cardcount: "cardcount"
 };
 
-//maps to an array of possible groupings that correspond to a unique element in the group
-//see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
+//maps dependencies between a column and card fields.
+//used for detecting if a grouped report column contains unique or "last" (*) values.
+//see also https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
 const g_columnData = {
+    note: ["note"],
     user: ["user"],
     team: ["idTeamH","idBoardH","idCardH"],
     board: ["idBoardH", "idCardH"],
     nameList: ["nameList", "idCardH"],
-    hashtagFirst: ["hashtagFirst", "idCardH"],
+    hashtagFirst: ["hashtags", "hashtagFirst", "idCardH"],
     card: ["idCardH"],
     week: ["week", "dateString"],
     month: ["month", "dateString"],
@@ -75,7 +78,7 @@ const g_columnData = {
     e: ["e"],
     e1st: ["e1st"],
     eType: ["eType"],
-    labels: ["idCardH"],
+    labels: ["labels","idCardH"],
     note: ["note"],
     r: ["r"],
     s: ["s"]
@@ -611,11 +614,15 @@ var g_mapNameFieldToInternal = {
     list: "nameList",
     card: "idCardH",
     hashtag: "hashtagFirst",
+    hashtag1: "hashtagFirst",
+    hashtags: "hashtags",
+    labels: "labels", 
     user: "user",
     keyword: "keyword",
     date: "dateString",
     week: "week",
-    month: "month"
+    month: "month",
+    note: "comment"
 };
 
 function refreshBuildSqlMode(params) {
@@ -640,6 +647,11 @@ function updateOutputFormat(format) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    loadAll();
+    //setTimeout(loadAll,100); //review this might help reduce timing issues
+});
+
+function loadAll() {
     //chrome Content Security Policy (CSP) needs DOMContentLoaded
     if (g_bLoaded)
         return;
@@ -821,33 +833,50 @@ document.addEventListener('DOMContentLoaded', function () {
 
         var elemGroupBy = $("#groupBy");
         elemGroupBy.change(function () {
-            if (elemGroupBy.val() == "custom") {
-                var strGroup = window.prompt("Enter your custom grouping separated by '-' as in 'board-user-month'\nYou may bookmark the report after clicking query.\n\
-Pick from:\n\nteam • board • list • card • hashtag • user • keyword • date • month • week");
-                if (!strGroup)
-                    elemGroupBy.val("");
-                else {
-                    strGroup = strGroup.trim();
-                    var groups = strGroup.split("-");
-                    var groupsPretty = [];
-                    for (var iGroup = 0; iGroup < groups.length; iGroup++) {
-                        var gLower = groups[iGroup].toLowerCase();
-                        var mapped = g_mapNameFieldToInternal[gLower];
-                        groupsPretty.push(capitalizeFirstLetter(gLower));
-                        if (mapped)
-                            groups[iGroup] = mapped;
-                        else {
-                            alert('"' + groups[iGroup] + '" is an invalid property.');
-                            elemGroupBy.val("");
-                            return;
+            handleCustom("");
+
+            function handleCustom(valDefault) {
+                var valGroup = elemGroupBy.val();
+                if (valGroup == "custom") {
+                    valDefault = valDefault || remapGroupByToDisplay(g_lastGroupSelection);
+                    var strGroup = window.prompt("Enter groups separated by '-'\n\
+Example: board-user-month will group counts and sums by board, then user, then month.\n\n\
+• To prevent grouping, pick 'S/E rows' in the dropdown.\n\
+• You can bookmark the report in Chrome after clicking query.\n\
+• For more help, cancel and click Help top-right.\n\n\
+Pick from:\n\
+Team - Board - List - Card - Hashtag1 - Hashtags - Labels - User - Note - Keyword - Date - Month - Week", valDefault);
+                    if (!strGroup)
+                        elemGroupBy.val(g_lastGroupSelection);
+                    else {
+                        strGroup = strGroup.trim();
+                        var groups = strGroup.split("-");
+                        var groupsPretty = [];
+                        for (var iGroup = 0; iGroup < groups.length; iGroup++) {
+                            var gLower = groups[iGroup].toLowerCase().trim();
+                            var mapped = g_mapNameFieldToInternal[gLower];
+                            groupsPretty.push(capitalizeFirstLetter(gLower));
+                            if (mapped)
+                                groups[iGroup] = mapped;
+                            else {
+                                alert('"' + groups[iGroup] + '" is not valid.');
+                                setTimeout(function () {
+                                    handleCustom(strGroup);
+                                }, 100);
+                                return;
+                            }
+                        }
+                        var strNew = groups.join("-");
+                        elemGroupBy.val(strNew); //try again
+                        if (elemGroupBy.val() != strNew) {
+                            var strPretty = groupsPretty.join("-");
+                            elemGroupBy.append($(new Option(strPretty, strNew)));
+                            elemGroupBy.val(strNew);
+                            g_lastGroupSelection = strNew;
                         }
                     }
-                    var strNew = groups.join("-");
-                    elemGroupBy.val(strNew); //try again
-                    if (elemGroupBy.val() != strNew) {
-                        elemGroupBy.append($(new Option(groupsPretty.join("-"), strNew)));
-                        elemGroupBy.val(strNew);
-                    }
+                } else {
+                    g_lastGroupSelection = valGroup;
                 }
             }
         });
@@ -956,7 +985,7 @@ Pick from:\n\nteam • board • list • card • hashtag • user • keyword 
             loadReport(params);
         });
     });
-});
+}
 
 function configChartTab() {
     var copyWindow = $("#tabs-3").find(".agile_drilldown_select");
@@ -1278,13 +1307,15 @@ function getParamAndPutInFilter(elem, params, name, valDefault) {
         elem[0].checked = (str == "true");
     else {
         elem.val(str);
+        if (name == "groupBy")
+            g_lastGroupSelection = str;
+
         if (elem.val() != str) {
             //allow user to type a random filter from the url
             if (elem.is("select")) {
                 var strDisplay = str;
                 if (name == "groupBy")
                     strDisplay = remapGroupByToDisplay(str);
-
                 elem.append($(new Option(strDisplay, str)));
                 elem.val(str);
             }
@@ -1813,7 +1844,7 @@ function buildSql(elems) {
                     sql += (state.cFilters > 0 ? " AND" : " WHERE") + " C.idCard" + (advancedParams.bNegateAll ? " NOT" : "") + " in (" + sqlLabels + ")";
                 }
             } else {
-                sendDesktopNotification("To filter by labels enable 'Pro' from the Plus help pane.", 10000);
+                sendDesktopNotification("To filter by labels enable 'Pro' from the Plus help pane in trello.com", 10000);
             }
         }
 
@@ -1888,7 +1919,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (!g_bProVersion) {
         if (bSyncBeforeQuery || elems.customColumns) {
             bSyncBeforeQuery = false;
-            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane.", 10000);
+            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane in trello.com", 10000);
         }
     }
 
@@ -2041,6 +2072,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                             }
                             catch (e) {
                                 var strError = "error: " + e.message;
+                                logException(e);
                                 showError(strError);
                             }
 
@@ -2089,6 +2121,155 @@ function transformAndMarkSkipCardRows(rows, transformRow) {
     }
 }
 
+function splitRowsBy(rows, colName, mapCardsToLabels) {
+    var bHashtags = (colName == "hashtags");
+    var bLabels = (colName == "labels");
+    var cItems = rows.length;
+    var row;
+    var iSplit;
+    var rowClone;
+    var nameField;
+    var rgItems;
+
+    if (bHashtags)
+        nameField = "hashtagFirst";
+    else
+        nameField = "labels";
+
+    for (var i = 0; i < cItems; i++) {
+        row = rows[i];
+        if (row.bSkip)
+            continue;
+        assert(row[nameField] === undefined);
+        if (bHashtags)
+            rgItems = getHashtagsFromTitle(row.nameCard || "", false);
+        else
+            rgItems = mapCardsToLabels ? (mapCardsToLabels[row.idCardH] || { rgNameLabels: [] }).rgNameLabels : []; //mapCardsToLabels can be null if !pro
+        if (rgItems.length == 0)
+            row[nameField] = "";
+        else {
+            for (iSplit = 0; iSplit < rgItems.length; iSplit++) {
+                if (iSplit == 0)
+                    row[nameField] = rgItems[0];
+                else {
+                    rowClone = cloneObject(row);
+                    rowClone[nameField] = rgItems[iSplit];
+                    rows.push(rowClone);
+                }
+            }
+        }
+    }
+}
+
+function fillMapCardsToLabels(rowsIn, options, callback) {
+    var mapIdCards = {};
+    var idCards = [];
+    var mapCardsToLabels = {};
+    rowsIn.forEach(function (row) {
+        if (!mapIdCards[row.idCardH]) {
+            mapIdCards[row.idCardH] = true;
+            idCards.push("'" + row.idCardH + "'");
+        }
+    });
+    idCards.sort();
+    var sql = "SELECT idCardShort,idLabel FROM LABELCARD";
+    var bWhere = false;
+    var paramsSql = [];
+    if (idCards.length < 3000) {
+        //avoid making a huge query string when there are too many cards. limit to 3000 as it wasnt tested with over 4000
+        sql = sql + " WHERE idCardShort IN (" + idCards.join() + ")";
+        bWhere = true;
+    }
+    if (g_bDummyLabel) {
+        if (bWhere)
+            sql = sql + " AND";
+        else {
+            sql = sql + " WHERE";
+            bWhere = true;
+        }
+        sql = sql + " idLabel<>?";
+        paramsSql.push(IDLABEL_DUMMY);
+    }
+    sql = sql + " ORDER BY idCardShort DESC, idLabel DESC";
+    getSQLReport(sql, paramsSql, function (response) {
+        if (response.status != STATUS_OK) {
+            alert(response.status);
+            return;
+        }
+        var rowsLC = response.rows;
+        var mapIdLabels = {};
+        var idLabels = [];
+        rowsLC.forEach(function (row) {
+            if (!mapIdLabels[row.idLabel]) {
+                mapIdLabels[row.idLabel] = true;
+                idLabels.push("'" + row.idLabel + "'");
+            }
+            var mapCTL = mapCardsToLabels[row.idCardShort];
+            if (!mapCTL) {
+                mapCTL = { idLabels: [] };
+                mapCardsToLabels[row.idCardShort] = mapCTL;
+            }
+            mapCTL.idLabels.push(row.idLabel);
+        });
+
+        var mapLabelNames = {};
+        var mapLabelColors = {};
+        sql = "SELECT idLabel,name,color FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
+        getSQLReport(sql, [], function (response) {
+            if (response.status != STATUS_OK) {
+                alert(response.status);
+                return;
+            }
+            response.rows.forEach(function (rowLabel) {
+                mapLabelNames[rowLabel.idLabel] = escapeHtml(rowLabel.name);
+                mapLabelColors[rowLabel.idLabel] = rowLabel.color || "#b6bbbf"; //trello's no-color color
+            });
+
+            var iLabel = 0;
+            for (var idCardLoop in mapCardsToLabels) {
+                var objLoop = mapCardsToLabels[idCardLoop];
+                var rgLabels = new Array(objLoop.idLabels.length);
+                var rgLabelsDecorated = new Array(objLoop.idLabels.length);
+                rgNameLabels = new Array(objLoop.idLabels.length);
+                iLabel = 0;
+
+                objLoop.idLabels.forEach(function (idLabel) {
+                    var nameLabel = mapLabelNames[idLabel];
+                    rgLabels[iLabel] = { name: nameLabel, idLabel: idLabel };
+                    rgNameLabels[iLabel] = nameLabel;
+                    iLabel++;
+                });
+
+                rgLabels.sort(function (a, b) {
+                    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+                });
+
+                objLoop.rgNameLabels = rgNameLabels;
+                if (options.bNoLabelColors) {
+                    objLoop.labels = rgLabels.map(function (val) {
+                        return val.name;
+                    }).join(', ');
+                }
+                else {
+                    iLabel = 0;
+                    rgLabels.forEach(function (label) {
+                        var colorTextLabel = colorContrastWith(mapLabelColors[label.idLabel], null, "#000000");
+                        var strClassText = "";
+                        if (colorTextLabel == "white") {
+                            strClassText = "report_class_white_text ";
+                        }
+                        rgLabelsDecorated[iLabel] = '<span class="' + strClassText + 'report_label_color" style="background-color:' + mapLabelColors[label.idLabel] + ';">' + mapLabelNames[label.idLabel] + '</span>';
+                        iLabel++;
+                    });
+
+                    objLoop.labels = rgLabelsDecorated.join('&nbsp;&nbsp;');
+                }
+            }
+            callback(mapCardsToLabels);
+        });
+    });
+}
+
 function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
     var rowsGrouped = rowsOrig;
     const groupBy = urlParams["groupBy"];
@@ -2115,127 +2296,48 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
             }
         });
     }
+    
 
-    if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date"))
-        rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
-    if (rowsGrouped.length > 3000 && bPivotByWeek) { //week is the default. else user likely changed it on purpose so dont keep reminding this tip
-        const bNoCharts = (urlParams["checkNoCharts"] == "true");
-        var strAlert = "To speed up the report, consider:";
-        strAlert += "\n• Set pivot by 'Year'";
-
-        if (!bNoCharts)
-            strAlert += "\n• In this report options section, check 'No charts'";
-        sendDesktopNotification(strAlert, 6000);
-    }
-
-    var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0); //review zig: dup elsewhere
-    var mapIdCards = {};
-    var idCards = [];
-    var mapCardsToLabels = {};
-
-    if (!bShowCard) {
-        fillDOM(null, options.customColumns, callbackOK);
+    var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0 || groupBy.indexOf("labels") >= 0); //review zig: dup elsewhere
+    var bShowLabels = (bShowCard && g_bProVersion && (options.customColumns.length==0 || options.customColumns.indexOf("labels") >= 0));
+    if (!bShowLabels) {
+        stepGroup(null);
     }
     else {
-        rowsGrouped.forEach(function (row) {
-            if (!mapIdCards[row.idCardH]) {
-                mapIdCards[row.idCardH] = true;
-                idCards.push("'" + row.idCardH + "'");
-            }
+        fillMapCardsToLabels(rowsOrig, options, function (map) {
+            stepGroup(map);
         });
-        idCards.sort();
-        var sql = "SELECT idCardShort,idLabel FROM LABELCARD";
-        var bWhere = false;
-        var paramsSql = [];
-        if (idCards.length < 3000) {
-            //avoid making a huge query string when there are too many cards. limit to 3000 as it wasnt tested with over 4000
-            sql = sql + " WHERE idCardShort IN (" + idCards.join() + ")";
-            bWhere = true;
+    }
+
+    function stepGroup(mapCardsToLabels) {
+        var bGroupMultipleHashtags = groupBy.indexOf("hashtags") >= 0;
+        var bGroupMultipleLabels = groupBy.indexOf("labels") >= 0;
+        var cRowsOrigBefore = rowsOrig.length;
+
+        if (bGroupMultipleHashtags)
+            splitRowsBy(rowsOrig, "hashtags");
+
+        if (bGroupMultipleLabels) {
+            if (!g_bProVersion)
+                sendDesktopNotification("To group by labels enable 'Pro' from the Plus help pane in trello.com", 10000);
+            splitRowsBy(rowsOrig, "labels", mapCardsToLabels);
         }
-        if (g_bDummyLabel) {
-            if (bWhere)
-                sql = sql + " AND";
-            else {
-                sql = sql + " WHERE";
-                bWhere = true;
-            }
-            sql = sql + " idLabel<>?";
-            paramsSql.push(IDLABEL_DUMMY);
+
+        if (rowsOrig.length > cRowsOrigBefore)
+            sendDesktopNotification("This grouped report has duplicated counts and S/E sums due to cards with multiple labels or hashtags.", 5000);
+
+        if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date")) //assumes new rows are only inserted when grouping is set
+            rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
+        if (rowsGrouped.length > 3000 && bPivotByWeek) { //week is the default. else user likely changed it on purpose so dont keep reminding this tip
+            const bNoCharts = (urlParams["checkNoCharts"] == "true");
+            var strAlert = "To speed up this report, consider:";
+            strAlert += "\n• Set pivot by 'Year'";
+
+            if (!bNoCharts)
+                strAlert += "\n• In this report options section, check 'No charts'";
+            sendDesktopNotification(strAlert, 6000);
         }
-        sql = sql + " ORDER BY idCardShort DESC, idLabel DESC";
-        getSQLReport(sql, paramsSql, function (response) {
-            if (response.status != STATUS_OK) {
-                alert(response.status);
-                return;
-            }
-            var rowsLC = response.rows;
-            var mapIdLabels = {};
-            var idLabels = [];
-            rowsLC.forEach(function (row) {
-                if (!mapIdLabels[row.idLabel]) {
-                    mapIdLabels[row.idLabel] = true;
-                    idLabels.push("'" + row.idLabel + "'");
-                }
-                var mapCTL = mapCardsToLabels[row.idCardShort];
-                if (!mapCTL) {
-                    mapCTL = { idLabels: [] };
-                    mapCardsToLabels[row.idCardShort] = mapCTL;
-                }
-                mapCTL.idLabels.push(row.idLabel);
-            });
-
-            var mapLabelNames = {};
-            var mapLabelColors = {};
-            sql = "SELECT idLabel,name,color FROM LABELS WHERE idLabel in (" + idLabels.join() + ")";
-            getSQLReport(sql, [], function (response) {
-                if (response.status != STATUS_OK) {
-                    alert(response.status);
-                    return;
-                }
-                response.rows.forEach(function (rowLabel) {
-                    mapLabelNames[rowLabel.idLabel] = rowLabel.name;
-                    mapLabelColors[rowLabel.idLabel] = rowLabel.color || "#b6bbbf"; //trello's no-color color
-                });
-
-                var iLabel = 0;
-                for (var idCardLoop in mapCardsToLabels) {
-                    var objLoop = mapCardsToLabels[idCardLoop];
-                    var rgLabels = new Array(objLoop.idLabels.length);
-                    var rgLabelsDecorated = new Array(objLoop.idLabels.length);
-                    iLabel = 0;
-
-                    objLoop.idLabels.forEach(function (idLabel) {
-                        rgLabels[iLabel] = { name: mapLabelNames[idLabel], idLabel: idLabel };
-                        iLabel++;
-                    });
-
-                    rgLabels.sort(function (a, b) {
-                        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-                    });
-
-                    if (options.bNoLabelColors) {
-                        objLoop.labels = rgLabels.map(function (val) {
-                            return val.name;
-                        }).join(', ');
-                    }
-                    else {
-                        iLabel = 0;
-                        rgLabels.forEach(function (label) {
-                            var colorTextLabel = colorContrastWith(mapLabelColors[label.idLabel], null, "#000000");
-                            var strClassText = "";
-                            if (colorTextLabel == "white") {
-                                strClassText = "report_class_white_text ";
-                            }
-                            rgLabelsDecorated[iLabel] = '<span class="' + strClassText + 'report_label_color" style="background-color:' + mapLabelColors[label.idLabel] + ';">' + mapLabelNames[label.idLabel] + '</span>';
-                            iLabel++;
-                        });
-
-                        objLoop.labels = rgLabelsDecorated.join('&nbsp;&nbsp;');
-                    }
-                }
-                fillDOM(mapCardsToLabels, options.customColumns, callbackOK);
-            });
-        });
+        fillDOM(mapCardsToLabels, options.customColumns, callbackOK);
     }
 
     function fillDOM(mapCardsToLabels, customColumns, callbackOK) {
@@ -2413,7 +2515,7 @@ function saveDataChart(rows, urlParams, options) {
     var prependIds = [];
     var bDateGroups = false;
     var strNameBoardSingle = "";
-    //convert to the actual display field
+    //convert to the actual field (special cases)
     for (var iProp = 0; iProp < pGroups.length; iProp++) {
         pCur = pGroups[iProp];
         var bId = true;
@@ -2430,6 +2532,10 @@ function saveDataChart(rows, urlParams, options) {
             pGroups[iProp] = "nameTeam";
         else if (pCur == "idBoardH")
             pGroups[iProp] = "nameBoard";
+        else if (pCur == "hashtags") {
+            pGroups[iProp] = "hashtagFirst";
+            bId = false;
+        }
         else
             bId = false;
 
@@ -2482,6 +2588,8 @@ function saveDataChart(rows, urlParams, options) {
                 continue;
             }
             var val = (yField.length > 0 ? g_yFieldSeparator : "") + (rowCur[propNameLoop] || "-");
+            if (propNameLoop == "comment")
+                val = removeBracketsInNote(val);
             yField += val;
         }
         //NOTE: code uses "dlabel" (data label) to distinguish from trello labels.
@@ -3040,7 +3148,7 @@ function chartStacked(type, bForce, callbackCancel) {
         var pGroups = g_dataChart.params["groupBy"].split("-");
         iGroupStack = pGroups.indexOf(stackBy);
         if (iGroupStack < 0) {
-            sendDesktopNotification("To use this stacking, first query a report using a 'Group by' containing your stacking (or add a new Custom group-by from that dropdown.)", 10000);
+            sendDesktopNotification("Error: the report 'Group by' must contain your stacking. Pick 'Custom' from the group-by dropdown and append it, then Query.", 20000);
             $("#stackBy").val("");
             updateURLPart("stackBy");
         } else if (g_dataChart.iPartGroupExclude >= 0 && g_dataChart.iPartGroupExclude < iGroupStack)
@@ -3659,14 +3767,17 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var bShowBoard = bCustomColumns ? includeCol("board") : (groupBy == "" || groupBy.indexOf("idBoardH") >= 0 || bCardGrouping);
     var bShowCard = bCustomColumns ? includeCol("card") : (groupBy == "" || bCardGrouping);
     var bShowTeam = bCustomColumns ? includeCol("team") : (groupBy.indexOf("idTeamH") >= 0 || (!g_bPopupMode && bShowBoard));
-    var bShowLabels = bCustomColumns ? includeCol("labels") : bShowCard && g_bProVersion;
+    var bGroupedByLabels = (groupBy.indexOf("labels") >= 0);
+    var bShowLabels = bCustomColumns ? includeCol("labels") : g_bProVersion && (bShowCard || bGroupedByLabels);
 
     if (bShowLabels && bCustomColumns && !mapCardsToLabels) {
         sendDesktopNotification("To show labels, group by card or s/e rows.", 12000);
     }
     var bShowList = bCustomColumns ? includeCol("nameList") : ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
     var bPushedCard = false;
-    var bShowHashtag = bCustomColumns ? includeCol("hashtagFirst") : (groupBy.indexOf("hashtagFirst") >= 0);
+    var bGroupedByHashtags = (groupBy.indexOf("hashtags") >= 0);
+    var bGroupedByFirstHashtag = (groupBy.indexOf("hashtagFirst") >= 0);
+    var bShowHashtag = bCustomColumns ? includeCol("hashtagFirst") : (bGroupedByFirstHashtag || bGroupedByHashtags);
     var bShowCardShortLink = bCustomColumns ? includeCol("cardShortLink") : options.bOutputCardShortLink;
     var bShowCardNumber=bCustomColumns ? includeCol("cardNumber") : options.bOutputCardIdShort;
 
@@ -3734,7 +3845,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         pushHeader("List","nameList");
 
     if (bShowHashtag) {
-        pushHeader("1st Hashtag", "hashtagFirst");
+        pushHeader(bGroupedByHashtags?"Hashtag": "1st Hashtag", "hashtagFirst");
     }
 
     if (!bPushedCard) {
@@ -3743,7 +3854,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     }
 
     if (bShowLabels)
-        pushHeader("Labels", "labels");
+        pushHeader(bGroupedByLabels? "Label" : "Labels", "labels");
 
     var bShowS = true;
     var bShowEFirst = true;
@@ -3774,7 +3885,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     if (bShowRemain)
         pushHeaderAggregate("R");
 
-    var bShowComment = bCustomColumns? includeCol("note") :(groupBy == "");
+    var bShowComment = bCustomColumns? includeCol("note") :(groupBy == "" || groupBy.indexOf("comment")>=0);
     if (bShowComment)
         pushHeaderExtended("Note");
 
@@ -3929,8 +4040,10 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
 
         if (bShowHashtag) {
             var nameHSF;
-            if (groupBy.indexOf("hashtagFirst") >= 0)
+            if (bGroupedByFirstHashtag || bGroupedByHashtags) {
+                assert(row.hashtagFirst !== undefined);
                 nameHSF = row.hashtagFirst; //when grouping by hashtag, its already extracted
+            }
             else {
                 var rgHashForCard = getHashtagsFromTitle(row.nameCard || "", true);
                 if (rgHashForCard.length > 0)
@@ -3947,9 +4060,14 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         }
 
         if (bShowLabels) {
-            //mapCardsToLabels might not be there when the column is forced with custom columns
-            var labels = !mapCardsToLabels? "" : (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
-            pushCol({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
+            if (bGroupedByLabels) {
+                assert(row.labels !== undefined); //already extracted when grouping by labels
+                pushCol({ name: escapeHtml(row.labels), bNoTruncate: bNoTruncate });
+            } else {
+                //mapCardsToLabels might not be there when the column is forced with custom columns
+                var labels = !mapCardsToLabels ? "" : (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
+                pushCol({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
+            }
         }
         var sPush = parseFixedFloat(row.spent);
         var estPush = parseFixedFloat(row.est);

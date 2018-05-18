@@ -59,7 +59,7 @@ border-radius:3px;
 
 .agile_dialog_showAprovePro {
     width:41em;
-    background-color:#E4FFFF;
+    background-color:white;
     padding-left:2em !important;
     padding-right:2em !important;
 }
@@ -145,12 +145,18 @@ list-style-type:disc !important;
     z-index:99999 !important;
     border-top-right-radius: 0px !important;
     border-top-left-radius: 0px !important;
-    background-color: #FFFFD8 !important;
+    background-color: #FFFFFF !important;
     color: #4D4D4D !important;
 }
 
 .agile_dialog_Postit_Anim {
     margin-top: -11em;
+    -webkit-transition: all 0.3s ease-out;
+    transition: all 0.3s ease-out;  
+}
+
+.agile_dialog_Postit_Anim_Lic {
+    margin-top: -17em;
     -webkit-transition: all 0.3s ease-out;
     transition: all 0.3s ease-out;  
 }
@@ -1842,6 +1848,9 @@ table#tableMarkers td {
     display:table !important;
     margin-top:0px;
     margin-bottom:0px;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;  
+    user-select: none;
 }
 
 .agile_arrow_container {

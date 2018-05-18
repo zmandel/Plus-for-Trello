@@ -211,6 +211,7 @@ var SYNCPROP_bStealthSEMode = "bStealthSEMode";
 var SYNCPROP_language = "language";
 var SYNCPROP_BOARD_DIMENSION = "board_dimension";
 var SYNCPROP_GLOBALUSER = "global_user";
+var SYNCPROP_KEYWORDS_HOME = "keywords_home";
 var LOCALPROP_PRO_VERSION = "pro_enabled";
 var SYNCPROP_MSLICHECK = "msLiCheck";
 var SYNCPROP_LIDATA = "LiData";  // {  msLastCheck, msCreated, li}
@@ -1203,10 +1204,12 @@ function handleSectionSlide(section, content, widthOpen, elemShowHide, callbackD
 			elemShowHide.show();
 	}
 
-	content.animate({ opacity: bOpened?0:1 }, step, "easeOutQuad");
-
-	content.slideToggle({queue:false, duration: step, complete:function () {
-		if (bOpened) {
+	if (!bOpened)
+	    content.show();
+	else
+	    content.hide();
+	content.css("opacity", bOpened ? "0" : "1");
+if (bOpened) {
 			section.removeClass("agile_arrow_opened");
 			section.addClass("agile_arrow_closed");
 			if (elemShowHide)
@@ -1220,9 +1223,8 @@ function handleSectionSlide(section, content, widthOpen, elemShowHide, callbackD
 
 		if (callbackDone)
 		    callbackDone();
-	}});
-	
 }
+
 /**
  * Modified ScrollView - jQuery plugin 0.1
  * 
@@ -1652,6 +1654,7 @@ function showTimerPopup(idCard) {
 }
 
 var g_cTimesZeroTimeout = 0;
+var g_cTimesContinuousZeroTimeout = 0;
 
 /* processThreadedItems
  *
@@ -1682,10 +1685,19 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
             return;
         bReturned = true;
         assert(status != STATUS_OK || cNeedProcess == cProcessed);
-        onFinishedAll(status);
+        if (g_cTimesContinuousZeroTimeout > 0) {
+            g_cTimesContinuousZeroTimeout = 0;
+            //guarantee fresh callstack uppon return.reduces chances of random callstack additions over time
+            setTimeout(function () {
+                onFinishedAll(status);
+            });
+        } else {
+            onFinishedAll(status);
+        }
     }
 
     function startProcess() {
+        g_cTimesContinuousZeroTimeout = 0;
         for (var iitem = 0; iitem < items.length; iitem++) {
             var itemCur = items[iitem];
             assert(typeof itemCur == "object");
@@ -1719,15 +1731,27 @@ function processThreadedItems(tokenTrello, items, onPreProcessItem, onProcessIte
             if ((g_cTimesZeroTimeout % 50) == 0)
                 ms = 50; //breath in case of consecutive zero waits. doesnt hurt when not consecutive
         }
-        setTimeout(function () {
+        if (ms == 0)
+            ms = undefined; //faster, specially in Canary (2016 last checked)
+
+        if (ms === undefined)
+            g_cTimesContinuousZeroTimeout++;
+
+        function doIt() {
             try {
                 onProcessItem(tokenTrello, item, iitem, postProcessItem);
             } catch (ex) {
                 logException(ex);
                 onFinishedInternal("error: " + ex.message);
             }
-            
-        }, ms);
+        }
+
+        if (ms === undefined && (g_cTimesContinuousZeroTimeout % 20 != 0)) {
+            doIt();
+            return;
+        }
+        g_cTimesContinuousZeroTimeout = 0;
+        setTimeout(doIt, ms);
     }
 
     function postProcessItem(status, item, iitem) {
@@ -2049,6 +2073,17 @@ function elementInViewport(el) { //thanks to http://stackoverflow.com/a/125106/2
       (left + width) <= (window.pageXOffset + window.innerWidth));
 }
 
+function removeBracketsInNote(note) {
+    var iFindBracket = note.lastIndexOf("]");
+    if (iFindBracket >= 0) {
+        iFindBracket++;
+        if (iFindBracket >= note.length)
+            note = "";
+        else
+            note = note.substring(iFindBracket);
+    }
+    return note.trim();
+}
 
 function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
 
@@ -2081,22 +2116,27 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
             for (; iProp < pGroups.length; iProp++) {
                 var propname = pGroups[iProp];
                 var valCur = "";
-                if (propname == "hashtagFirst") {
-                    var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
-                    if (rgHash.length > 0)
-                        valCur = rgHash[0];
-                    else
-                        valCur = "";
-                    row.hashtagFirst = valCur; //NOTE we modify the row here
-
-                } else if (propname == "idLabelFirst") { //review implement
-                    if (row[propname])
-                        valCur = row[propname]; //2nd pass
-                    else
-                        valCur = row["idCardH"]; //1st pass review missing
+                if (propname == "hashtagFirst" || propname == "hashtags") {
+                    if (row.hashtagFirst === undefined) { //splitRows might have already loaded them
+                        var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
+                        if (rgHash.length > 0)
+                            valCur = rgHash[0];
+                        else
+                            valCur = "";
+                        row.hashtagFirst = valCur; //NOTE we modify the row here
+                    } else {
+                        valCur = row.hashtagFirst;
+                    }
+                } else if (propname == "labels") {
+                    //when grouping by labels, splitRows has always prepopulated labels, and without html decoration
+                    assert(row.labels !== undefined);
+                    valCur = row.labels;
+                } else if (propname == "comment") {
+                    valCur = removeBracketsInNote(row.comment); 
                 } else {
                     valCur = row[propname];
                 }
+
                 key = key + "/" + String(valCur).toLowerCase();
             }
             var group = map[key];
