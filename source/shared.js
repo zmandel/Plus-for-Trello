@@ -160,6 +160,7 @@ function addTableSorterParsers() {
 }
 
 function isTestVersion() {
+    //return false;
     return (chrome.runtime.id != "gjjpophepkbhejnglcmkdnncmaanojkf");
 }
 
@@ -2329,4 +2330,9 @@ function elemShowHide(elem, bShow, ms) {
 
 function isLicException() {
     return (navigator && navigator.userAgent && (navigator.userAgent.indexOf("Opera")>=0 || navigator.userAgent.indexOf("OPR/")>=0));
+}
+
+function hitAnalytics(category, action) {
+    sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action }, function (response) {
+    });
 }

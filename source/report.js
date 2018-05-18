@@ -702,6 +702,9 @@ function loadAll() {
     g_bPopupMode = (params["popup"] == "1"); //this one wins over saved one
     g_bBuildSqlMode = (params["getsql"] == "1");
 
+    if (!g_bBuildSqlMode)
+        hitAnalytics("Reports", "open-" + g_bPopupMode ? "inPopup" : "window");
+
     if (namedReport) {
         g_namedReport = namedReport;
         if (params["useStoredNamed"]) {

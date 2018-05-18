@@ -3,7 +3,7 @@
 var g_inputSEClass = "agile_plus_addCardSE";
 var g_strNowOption = "now";
 var g_bShowSEBar = false;
-
+const ID_BOARD_PLUSHELP = "0jHOl1As";
 
 var g_valDayExtra = null; //for "other" date in S/E bar
 var g_valUserExtra = null; //for "other" added user in S/E bar
@@ -2323,7 +2323,7 @@ function setNewCommentInCard(idCardCur, keywordUse, //blank uses default (first)
 
 	FindIdBoardFromBoardName(board, idCardCur, function (idBoardFound) {
 	    if (idBoardFound) {
-	        if (idBoardFound == "0jHOl1As") {
+	        if (idBoardFound == ID_BOARD_PLUSHELP) {
 	            alert("Enter Spent & Estimates in your boards. You cannot enter S/E in this public help board.");
 	            return;
 	        }

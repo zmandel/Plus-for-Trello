@@ -358,12 +358,11 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 	    
 	    if (true) {
-	        helpWin.para("<h3><A target='_blank' href=''>Plus Help board</A></h3>").find("A").click(function (e) {
+	        helpWin.para("Open this <span style='font-weight:bold;font-size:110%;'><A target='_blank' href=''>Plus Help board</A></span> for best place to learn about Plus.").find("A").click(function (e) {
 	            window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	            e.preventDefault();
 	        });
 	    }
-	    helpWin.para("Learn about configuring and using Plus in that Trello board.");
 	    helpWin.para('&nbsp');
 	    if (true) {
 	        helpWin.para("<h3>Enable or disable Plus</h3>");
@@ -544,7 +543,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
 	    helpWin.para('&nbsp');
 	    helpWin.para("<h2 style='display:inline-block;'>Contents</h2><span style='color: #8c8c8c;margin-left:1em;'>click a section</span><ul id='tocAgileHelp'></ul>");
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 	    var bSpentBackendCase = isBackendMode();
 
 	    helpWin.para('<b><h2 id="agile_help_basichelp">Basics</h2></b>');
@@ -584,11 +583,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
-        helpWin.para('<hr><br>');
+        helpWin.para('<hr class="agile_hr_help"><br>');
         helpWin.para('<b><h2 id="agile_help_sesystem">The Plus Spent / Estimate system</h2></b>');
-        helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus.');
+        helpWin.para('Plus tracks estimate, spent and estimate changes by storing "S/E rows" per card and user, then summing the rows.');
+        helpWin.para('For a given card, its S/E total "sum" is the sum of all its S/E rows.');
+        helpWin.para('Estimates are optional, and normally entered before or at the same time as entering spent.');
+        helpWin.para('★ The best way to learn the system is to <b><A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">read a typical case of using Plus (web page)</A>.');
         helpWin.para('It is similar to summing rows on a spreadsheet, with columns for Estimate and Spent.<br><br>');
-        var linkShowAnalogy = helpWin.para('<A href="">Click here</A> to read an analogy with time tracking on a spreadsheet, or <A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">read it on the web</A><br><br>').find("A").eq(0);
+        var linkShowAnalogy = helpWin.para('★ <A href="">Click here</A> for an analogy with time tracking on a spreadsheet.<br><br>').find("A").eq(0);
         linkShowAnalogy.click(function () {
             var elem = $(".helpSectionAnalogy");
             elemShowHide(elem, !elem.is(":visible"),200);
@@ -596,7 +598,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         var divAnalogy = $('<div class="helpSectionAnalogy"></div>').hide();
         helpWin.m_container.append(divAnalogy);
         helpWin.para('Imagine you are entering Spent time as rows in a spreadsheet, adding rows from top to bottom:', divAnalogy);
-        helpWin.para('Using the Plus "Card S/E bar" is like adding new rows to the table below and moving the running total down:', divAnalogy);
+        helpWin.para('Using the Plus "Card S/E bar" is inserting new rows to the table below above the running total:', divAnalogy);
         helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-table.png") + '"/>', divAnalogy);
         helpWin.para('&nbsp', divAnalogy);
         helpWin.para('Plus does the same, except the "rows" are entered inside Trello cards as special card comments (or as Google spreadsheet rows, when using stealth sync mode).', divAnalogy);
@@ -604,49 +606,51 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('Plus uses the same concept for estimates: Enter a "first estimate" on the first row, then increase or decrease it in later rows if needed:', divAnalogy);
         helpWin.para('<img src="' + chrome.extension.getURL("images/help-spent-est-table.png") + '"/>', divAnalogy);
         helpWin.para('This gives more information that just the previous "spent history" table because it shows a first estimate of 11, later increased by 2 hours.', divAnalogy);
-        helpWin.para('Plus reports and charts can show you these estimate changes per user, board, label, hashtag and much more. Knowing the actual estimate gives you burn-downs and projected end dates as Plus knows how much work Remains and how it changed over time.', divAnalogy);
+        helpWin.para('Plus reports and charts show these estimate changes per user, board, label, hashtag and much more. Knowing the actual estimate gives you burn-downs and projected end dates as Plus knows how much work Remains and how it changed over time.', divAnalogy);
         helpWin.para('Plus automatically fills the "Estimate" column as you type "Spent" or stop timers, calculating any Estimate increases needed (which you can overwrite.)', divAnalogy);
         helpWin.para('The difference in Trello is that Plus shows the rows from latest to earliest because that is how Trello displays card comments, and Plus also has an extra "User" column for each S/E row as Plus keeps Spent and Estimates per user.', divAnalogy);
-        helpWin.para('Use the Plus "Card S/E bar" to add more rows, or directly modify the running totals using "Modify"  (which adds a row for you with the needed differences, positive or negative).', divAnalogy);
+        helpWin.para('Use the Plus "Card S/E bar" to add more rows, or directly modify the running totals using "Modify"  (which adds a row for you with the needed differences, positive or negative) or transfer Estimates.', divAnalogy);
         helpWin.para('&nbsp', divAnalogy);
+        helpWin.para('Plus can also assign a "global" card estimate and transfer estimates.');
         helpWin.para('Here you can see the "Plus S/E bar" inside a card front, along with a card report and commands like "modify" above it.');
         helpWin.para('<img id="seHelpAfterSpreadsheet" src="' + chrome.extension.getURL("images/cardplusreport.png") + '"/>');
 
         helpWin.para('Open a card to enter new <b>S</b>pent or <b>E</b>stimate history rows.');
         helpWin.para('The table above the "card S/E bar" shows totals per user.');
-        helpWin.para('Ideally you first enter an estimate as in 0/2 (S:blank, E:2) and later spend it with 2/0 (S:2, E:blank)');
-        helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it on the same "row".');
+        helpWin.para('Normally you first enter an estimate as in 0/2 (S:blank, E:2) and later spend it with 2/0 (S:2, E:blank)');
+        helpWin.para('If you didn\'t estimate it previously, enter 2/2 which estimates and spends it on the same entry.');
         helpWin.para('Plus automatically pre-fills E when you type <b>S</b> that causes Remain to be negative (S sum bigger than E sum).');
         helpWin.para('Plus considers your card finished when your <b>S sum</b> equals <b>E sum</b> thus R (Remain) is zero.');
         helpWin.para('You dont have to spend all the estimate right away. Maybe you enter 0/5, then 3/0 then 2/0. The sum is 5/5.');
         helpWin.para('Your first S/E row per card becomes your card\'s 1ˢᵗ estimate (E 1ˢᵗ) used to compare to the current estimate <b>E sum</b>.');
-        helpWin.para('To use a different system, you might want to "allow negative <b>R</b>emaining" in Preferences.');
         helpWin.para('When you enter S/E for another user (not "me") Plus generates a special note in that S/E row: "[by user]."');
         helpWin.para('All special notes that Plus generates with [brackets] are secure and cannot be faked or removed by other users making Plus actions fully traceable.');
-
+        helpWin.para('To use a different system you might want to "allow negative <b>R</b>emaining" in Preferences.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
 	    helpWin.para('Easily enter Spent with card timers, or manually enter S/E with the Plus card bar.');
 	    helpWin.para('To track time spent in lists automatically, see <A href="http://www.plusfortrello.com/p/automated-time-tracking-with-butler-plus.html" target="_blank">using Plus & Butler</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('Example of entering S/E starting from the bottom (oldest) card comment:');
-	    helpWin.para('Note that Plus makes the "plus" card comments when using the S/E bar (unless using the stealth sync mode).');
+	    helpWin.para('As you or others enter Estimates, Spent, Transfers or Modify, Plus makes special card comments (unless using "Stealth" sync mode).');
+	    helpWin.para('Here is an example of entering S/E, starting from the bottom (oldest) card comment:');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s1.png") + '"/>');
 	    helpWin.para('&nbsp');
+	    helpWin.para('You do not need to see those card comments to figure out totals or history. Plus has special reports and charts for that purpose.');
 	    helpWin.para('&bull; <b>Do not delete or edit a card S/E comment.</b> Instead use "<u>modify</u>" in the card front report.');
-	    helpWin.para('&bull; Also use "modify" if you prefer to think about total S/E instead of adding/substracting with the "card S/E bar".');
-	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do the math for you and enter the needed S/E as a new row.');
+	    helpWin.para('&bull; You can also add a "global" estimate or S/E for other users.');
+	    helpWin.para('&bull; Use "modify" if you prefer to work with total S/E ("sum") instead of adding or substracting with the "card S/E bar".');
+	    helpWin.para('&nbsp;&nbsp;&nbsp;"modify" will do the math for you and enter the needed S/E row.');
 	    helpWin.para('&nbsp;&nbsp;&nbsp;Example: if you entered a Spent of 3 and modify it to zero, "modify" will enter a new row of "-3/0".');
-	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened. -3d means 3 days ago.");
-	    helpWin.para('&bull; Keyboard use: Use TAB or SHIFT+TAB to move between fields. Enter with the "Enter" key or button.');
+	    helpWin.para("&bull; Enter S/E back in time by clicking on 'now' and pick how many days ago it happened.");
+	    helpWin.para('&bull; Keyboard: Use TAB or SHIFT+TAB to move between fields. Enter with the "Enter" key or button.');
 	    helpWin.para('<b>More:</b> <A target="_blank" href="http://www.plusfortrello.com/p/s-e-entry-methods.html">Which S/E entry method should you use?</A>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_trellosync">&#10148; Sync (by Card comment keywords or Stealth)</h2></b>');
-	    helpWin.para('Select your team\'s sync method. This defines whether Plus stores information inside or outside Trello.');
+	    helpWin.para('<b>Pick your team\'s sync method. It defines whether Plus stores information inside or outside Trello.</b>');
 	    helpWin.para('Enable sync even if you do not use Spent / Estimate / Points. <A target="_blank" href="">Our Plus help board</A> has more information.').children("A").click(function (e) {
 	        window.open("https://trello.com/b/0jHOl1As/plus-for-trello-help", "_blank");
 	        e.preventDefault();
@@ -674,7 +678,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/sync-features.html">Read here</A> for more sync details.');
 
 	    var divCur = syncSectionsMap[SYNCMETHOD.disabled];
-	    helpWin.para("Do not leave 'off' unless you are having a sync issue (very rare). Once enabled you will get:", divCur);
+	    helpWin.para("Do not leave 'off' unless you are having a sync issue (very rare). Once enabled you get:", divCur);
 	    helpWin.para("&bull; Chrome Plus menu (top-right in Chrome)", divCur);
 	    helpWin.para("&bull; Plus reports (full columns), charts, burn-downs.", divCur);
 	    helpWin.para("&bull; View team Spent/Estimate/Points, not just yours.", divCur);
@@ -902,14 +906,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_preestimate">Pre-Estimations</h2></b>');
 	    helpWin.para('Plus supports two levels of pre-estimation to help your team figure out card first estimates (E 1<sup>st</sup>).');
 	    helpWin.para('Add pre-estimates to checklist items or card titles. Neither show in reports, only in the card front and board dimensions.');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates" target="_blank">See how to use pre-estimates.</A>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices for S/E</h2></b>');
 	    helpWin.para('<b>★</b> <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
@@ -929,7 +933,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
 	    });
 		helpWin.para('&nbsp');
-		helpWin.para('<hr><br>');
+		helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile and Web Plus for Trello</b>');
 	    helpWin.para('Works on any phone or browser (Firefox, iPhone etc and soon an official Trello power-up).');
@@ -937,7 +941,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Is compatible only with "Trello card comments" sync.');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">More information</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_plusmenu">Plus menu</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/plusmenu.png") + '"/>');
@@ -953,7 +957,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; "term1 term2 term3" matches card titles with all words in any order.');
 	    helpWin.para('&bull; "[cb]at" matches cat or bat.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 
 
@@ -969,14 +973,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
 	    helpWin.para('&bull; Cards with active (running) timers have a hourglass in Board view and show in the Chrome Plus menu.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_reccards">Recurring cards [R]</h2></b>');
 	    helpWin.para('Make a card recurring when you don\'t want to measure changed estimates (like weekly meetings.)');
 	    helpWin.para('Check "&#10004; Recurring" inside the card or manually add <b>[R]</b> to the card title.');
 	    helpWin.para('A recurring card\'s <b>E 1ˢᵗ</b> automatically changes to match <b>E sum</b> thus do not generate changed estimates in reports.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_hashtags">Card Hashtags #</h2></b>');
 	    helpWin.para('Add #tags to cards. Use the hashtag list inside cards or type them directly in card titles.');
@@ -986,21 +990,20 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/cardht.png") + '"/>');
 	    helpWin.para('Tags containing "!" are highlighted in yellow.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_burndowns">Burndown charts</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s4.png") + '"/>');
-	    helpWin.para('&bull; The initial Estimate climb (blue) happens during an estimation period and later remains stable.');
-	    helpWin.para('&bull; In that estimation period the blue dots are equal to the green dots since no Spent is being done yet.');
-	    helpWin.para('&bull; Then, the red line (Spent) climbs daily making the green line (Remaining) go down.');
-	    helpWin.para('&bull; In the end, green (R) stays at zero and red (S) stops climbing.');
-	    helpWin.para('&bull; Click on a dot to see more details and drill-down to the card.');
-	    helpWin.para('&bull; Click on a user chart bar to drill-down into a report and cards.');
-	    helpWin.para('&bull; Add a chart annotation by entering a card S/E row with a <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">note starting with "!"</A>.');
-	    helpWin.para('&bull; Include multiple boards by customizing filters or first make a report, then pick "burndown" from the chart tab.');
-	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">See another example</A>.');
+	    helpWin.para('&bull; Estimates <span style="color:blue;">(blue)</span> climb when each milestone starts.');
+	    helpWin.para('&bull; Spent <span style="color:red;">(red)</span> climbs steadily.');
+	    helpWin.para('&bull; Remain <span style="color:green;">(green)</span> goes down to zero at the end of each milestone.');
+	    helpWin.para('&bull; Plus supports end-date projections (dotted green line) based on past spent rates.');
+	    helpWin.para('&bull; Due dates are automatically added as annotations, or add your own.');
+	    helpWin.para('&bull; Add an annotation with a card S/E row\'s <A href="http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html" target="_blank">note starting with "!"</A>.');
+	    helpWin.para('&bull; Include multiple boards and customize filters.');
+	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">More</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_dimensions">Dimensions</h2></b>');
 	    helpWin.para('View board S/E by different dimensions.');
@@ -1008,7 +1011,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img width="300" src="' + chrome.extension.getURL("images/dimensions.png") + '"/>');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More "dimensions" help</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
 	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
 	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
@@ -1019,20 +1022,20 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; A blank E. type means the estimate was not affected.');
 	    helpWin.para('&bull; <A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html">Detailed report help</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
 	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para("&bull; Hide this feature from Preferences.");
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">For "Scrum for Trello" extension users</h2></b>');
 	    helpWin.para('Plus can read S/E from card titles. If so, the S/E boxes in the card back are gray instead of white.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
@@ -1692,7 +1695,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	        });
 	    }
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
 	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/><br />Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
@@ -1752,24 +1755,24 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; To find all boards where you are not a member, see the <A href="#agile_help_trellosync">"Sync" section</A> above (only if using the "card comments" sync mode)');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Support & Frequently Asked Questions</h2></b>');
 	    helpWin.para('Read the most <A target="_blank" href="http://www.plusfortrello.com/p/faq.html">Frequenty Asked Questions</a>.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/support.html">Plus Support</a>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and license agreement</h2></b>');
 	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
 	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement (EULA)</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_licenses">Open-source licenses</h2></b>');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/licences.html">View all licenses</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 	    
 	    helpWin.para('<b><h2 id="agile_help_storage">Storage used</h2></b>');
 	    helpWin.para('&bull; Chrome sync: ' + helpWin.storageTotalSync + " bytes.");
@@ -1778,7 +1781,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
 	    helpWin.para('Empty storage by doing a "Reset sync" from Utilities.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('<hr><br>');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');

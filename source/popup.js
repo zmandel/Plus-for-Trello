@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function () {
             updateNewLink();
         }, 200);
         loadPopup();
+        hitAnalytics("ChromeMenu", "open");
     });
 });
 

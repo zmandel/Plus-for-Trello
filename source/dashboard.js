@@ -200,6 +200,8 @@ function loadBurndown() {
 	var headerFilter = $("#headerFilter");
 	var containerFilter = $("#filtersContainer");
 
+	hitAnalytics("Burndown", "open");
+
 	$("#saveBurndown").click(function (e) {
 	    e.preventDefault();
 	    var nameChart = window.prompt("Name for the PNG file:", "burndown");

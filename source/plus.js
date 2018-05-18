@@ -704,12 +704,15 @@ function checkFirstTimeUse() {
 					setTimeout(function () { Help.display(); }, 2000);
 				}
 			} else if (bSyncNotEnabled) {
-			    var msNow = Date.now();
-			    if (msNow - g_msLastHiliteNoSync  > 1000 * 60 * 5) {
-			        setTimeout(function () {
-			            hiliteOnce($(".agile-main-plus-help-icon"), 500, null, 2);
-			        }, 2000);
-			        g_msLastHiliteNoSync = msNow;
+			    var boardCurrent = getCurrentBoard();
+			    if (!boardCurrent || boardCurrent.toLowerCase().indexOf("plus for trello") < 0) { //skip the plus for trello help board
+			        var msNow = Date.now();
+			        if (msNow - g_msLastHiliteNoSync > 1000 * 60 * 5) {
+			            setTimeout(function () {
+			                hiliteOnce($(".agile-main-plus-help-icon"), 500, null, 3);
+			            }, 2000);
+			            g_msLastHiliteNoSync = msNow;
+			        }
 			    }
 			}
 		});
@@ -2299,6 +2302,7 @@ function checkCreateRecentFilter(header) {
 	header.append(elem);
 	updateShowAllButtonState(elem,true);
 	elem.click(function (e) {
+	    hitAnalytics("MoreLess", "click");
 		e.preventDefault();
 	    //after set, we get again because set might have failed (over quota)
 		var bShowAllItemsNew = !g_bShowAllItems;
@@ -2481,7 +2485,7 @@ function insertStripeDialog() {
     function changeButtonText() {
         var num = Math.floor(parseFloat(elemNum.val()) || 0);
         var title = "Buy";
-        var numText = " for you (" + g_userTrelloCurrent + ")";;
+        var numText = " for you (" + g_userTrelloCurrent + ")";
         if (num && num > 0) {
             title = title + " ($" + (num * price).toFixed(2) + " yearly)";
             if (num > 1)
@@ -2663,10 +2667,4 @@ function checkBackendEnabledPay(bForce, callback) {
 
     xhr.open("GET", url, true);
     xhr.send();
-}
-
-
-function hitAnalytics(category, action) {
-    sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action }, function (response) {
-    });
 }

@@ -2121,3 +2121,7 @@ float:left;
 .agile-se-bar-status {
     font-size: 12px !important;
 }
+
+.agile_hr_help {
+    height: 2px !important;color:rgb(77, 77, 77) !important;background-color: rgb(77, 77, 77) !important;
+}

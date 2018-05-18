@@ -2111,6 +2111,22 @@ function onAuthorized(url, params, sendResponse, oauth, bRetry, postBody, conten
 	xhr.send(postBody);
 }
 
+function getCurrentSyncName() {
+    var name = "";
+    if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) //same as !helpWin.isSyncEnabled()
+        name = "sync-disabled"; //SYNCMETHOD.disabled;
+    else if (g_optEnterSEByComment.IsEnabled()) {
+        name = "sync-cardcomments"; //SYNCMETHOD.trelloComments;
+    }
+    else {
+        if (g_bStealthSEMode)
+            name = "sync-stealth"; //SYNCMETHOD.googleSheetStealth;
+        else
+            name = "sync-legacy"; //SYNCMETHOD.googleSheetLegacy;
+    }
+    return name;
+}
+
 function handleHitAnalyticsEvent(category, action, bIncludeVersion) {
     //try and hit anyway. if user didnt enable analytics, it will fail silently
     g_analytics.hit({ t: "event", ec: category, ea: (bIncludeVersion? chrome.runtime.getManifest().version + ": " : "") + action }, 1000);
@@ -2153,27 +2169,51 @@ var g_analytics = {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         }
         const PROP_LS_CD1LAST = "CD1LAST";
+        const keySyncOutsideTrello = "bSyncOutsideTrello";
 
         var valCD1Prev = localStorage[PROP_LS_CD1LAST] || "";
-        var cslCD1Cur = (g_bProVersion ? "Pro" : "Basic");
-        if (valCD1Prev != cslCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
-            payload = payload + "&cd1=" + cslCD1Cur;
+        var valCD1Cur = (g_bProVersion ? "Pro" : "Basic");
+        if (valCD1Prev != valCD1Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
+            payload = payload + "&cd1=" + valCD1Cur;
 
-        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+        chrome.storage.sync.get([SYNCPROP_LIDATA, keySyncOutsideTrello], function (obj) {
             if (chrome.runtime.lastError) {
                 console.error(chrome.runtime.lastError.message);
                 return;
             }
 
             var liData = obj[SYNCPROP_LIDATA];
-            const PROP_LS_CD2LAST = "CD2LAST";
+            const PROP_LS_CD2LAST = "CD2LAST"; //licence & buy attempt count
+            const PROP_LS_CD3LAST = "CD3LAST"; //sync method
+            const PROP_LS_CD4LAST = "CD4LAST"; //background sync?
+            const PROP_LS_CD5LAST = "CD5LAST"; //keywords count (multiple keywords)
+            const PROP_LS_CD6LAST = "CD6LAST"; //units
 
             var valCD2Prev = localStorage[PROP_LS_CD2LAST] || "";
             var cViewedBuyDialog = localStorage[PROP_LS_cViewedBuyDialog] || "0";
-            var cslCD2Cur = (liData && liData.li ? "Active": "Inactive") + "-" + cViewedBuyDialog;
-            if (valCD2Prev != cslCD2Cur) //analytics docs recommend to only send the parameter when it changed, for performance.
-                payload = payload + "&cd2=" + cslCD2Cur;
+            var valCD2Cur = (liData && liData.li ? "Active": "Inactive") + "-" + cViewedBuyDialog;
+            if (valCD2Prev != valCD2Cur)
+                payload = payload + "&cd2=" + valCD2Cur;
 
+            var valCD3Prev = localStorage[PROP_LS_CD3LAST] || "";
+            var valCD3Cur = getCurrentSyncName();
+            if (valCD3Prev != valCD3Cur)
+                payload = payload + "&cd3=" + valCD3Cur;
+
+            var valCD4Prev = localStorage[PROP_LS_CD4LAST] || "";
+            var valCD4Cur = obj[keySyncOutsideTrello] ? "true" : "false";
+            if (valCD4Prev != valCD4Cur)
+                payload = payload + "&cd4=" + valCD4Cur;
+
+            var valCD5Prev = localStorage[PROP_LS_CD5LAST] || "";
+            var valCD5Cur = g_optEnterSEByComment.getAllKeywordsExceptLegacy().length.toString();
+            if (valCD5Prev != valCD5Cur)
+                payload = payload + "&cd5=" + valCD5Cur;
+
+            var valCD6Prev = localStorage[PROP_LS_CD6LAST] || "";
+            var valCD6Cur = UNITS.current;
+            if (valCD6Prev != valCD6Cur)
+                payload = payload + "&cd6=" + valCD6Cur;
 
             setTimeout(function () {
                 var xhr = new XMLHttpRequest();
@@ -2181,11 +2221,23 @@ var g_analytics = {
 
                 xhr.onreadystatechange = function (e) {
                     if (xhr.readyState == 4 && xhr.status == 200) {
-                        if (valCD1Prev != cslCD1Cur)
-                            localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
+                        if (valCD1Prev != valCD1Cur)
+                            localStorage[PROP_LS_CD1LAST] = valCD1Cur;
 
-                        if (valCD2Prev != cslCD2Cur)
-                            localStorage[PROP_LS_CD2LAST] = cslCD2Cur;
+                        if (valCD2Prev != valCD2Cur)
+                            localStorage[PROP_LS_CD2LAST] = valCD2Cur;
+
+                        if (valCD3Prev != valCD3Cur)
+                            localStorage[PROP_LS_CD3LAST] = valCD3Cur;
+
+                        if (valCD4Prev != valCD4Cur)
+                            localStorage[PROP_LS_CD4LAST] = valCD4Cur;
+
+                        if (valCD5Prev != valCD5Cur)
+                            localStorage[PROP_LS_CD5LAST] = valCD5Cur;
+
+                        if (valCD6Prev != valCD6Cur)
+                            localStorage[PROP_LS_CD6LAST] = valCD6Cur;
                     }
                 };
 
@@ -2274,18 +2326,11 @@ function handlenotifyBoardTab(idBoard, tabid) {
 /* handleCheckStripeLi
 **/
 function handleCheckStripeLi(idTabSender, sendResponse) {
-    /*
-    chrome.permissions.request({
-        permissions: [],
-        origins: ['https://js.stripe.com/*', 'https://*.cloudfunctions.net/']
-    }, function (granted) {
-        if (chrome.runtime.lastError) {
-            sendResponse({ status: chrome.runtime.lastError.message || "Error" });
-            return;
-        }
-        sendResponse({ status: STATUS_OK });
-    });
-    */
+   
+   // No longer needed:
+   // chrome.permissions.request({
+   //     permissions: [],
+   //     origins: ['https://js.stripe.com/*', 'https://*.cloudfunctions.net/']
     sendResponse({ status: STATUS_OK });
 }
 
@@ -2457,7 +2502,7 @@ function handleCheckLi(sendResponse) {
         function onPurchased(data) {
             var liData = { msLastCheck: Date.now(), msCreated: 0, li: "" };
             console.log("onPurchased:");
-            handleHitAnalyticsEvent("LicActivation", "onPurchased: " + JSON.stringify(data), true);
+            handleHitAnalyticsEvent("LicActivation", "onPurchased", true);
             console.log(JSON.stringify(data));
             if (data && data.response) {
                 liData.msCreated = liData.msLastCheck;
