@@ -3618,7 +3618,6 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var bShowLabels = bCustomColumns ? includeCol("labels") : bShowCard && g_bShowLabelsFilter;
 
     if (bShowLabels && bCustomColumns && !mapCardsToLabels) {
-        bShowLabels = false;
         sendDesktopNotification("To show labels, group by card or s/e rows.", 12000);
     }
     var bShowList = bCustomColumns ? includeCol("nameList") : ((!bRPopup || groupBy.indexOf("nameList") >= 0) && g_bEnableTrelloSync && (groupBy == "" || groupBy.indexOf("nameList") >= 0 || orderBy.indexOf("posList") >= 0 || bShowCard));
@@ -3749,6 +3748,7 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var dateNowCache = new Date();
     const lengthCols = header.length;
     if (bCustomColumns) {
+        //alert: rgColumnPositions works only if we guarantee that custom columns are ALWAYS shown. make sure all uses above of 'bCustomColumns' force the column if specified, even if Plus cant show it.
         var headerSorted = new Array(lengthCols);
         for (var iHeader = 0; iHeader < lengthCols; iHeader++) {
             assert(iHeader < rgColumnPositions.length);
@@ -3902,8 +3902,8 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
         }
 
         if (bShowLabels) {
-            assert(mapCardsToLabels);
-            var labels = (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
+            //mapCardsToLabels might not be there when the column is forced with custom columns
+            var labels = !mapCardsToLabels? "" : (mapCardsToLabels[row.idCardH] || { labels: "" }).labels;
             pushCol({ name: labels, bNoTruncate: true }); //labels dont truncate otherwise it could not show an entire label if the card has many
         }
         var sPush = parseFixedFloat(row.spent);
