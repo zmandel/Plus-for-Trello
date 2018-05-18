@@ -28,6 +28,7 @@ var g_interactions = [];
 const g_heightLine = 28;
 const g_maxLegendsPerColumn = 30;
 const g_maxLegendColumns = 3;
+const PROP_LS_bShowedDefaultCPMCountsListFilter = "bShowedDefaultCPMCountsListFilter";
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
@@ -1577,8 +1578,13 @@ function loadReport(params) {
         });
 
         getParamAndPutInFilter(elemCur, params, iobj, elems[iobj]);
-        if ((iobj == "idBoard" || iobj == "idCard") && elems[iobj].length > 0)
+        if ((iobj == "idBoard" || iobj == "idCard") && params[iobj])
             hiliteOnce(elemCur);
+        //localStorage[PROP_LS_bShowedDefaultCPMCountsListFilter] = "";
+        if (g_namedReport == "_counts" && iobj == "list" && !localStorage[PROP_LS_bShowedDefaultCPMCountsListFilter] && params[iobj] == "doing") {
+            localStorage[PROP_LS_bShowedDefaultCPMCountsListFilter] = "true";
+            hiliteOnce(elemCur, 400, undefined, 5);
+        }
     }
 
     var elemChartMessage = $("#chartMessage");

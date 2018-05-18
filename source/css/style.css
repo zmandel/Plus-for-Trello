@@ -2146,3 +2146,7 @@ float:left;
 .agile_hr_help {
     height: 2px !important;color:rgb(77, 77, 77) !important;background-color: rgb(77, 77, 77) !important;
 }
+
+.agile_cmenu_body_windows {
+    margin-right: -17px !important;
+}

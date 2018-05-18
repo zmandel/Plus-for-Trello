@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', function () {
     if (g_bLoaded)
         return;
     g_bLoaded = true;
+    var bWindows = navigator.userAgent.indexOf("Win") != -1;
+    if (bWindows)
+        $("body").addClass("agile_cmenu_body_windows");
     loadSharedOptions(function () {
         setTimeout(function () {
             updateNewLink();
