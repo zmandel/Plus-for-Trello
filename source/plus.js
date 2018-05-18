@@ -1189,7 +1189,6 @@ function getSQLReport(sql, values, callback) {
 function fillRecentWeeksList(combo) {
     var date = new Date();
     const yearCur = date.getFullYear();
-    var dateEnd = new Date();
     var daysDelta = DowMapper.posWeekFromDow(date.getDay());
     var i = 0;
     combo.empty();
@@ -1197,15 +1196,15 @@ function fillRecentWeeksList(combo) {
         date.setDate(date.getDate() - daysDelta);
         var text = getCurrentWeekNum(date);
         var title = date.toLocaleDateString();
-        dateEnd.setDate(date.getDate() + 6);
-        title = title + " - " + dateEnd.toLocaleDateString();
+        date.setDate(date.getDate() + 6);
+        title = title + " - " + date.toLocaleDateString();
         var parts = text.split("-W");
         var year = parseInt(parts[0], 10);
         var textPretty = text;
         if (year==yearCur)
             textPretty = "W" + parts[1];
         combo.append($(new Option(textPretty, text)).addClass('agile_weeks_combo_element').attr("title", title));
-        daysDelta = 7;
+        daysDelta = 13; //7+6
     }
 
     if (g_weekNumUse != null)
