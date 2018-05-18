@@ -39,9 +39,13 @@ var g_dimension = VAL_COMBOVIEWKW_ALL;
 //end-review
 var g_bPreventChartDraw = true;
 
+function isSpecialPayTestUser() {
+    return (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel" || g_userTrelloCurrent == "solangechrem" || g_userTrelloCurrent == "zigmandel"));
+}
+
 var g_waiterLi = CreateWaiter(2, function () {
     assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
-    if (g_userTrelloCurrent && (g_userTrelloCurrent == "zmandel"))
+    if (isSpecialPayTestUser())
         setTimeout(checkLi, 2000);
 });
 
@@ -1330,7 +1334,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 		return false;
 
 	if (burndownLink.length == 0) {
-	    burndownLink = $("<img title='Plus - Board Burndown'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
+	    burndownLink = $("<img title='Plus - Board Burndown & Projections'>").attr("src", chrome.extension.getURL("images/chart-sm.png")).addClass("agile_img_boardheader agile_plus_burndown_link");
 	    burndownLink.insertAfter(spentTotal);
 	    burndownLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
@@ -1341,7 +1345,7 @@ function setupBurnDown(bShowHeaderStuff, bShowSumFilter) {
 	        return false;
 	    });
 
-	    reportLink = $("<img title='Plus - Board Report'>").attr("src", chrome.extension.getURL("images/report-sm.png")).addClass("agile_img_boardheader agile_plus_report_link");
+	    reportLink = $("<img title='Plus - Board Reports & Charts'>").attr("src", chrome.extension.getURL("images/report-sm.png")).addClass("agile_img_boardheader agile_plus_report_link");
 	    reportLink.insertAfter(burndownLink);
 	    reportLink.click(function () {
 	        var idBoardCur = getIdBoardFromUrl(document.URL);
@@ -2392,7 +2396,7 @@ function testModifySyncStorageUrl(url) {
     });
 }
 
-function checkLi() {
+function checkLi(bForce) {
     chrome.storage.local.get([LOCALPROP_PRO_VERSION], function (obj) {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
@@ -2414,7 +2418,7 @@ function checkLi() {
                 return; //review zig expiration
 
             var msLast = liData.msLastCheck;
-            var bWaitCheck = false;
+            var bWaitCheck = !bForce;
             if (bWaitCheck && (msNow - msLast < 1000 * 60 * 60 * 6)) //6 hours
                 return;
 
@@ -2445,18 +2449,20 @@ function checkLi() {
                 });
             }
 
-            showFirstLicDialog(function (status) {
+            showFirstLicDialog(bForce, function (status) {
+                hitAnalytics("LicDialog", status);
                 if (status == STATUS_OK) {
                     sendExtensionMessage({ method: "checkLi" }, function (response) {
+                        hitAnalytics("LicActivation", response.status);
                         if (response.status == STATUS_OK)
                             sendDesktopNotification("Successful activation. Enjoy!");
                         else if (response.status == "hasLicense")
-                            sendDesktopNotification("Existing license found, no need to activate again. Enjoy!"); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
+                            sendDesktopNotification("Existing license found (was already activated). Enjoy!", 12000); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
                         else {
                             if (response.status == "PURCHASE_CANCELED")
-                                sendDesktopNotification("License not activated because the purchase was cancelled.");
+                                sendDesktopNotification("License not activated because the purchase was cancelled.", 12000);
                             else
-                                sendDesktopNotification("An error happened. Please try later. " + response.status);
+                                sendDesktopNotification("An error happened. Please try later. " + response.status, 12000);
                             saveLiIfNewer(liData);
                         }
                     });
@@ -2465,5 +2471,10 @@ function checkLi() {
                 }
             });
         });
+    });
+}
+
+function hitAnalytics(category, action) {
+    sendExtensionMessage({ method: "hitAnalyticsEvent", category: category, action: action }, function (response) {
     });
 }

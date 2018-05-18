@@ -63,6 +63,7 @@ var Help = {
 	totalDbRowsHistoryNotSync: 0,
 	totalDbMessages: 0,
 	hasLegacyRows: false,
+    hasLi: false,
 	bDontShowAgainSyncWarn: false,
     bStartTourBubbleOnClose: false,
     bStartSyncOnClose: false,
@@ -118,7 +119,16 @@ var Help = {
 																    sendExtensionMessage({ method: "detectLegacyHistoryRows" },
                                                                     function (response) {
                                                                         thisObj.hasLegacyRows = response.hasLegacyRows;
-                                                                        thisObj.displayWorker();
+                                                                        chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+                                                                            if (chrome.runtime.lastError) {
+                                                                                console.error(chrome.runtime.lastError.message);
+                                                                                return;
+                                                                            }
+
+                                                                            var liData = obj[SYNCPROP_LIDATA];
+                                                                            thisObj.hasLi = liData && liData.li;
+                                                                            thisObj.displayWorker();
+                                                                        });
                                                                     });
 																});
 													});
@@ -212,14 +222,14 @@ var Help = {
 	        helpWin.m_extraElems.push(elemClose);
 	    elemClose.click(function () {
 	        if (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled())) {
-	            var msgAlert = "You have not enabled sync. You will not see your team data.\nClick Cancel to configure sync, or click OK to use without sync.";
+	            var msgAlert = "You have not enabled sync. You will not see your team Spent/Estimates.\nClick OK to configure sync, or click Cancel to use without sync.";
 	            var bHiliteGSButton = false;
 	            if (g_strServiceUrl == "" && (comboSync.val() == SYNCMETHOD.googleSheetLegacy || comboSync.val() == SYNCMETHOD.googleSheetStealth)) {
-	                msgAlert = "You have not set a google spreadsheet sync url.\nClick Cancel to configure it, or click OK to use without sync.";
+	                msgAlert = "You have not set a google spreadsheet sync url.\nClick OK to configure it, or click Cancel to use without sync.";
 	                bHiliteGSButton = true;
 	            }
 
-	            if (!confirm(msgAlert)) {
+	            if (confirm(msgAlert)) {
 	                var section = $("#agile_help_trellosync");
 	                var top = section.offset().top;
 	                container.animate({
@@ -397,11 +407,44 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<h2 id="agile_pro_section">Plus Pro version</h2>');
 	    var paraPro = helpWin.para('<input style="vertical-align:middle;margin-bottom:0px;" type="checkbox" class="agile_checkHelp" value="checkedProVersion" id="agile_plus_checkPro" /><label style="display:inline-block;" for="agile_plus_checkPro">Enable "Pro" features</label>');
 	    var checkEnablePro = paraPro.children('input:checkbox:first');
-	    var textEnablePro = 'View, filter and stack by <b>Card labels</b> in reports and burn-downs, <b>custom columns</b> and extra export options useful for integrations.<br>If you love Plus, enable Pro!';
-	    if (!g_bProVersion)
-	        textEnablePro += '<br />Check for more details.';
-	    helpWin.para(textEnablePro);
+	    var textEnablePro = '<div id="sectionWhyPro">If you love Plus, enable Pro! View, filter and stack by <b>Card labels</b> in reports and burn-downs, <b>custom columns</b> and extra export options useful for integrations. Check for more details.';
+	    textEnablePro += '<br /></div><div id="sectionPayProNow" style="display:none;margin-top:0.5em;">➤ <A id="linkPayProNow" href="">Activate your "Pro" licence now</A></div>';
+
+	    var paraProEnable = helpWin.para(textEnablePro);
+	    var sectionWhyPro = paraProEnable.find("#sectionWhyPro");
+	    var sectionPayProNow = paraProEnable.find("#sectionPayProNow");
+
+	    var elemLinkPay = sectionPayProNow.find("#linkPayProNow");
 	    checkEnablePro[0].checked = g_bProVersion;
+
+	    function showProSections(bProEnabled) {
+	        var bShowPay = bProEnabled;
+	        var bShowWhyPro = !bProEnabled;
+
+	        if (!isSpecialPayTestUser() || helpWin.hasLi)
+	            bShowPay = false;
+
+	        if (bShowPay)
+	            sectionPayProNow.show();
+	        else
+	            sectionPayProNow.hide();
+
+	        if (bShowWhyPro)
+	            sectionWhyPro.show();
+	        else
+	            sectionWhyPro.hide();
+	    }
+
+	    if (g_bProVersion)
+	        showProSections(true);
+
+	    elemLinkPay.click(function () {
+	        Help.close(false);
+	        setTimeout(function () { //save the epileptics!
+	            checkLi(true);
+	        }, 1000);
+
+	    });
 
 	    checkEnablePro.click(function () {
 	        var bValue = checkEnablePro.is(':checked');
@@ -413,7 +456,8 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                return;
 	            }
 	            saveCheck();
-	            sendExtensionMessage({ method: "hitAnalyticsEvent", category: "ProCheckbox", action: "disabled" }, function (response) { });
+	            hitAnalytics("ProCheckbox", "disabled");
+	            showProSections(false);
 	        }
 	        else {
 	            checkEnablePro[0].checked = false; //temporarily while we authorize
@@ -421,8 +465,12 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	                if (status != STATUS_OK)
 	                    bValue = false;
 	                saveCheck();
-	                if (bValue)
-	                    sendExtensionMessage({ method: "hitAnalyticsEvent", category: "ProCheckbox", action: "enabled" }, function (response) { });
+	                if (bValue) {
+	                    hitAnalytics("ProCheckbox", "enabled");
+	                    showProSections(true);
+	                } else {
+	                    showProSections(false);
+	                }
 	            });
 	        }
 
@@ -437,15 +485,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    });
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
 	    helpWin.para("<h2 style='display:inline-block;'>Contents</h2><span style='color: #8c8c8c;margin-left:1em;'>click a section</span><ul id='tocAgileHelp'></ul>");
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 	    var bSpentBackendCase = isBackendMode();
 
 	    helpWin.para('<b><h2 id="agile_help_basichelp">Basics</h2></b>');
 	    helpWin.para('<A target="_blank" href="https://www.youtube.com/watch?v=xj7zEaZ_NVc">One-minute intro video</A>');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/about.html">Quick introduction to Plus for Trello</A>');
-	    helpWin.para('Reports, the Chrome Plus menu, hashtags and more/less can be used by all Trello users.');
+	    helpWin.para('Charts, reports, the Chrome Plus menu, hashtags and more/less are for all Trello users, no setup needed besides "Sync".');
 	    helpWin.para('Other features like spent and estimate, burn-downs, timers and recurring cards are useful to those that measure card S/E (Spent and Estimate).');
 	    helpWin.para('Once you close this help Plus will offer to run the product tour.');
 	    helpWin.para('Do enable "Sync" (in this help below). Most Plus features need it even if you do not use Spent / Estimates.');
@@ -472,7 +519,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 
         helpWin.para('Units (days, hours or minutes) can be configured in Preferences below. Do so before entering any S/E.');
         helpWin.para('&nbsp');
-        helpWin.para('&nbsp');
+        helpWin.para('<hr><br>');
         helpWin.para('<b><h2 id="agile_help_sesystem">The Plus Spent / Estimate system</h2></b>');
         helpWin.para('<h3>An analogy with time tracking on a spreadsheet</h3>');
         helpWin.para('<b>Card S/E is the sum of all its S/E history rows</b>. This is the most important concept in Plus. Is similar to summing rows on a spreadsheet.');
@@ -507,7 +554,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
         helpWin.para('All special notes that Plus generates with [brackets] are secure and cannot be faked or removed by other users making Plus actions fully traceable.');
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_reportingSE">Entering Spent / Estimate</h2></b>');
 	    helpWin.para('Easily enter Spent with card timers, or manually enter S/E with the Plus card bar.');
@@ -525,7 +572,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; Keyboard use: Use TAB or SHIFT+TAB to move between fields. Enter with the "Enter" key or button.');
 	    helpWin.para('<b>More:</b> <A target="_blank" href="http://www.plusfortrello.com/p/s-e-entry-methods.html">Which S/E entry method should you use?</A>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_trellosync">&#10148; Sync (by Card comment keywords or Stealth)</h2></b>');
 	    helpWin.para('Select your team\'s sync method:');
@@ -781,14 +828,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    }
 
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_preestimate">Pre-Estimations</h2></b>');
 	    helpWin.para('Plus supports two levels of pre-estimation to help your team figure out card first estimates (E 1<sup>st</sup>).');
 	    helpWin.para('Add pre-estimates to checklist items or card titles. Neither show in reports, only in the card front and board dimensions.');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html#plus_preestimates" target="_blank">See how to use pre-estimates.</A>');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_rules">Best practices for S/E</h2></b>');
 	    helpWin.para('<b>★</b> <b>Do not edit or delete a card S/E comment</b>. Instead use "modify" to make S/E changes.');
@@ -808,7 +855,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	        helpTooltip(ev, "Deleted Trello users may lose their username in reports and show a user number instead if you reset sync or reinstall Plus.");
 	    });
 		helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+		helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_mobilePlus">Mobile and Web Plus for Trello</b>');
 	    helpWin.para('Works on any phone or browser (Firefox, iPhone etc and soon an official Trello power-up).');
@@ -816,7 +863,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('Is compatible only with "Trello card comments" sync.');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/mobile-plus-for-trello.html" target="_blank">More information</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_plusmenu">Plus menu</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/plusmenu.png") + '"/>');
@@ -832,7 +879,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; "term1 term2 term3" matches card titles with all words in any order.');
 	    helpWin.para('&bull; "[cb]at" matches cat or bat.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 
 
@@ -848,14 +895,14 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; If you dont press ENTER right away, Plus will remind you next time you open the card.');
 	    helpWin.para('&bull; Cards with active (running) timers have a hourglass in Board view and show in the Chrome Plus menu.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_reccards">Recurring cards [R]</h2></b>');
 	    helpWin.para('Make a card recurring when you don\'t want to measure changed estimates (like weekly meetings.)');
 	    helpWin.para('Check "&#10004; Recurring" inside the card or manually add <b>[R]</b> to the card title.');
 	    helpWin.para('A recurring card\'s <b>E 1ˢᵗ</b> automatically changes to match <b>E sum</b> thus do not generate changed estimates in reports.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_hashtags">Card Hashtags #</h2></b>');
 	    helpWin.para('Add #tags to cards. Use the hashtag list inside cards or type them directly in card titles.');
@@ -865,7 +912,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/cardht.png") + '"/>');
 	    helpWin.para('Tags containing "!" are highlighted in yellow.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_burndowns">Burndown charts</h2></b>');
 	    helpWin.para('<img src="' + chrome.extension.getURL("images/s4.png") + '"/>');
@@ -879,7 +926,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; Include multiple boards by customizing filters or first make a report, then pick "burndown" from the chart tab.');
 	    helpWin.para('&bull; <A href="http://www.plusfortrello.com/p/about.html#burndowns" target="_blank">See another example</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_dimensions">Dimensions</h2></b>');
 	    helpWin.para('View board S/E by different dimensions.');
@@ -887,7 +934,7 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('<img width="300" src="' + chrome.extension.getURL("images/dimensions.png") + '"/>');
 	    helpWin.para('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More "dimensions" help</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
 	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
 	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
@@ -898,20 +945,20 @@ Plus is compatible with <A target="_blank" href="https://chrome.google.com/webst
 	    helpWin.para('&bull; A blank E. type means the estimate was not affected.');
 	    helpWin.para('&bull; <A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html">Detailed report help</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
 	    helpWin.para("&bull; Clicking 'Less' on the page top hides boards not entered for over 2 weeks and cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
 	    helpWin.para("&bull; Hide this feature from Preferences.");
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_scrumNote">For "Scrum for Trello" extension users</h2></b>');
 	    helpWin.para('Plus can read S/E from card titles. If so, the S/E boxes in the card back are gray instead of white.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read migration instructions</A> and see <b>Preferences</b> to "Accept the Scrum for Trello format".');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_prefs">&#10148; Preferences</h2></b>');
 	    helpWin.para('<b>Reload this and other Chrome Trello tabs</b> after changing preferences.');
@@ -1517,7 +1564,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	        });
 	    }
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_utilities">Utilities (reset etc)</h2></b>');
 	    var paraReset = helpWin.para('&bull; Re-read all your S/E data: <input type="button" value="Reset sync"/><br />Close other trello tabs before reset. Useful if you changed keywords, edited or deleted many card S/E comments.');
@@ -1577,23 +1624,23 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&nbsp');
 	    helpWin.para('&bull; To find all boards where you are not a member, see the <A href="#agile_help_trellosync">"Sync" section</A> above (only if using the "card comments" sync mode)');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_troubleshoot">Frequently asked questions and issues</h2></b>');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/faq.html" >see FAQ or submit a new question or request</a>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_security">Privacy policy, security and license agreement</h2></b>');
 	    helpWin.para('Plus secures all your data inside your browser, does not use servers and does not have access to your data outside your browser. <A target="_blank" href="http://www.plusfortrello.com/p/privacy-policy.html">More</A>.');
 	    helpWin.para('By using this software, you agree to our <A target="_blank" href="http://www.plusfortrello.com/p/eula-plus-for-trello-end-user-license.html">End-user license agreement (EULA)</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_licenses">Open-source licenses</h2></b>');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/licences.html">View all licenses</A>.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 	    
 	    helpWin.para('<b><h2 id="agile_help_storage">Storage used</h2></b>');
 	    helpWin.para('&bull; Chrome sync: ' + helpWin.storageTotalSync + " bytes.");
@@ -1602,7 +1649,7 @@ Accept the "Scrum for Trello" format in card titles: <i>(Estimate) card title [S
 	    helpWin.para('&bull; html5 web db: ' + helpWin.totalDbRowsHistory + " history rows.");
 	    helpWin.para('Empty storage by doing a "Reset sync" from Utilities.');
 	    helpWin.para('&nbsp');
-	    helpWin.para('&nbsp');
+	    helpWin.para('<hr><br>');
 
 	    helpWin.para('<b><h2 id="agile_help_log">Error log</h2></b>');
 	    helpWin.para('Errors logged: ' + helpWin.totalDbMessages + ' <A target="_blank" href="' + chrome.extension.getURL("plusmessages.html") + '">View</A>');
