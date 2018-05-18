@@ -5,7 +5,7 @@ var HelpButton = {
     strClass: 'agile_help_button',
     create: function () {
         var bPlusDisplayDisabled = isPlusDisplayDisabled();
-        var b = $('<span id="agile_help_buttons_container"></span>').addClass('notranslate header-btn header-notifications ' + this.strClass);
+        var b = $('<span id="agile_help_buttons_container"></span>').addClass('notranslate header-btn ' + this.strClass);
 		b.hide();
 
 		var spanIcon = $('<span></span>').css('cursor', 'help');

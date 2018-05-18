@@ -1514,12 +1514,11 @@ table#tableMarkers td {
 	color: #f3f3f3 !important;
 	vertical-align: top !important;
 	font-size: 12px !important;
-	margin-top: 4px !important;
 	margin-bottom: 0px !important;
 	margin-right: 0px !important;
     padding-right: 0px !important;
 	background: rgba(255,255,255,0) !important;
-    margin-top:4px !important;
+    margin-top:5px !important;
     width:auto;
 	height: 20px;
 	display: inline !important;

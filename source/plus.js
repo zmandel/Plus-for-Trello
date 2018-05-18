@@ -1241,6 +1241,9 @@ function getRecentWeeksList() {
 		if (userCur) { //review zig move up
 			doWeeklyReport(config, userCur, true, true);
 		}
+		if (!bAtTrelloHome()) {
+		    sendDesktopNotification("This week selector controls the view on trello.com", 7000);
+		}
 		return true;
 	});
 
@@ -1394,9 +1397,8 @@ function configureSsLinksWorkerPostOauth(resp, b, user, bUpdateErrorState) {
 	}
 	urlUserElem.html(buildDailyTable(nameSsLink));
 
-	b.fadeIn(300, function () {
-	    checkTrelloLogo();
-	});
+	b.show();
+    checkTrelloLogo();
 	insertPlusFeed(g_bCreatedPlusHeader);
 	g_bCreatedPlusHeader = false;
 }
