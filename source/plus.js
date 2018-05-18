@@ -6,7 +6,6 @@ var g_marginLabelChart = 35;
 var g_heightBarUser = 30;
 var g_bShowBoardMarkers = false;
 var g_portBackground = null; //plus engine notifications to this tab
-var g_bNeedRefreshReports = false; //for delaying refresh when tab is not active. review zig: currently unused as I removed this feature
 var g_bCheckedbSumFiltered = null; //null means not yet initialized (From sync storage)
 var DELAY_FIRST_SYNC = 2000;
 var g_cRetryingSync = 0;
@@ -41,6 +40,10 @@ var g_dimension = VAL_COMBOVIEWKW_ALL;
 // task: investigate if changing css attributes to match body, like font type/size will make the chart draw right.
 //end-review
 var g_bPreventChartDraw = true;
+
+var g_delayedActions = {
+    bPendingWeeklyReport: false
+};
 
 function isSpecialPayTestUser() {
     getCurrentTrelloUser();
@@ -504,10 +507,10 @@ function initialIntervalsSetup() {
 	g_estimationTotal = InfoBoxFactory.makeTotalInfoBox(ESTIMATION, true).hide();
 	g_remainingTotal = InfoBoxFactory.makeTotalInfoBox(REMAINING, true).hide();
 
-	doAllUpdates();
+	doAllUpdates(false);
 
 	setInterval(function () {
-	    doAllUpdates();
+	    doAllUpdates(true);
 	}, UPDATE_STEP);
 
 	if (isPlusDisplayDisabled())
@@ -520,14 +523,6 @@ function initialIntervalsSetup() {
 	detectMovedCards();
 	var oldLocation = location.href;
 	setInterval(function () {
-	    if (g_bNeedRefreshReports && !document.webkitHidden && g_bReadGlobalConfig) {
-	        var user = getCurrentTrelloUser();
-	        if (user) {
-	            g_bForceUpdate = true;
-	            g_bNeedRefreshReports = false;
-	            doWeeklyReport(g_configData, user, false, true);
-	        }
-	    }
 		if (location.href != oldLocation) {
 		    oldLocation = location.href;
 		    removeAllGrumbleBubbles();
@@ -539,7 +534,7 @@ function initialIntervalsSetup() {
 		        cancelZoomin(null, true); //review zig: find a better way that is not timing-related, like a chrome url-changed notif, or change the href of recent/remaining to handlers
 		    }
 
-			setTimeout(function () { doAllUpdates(); }, 100); //breathe
+			setTimeout(function () { doAllUpdates(false); }, 100); //breathe
 		}
 	}, 400); //check often, its important to prevent a big layout jump (so you can click on boards right away on home without them jumping (used to be more important before new trello 2014-01)
 
@@ -549,7 +544,8 @@ function initialIntervalsSetup() {
 	        return;
 	    //detect trello network activity and initiate sync
 	    //in case of multiple trello windows open, note that the extension message will only return the same count to only one of the windows and the rest will receive zero.
-        //its still possible that several consecutive changes cause more than one window to receive a non-zero modification count. its not a big deal as one will fail with busy.
+	    //its still possible that several consecutive changes cause more than one window to receive a non-zero modification count. its not a big deal as one will fail with busy.
+	    //this method also protects us from performance issues with many trello tabs open. it should not use "isTabVisible" because if all tabs are hidden it would not do the sync.
 	    sendExtensionMessage(
             { method: "queryTrelloDetectionCount" },
 			function (response) {
@@ -560,7 +556,7 @@ function initialIntervalsSetup() {
 			    if (response.count == 0) {
 			        if (msLastDetectedActivity == 0)
 			            return;
-			        if (msNow - msLastDetectedActivity > 500) {
+			        if (msNow - msLastDetectedActivity > 500) { //this prevents many consecutive change detections from triggering many syncs
 			            msLastDetectedActivity = 0; //reset
 			            doSyncDB(null, true, true, true,true);
 			        }
@@ -812,7 +808,10 @@ function updateCRowsTotalState(cRowsTotal, config, user) {
     if (bNewRows || cRowsTotal == 0) { //cRowsTotal==0 is a hack so the "first sync" status text gets updated after a first sync with no rows
         g_bForceUpdate = true;
         g_seCardCur = null; //mark as uninitialized. will be set on the refresh below
-        doWeeklyReport(config, user, false, true);
+        if (!isTabVisible())
+            g_delayedActions.bPendingWeeklyReport = true;
+        else
+            doWeeklyReport(config, user, false, true);
     }
 }
 
@@ -863,7 +862,10 @@ function onDbOpened() {
 	               var user = getCurrentTrelloUser();
 	               if (user) {
 	                   g_bForceUpdate = true;
-	                   doWeeklyReport(g_configData, user, false, true);
+	                   if (!isTabVisible())
+	                       g_delayedActions.bPendingWeeklyReport = true;
+	                   else
+	                       doWeeklyReport(g_configData, user, false, true);
 	               }
 	           }
 	        } else if (msg.event == EVENTS.EXTENSION_RESTARTING) {
@@ -899,8 +901,8 @@ function doSyncDB(userUnusedParam, bFromAuto, bOnlyTrelloSync, bRetry, bForce) {
     var bEnterSEByComments = g_optEnterSEByComment.IsEnabled();
     var tokenTrello = $.cookie("token");
     if (bFromAuto && !bForce) {
-        if (document.webkitHidden)
-            return; //sync only if active tab
+        if (!isTabVisible())
+            return;
     }
 
     worker();
@@ -989,6 +991,7 @@ function doWeeklyReport(config, user, bUpdateErrorState, bReuseCharts, bRefreshC
     if (!user)
         return; //safety in case trello DOM structure breaks
 
+    g_delayedActions.bPendingWeeklyReport = false;
     var topbarElem = $("#agile_help_buttons_container");
     if (isPlusDisplayDisabled()) {
         configureSsLinksWorkerPostOauth(null, topbarElem, user, false);

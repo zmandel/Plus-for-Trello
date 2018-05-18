@@ -26,6 +26,19 @@ var g_bDontShowSpentPopups = false;
 var g_serViews = { board: { s: true, e: true, r: true }, list: { s: true, e: true, r: false }, card: { s: true, e: true, r: false } };
 var g_verStore = ""; //only set when chrome calls us with an available update. might be outdated after update
 
+function isTabVisible() {
+    return !(document.hidden || document.webkitHidden || document.msHidden || document.mozHidden);
+}
+
+document.addEventListener('visibilitychange', function () {
+    if (!isTabVisible())
+        return;
+    testExtension(function () {
+        if (g_bDidInitialIntervalsSetup && document.body) //once we got here without a body, so do some sanity checks for that timing issue
+        doAllUpdates(true);
+    });
+});
+
 function showModlessDialog(elem) {
     if (!elem.show) {
         dialogPolyfill.registerDialog(elem);
@@ -40,14 +53,6 @@ function showModalDialog(elem) {
     elem.showModal();
 }
 
-
-
-function getSpentSpecialUser() { //review zig: unused
-    //review zig: wrap g_configData futher as it can be null
-    if (g_configData)
-        return g_configData.spentSpecialUser;
-    return "";
-}
 
 //insertCardTimer
 //
@@ -464,6 +469,8 @@ function loadOptions(callback) {
     var keyAlreadyDonated = "bUserSaysDonated";
     var keyHidePendingCards = "bHidePendingCards";
     var keyAlwaysShowSEBar = "bAlwaysShowSEBar";
+    var keyUseLastSEBarUser = "bUseLastSEBarUser";
+
     var keyHideLessMore = "bHideLessMore";
     var keyDowStart = "dowStart";
     var keyDowDelta = "dowDelta";
@@ -494,7 +501,7 @@ function loadOptions(callback) {
     chrome.storage.sync.get([SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybChangeCardColor,
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyUseLastSEBarUser, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybChangeCardColor,
                              keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
@@ -524,6 +531,7 @@ function loadOptions(callback) {
                                  g_msStartPlusUsage = objSync[SYNCPROP_MSSTARTPLUSUSAGE] || null; //later we will try to initialize it when null, but may remain null
                                  g_bHidePendingCards = objSync[keyHidePendingCards] || false;
                                  g_bAlwaysShowSEBar = objSync[keyAlwaysShowSEBar] || false;
+                                 g_bUseLastSEBarUser = objSync[keyUseLastSEBarUser] || false;
                                  g_bHideLessMore = objSync[keyHideLessMore] || false;
 
                                  setOptAlwaysShowSpentChromeIcon(objSync[SYNCPROP_optAlwaysShowSpentChromeIcon]);
@@ -554,11 +562,14 @@ function loadOptions(callback) {
                              });
 }
 
-function doAllUpdates() {
-    markForUpdate();
-    if (isPlusDisplayDisabled())
-        return;
-    addCardCommentHelp();
+var g_msLastAllUpdatesInterval = 0;
+function doAllUpdates(bFromInterval) {
+    if (bFromInterval) {
+        var msNow = Date.now();
+        if (msNow - g_msLastAllUpdatesInterval < UPDATE_STEP * 0.8)
+            return; //prevent frequent calls (we pretend bFromInterval in some situations)
+        g_msLastAllUpdatesInterval = msNow;
+    }
 
     var url = document.URL;
     var urlLower = url.toLowerCase();
@@ -570,6 +581,18 @@ function doAllUpdates() {
         if (idBoard)
             sendExtensionMessage({ method: "notifyBoardTab", idBoard: idBoard }, function (response) { });
     }
+
+    if (bFromInterval && !isTabVisible())
+        return;
+
+    markForUpdate();
+    if (isPlusDisplayDisabled())
+        return;
+
+    if (g_delayedActions.bPendingWeeklyReport)
+        doWeeklyReport(g_configData, getCurrentTrelloUser(), false, true);
+
+    addCardCommentHelp();
 
     var strDetectLicense = "https://trello.com/"+URLPART_PLUSLICENSE+"/";
     if (url.indexOf(strDetectLicense) == 0) {

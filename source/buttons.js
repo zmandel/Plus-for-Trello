@@ -125,7 +125,7 @@ function insertPlusFeed(bForce) {
 		return;
 	//since feed is only updated if the tab is active etc, we check often if it needs updating.
 	g_intervalCheckPlusFeed=setInterval(function () {
-		if (document.webkitHidden)
+	    if (!isTabVisible())
 			return;
 		doGetFeed();
 	}, 1000 * 60 * 5); //every 5 minutes

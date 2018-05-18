@@ -25,6 +25,39 @@ function validateSEKey(evt) {
 }
 
 var g_seCardCur = null; //null means not yet initialized review zig cleanup into a class
+
+function rememberSEUser(user) {
+    if (!g_bUseLastSEBarUser)
+        return;
+    var objNew = {};
+    objNew[SYNCPROP_USERSEBAR_LAST] = user;
+    chrome.storage.sync.set(objNew, function () {
+        //ok if fails 
+        if (BLastErrorDetected())
+            console.error(chrome.runtime.lastError.message);
+    });
+}
+
+/* getUserLast
+ ** thenable
+ ** will always resolve to "" when !g_bUseLastSEBarUser or !bUseLast
+ ** bUseLast: does NOT mean g_bUseLastSEBarUser. its a shortcut to pass false and resolve to "" for callers that dont want to use userLast
+ **/
+function getUserLast(bUseLast) {
+    var val = ""; //means "me" by callers
+    if (!g_bUseLastSEBarUser || !bUseLast)
+        return Promise.resolve(val);
+    return new Promise(function (resolve, reject) {
+        chrome.storage.sync.get([SYNCPROP_USERSEBAR_LAST], function (obj) {
+            if (chrome.runtime.lastError)
+                console.log(chrome.runtime.lastError.message); //eat it
+            else
+                val = obj[SYNCPROP_USERSEBAR_LAST] || "";
+            resolve(val);
+        });
+    });
+}
+
 function getSeCurForUser(user,keyword) { //note returns null when not loaded yet
     assert(user);
     if (g_seCardCur===null)
@@ -285,7 +318,11 @@ function fillComboKeywords(comboKeywords, rg, kwSelected, classItem, strPrependN
     }
 }
 
-function fillComboUsers(comboUsers, userSelected, idCard, nameBoard, bDontEmpty, callbackParam) {
+function fillComboUsers(bUseLast, comboUsers, userSelected, idCard, nameBoard, bDontEmpty, callbackParam) {
+    getUserLast(bUseLast).then(userLast => fillComboUsersWorker(comboUsers, userSelected || userLast, idCard, nameBoard, bDontEmpty, callbackParam));
+}
+
+function fillComboUsersWorker(comboUsers, userSelected, idCard, nameBoard, bDontEmpty, callbackParam) {
 
     function callback(status) {
         if (status != STATUS_OK)
@@ -461,7 +498,7 @@ function promptNewUser(combo, idCardCur, callbackParam) {
     board = getCurrentBoard(); //refresh
     if (!board)
         return;
-    fillComboUsers(combo, userNew, idCardCur, board, false, function (status) {
+    fillComboUsers(false, combo, userNew, idCardCur, board, false, function (status) {
         if (status != STATUS_OK) {
             callback(status);
             return;
@@ -518,7 +555,7 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	var comboUsers = setSmallFont($('<select id="plusCardCommentUsers"></select>').addClass("agile_general_box_input"));
 	comboUsers.attr("title", "Click to select the user for this new S/E row.");
-	fillComboUsers(comboUsers, "", idCardCur, board);
+	fillComboUsers(true, comboUsers, "", idCardCur, board);
 	comboUsers.change(function () {
 	    updateNoteR();
 	    var combo = $(this);
@@ -528,6 +565,8 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	    if (val == g_strUserOtherOption)
 	        promptNewUser(combo, idCardCur);
+	    else
+	        rememberSEUser(val);
 	});
 
 	var comboDays = setSmallFont($('<select id="plusCardCommentDays"></select>').addClass("agile_days_box_input"));
@@ -729,7 +768,8 @@ function createCardSEInput(parentSEInput, idCardCur, board) {
 
 	            if (bOK) {
 	                if (idCardCur == getIdCardFromUrl(document.URL)) {
-	                    comboUsers.val(g_strUserMeOption); //if we dont reset it, a future timer could end up in the wrong user
+                        if (!g_bUseLastSEBarUser)
+	                    	comboUsers.val(g_strUserMeOption); //if we dont reset it, a future timer could end up in the wrong user
 	                    comboDays.val(g_strNowOption);
 	                    $("#plusCardCommentSpent").val("");
 	                    $("#plusCardCommentEstimate").val("");
@@ -2286,6 +2326,12 @@ var g_sTimerLastAdd = 0; //used for improving timer precision (because of roundi
 function addSEFieldValues(s) {
 	var elemSpent = $("#plusCardCommentSpent");
 	var elemEst = $("#plusCardCommentEstimate");
+	var elemUsers = $("#plusCardCommentUsers");
+	if (elemUsers.val() != g_strUserMeOption) {
+	    elemUsers.val(g_strUserMeOption);
+	    hiliteOnce(elemUsers, 3000);
+	}
+
 	var sCur = parseSEInput(elemSpent,false,true, true);
 	var eCur = parseSEInput(elemEst, false, false, true);
 	if (sCur == null)
@@ -2582,89 +2628,7 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
  * when so, moves existing card history to the new board
  **/
 function detectMovedCards() {
-    //review zig: this is only used when user never configured sync. not worth it keeping it
-    setInterval(function () {
-        if (!g_bReadGlobalConfig || g_bEnableTrelloSync)
-            return;
-        worker();
-    }, 400);
-
-	function worker() {
-
-		var hooked="agile_moveHooked";
-		var buttonFindMove = $(".js-submit");
-		if (buttonFindMove.length == 0)
-			return;
-
-		var iTest = 0;
-		var buttonMove = null;
-		for (; iTest < buttonFindMove.length; iTest++) {
-			var btnTest = buttonFindMove.eq(iTest);
-			if (btnTest.hasClass(hooked))
-				return;
-			if (btnTest.val() != "Move")
-				continue;
-			var topParent = btnTest.parent().parent().parent();
-			if (!topParent.hasClass("pop-over"))
-				continue;
-			var headerTitle = topParent.find(".pop-over-header-title").eq(0);
-			if (headerTitle.length != 1 || headerTitle.text() != "Move Card")
-				continue;
-			buttonMove = btnTest;
-			break;
-		}
-
-		if (buttonMove == null)
-			return;
-		if (buttonMove.hasClass(hooked))
-			return;
-		var parent = buttonMove.parent().parent();
-		var boardMoveElem = parent.find(".js-board-value").eq(0);
-		if (boardMoveElem.length == 0)
-			return;
-		var idCardCur = getIdCardFromUrl(document.URL);
-		if (!idCardCur)
-			return;
-		buttonMove.addClass(hooked);
-		var spanIcon = $('<span></span>').css("margin-left", "4px");
-		var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png")).css("margin-bottom", "-3px");
-		//icon.addClass("agile-spent-icon-header");
-		icon.attr("title", "Plus will move S/E data to the new board.");
-		spanIcon.append(icon);
-		spanIcon.insertAfter(buttonMove);
-
-		var boardCur = getCurrentBoard();
-		buttonMove.click(function () {
-			var boardNameNew = boardMoveElem.text();
-			if (boardNameNew == boardCur)
-				return;
-			if (isBackendMode()) {
-				setTimeout(function () {
-					alert("Plus for Trello: After pressing OK, Plus will take you to the moved card. You must report an S/E of 0/0 once there."); //review zig automate this.
-					window.location.href = "https://trello.com/c/" + idCardCur;
-				}, 300);
-				return;
-			} else {
-				function handleIdNotFound(idCardCur) {
-					alert("Plus for Trello could not find the new board (has not been used yet in Plus). To correct, please enter an S/E of 0/0 on the card after pressing OK.");
-					window.location.href = "https://trello.com/c/" + idCardCur;
-				}
-
-				var userCur = getCurrentTrelloUser();
-				if (userCur == null) {
-					handleIdNotFound(idCardCur);
-					return;
-				}
-
-				FindIdBoardFromBoardName(boardNameNew, idCardCur, function (idBoardFound) {
-					if (idBoardFound == null)
-						handleIdNotFound(idCardCur);
-					else
-						doInsert00History(idCardCur, idBoardFound, boardNameNew, userCur, boardCur);
-				});
-			}
-		});
-	}
+    return; //not worth detecting as now we prompt users to enable sync always
 }
 
 /* FindIdBoardFromBoardName

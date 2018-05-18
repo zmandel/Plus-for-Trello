@@ -1,7 +1,9 @@
 ﻿/// <reference path="intellisense.js" />
-
-
 function showTransferEDialog() {
+    getUserLast(true).then(userLast => showTransferEDialogWorker(userLast));
+}
+
+function showTransferEDialogWorker(userLast) {
     var board = getCurrentBoard();
     if (board == null)
         return; //wait til later
@@ -101,14 +103,21 @@ function showTransferEDialog() {
     comboUserFrom.empty();
     appendPick(comboUserFrom);
     var userSelected = "";
+    var userCurrent = getCurrentTrelloUser();
     for (user in seData) {
         var data = seData[user];
         if (data && data.e && data.e > 0) {
             var r = parseFixedFloat(data.e - data.s);
             if (r <= 0)
                 continue;
-            if (user == g_globalUser || (userSelected != g_globalUser))
-                userSelected = user;
+            if (user == userCurrent)
+                user = g_strUserMeOption;
+
+            //userLast, if exists, has precedence, then the global user
+            if (!userSelected || userSelected != userLast) {
+                if ((user == userLast) || (user == g_globalUser) || (userSelected != g_globalUser))
+                    userSelected = user;
+            }
             comboUserFrom.append($(new Option(user, user)));
         }
     }
@@ -122,7 +131,7 @@ function showTransferEDialog() {
 
     comboUserTo.empty();
     appendPick(comboUserTo);
-    fillComboUsers(comboUserTo, "", idCardCur, board, true, function callback(status) {
+    fillComboUsers(false, comboUserTo, "", idCardCur, board, true, function callback(status) {
         //comboUserTo.val(""); //unselect
     });
 
@@ -355,7 +364,14 @@ function showTransferEDialog() {
         }
     });
 
-    comboKeyword.add(comboUserFrom).off("change.plusForTrello").on("change.plusForTrello", function (e) {
+    comboUserFrom.off("change.plusForTrello").on("change.plusForTrello", function (e) {
+        var val = comboUserFrom.val();
+        if (val)
+            rememberSEUser(val);
+        refreshPreview();
+    });
+
+    comboKeyword.off("change.plusForTrello").on("change.plusForTrello", function (e) {
         refreshPreview();
     });
 

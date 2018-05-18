@@ -49,9 +49,11 @@ var Help = {
 		container.append(elem);
 		return elem;
 	},
-	para: function (h, container) {
-		var p = $('<p></p>').html(h);
-		if (container === undefined)
+	para: function (h, container, title) {
+	    var p = $('<p></p>').html(h);
+	    if (title)
+	        p.prop('title', title);
+		if (!container)
 			container = this.m_container;
 		container.append(p);
 		return p;
@@ -1476,7 +1478,8 @@ Hide "Remaining balance cards" section in Trello home.</input>').children('input
 	    
 	    if (true) {
 	        var checkAlwaysShowSEBar = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedAlwaysShowSEBar">\
-Always show the "card S/E bar".</input>').children('input:checkbox:first');
+Always show the "card S/E bar".</input>', null,
+"If you leave unchecked, you need to click the card front \'Spent / Estimate\' menu to show the Plus S/E bar.").children('input:checkbox:first');
 	        if (g_bAlwaysShowSEBar)
 	            checkAlwaysShowSEBar[0].checked = true;
 
@@ -1492,10 +1495,28 @@ Always show the "card S/E bar".</input>').children('input:checkbox:first');
 	        });
 	    }
 
+	    if (true) {
+	        var checkUseLastSEBarUser = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedUseLastSEBarUser">\
+Always default to the last user selected in the card S/E bar and transfer "from" field.</input>').children('input:checkbox:first');
+	        if (g_bUseLastSEBarUser)
+	            checkUseLastSEBarUser[0].checked = true;
+
+	        checkUseLastSEBarUser.click(function () {
+	            var bValue = checkUseLastSEBarUser.is(':checked');
+	            var pair = {};
+	            pair["bUseLastSEBarUser"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bUseLastSEBarUser = bValue;
+	                checkUseLastSEBarUser[0].checked = g_bUseLastSEBarUser;
+	            });
+	        });
+	    }
+
 	    //option to hide "Less - More" feature
 	    if (true) {
 	        var checkHideLessMore = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedHideLessMore">\
-Hide "Less - More" at the top of Trello pages.</input>').children('input:checkbox:first');
+Hide "Less - More" at the top of Trello pages.</input>', null, "This feature shows in all Trello page headers. Uncheck if you dont need it.").children('input:checkbox:first');
 	        if (g_bHideLessMore)
 	            checkHideLessMore[0].checked = true;
 
@@ -1520,7 +1541,8 @@ Hide "Less - More" at the top of Trello pages.</input>').children('input:checkbo
 	    //option to allow sync outside Trello.
 	    if (true) {
 	        var checkSyncOutsideTrello = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedSyncOutsideTrello">\
-Background sync every 10 minutes while Chrome is open even if Trello is not open.</input>').children('input:checkbox:first');
+Background sync every 10 minutes while Chrome is open even if Trello is not open.</input>', null,
+"Check this so the Chrome Plus menu, reports and charts are up-to-date even if you dont open a Trello page.").children('input:checkbox:first');
 	        if (g_bSyncOutsideTrello)
 	            checkSyncOutsideTrello[0].checked = true;
 
@@ -1556,7 +1578,7 @@ Do not warn when starting a timer when another timer is active.</input>').childr
 	    }
 
 	    if (true) { //always show Spent in the Chrome icon, even when a timer is active.
-	        var comboSpentOnAppIcon = helpWin.para('Show your weekly spent on the Chrome icon? <select style="width:auto">').children('select:first');
+	        var comboSpentOnAppIcon = helpWin.para('Show your weekly spent on the Chrome Plus icon? <select style="width:auto">').children('select:first');
 	        comboSpentOnAppIcon.append($(new Option("Yes except when there is an active timer", OPT_SHOWSPENTINICON_NORMAL)));
 	        comboSpentOnAppIcon.append($(new Option("Yes always (even with an active timer)", OPT_SHOWSPENTINICON_ALWAYS)));
 	        comboSpentOnAppIcon.append($(new Option("No, never show it.", OPT_SHOWSPENTINICON_NEVER)));

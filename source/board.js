@@ -305,20 +305,37 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
 
             // Hashtags
             var hashtagsJq = badges.children('.agile_hashtags');
+            var bSameHashtags = false;
             if (hashtagsJq.length == 0) {
                 hashtagsJq = $('<span />').addClass('agile_hashtags');
                 badges.append(hashtagsJq);
             }
-            hashtagsJq.html('');
-            var spanLoop = null;
-            for (var i = 0; i < hashtags.length; i++) {
-                spanLoop = $('<span />');
-                var hashLoop=hashtags[i];
-                hashtagsJq.append(spanLoop.
-                        addClass(i == 0 ? 'badge agile_badge agile_badge_hashtag agile_badge_hashtag_primary' : 'badge agile_badge agile_badge_hashtag agile_badge_hashtag_secondary').
-                        html(hashLoop));
-                if (hashLoop.indexOf("!") >= 0)
-                    spanLoop.addClass("agile_badge_hashtag_shout");
+            else {
+                var htChildren = hashtagsJq.children("span");
+                if (htChildren.length == hashtags.length) {
+                    var iChildren;
+                    for (iChildren = 0; iChildren < htChildren.length; iChildren++) {
+                        if (htChildren[iChildren].textContent != hashtags[iChildren])
+                            break;
+                    }
+                    if (iChildren == htChildren.length)
+                        bSameHashtags = true;
+                }
+                if (!bSameHashtags)
+                    hashtagsJq.html('');
+            }
+
+            if (!bSameHashtags) {
+                var spanLoop = null;
+                for (var i = 0; i < hashtags.length; i++) {
+                    spanLoop = $('<span />');
+                    var hashLoop = hashtags[i];
+                    hashtagsJq.append(spanLoop.
+                            addClass(i == 0 ? 'badge agile_badge agile_badge_hashtag agile_badge_hashtag_primary' : 'badge agile_badge agile_badge_hashtag agile_badge_hashtag_secondary').
+                            html(hashLoop));
+                    if (hashLoop.indexOf("!") >= 0)
+                        spanLoop.addClass("agile_badge_hashtag_shout");
+                }
             }
 
             if (idCardCur && bCardIsVisible) {

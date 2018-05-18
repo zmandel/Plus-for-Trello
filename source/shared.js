@@ -225,6 +225,7 @@ var SYNCPROP_LIDATA = "LiData";  //for chrome store {  msLastCheck, msCreated, l
 var SYNCPROP_LIDATA_STRIPE = "striLiData"; //for stripe { msLastCheck, msCreated, li, userTrello, emailOwner, quantity, nameCardOwner}
 var SYNCPROP_SERVIEWS = "SERViews";  // see g_serViews
 const SYNCPROP_MSSTARTPLUSUSAGE = "msStartPlusUsage";
+const SYNCPROP_USERSEBAR_LAST = "userSEBarLast";
 var LOCALPROP_EXTENSION_VERSIONSTORE = "chromeStoreExtensionVersion";
 
 var g_bStealthSEMode = false; //stealth mode. Only applies when using google spreadsheet sync. use IsStealthMode()

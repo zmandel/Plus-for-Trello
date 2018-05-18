@@ -126,7 +126,7 @@ function configureTimerElem(callback) {
                     button.val(getTimerElemText(stored.msStart, Date.now()));
                 }
                 setInterval(function () {
-                    update();
+                        update();
                 }, 1000); //every second so user sees the timer ticking
                 
                 update();
