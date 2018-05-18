@@ -708,6 +708,7 @@ var g_bAlwaysShowSEBar = false;
 var g_bHideLessMore = false;
 var g_bSyncOutsideTrello = false; //allow sync outside trello
 var g_bChangeCardColor = false; //change card background color based on its first label
+var g_bHideTour = false;
 
 function checkFirstTimeUse(callback) { //callback(bShowedDialog)
 	var keyDateLastSetupCheck = "dateLastSetupCheck";
@@ -1187,6 +1188,7 @@ function getSQLReport(sql, values, callback) {
 
 function fillRecentWeeksList(combo) {
     var date = new Date();
+    const yearCur = date.getFullYear();
     var dateEnd = new Date();
     var daysDelta = DowMapper.posWeekFromDow(date.getDay());
     var i = 0;
@@ -1197,12 +1199,27 @@ function fillRecentWeeksList(combo) {
         var title = date.toLocaleDateString();
         dateEnd.setDate(date.getDate() + 6);
         title = title + " - " + dateEnd.toLocaleDateString();
-        combo.append($(new Option(text, text)).addClass('agile_weeks_combo_element').attr("title", title));
+        var parts = text.split("-W");
+        var year = parseInt(parts[0], 10);
+        var textPretty = text;
+        if (year==yearCur)
+            textPretty = "W" + parts[1];
+        combo.append($(new Option(textPretty, text)).addClass('agile_weeks_combo_element').attr("title", title));
         daysDelta = 7;
     }
 
     if (g_weekNumUse != null)
         combo.val(g_weekNumUse);
+    adjustSelectWidthToContent(combo);
+}
+
+function adjustSelectWidthToContent(combo) {
+    var val = combo[0].options[combo[0].selectedIndex || 0].innerHTML;
+    var cch = val.length;
+    if (cch > 4)
+        combo.css("width", "auto");
+    else
+        combo.css("width", cch + "em");
 }
 
 function getRecentWeeksList() {
@@ -1215,6 +1232,7 @@ function getRecentWeeksList() {
 			combo[0].selectedIndex = 0;
 			return false;
 		}
+		adjustSelectWidthToContent(combo);
 		combo.attr("title", "");
 		var val = ($(this).val());
 		g_weekNumUse = val;
@@ -1238,13 +1256,13 @@ function getKeywordsViewList() {
     if (combo.length == 0) {
         combo = $('<select id="agile_globalkeywordlist"/>').addClass("agile_weeks_combo"); //review: rename agile_weeks_combo to generic
         combo.css('cursor', 'pointer');
-        combo.attr("title", "click to change the S/E view");
+        combo.attr("title", "Plus - Click to change the S/E view");
     }
     combo.empty();
     var rgItems = [];
     var bMultipleKeywords = false;
     var bUseKeywords = g_optEnterSEByComment.IsEnabled();
-    if (bUseKeywords) {
+    if (bUseKeywords || g_bDisableSync) { //if g_bDisableSync we want to at least show something, so show default keywords
         rgItems = g_optEnterSEByComment.getAllKeywordsExceptLegacy();
         bMultipleKeywords = (rgItems.length>1);
     }

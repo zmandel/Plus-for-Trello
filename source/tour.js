@@ -147,6 +147,8 @@ function handleHomeTour() {
 }
 
 function hookTour(elem) {
+    if (g_bHideTour)
+        elem.hide();
     elem.click(function () {
         handleTourStart(true);
     });

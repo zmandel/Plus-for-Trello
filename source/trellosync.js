@@ -1599,7 +1599,17 @@ function processTrelloActions(tokenTrello, alldata, actions, boards, hasBoardAcc
                             }
                         }
                     }
-
+                    if (false) { //REVIEW CARDTRANSFER
+                        const prefixFromCard = PLUSCOMMAND_ETRANSFER + PLUSCOMMAND_ETRANSFER_FROMCARD;
+                        if (commentLower.indexOf(prefixFromCard) >= 0) {
+                            const iPrefixFind = commentLower.indexOf(prefixFromCard);
+                            const idCardFromTransfer = commentLower.substring(iPrefixFind + prefixFromCard.length).split(" ")[0]; //first word
+                            //need to add the source card and its board to our globals
+                            if (idCardFromTransfer) {
+                                //
+                            }
+                        }
+                    }
                     alldata.rgCommentsSE.push(actionCur); //candidate for being a S/E comment. Later we will perform stricter checks
                     return false; //stop
                 }
@@ -2355,7 +2365,7 @@ function getAllTrelloBoardActions(tokenTrello, alldata, boardsReport, boardsTrel
 
                 function onFinishedAll(status) {
                     results.sort(function (a, b) {
-                        var cmp = a.date.localeCompare(b.date);
+                        var cmp = cmpString(a.date, b.date);
                         if (cmp == 0) {
                             //some paired trello actions like moveCardFromBoard/moveCardToBoard receive the exact same date, thus a simple sort by date
                             //could end up flipping those pairs. This caused a bug before 2.11.5 where, depending on the order that the actions were queried, the pairs

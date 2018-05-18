@@ -737,7 +737,6 @@ function doSaveBoardValues(value, key) {
 }
 
 
-
 var g_bNewTrello = true; //REVIEW zig: cleanup once all users move to this
 
 function getCurrentBoard() {
@@ -747,7 +746,11 @@ function getCurrentBoard() {
 		if (boardNameContainerElem.length == 0)
 			return null;
 		g_bNewTrello = true;
-	} 
+	}
+
+	if (getIdBoardFromUrl(document.URL) == null && getIdCardFromUrl(document.URL) == null)
+	    return null;
+
 	var boardNameElem = boardNameContainerElem.children(".board-header-btn-text");
 	if (boardNameElem.length == 0)
 		return null;
@@ -773,14 +776,13 @@ var InfoBoxManager = {
     update: function () {
         var boardHeader = $('.board-header');
 
-        if (boardHeader.length == 0)
+        if (boardHeader.length != 1)
             return;
 
         if (g_remainingTotal.parent()[0] === boardHeader[0]) //optimize
             return;
 
         //migrate elements to new parent
-
         g_remainingTotal.hide();
         g_estimationTotal.hide();
         g_spentTotal.hide();

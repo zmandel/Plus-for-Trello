@@ -424,7 +424,7 @@ function commitSESyncDataWorker(tx, alldata, usersMap, idMemberMapByName) {
     //but im not sure if it would really make a difference as there is only dependency between cards not boards (currently)
     //and in any case the date to the millisecond would have to be identical to cause issues
     alldata.rgCommentsSE.sort(function (a, b) {
-        return (a.date.localeCompare(b.date));
+        return cmpString(a.date, b.date);
     });
 
     //once sorted, process all users to update their data

@@ -7,9 +7,10 @@ var g_prefixCustomUserId = "customUser:";
 var g_dateMinCommentSE = new Date(2013, 6, 30); //exclude S/E before this (regular users didnt have this available back then), excludes my testing data from spent backend
 var g_dateMinCommentSEWithDateOverBackend = new Date(2014, 11, 3); //S/E with -xd will be ignored on x<-2 for non spent-backend admins, like the backend used to do
 var g_dateMinCommentSERelaxedFormat = new Date(2014, 11, 9);
-
-//regex is easy to break. check well your changes. consider newlines in comments. NOTE command could also be in the note. For historical reasons, the command here only covers ^resetsync
-//                          users               days           spent                      command           /        estimate              spaces   note
+var g_dateMinTransferInPast = new Date(2017, 8, 15); //REVIEW cardtransfer
+//regex is easy to break. check well your changes. consider newlines in comments. NOTE command could also be in the note.
+//For historical reasons, the command here only covers ^resetsync without 0/0. later we detect other commands.
+//                                       users               days           spent                      command           /        estimate              spaces   note
 var g_regexSEFull = new RegExp("^((\\s*@\\w+\\s+)*)((-[0-9]+)[dD]\\s+)?(([+-]?[0-9]*[.:]?[0-9]*)|(\\^[a-zA-Z]+))?\\s*(/?)\\s*([+-]?[0-9]*[.:]?[0-9]*)?(\\s*)(\\s[\\s\\S]*)?$");
 
 function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, idMemberMapByName) {
@@ -108,6 +109,8 @@ function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, 
             e = parseFixedFloat(parseResults.strEstimate, false);
 
         var bETransfer = false;
+        var idCardFromTransfer = null;
+
         if (parseResults.strCommand) {
             //note before v3.2.13 there were "board commands", (markboard, unmarkboard) no longer used
             bPlusBoardCommand = (parseResults.strCommand.indexOf("markboard") == 1 || parseResults.strCommand.indexOf("unmarkboard") == 1);
@@ -116,14 +119,13 @@ function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, 
                 pushErrorObj("bad command format");
             }
 
-            //general fields not allowed in commands
-            if (s != 0 || parseResults.days) {
+            if (s != 0) {
                 failCommand();
                 return true; //continue
             }
 
             if (bPlusBoardCommand || parseResults.strCommand.indexOf(PLUSCOMMAND_RESET) == 0) {
-                if (e != 0 || parseResults.rgUsers.length > 0) {
+                if (e != 0 || parseResults.rgUsers.length > 0 || parseResults.days) {
                     failCommand();
                     return true; //continue
                 }
@@ -131,10 +133,26 @@ function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, 
             } else {
                 if (parseResults.strCommand.indexOf(PLUSCOMMAND_ETRANSFER) == 0) {
                     bETransfer = true;
+
+                    if (parseResults.days && date < g_dateMinTransferInPast) {
+                        failCommand();
+                        return true; //continue
+                    }
+
                     //note: do not yet modify the comment. we include the command later only on the first history row
                     if (e < 0 || parseResults.rgUsers.length != 2) {
                         failCommand();
                         return true; //continue
+                    }
+                    if (false) {
+                        const prefixFromCard = PLUSCOMMAND_ETRANSFER + PLUSCOMMAND_ETRANSFER_FROMCARD;
+                        if (parseResults.strCommand.indexOf(prefixFromCard) == 0) {
+                            idCardFromTransfer = parseResults.strCommand.substring(prefixFromCard.length).split(" ")[0]; //first word
+                            if (!idCardFromTransfer) {
+                                failCommand();
+                                return true; //continue
+                            }
+                        }
                     }
                 } else {
                     failCommand();
@@ -156,7 +174,7 @@ function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, 
             var deltaMin = (keyword == "@tareocw" ? -2 : -10);
             //support spent backend legacy rules for legacy rows
             if (deltaParsed < deltaMin && date < g_dateMinCommentSEWithDateOverBackend) {
-                if (from != "zigmandel" && from != "julioberrospi" && from != "juanjoserodriguez2") {
+                if (true) {
                     pushErrorObj("bad d for legacy entry"); //used to say "bad d for non-admin"
                     return true; //continue
                 }
@@ -198,17 +216,19 @@ function readTrelloCommentDataFromAction(action, rgKeywords, alldata, usersMap, 
             var idCardForRow = idCardShort;
             if (bPlusBoardCommand)
                 idCardForRow = ID_PLUSBOARDCOMMAND;
+            else if (bSpecialETransferFrom && idCardFromTransfer)
+                idCardForRow = idCardFromTransfer;
             var obj = makeHistoryRowObject(datePush, idCardForRow, idBoardShort, strBoard, strCard, userCur, s, e, commentPush, idForSsUse, keyword);
-            if (idCardForRow != idCardShort)
-                obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time. review: seems only used in the unused handleBoardCommand
+            if (idCardForRow == ID_PLUSBOARDCOMMAND)
+                obj.idCardOrig = idCardShort; //to restore in case the row causes an error at history commit time.
             
 			obj.bError = false;
 			if (bETransfer || bRecurring)
 			    obj.bENew = true;
             if (parseResults.strCommand)
-                obj.command = parseResults.strCommand.substring(1); //review: unused
+                obj.command = parseResults.strCommand.substring(1); //removes ^
             if (bSpecialETransferFrom) {
-                assert(e > 0);
+                assert(e >= 0);
                 obj.est = -obj.est;
             }
             tableRet.push(obj);

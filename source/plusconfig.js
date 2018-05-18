@@ -303,14 +303,22 @@ function restartPlus(message) {
 
 function clearAllStorage(callback) {
     var propsSyncSave = {};
-    chrome.storage.sync.get([SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE], function (obj) {
+    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, SYNCPROP_LIDATA, SYNCPROP_LIDATA_STRIPE, SYNCPROP_USERSEBAR_LAST, SYNCPROP_bShowedFeatureSEButton], function (obj) {
         if (chrome.runtime.lastError) {
             console.error(chrome.runtime.lastError.message);
         } else {
             propsSyncSave = obj;
         }
-
-        clearAllStorageWorker(callback);
+        var idCardActiveTimer = propsSyncSave[SYNCPROP_ACTIVETIMER];
+        if (idCardActiveTimer) {
+            var hashAT = getCardTimerSyncHash(idCardActiveTimer);
+            chrome.storage.sync.get([hashAT], function (objAT) {
+                propsSyncSave[hashAT] = objAT[hashAT];
+                clearAllStorageWorker(callback);
+            });
+        } else {
+            clearAllStorageWorker(callback);
+        }
     });
 
     function clearAllStorageWorker(callback) {
@@ -354,9 +362,19 @@ function clearAllStorage(callback) {
                             'msStartPlusUsage': g_msStartPlusUsage,
                             'bSyncOutsideTrello': g_bSyncOutsideTrello,
                             'bChangeCardColor': g_bChangeCardColor,
+                            'bHideTour' : g_bHideTour,
                             'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
                             'units': UNITS.current,
-                            'bDisplayPointUnits': g_bDisplayPointUnits
+                            'bDisplayPointUnits': g_bDisplayPointUnits,
+                            'rgExcludedUsers': JSON.stringify(g_rgExcludedUsers),
+                            'bAcceptPFTLegacy': g_bAcceptPFTLegacy,
+                            'bPreventEstMod': g_bPreventIncreasedE,
+                            'bCheckedTrelloSyncEnable': g_bCheckedTrelloSyncEnable,
+                            'bAlwaysShowSEBar': g_bAlwaysShowSEBar,
+                            'bUseLastSEBarUser': g_bUseLastSEBarUser,
+                            'bDontShowTimerPopups': g_bDontShowTimerPopups,
+                            'bDontShowSpentPopups': g_bDontShowSpentPopups,
+                            'bClosePlusHomeSection': !g_bShowHomePlusSections //Negated
                         };
 
                         for (var propSaved in propsSyncSave)
@@ -364,6 +382,12 @@ function clearAllStorage(callback) {
                         
                         objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync) ? true : false;
                         objSet[SYNCPROP_language] = g_language;
+                        objSet[SYNCPROP_KEYWORDS_HOME] = JSON.stringify(g_rgKeywordsHome);
+                        objSet[SYNCPROP_BOARD_DIMENSION] = g_dimension || VAL_COMBOVIEWKW_ALL;
+                        objSet[SYNCPROP_GLOBALUSER] = g_globalUser || DEFAULTGLOBAL_USER;
+                        objSet[SYNCPROP_SERVIEWS] = g_serViews;
+                        if (g_msStartPlusUsage)
+                            objSet[SYNCPROP_MSSTARTPLUSUSAGE] = g_msStartPlusUsage;
 
                         chrome.storage.sync.set(objSet,
                             function () {

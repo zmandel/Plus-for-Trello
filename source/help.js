@@ -1654,6 +1654,26 @@ Set the card background based on its first label color.</input>').children('inpu
 	        });
 	    }
 
+	    //option to hide tour
+	    if (true) {
+	        var checkHideTour = helpWin.para('<input style="vertical-align:middle;" type="checkbox" class="agile_checkHelp" value="checkedHideTour">\
+Hide the "tour" from the Trello header.</input>').children('input:checkbox:first');
+	        if (g_bHideTour)
+	            checkHideTour[0].checked = true;
+
+	        checkHideTour.click(function () {
+	            var bValue = checkHideTour.is(':checked');
+	            var pair = {};
+	            pair["bHideTour"] = bValue;
+	            chrome.storage.sync.set(pair, function () {
+	                if (chrome.runtime.lastError == undefined)
+	                    g_bHideTour = bValue;
+	                checkHideTour[0].checked = g_bHideTour;
+	                elemShowHide($(".agile_tour_link_mini, .agile_tour_link"), !g_bHideTour);
+	            });
+	        });
+	    }
+
 	    helpWin.para("<br>&bull; The next two settings let Plus read S/E from card and checklist titles for board dimensions, pre-estimation and those migrating from other scrum tools.");
 	    helpWin.para("Plus uses card title S/E in board dimensions only when the card has no S/E rows entered yet.");
 	    helpWin.para("All users should have the same setting. S/E entered this way will only appear in the board and checklists, not in reports or burndowns.");

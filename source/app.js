@@ -391,6 +391,8 @@ function newerStoreVersion(bUrgentOnly) {
             for (var iPartsVersion = 0; iPartsVersion < partsStore.length; iPartsVersion++) {
                 vCur = parseInt(partsCurrent[iPartsVersion], 10);
                 vStore = parseInt(partsStore[iPartsVersion], 10);
+                if (vCur > vStore)
+                    break;
                 if (vStore > vCur)
                     bNeedUpgrade = true;
                 if (bNeedUpgrade && bUrgentOnly && iPartsVersion == partsStore.length-1) {
@@ -476,6 +478,7 @@ function loadOptions(callback) {
     var keyDowDelta = "dowDelta";
     var keySyncOutsideTrello = "bSyncOutsideTrello";
     var keybChangeCardColor = "bChangeCardColor";
+    var keybHideTour = "bHideTour";
     var keyPropbSumFilteredCardsOnly = "bSumFilteredCardsOnly";
     var keybEnableTrelloSync = "bEnableTrelloSync";
     var keybEnterSEByCardComments = "bEnterSEByCardComments";
@@ -501,8 +504,8 @@ function loadOptions(callback) {
     chrome.storage.sync.get([SYNCPROP_SERVIEWS, SYNCPROP_KEYWORDS_HOME, keyDisplayPointUnits, SYNCPROP_GLOBALUSER, SYNCPROP_BOARD_DIMENSION, SYNCPROP_bStealthSEMode, SYNCPROP_language, keyServiceUrl, keybDontShowTimerPopups, keybDontShowSpentPopups, keyClosePlusHomeSection, keyDontWarnParallelTimers, keyUnits,
                              keyrgExcludedUsers, keyrgKeywordsforSECardComment, keyAcceptSFT, keyHideLessMore,
                              keyAcceptPFTLegacy, keybEnterSEByCardComments, SYNCPROP_optAlwaysShowSpentChromeIcon, keyAllowNegativeRemaining,keyPreventIncreasedE, keyAlreadyDonated, keybEnableTrelloSync,
-                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyUseLastSEBarUser, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybChangeCardColor,
-                             keyPropbSumFilteredCardsOnly, keybDisabledSync],
+                             keyCheckedTrelloSyncEnable, keyHidePendingCards, keyAlwaysShowSEBar, keyUseLastSEBarUser, keyDowStart, keyDowDelta, SYNCPROP_MSSTARTPLUSUSAGE, keySyncOutsideTrello, keybHideTour,
+                             keybChangeCardColor, keyPropbSumFilteredCardsOnly, keybDisabledSync],
                              function (objSync) {
                                  if (BLastErrorDetected())
                                      return;
@@ -549,6 +552,7 @@ function loadOptions(callback) {
                                  g_bStealthSEMode = (objSync[SYNCPROP_bStealthSEMode] && objSync[keyServiceUrl] && !g_bDisableSync) ? true : false;
                                  g_bSyncOutsideTrello = objSync[keySyncOutsideTrello] || false;
                                  g_bChangeCardColor = objSync[keybChangeCardColor] || false;
+                                 g_bHideTour = objSync[keybHideTour] || false;
                                  g_bCheckedbSumFiltered = objSync[keyPropbSumFilteredCardsOnly] || false;
                                  //alert("g_bEnableTrelloSync : " + g_bEnableTrelloSync + "\ncomments sync : " + g_optEnterSEByComment.bEnabled + "\ndisabled sync : " + g_bDisableSync);
 
@@ -671,10 +675,10 @@ function updateSsLinksDetector(globalTotalSpent, globalTotalEstimation) {
 
 
 function ResetPlus() {
-    chrome.storage.sync.get([SYNCPROP_ACTIVETIMER], function (obj) {
+    findAllActiveTimers(function (rgTimers) {
         var strConfirm = 'Are you sure you want to Reset?';
-        if (obj[SYNCPROP_ACTIVETIMER] !== undefined)
-            strConfirm = strConfirm + ' All timers still running will be lost.';
+        if (rgTimers.length>1)
+            strConfirm = strConfirm + ' Multiple active timers (except the active timer) will be lost.';
 
         if (!confirm(strConfirm))
             return;

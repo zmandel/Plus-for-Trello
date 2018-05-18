@@ -50,7 +50,7 @@ function getUserLast(bUseLast) {
     return new Promise(function (resolve, reject) {
         chrome.storage.sync.get([SYNCPROP_USERSEBAR_LAST], function (obj) {
             if (chrome.runtime.lastError)
-                console.log(chrome.runtime.lastError.message); //eat it
+                console.log(chrome.runtime.lastError.message); //eat it and default to "" (me)
             else
                 val = obj[SYNCPROP_USERSEBAR_LAST] || "";
             resolve(val);
@@ -2441,7 +2441,7 @@ function HandleNoBackendDbEntry(s, e, commentBox, idBoard, idCard, strDays, strB
 	var rgComments = [appendCommentBracketInfo(dDays, commentBox, userCurrent, rgUsers, 0, memberTransferTo != null)];
 	if (memberTransferTo != null)
 	    rgComments.push(appendCommentBracketInfo(dDays, commentBox, userCurrent, rgUsers, 1, memberTransferTo != null));
- 
+    //REVIEW CARDTRANSFER
 	helperInsertHistoryRow(dateNow, idCard, idBoard, strBoard, cleanTitle, rgUsers, s, e, rgComments, idHistoryRowUse, keyword, callback);
 }
 

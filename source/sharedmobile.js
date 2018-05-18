@@ -1,11 +1,13 @@
 ﻿/// <reference path="intellisense.js" />
-//dont use const in this file, as mobile supports older browsers
+//
+//DONT use const in this file, as mobile supports older browsers
 
 var SEP_IDHISTORY_MULTI = ".";
 var g_strUserMeOption = "me";
 var PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
 var PLUSCOMMAND_RESET = "^resetsync";
 var PLUSCOMMAND_ETRANSFER = "^etransfer";
+var PLUSCOMMAND_ETRANSFER_FROMCARD = ".fromcard:";
 var g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
 var g_prefixCommentTransferTo = g_prefixCommentTransfer + " to ";
 var g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";

@@ -54,6 +54,13 @@ function replaceString(string, regex, replace) {
     return string.replace(regex, replace);
 }
 
+
+
+//much faster than localeCompare for many strings to sort
+function cmpString(a, b) {
+    return a > b ? 1 : a < b ? -1 : 0;
+}
+
 function commonBuildUrlFromParams(params, doc) {
     var url = chrome.extension.getURL(doc);
     var val = null;
