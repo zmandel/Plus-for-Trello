@@ -1422,6 +1422,10 @@ function loadReport(params) {
     if (params["stackCount"]) //old property
         params["stackBy"] = params["stackCount"]; //migrate
 
+    if (params["sinceSimple"] && params["sinceSimple"].toLowerCase() == FILTER_DATE_ADVANCED.toLowerCase() && !params["weekStart"] && !params["weekEnd"] && !params["monthStart"] && !params["monthEnd"]) {
+        params["sinceSimple"] = "";
+    }
+
     var elemAllCustomColumns = $("#selectAllColumns");
     var elemCheckCCol = $("#checkCustomColumns");
     if (params["customColumns"]) {
@@ -1452,7 +1456,7 @@ function loadReport(params) {
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
         checkNoLabelColors: "false", checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
-        checkHideAnnotationTexts: "false", checkSyncBeforeQuery: "false"
+        checkHideAnnotationTexts: "false", checkSyncBeforeQuery: "false", checkNoPartialE: "false"
     };
 
 
@@ -1919,6 +1923,7 @@ function buildSql(elems) {
     if ((groupByLower != "" || g_bBuildSqlMode) &&
         !elems["user"] && //these two imply s/e rows (except when using NOT, but even thewn it could be unexpected). Card count charts are better for finding those.
         !elems["keyword"] &&
+        elems["checkNoPartialE"]!=="true" &&
         !bOrderByR) {
         bHasUnion = true;
         //REVIEW: since now we do a full pass to find duplicate card rows, consider doing two separate queries.
@@ -1945,12 +1950,12 @@ function buildSql(elems) {
     var direction = (g_bBuildSqlMode ? "ASC" : "DESC");
     sql += " ORDER BY date " + direction + ", rowid " + direction; //REVIEW: by date is needed for g_bBuildSqlMode, but otherwise remove once I add smarter order defaults
 
-    return { sql: sql, values: state.values, bByROpt: bByROpt, bHasUnion: bHasUnion };
+    return { sql: sql, values: state.values, bByROpt: bByROpt, bHasUnion: bHasUnion, bOrderAsc: direction == "ASC" };
 }
 
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     var elems = cloneObject(elemsParam);
-    var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] == "true");
+    var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] === "true");
     var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
     if (customColumns.length == 1 && customColumns[0] == "")
         customColumns = [];
@@ -1962,51 +1967,33 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         }
     }
 
+    //Compact the url for easier reading by removing common defaults
 
     if (elems["eType"] == "all") //do this before updateUrlState so it doesnt include this default in the url REVIEW zig change so its elem value IS "" (see sinceDate)
         elems["eType"] = ""; //this prevents growing the URL with the default value for eType
 
-    if (elems["deleted"] == "")
+    if (elems["deleted"] === "")
         elems["deleted"] = "0"; //default to "Not deleted"
 
-    if (elems["archived"] == "")
+    if (elems["archived"] === "")
         elems["archived"] = "0"; //default to "Not archived"
 
-    if (elems["checkNoCrop"] == "false")
-        elems["checkNoCrop"] = ""; //ditto like eType
+    var rgelemsFalse = ["checkNoCrop", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
+    "checkSyncBeforeQuery", "checkOutputCardShortLink", "checkOutputBoardShortLink", "checkOutputCSV", 
+    "checkOutputCardIdShort", "checkHideAnnotationTexts"];
 
-    if (elems["checkNoCharts"] == "false")
-        elems["checkNoCharts"] = ""; //ditto
+    rgelemsFalse.forEach(function (elem) {
+        var obj = elems[elem];
+        if (obj === "false")
+            elems[elem] = "";
+    });
 
-    if (elems["checkNoColorsChart"] == "false")
-        elems["checkNoColorsChart"] = ""; //ditto
-
-    if (elems["checkNoLabelColors"] == "false")
-        elems["checkNoLabelColors"] = ""; //ditto
-
-    if (elems["checkSyncBeforeQuery"] == "false")
-        elems["checkSyncBeforeQuery"] = ""; //ditto
-    
-    if (elems["checkOutputCardShortLink"] == "false")
-        elems["checkOutputCardShortLink"] = ""; //ditto
-
-    if (elems["checkOutputBoardShortLink"] == "false")
-        elems["checkOutputBoardShortLink"] = ""; //ditto
-
-    if (elems["checkOutputCSV"] == "false")
-        elems["checkOutputCSV"] = ""; //ditto
-
-    if (elems["checkOutputReport"] == "false") {
+    if (elems["checkOutputReport"] === "false") {
         elems["checkOutputReport"] = "";
-        if (elems["outputFormat"] == "csv")
+        if (elems["outputFormat"] === "csv")
             elems["outputFormat"] = "";
     }
 
-    if (elems["checkOutputCardIdShort"] == "false")
-        elems["checkOutputCardIdShort"] = ""; //ditto
-
-    if (elems["checkHideAnnotationTexts"] == "false") //this is for burndown only
-        elems["checkHideAnnotationTexts"] = ""; //ditto
 
     if (!g_bBuildSqlMode) {
         if (g_bAddParamSetLastRowViewedToQuery) {
@@ -2085,6 +2072,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                 var options = {
                                     bNoTruncate: elems["checkNoCrop"] == "true",
                                     bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
+                                    bExcludeCardsWithPartialE: elems["checkNoPartialE"]=="true",
                                     bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
                                     bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
                                     bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
@@ -2133,6 +2121,8 @@ function transformAndMarkSkipCardRows(rows, transformRow) {
     var row;
     for (var i = 0; i < cLength; i++) {
         row = rows[i];
+        if (row.bSkip)
+            continue;
         if (transformRow)
             transformRow(row);
         if (row.bSkip)
@@ -2205,6 +2195,8 @@ function fillMapCardsToLabels(rowsIn, options, callback) {
     var idCards = [];
     var mapCardsToLabels = {};
     rowsIn.forEach(function (row) {
+        if (row.bSkip)
+            return;
         if (!mapIdCards[row.idCardH]) {
             mapIdCards[row.idCardH] = true;
             idCards.push("'" + row.idCardH + "'");
@@ -2314,6 +2306,52 @@ function fillMapCardsToLabels(rowsIn, options, callback) {
     });
 }
 
+function skipRowsWithPartialE(rows, bOrderAsc) {
+    var mapCards = {};
+    var dateLast = 0;
+
+    const cTotal = rows.length;
+    if (cTotal==0)
+        return;
+
+    function processRow(row) {
+        assert(row.date >= dateLast);
+        dateLast = row.date;
+        if (row.bSkip || row.rowid === ROWID_REPORT_CARD)
+            return;
+        const idCard = row.idCardH;
+        var map = mapCards[idCard] || { bSkip: false, bHasE1st: false };
+        if (map.bSkip) {
+            row.bSkip = true;
+            return;
+        }
+
+        if (map.bHasE1st)
+            return;
+
+        if (row.eType == ETYPE_NEW) {
+            map.bHasE1st = true;
+            mapCards[idCard] = map;
+            return;
+        }
+
+        if (row.spent != 0 || row.eType != ETYPE_NONE) {
+            map.bSkip = true;
+            mapCards[idCard] = map;
+            row.bSkip = true;
+            return;
+        }
+    }
+
+    if (bOrderAsc) {
+        rows.forEach(processRow);
+    } else {
+        for (var iRow = cTotal - 1; iRow >= 0; iRow--) {
+            processRow(rows[iRow]);
+        }
+    }
+}
+
 function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
     var rowsGrouped = rowsOrig;
     const groupBy = urlParams["groupBy"];
@@ -2341,6 +2379,9 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
         });
     }
     
+    //this must happen after filtering by week above to prevent future issues
+    if (options.bExcludeCardsWithPartialE)
+        skipRowsWithPartialE(rowsOrig, sqlQuery.bOrderAsc);
 
     var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0 || groupBy.indexOf("labels") >= 0); //review zig: dup elsewhere
     var bShowLabels = (bShowCard && g_bProVersion && (options.customColumns.length==0 || options.customColumns.indexOf("labels") >= 0));
@@ -2889,6 +2930,11 @@ function prependChartTitle(table, dataChart, domain) {
     }
 }
 
+function isReportWithPartialE(params) {
+    var bRet = g_dataChart.params["sinceSimple"] && g_dataChart.params["checkNoPartialE"] !== "true";
+    return bRet;
+}
+
 function chartSER(bForce, callbackCancel) {
     var elemChart = getCleanChartElem();
     var bNoColors = (g_dataChart.params["checkNoColorsChart"] == "true");
@@ -2906,9 +2952,10 @@ function chartSER(bForce, callbackCancel) {
     if (textMessage)
         textMessage += "Try the 'Card count' chart from the list above. ";
 
-    if (g_dataChart.params["sinceSimple"]) {
+    if (isReportWithPartialE(g_dataChart.params)) {
         hiliteOnce($("#sinceSimple"));
-        textMessage += "To make this chart, do not filter by Date. ";
+        hiliteOnce($("#headerOptions"));
+        textMessage += "To make this chart, do not filter by Date or click <b>Options</b> to exclude cards with partial Estimates.";
     }
 
     var bCriticalError = (textMessage.length > 0);
@@ -2916,7 +2963,7 @@ function chartSER(bForce, callbackCancel) {
     if (g_dataChart.bRemain && g_dataChart.dataS.length == 0)
         textMessage += "To show Spent, do not order by 'R (non zero)'. ";
 
-    elemChartMessage.text(textMessage);
+    elemChartMessage.html(textMessage);
     if (bCriticalError)
         return;
 
@@ -3035,9 +3082,10 @@ function charte1vse(bForce, callbackCancel) {
 }
 
 function addChartEstWarning(elemChartMessage) {
-    if (g_dataChart.params["sinceSimple"]) {
-        elemChartMessage.text("Note: This report is filtered by date, which may cause unexpected values.");
+    if (g_dataChart.params["sinceSimple"] && g_dataChart.params["checkNoPartialE"] !== "true") {
+        elemChartMessage.html("Note: This report is filtered by date, which may cause unexpected E,R values. Click <b>Options</b> and Exclude cards with partial estimates.");
         hiliteOnce($("#sinceSimple"));
+        hiliteOnce($("#headerOptions"));
     }
 }
 
@@ -3168,9 +3216,10 @@ function chartStacked(type, bForce, callbackCancel) {
     if (callbackCancel(dname))
         return;
     if (type == g_chartViews.r) {
-        if (g_dataChart.params["sinceSimple"]) {
+        if (isReportWithPartialE(g_dataChart.params)) {
             hiliteOnce($("#sinceSimple"));
-            textMessage += "To make this chart, do not filter by Date.";
+            hiliteOnce($("#headerOptions"));
+            textMessage += "To make this chart, do not filter by Date or click <b>Options</b> to exclude cards with partial Estimates.";
         }
     }
 
@@ -3180,7 +3229,7 @@ function chartStacked(type, bForce, callbackCancel) {
 
     if (type == g_chartViews.r && !bOrderRemain)
         textMessage += "Tip: make a faster 'Remain' report ordering by 'R (non-zero)'.";
-    elemChartMessage.text(textMessage);
+    elemChartMessage.html(textMessage);
     if (bCriticalError)
         return;
 

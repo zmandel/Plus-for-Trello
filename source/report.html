@@ -301,10 +301,18 @@ E 1st: rows with a first estimate
 To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options</b></p>
                 <div style="display:none;" id="report_options_section">
                     <div><i>Click 'Query' after making changes.</i></div>
-                        <div class="report_options_item"  title="Check to prevent cropping text in results.">
-                            <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
-                            <label class="agile_unselectable" for="checkNoCrop">No Crop (show full contents)</label>
-                        </div>
+                    <div class="report_options_item"  title="Check to prevent cropping text in results.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
+                        <label class="agile_unselectable" for="checkNoCrop">No Crop (show full contents)</label>
+                    </div>
+                    <div class="report_options_item" title="Check to exclude S/E from cards with partial or no estimates when filtering by date.
+If checked, the report and chart will only include cards with a first estimate entered in the filtered date range.
+
+Not checking this option can produce unrealistic/negative E and R values when using date filters.
+Do not check this option if you are only looking at Spent or card counts.">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoPartialE" />
+                        <label class="agile_unselectable" for="checkNoPartialE">Exclude cards with partial or no <b>E</b> in the "Since" date range</label>
+                    </div>
                     <div class="report_options_item" title="Check to not generate charts, which can speed-up huge reports.">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCharts" />
                         <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
