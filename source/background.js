@@ -1529,8 +1529,12 @@ function doOpenCardInBrowser(idCard, pos, bForceTab, bForcePopup) {
                 }
 
                 var cardPopupType = obj[SYNCPROP_CARDPOPUPTYPE] || CARDPOPUPTYPE.DEFAULT;
-                if (cardPopupType == CARDPOPUPTYPE.NO_POPUP)
-                    openCardAsUrl();
+                if (cardPopupType == CARDPOPUPTYPE.NO_POPUP) {
+                    if (bForcePopup)
+                        makeCardPopupWindow(idCard, pos, CARDPOPUPTYPE.POPUP_SOMEACTIONS);
+                    else
+                        openCardAsUrl();
+                }
                 else
                     makeCardPopupWindow(idCard, pos, cardPopupType);
             });
