@@ -1573,12 +1573,12 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
     if (!dataWeek.bReuseCharts)
         g_chartsCache = {};
 
-    var divMainBoardsContainer = $(".member-boards-view");
+    var divMainBoardsContainer = $(".js-boards-page");
     var divInsertAfter = $(".boards-page-board-section");
     if (divMainBoardsContainer.length == 0 || divInsertAfter.length == 0) {
-		setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
-		return false;
-	}
+        setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
+        return false;
+    }
 
 	var classContainer = "agile_spent_items_container";
 	var divSpentItems = $("." + classContainer);
@@ -1589,7 +1589,7 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 	var strPostfixStatus = "_status";
 
 	if (divSpentItems.length == 0) {
-	    var seHeader = $('<p id="headerSEActivities" class="agile_arrow_title"><b style="margin-left:17px;">Plus S/E</b></p>');
+	    var seHeader = $('<p id="headerSEActivities" class="agile_arrow_title"><b title="Click to open or close.\nUse the week selector (top-right of this page) to change the week." style="margin-left:17px;">Plus S/E</b></p>');
 
 	    if (false) {
 	        var spanIcon = $("<span>");
