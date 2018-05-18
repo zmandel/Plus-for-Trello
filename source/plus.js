@@ -1577,6 +1577,8 @@ function processUserSENotifications(sToday,sWeek) {
 }
 
 function insertFrontpageCharts(dataWeek, user) {
+    if (g_bNoSE)
+        return;
 	var mainDiv = $("#content");
 	insertFrontpageChartsWorker(mainDiv, dataWeek, user);
 }
@@ -1591,9 +1593,9 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
     if (!dataWeek.bReuseCharts)
         g_chartsCache = {};
 
-    var divMainBoardsContainer = $(".js-boards-page");
     var divInsertAfter = $(".boards-page-board-section");
-    if (divMainBoardsContainer.length == 0 || divInsertAfter.length == 0) {
+    var divPrepend = $(".home-container"); //new trello home april 2018
+    if (divInsertAfter.length == 0 && divPrepend.length == 0) {
         setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
         return false;
     }
@@ -1608,16 +1610,9 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 
 	if (divSpentItems.length == 0) {
 	    var seHeader = $('<p id="headerSEActivities" class="agile_arrow_title"><b title="Click to open or close.\nUse the week selector (top-right of this page) to change the week." style="margin-left:17px;">Plus S/E</b></p>');
-
-	    if (false) {
-	        var spanIcon = $("<span>");
-	        var icon = $("<img>").attr("src", chrome.extension.getURL("images/iconspent.png"));
-	        icon.addClass("agile-spent-icon-homeSections");
-	        spanIcon.append(icon);
-	        seHeader.append(spanIcon);
-	    }
 	    divSpentItems = $('<div></div>').addClass(classContainer);
-	    divInsertAfter = divInsertAfter.eq(0);
+        if (divInsertAfter.length>0)
+	        divInsertAfter = divInsertAfter.eq(0);
 		
 	    divSpentItems.css("opacity", 0);
 		divSpentItems.hide();
@@ -1625,8 +1620,13 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		seContainer.append(seHeader);
 		var waiter = CreateWaiter(4, function () { //review promise
 		    seContainer.append(divSpentItems);
-		    seContainer.insertAfter(divInsertAfter);
-
+		    if (divInsertAfter.length > 0)
+		        seContainer.insertAfter(divInsertAfter);
+		    else {
+		        seHeader.addClass("seContainerNewTrello");
+		        divPrepend.css("padding-top", "14px");
+		        divPrepend.parent().prepend(seContainer);
+		    }
 		    function refreshAll() {
                 //all these is so we can have the chart drawn and height calculated before we start the slide
 		        divSpentItems.css("opacity", 0);
@@ -1664,12 +1664,14 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		});
 
 		g_bPreventChartDraw = true;
-
+		var bNewTrelloHome = bAtNewTrelloHome();
 		var tableSpentItems = $('<table id="idTableSpentItemsHome" border="0" cellpadding="0" cellspacing="0"></table>');
 		var row1 = $('<tr></tr>');
 		var row2 = $('<tr></tr>');
 		tableSpentItems.append(row1);
 		tableSpentItems.append(row2);
+		if (bNewTrelloHome)
+		    tableSpentItems.find("tbody").addClass("newTrelloHomeBackground");
 		divSpentItems.append(tableSpentItems);
 		var cellA = $('<td />');
 		var cellB = $('<td />');
@@ -1684,6 +1686,10 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 		divItemDashboardRecent.addClass("agile_spent_item_title  agile_spent_item_combo").attr("title", "Your recent S/E.\n\nTip: control+click items to open in a new tab");
 		var divItemDashboardUnspent = addModuleSection(true, false, cellA, "", idPendingModule, true, "left", false);
 		divItemDashboardUnspent.addClass("agile_spent_item_combo").attr("title", "Your remaining S/E.\n\nTip: control+click items to open in a new tab");
+		if (bNewTrelloHome) {
+		    divItemDashboardRecent.addClass("newTrelloHomeBackground");
+		    divItemDashboardUnspent.addClass("newTrelloHomeBackground");
+		}
 		chartModuleLoader(waiter, divSpentItems, cellC, "Week by user", idChartModuleSpentWeekUsers, idChartModuleSpentWeekUsers + strPostfixStatus, dataWeek, loadChartSpentWeekUser, "left", true);
 		chartModuleLoader(waiter, divSpentItems, cellD, "Week by board", idChartModuleSpentWeekBoard, idChartModuleSpentWeekBoard + strPostfixStatus, dataWeek.byBoard, loadChartSpentWeekBoard, "left", true);
 		loadDashboards(waiter, divItemDashboardRecent, divItemDashboardUnspent, user);
@@ -1748,7 +1754,7 @@ function addModuleSection(bCombobox, bEnableZoom, div, name, id, bHidden, strFlo
     var divModule = $("<DIV>");
     var divTitleContainer = $("<DIV>").addClass("agile_spent_item_title");
 
-    if (g_bNewTrello) {
+    if (true) {
         divTitleContainer.addClass("agile_spent_item_title_newTrello"); //fix width
         divModule.addClass("agile_module_newtrello");
 
@@ -1781,8 +1787,7 @@ function addModuleSection(bCombobox, bEnableZoom, div, name, id, bHidden, strFlo
     divModule.append(divTitleContainer);
     divItem = $('<div id="' + id + '"></div>').addClass("agile_spent_item notranslate");
 
-    if (g_bNewTrello)
-        divItem.addClass("agile_spent_item_newTrello");
+    divItem.addClass("agile_spent_item_newTrello");
     if (bLastRow)
         divItem.addClass("agile_spent_item_lastRow");
     divModule.append(divItem);
@@ -2226,9 +2231,14 @@ function updateUsersList(users) {
 	);
 }
 
+function bAtNewTrelloHome() {
+    return ($(".home-container").length > 0);
+}
+
 function drawSpentWeekChart(chartParams) {
     if (!g_bShowHomePlusSections)
         return;
+    var bNewTrelloHome = bAtNewTrelloHome();
 	var chart = chartParams.chart;
 	var data = chartParams.data;
 	var posLegend = chartParams.posLegend;
@@ -2281,7 +2291,7 @@ function drawSpentWeekChart(chartParams) {
 			easing: "in"
 		},
 		backgroundColor: {
-			fill: g_bNewTrello ? "#FFFFFF" : "#F0F0F0"
+		    fill: bNewTrelloHome ? "#f8f9f9" : "#FFFFFF"
 		},
 		legend: posLegend,
 		hAxis: {

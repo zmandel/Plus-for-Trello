@@ -52,12 +52,7 @@ function updateCardsWorker(boardCur, responseParam, bShowBoardTotals, defaultSE,
         if (bResetHtmlLast)
             return;
 
-        var h2 = null;
-        if (g_bNewTrello)
-            h2 = $(el);
-        else
-            h2 = $(el).children('h2');
-
+        var h2 = h2 = $(el);
         var bExcludeList = (h2.text().toLowerCase().search(g_regexExcludeList) >= 0);
         var listCur = h2.parent();
         var cards = List.cards(el);
@@ -733,16 +728,12 @@ function doSaveBoardValues(value, key) {
 	chrome.storage.local.set(pair, function () { });
 }
 
-
-var g_bNewTrello = true; //REVIEW zig: cleanup once all users move to this
-
 function getCurrentBoard() {
 	var boardNameContainerElem = $(".board-name");
 	if (boardNameContainerElem.length == 0) { //timing sensitive
 		boardNameContainerElem = $(".board-header-btn-name");
 		if (boardNameContainerElem.length == 0)
 			return null;
-		g_bNewTrello = true;
 	}
 
 	if (getIdBoardFromUrl(document.URL) == null && getIdCardFromUrl(document.URL) == null)

@@ -799,7 +799,7 @@ div#agile_help_container h3 {
 	margin-left: 38px;
 }
 
-	.agile_spent_item_title h3 {
+.agile_spent_item_title h3 {
 		display: inline;
 	}
 
@@ -993,6 +993,14 @@ table#idTableSpentItemsHome {
 table#idTableSpentItemsHome td {
 		border: none !important;
 	}
+
+.newTrelloHomeBackground {
+    background-color: #f8f9f9 !important;
+}
+
+.seContainerNewTrello {
+    padding-top:0.5em !important;
+}
 
 table#tableMarkers {
 	padding: 0px;
