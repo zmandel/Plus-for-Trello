@@ -26,6 +26,8 @@ var g_bIncreaseLogging = false;
 var g_lsKeyDisablePlus = "agile_pft_disablePageChanges"; //in page localStorage (of trello.com content script) so it survives plus reset sync
 var g_language = "en";
 var g_bProVersion = false;
+var g_bFromBackground = false;
+
 const KEY_LS_NEEDSHOWPRO = "keyNeedShowProInfo";
 
 const ID_PLUSBOARDCOMMAND = "/PLUSCOMMAND"; //review zig: remnant from undocumented boardmarkers feature. newer commands do not use this.
@@ -617,21 +619,37 @@ function strTruncate(str, length) {
 }
 
 function sendExtensionMessage(obj, responseParam, bRethrow) {
-	try {
-	    chrome.runtime.sendMessage(obj, function (response) {
-	        try {
-	            if (response && response.bExtensionNotLoadedOK)
-	                return; //safer to not respond
 
-	            if (chrome.runtime.lastError) //could happen on error connecting to the extension. that case response can even be undefined https://developer.chrome.com/extensions/runtime#method-sendMessage
-	                throw new Error(chrome.runtime.lastError.message);
+   
+    function preResponse(response) {
+        try {
+            if (response && response.bExtensionNotLoadedOK)
+                return; //safer to not respond
 
-			    if (responseParam)
-			        responseParam(response);
-			} catch (e) {
-				logException(e);
-			}
-		});
+            if (chrome.runtime.lastError) //could happen on error connecting to the extension. that case response can even be undefined https://developer.chrome.com/extensions/runtime#method-sendMessage
+                throw new Error(chrome.runtime.lastError.message);
+
+            if (responseParam)
+                responseParam(response);
+        } catch (e) {
+            logException(e);
+        }
+    }
+
+    try {
+        //sending a message from bk to bk doesnt work, so do it manually
+        if (g_bFromBackground && chrome.runtime && chrome.runtime.getBackgroundPage) {
+            chrome.runtime.getBackgroundPage(function (bkPage) {
+                try {
+                    bkPage.handleExtensionMessage(obj, preResponse);
+                } catch (e) {
+                    logException(e);
+                }
+            });
+            return;
+        }
+
+        chrome.runtime.sendMessage(obj, preResponse);
 	} catch (e) {
 		logException(e);
 		if (bRethrow)
@@ -1593,7 +1611,7 @@ function findAllActiveTimers(callback) {
     });
 }
 
-function removeTimerForCard(idCardParsed) {
+function removeTimerForCard(idCardParsed, bWarn) {
     var hash = getCardTimerSyncHash(idCardParsed);
     chrome.storage.sync.get([SYNCPROP_ACTIVETIMER, hash], function (obj) {
         var bDeleteActive = false;
@@ -1607,6 +1625,10 @@ function removeTimerForCard(idCardParsed) {
 
         if (rgPropsRemove.length == 0)
             return;
+
+        if (bWarn && !confirm("You no longer have access to the card. Remove the timer?"))
+            return;
+
         chrome.storage.sync.remove(rgPropsRemove, function () {
             if (chrome.runtime.lastError !== undefined) {
                 sendDesktopNotification("Error while removing the timer: " + chrome.runtime.lastError.message);

@@ -576,7 +576,7 @@ function setUninstallURLCustom() {
 var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
-
+        g_bFromBackground = true; //from shared
         setUninstallURLCustom();
         //prevent too old Chrome versions.
         //Must support at least Promises (Chrome 33) http://caniuse.com/#feat=promises
@@ -1073,6 +1073,14 @@ chrome.runtime.onConnect.addListener(function (port) {
 
 
 chrome.runtime.onMessage.addListener(function (request, sender, sendResponseParam) {
+    var idTab = null;
+    if (sender && sender.tab)
+        idTab = sender.tab.id || null;
+    return handleExtensionMessage(request, sendResponseParam, idTab);
+});
+
+
+function handleExtensionMessage(request, sendResponseParam, idTabSender) {
     var responseStatus = { bCalled: false };
 
 
@@ -1081,7 +1089,7 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             if (sendResponseParam)
                 sendResponseParam(obj);
         } catch (e) {
-                logException(e);
+            logException(e);
         }
         responseStatus.bCalled = true;
     }
@@ -1142,11 +1150,11 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "notifyCardTab") {
-            handlenotifyCardTab(request.idCard, sender.tab.id);
+            handlenotifyCardTab(request.idCard, idTabSender);
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "notifyBoardTab") {
-            handlenotifyBoardTab(request.idBoard, sender.tab.id);
+            handlenotifyBoardTab(request.idBoard, idTabSender);
             sendResponse({ status: STATUS_OK });
         }
         else if (request.method == "showAllActiveTimerNotifications") {
@@ -1165,10 +1173,14 @@ chrome.runtime.onMessage.addListener(function (request, sender, sendResponsePara
             handleTimerWindowLoaded(request.idCard, request.bClearAndMinimize);
             sendResponse({ status: STATUS_OK });
         }
+        else if (request.method == "completedFirstSync") {
+            sendResponse({ status: STATUS_OK, bCompletedFirstSync: ((localStorage["plus_bFirstTrelloSyncCompleted"] || "") == "true") });
+        }
         else if (request.method == "timerWindowRestored") {
             handleTimerWindowRestored(request.idCard);
             sendResponse({ status: STATUS_OK });
-        } 
+        }
+
         else if (request.method == "getBoardsWithoutMe") {
             buildBoardsWithoutMe(function (response) {
                 sendResponse(response);
@@ -1351,7 +1363,7 @@ If you instead want to disable timer popups do so from Plus preferences.");
                 }
             }
             if (text && (obj == null || !obj.cards || obj.cards.length != obj.totalCards)) {
-                status="Invalid JSON text format.";
+                status = "Invalid JSON text format.";
             } else if (!text || obj.totalCards <= 0)
                 status = "No cards to process.";
             else {
@@ -1368,9 +1380,10 @@ If you instead want to disable timer popups do so from Plus preferences.");
             sendResponse({});
     }
 
-	if (!responseStatus.bCalled)
-	    return true;
-});
+    if (!responseStatus.bCalled)
+        return true;
+}
+
 
 function handleCopyClipboard(html, sendResponse) {
     if (window.getSelection && document.createRange) {
@@ -2330,6 +2343,11 @@ function handlenotifyBoardTab(idBoard, tabid) {
 }
 
 /* handleCheckLi
+ * can return in status:
+ * STATUS_OK
+ * "hasLicense" : the user already had an active license.
+ * "TOKEN_MISSING_ERROR" : user is not signed-in to Chrome
+ * other random errors that Chome might return
 **/
 function handleCheckLi(sendResponse) {
 
@@ -2367,8 +2385,11 @@ function handleCheckLi(sendResponse) {
             handleHitAnalyticsEvent("LicActivation", strError, true);
             if (onError)
                 onError();
-            else
+            else {
+                if (data && data.response && data.response.errorType == "TOKEN_MISSING_ERROR") //user is not signed-in
+                    strError = data.response.errorType; 
                 respond(strError);
+            }
             return;
         }
 

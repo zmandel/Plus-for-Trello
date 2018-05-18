@@ -57,8 +57,13 @@ function isSpecialPayTestUser() {
 
 var g_waiterLi = CreateWaiter(2, function () {
     assert(g_userTrelloCurrent); //waiters ensure user and db are loaded at this point
-    if (isSpecialPayTestUser())
-        setTimeout(checkLi, 2000);
+    if (isSpecialPayTestUser()) {
+        sendExtensionMessage({ method: "completedFirstSync" }, function (response) {
+            if (response && response.status == STATUS_OK && response.bCompletedFirstSync)
+                setTimeout(checkLi, 2000);
+        });
+        
+    }
 });
 
 var g_optIsPlusDisplayDisabled = null; //null means uninitialized. dont use directly. private to below
@@ -2478,6 +2483,8 @@ function checkLi(bForce) {
                                 sendDesktopNotification("Successful activation. Enjoy!");
                             else if (response.status == "hasLicense")
                                 sendDesktopNotification("Existing license found (was already activated). Enjoy!", 12000); //user not using Chrome sign-in (storage sync) or crashed just after payment and before saving to storage.
+                            else if (response.status == "TOKEN_MISSING_ERROR")
+                                sendDesktopNotification("Please sign-in to Chrome before buying. In the top right of Chrome, click the button with your name or 'People'.", 12000);
                             else {
                                 if (response.status == "PURCHASE_CANCELED")
                                     sendDesktopNotification("License not activated because the purchase was cancelled.", 12000);

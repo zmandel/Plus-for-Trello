@@ -302,67 +302,83 @@ function restartPlus(message) {
 }
 
 function clearAllStorage(callback) {
-	chrome.storage.sync.clear(function () {
-	    chrome.storage.local.clear(function () {
-	        var keyUrlLast = "serviceUrlLast";
-	        var pairsLocal = {};
-	        if (g_strServiceUrl)
-	            pairsLocal["serviceUrlLast"] = g_strServiceUrl; //restore it to  prevent the "spreadsheet permissions" preface dialog from showing after a reset 
-	        pairsLocal[LOCALPROP_PRO_VERSION] = g_bProVersion;
-	        chrome.storage.local.set(pairsLocal, function () {
-	            if (chrome.runtime.lastError) {
-	                console.log(chrome.runtime.lastError.message);
-	                alert(chrome.runtime.lastError.message);
-	            }
-	            continueClear();
-	        });
-	    });
-	});
+    var propsSyncSave = {};
+    chrome.storage.sync.get([SYNCPROP_LIDATA], function (obj) {
+        if (chrome.runtime.lastError) {
+            console.error(chrome.runtime.lastError.message);
+        } else {
+            propsSyncSave = obj;
+        }
 
-	function continueClear() {
-	    sendExtensionMessage({ method: "clearAllStorage" },
-            function (response) {
-                setTimeout(function () {
-                    //keep the important user preferences
-                    var objSet = {
-                        'serviceUrl': g_strServiceUrl,
-                        'bDisabledSync': g_bDisableSync,
-                        'bDontWarnParallelTimers': g_bDontWarnParallelTimers,
-                        'bIgnoreZeroECards': g_bAllowNegativeRemaining,
-                        'bAcceptSFT': g_bAcceptSFT,
-                        'bUserSaysDonated': g_bUserDonated,
-                        'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
-                        'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
-                        'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
-                        'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
-                        'bHidePendingCards': g_bHidePendingCards,
-                        'bHideLessMore': g_bHideLessMore,
-                        'dowStart': DowMapper.getDowStart(),
-                        'dowDelta': DowMapper.getDowDelta(),
-                        'msStartPlusUsage': g_msStartPlusUsage,
-                        'bSyncOutsideTrello': g_bSyncOutsideTrello,
-                        'bChangeCardColor': g_bChangeCardColor,
-                        'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
-                        'units': UNITS.current,
-                        'bDisplayPointUnits': g_bDisplayPointUnits
-                    };
+        clearAllStorageWorker(callback);
+    });
 
-                    objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync)? true :  false;
-                    objSet[SYNCPROP_language] = g_language;
-
-                    chrome.storage.sync.set(objSet,
-                        function () {
-                            if (chrome.runtime.lastError) {
-                                alert(chrome.runtime.lastError.message);
-                                return;
-                            }
-
-                            if (callback !== undefined)
-                                callback();
-                        });
-                }, 1000); //wait 1000 to avoid quota issues after sync.clear
+    function clearAllStorageWorker(callback) {
+        chrome.storage.sync.clear(function () {
+            chrome.storage.local.clear(function () {
+                var keyUrlLast = "serviceUrlLast";
+                var pairsLocal = {};
+                if (g_strServiceUrl)
+                    pairsLocal["serviceUrlLast"] = g_strServiceUrl; //restore it to  prevent the "spreadsheet permissions" preface dialog from showing after a reset 
+                pairsLocal[LOCALPROP_PRO_VERSION] = g_bProVersion;
+                chrome.storage.local.set(pairsLocal, function () {
+                    if (chrome.runtime.lastError) {
+                        console.log(chrome.runtime.lastError.message);
+                        alert(chrome.runtime.lastError.message);
+                    }
+                    continueClear();
+                });
             });
-	}
+        });
+
+        function continueClear() {
+            sendExtensionMessage({ method: "clearAllStorage" },
+                function (response) {
+                    setTimeout(function () {
+                        //keep the important user preferences
+                        var objSet = {
+                            'serviceUrl': g_strServiceUrl,
+                            'bDisabledSync': g_bDisableSync,
+                            'bDontWarnParallelTimers': g_bDontWarnParallelTimers,
+                            'bIgnoreZeroECards': g_bAllowNegativeRemaining,
+                            'bAcceptSFT': g_bAcceptSFT,
+                            'bUserSaysDonated': g_bUserDonated,
+                            'bEnableTrelloSync': g_bDisableSync ? false : g_bEnableTrelloSync, //note g_bDisableSync is used to "fully" reset sync
+                            'bEnterSEByCardComments': g_bDisableSync ? false : g_optEnterSEByComment.bEnabled, //dont use IsEnabled() as it also uses g_bEnableTrelloSync
+                            'rgKWFCC': JSON.stringify(g_optEnterSEByComment.rgKeywords),
+                            'bAlwaysShowSpentChromeIcon': g_optAlwaysShowSpentChromeIcon,
+                            'bHidePendingCards': g_bHidePendingCards,
+                            'bHideLessMore': g_bHideLessMore,
+                            'dowStart': DowMapper.getDowStart(),
+                            'dowDelta': DowMapper.getDowDelta(),
+                            'msStartPlusUsage': g_msStartPlusUsage,
+                            'bSyncOutsideTrello': g_bSyncOutsideTrello,
+                            'bChangeCardColor': g_bChangeCardColor,
+                            'bSumFilteredCardsOnly': g_bCheckedbSumFiltered,
+                            'units': UNITS.current,
+                            'bDisplayPointUnits': g_bDisplayPointUnits
+                        };
+
+                        for (var propSaved in propsSyncSave)
+                            objSet[propSaved] = propsSyncSave[propSaved];
+                        
+                        objSet[SYNCPROP_bStealthSEMode] = (g_bStealthSEMode && g_strServiceUrl && !g_bDisableSync) ? true : false;
+                        objSet[SYNCPROP_language] = g_language;
+
+                        chrome.storage.sync.set(objSet,
+                            function () {
+                                if (chrome.runtime.lastError) {
+                                    alert(chrome.runtime.lastError.message);
+                                    return;
+                                }
+
+                                if (callback !== undefined)
+                                    callback();
+                            });
+                    }, 1000); //wait 1000 to avoid quota issues after sync.clear
+                });
+        }
+    }
 }
 
 function RequestNotificationPermission(callback) {

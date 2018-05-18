@@ -204,7 +204,7 @@ function loadBurndown() {
 	    e.preventDefault();
 	    var nameChart = window.prompt("Name for the PNG file:", "burndown");
 	    var elemChart = $("#timeline");
-        //hack alert: qtip library uses html titles, but SVG doesnt like them. Thus we strip all titles here from SVG that (qtip sets oldTitle) 
+        //hack alert: qtip library uses html titles, but SVG doesnt like them. Thus we strip all titles here from SVG (qtip sets oldTitle) 
 	    var elemsClean = document.querySelectorAll("[oldTitle]");
 	    for (var iClean = 0; iClean < elemsClean.length; iClean++) {
 	        elemsClean[iClean].removeAttributeNS(null, "title");

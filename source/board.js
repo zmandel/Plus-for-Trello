@@ -596,8 +596,10 @@ function updateCards(boardCur, responseParam, bShowBoardTotals, bRecalcAgedCards
         if (boardCur == null && idCardParsed) {
             //see if its a deleted card
             elemDetect = $(".big-message h1");
-            if (elemDetect.length > 0 && elemDetect[0].innerText.indexOf("Card not found") >= 0) {
-                removeTimerForCard(idCardParsed);
+            if (elemDetect.length > 0) {
+                var elemCardAny = $('.list-card-details');
+                if (elemCardAny.length==0)
+                    removeTimerForCard(idCardParsed, true);
             }
         }
         if (response)

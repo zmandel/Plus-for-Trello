@@ -541,7 +541,7 @@ div#agile_help_container {
 	top: 0em;
 	width: 56em;
 	z-index: 1001;
-	overflow: scroll;
+	overflow-y: scroll;
 }
 
 /*

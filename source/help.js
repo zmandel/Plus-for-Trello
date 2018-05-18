@@ -214,7 +214,7 @@ var Help = {
 	    }
 	    keepSyncPaused(true);
 
-	    var container = $('<div id="agile_help_container" tabindex="0"></div>').height($(window).height());
+	    var container = $('<div id="agile_help_container" tabindex="0"></div>').height($(window).innerHeight()-20); //-20 prevents trello from adding a vertical scrollbar
 	    container.keydown(function (evt) {
 	        evt.stopPropagation(); //dont let it bubble to document. in some pages like boards, document hooks into keyboard events for card navigation, which breaks scrolling here with down-arrow etc
 	        return true; //do default action for this element
