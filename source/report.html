@@ -33,7 +33,9 @@
     <div id="divMain" style="margin:0;padding:0;display:none;">
         <div class="agile_toplevel_report_container">
             <div id= "report_top_section" align="center" style="margin-bottom:10px;margin-top:10px;">
-                <a style="display:none;position:absolute;left:5em;top:1em;" id="progress"></a>
+                <div style="position:absolute;left:5em;top:1em;" id="progress">
+                    <span id="progressText"></span><span style="margin-left:1em;" id="progressAnim"></span>
+                </div>
                 <div style="width:100%" id="agile_title_header_report">
                 <button disabled style="float:left;height: 20px; width:47px;padding: 0px; margin-top: 2px; padding-left: 2px; padding-right: 2px" id="buttonFilter">•••</button>
                     <span id="report_title_text">&nbsp;</span>
@@ -68,7 +70,7 @@ When grouping by 'S/E rows', cards without S/E do not appear in the report.
                     <p class="agile_report_filter_label">Group by</p>
                     <select id="groupBy" style="width:9.5em;">
                         <option value="" title="With this option the report will be based solely on 'S/E rows'.\nCards without S/E will not show.\nSuch cards, lists and boards show in other group options .">S/E rows</option>
-                        <option value="user">User</option>
+                        <option value="user">User (S/E user)</option>
                         <option value="idTeamH" title="Groups resulting cards and 'S/E rows' by team.\nColumns like 'date' use the newest row in each team.">Team</option>
                         <option value="idTeamH-user" title="Groups resulting cards and 'S/E rows' by team & user.\nColumns like 'date' use the newest row in each team.">Team-User</option>
                         <option value="idBoardH" title="Groups resulting cards and 'S/E rows' by board.\nColumns like 'date' use the newest row in each board.">Board</option>
@@ -324,6 +326,12 @@ Do not check this option if you are only looking at Spent or card counts.">
                         <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
                     </div>
                     <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
+                    
+                    <div class="report_options_item">
+                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkAddCustomFields" />
+                        <label class="agile_unselectable" for="checkAddCustomFields">Include Trello custom fields</label>
+                    </div>
+
                     <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
                         <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
                         <label class="agile_unselectable" for="checkNoLabelColors">No color in labels in the Report tab</label>
@@ -511,7 +519,7 @@ Note: current week always ignores 'under' format.">
                             <div id="tooltipChart" class="qtip-dark chart-tooltip-custom" style="display:none;z-index: 2147483600"></div>
                             <div id="chartPrintContainer" style="display:block;padding-left:1em;padding-right:2em;padding-bottom:1em;padding-top:1em;">
                                 <div id="chart" style="display:block;overflow:hidden;"></div>
-                                <div id="labelGetPro" style="font-size:90%;text-align: center;display:none;margin-top:3em;cursor:pointer !important;color:#838C91;">Enable the Pro version. Click for more.</div>
+                                <div id="labelGetPro" style="font-size:90%;text-align: center;display:none;margin-top:3em;cursor:pointer !important;color:#838C91;">Use our Pro version! Click for more.</div>
                             </div>
                         </div>
                     </div>

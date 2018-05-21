@@ -235,6 +235,13 @@ function handleSyncDBWorker(request, sendResponseParam) {
     }
 
     if (!isDbOpened() || g_cWriteSyncLock != 0 || g_cReadSyncLock != 0 || g_cFullSyncLock != 0 || g_syncStatus.bSyncing) {
+        if (request && request.bUserInitiated && g_msRequestedSyncPause > 0) {
+            handleShowDesktopNotification({
+                notification: "Close the Plus help pane to sync with Trello.",
+                timeout: 5000
+            });
+        }
+
         sendResponseParam({ status: "busy" });
         return;
     }
@@ -1510,7 +1517,7 @@ function handleOpenDB(options, sendResponseParam, cRetries) {
                     if (localStorage[LS_KEY_detectedErrorLegacyUpgrade]) {
                         handleShowDesktopNotification({
                             notification: "Plus detected a migration error. 'Reset sync' from Utilities in Plus help to recover missing legacy S/E rows.",
-                            timeout: 40000
+                            timeout: 10000
                         });
                     }
                 }

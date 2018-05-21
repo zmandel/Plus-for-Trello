@@ -29,6 +29,7 @@ const g_heightLine = 28;
 const g_maxLegendsPerColumn = 30;
 const g_maxLegendColumns = 3;
 const PROP_LS_bShowedDefaultCPMCountsListFilter = "bShowedDefaultCPMCountsListFilter";
+const CF_PREFIX = "cf:";
 
 const g_chartViews = { //do not modify existing options, as those could be in saved user's bookmarks
     s: "s",
@@ -88,7 +89,8 @@ const g_columnData = {
     labels: ["labels","idCardH"],
     note: ["comment"],
     r: ["r"],
-    s: ["s"]
+    s: ["s"],
+    cf: ["cf", "idCardH"] //any custom field
 };
 
 var g_colours = { //thanks http://stackoverflow.com/a/1573141/2213940
@@ -180,6 +182,25 @@ function updateNamedReport(url) {
         localStorage[g_namedParams.namedReport + ":" + g_namedReport] = url;
 }
 
+window.onerror = function (msg, url, lineNo, columnNo, error) {
+    var string = msg.toLowerCase();
+    var substring = "script error";
+    var message;
+    if (string.indexOf(substring) > -1) {
+        message = 'Script Error: See background browser console for details. ' + msg;
+    } else {
+        message = [
+            'Message: ' + msg,
+            'URL: ' + url,
+            'Line: ' + lineNo,
+            'Error object: ' + JSON.stringify(error)
+        ].join(' - ');
+    }
+    console.log(message);
+    alert(message);
+    return false;
+};
+
 function updateUrlState(params) {
     if (g_namedReport)
         params[g_namedParams.namedReport] = g_namedReport;
@@ -190,7 +211,9 @@ function updateUrlState(params) {
     updateNamedReport(url);
 }
 
+var g_msLastLoadedGlobals = 0;
 function loadStorageGlobals(callback) {
+    g_msLastLoadedGlobals = Date.now();
     chrome.storage.sync.get([SYNCPROP_NO_SE, SYNCPROP_NO_EST, KEY_bIgnoreZeroECards, KEY_FORMAT_PIVOT_USER, KEY_FORMAT_PIVOT_BOARD, KEY_bEnableTrelloSync, keybEnterSEByCardComments, keyrgKeywordsforSECardComment], function (objs) {
         if (objs[KEY_FORMAT_PIVOT_USER] !== undefined)
             g_dataFormatUser.format = objs[KEY_FORMAT_PIVOT_USER];
@@ -661,6 +684,7 @@ function updateOutputFormat(format) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
+    g_progress.init();
     loadStorageGlobals(function () {
         loadAll();
     });
@@ -1558,7 +1582,7 @@ function loadReport(params) {
         stackBy: "", checkNoColorsChart: "false", checkBGColorChart: "false", colorChartBackground: "#FFFFFF", chartView: g_chartViews.cardcount, keyword: "showhide", groupBy: "", pivotBy: "", orderBy: "date", showZeroR: "", sinceSimple: sinceSimple, weekStart: "", weekEnd: "",
         monthStart: "", monthEnd: "", user: "", team: "", board: "", list: "", card: "", label: "", comment: "", eType: "all", archived: "0", deleted: "0",
         idBoard: "showhide", idCard: "showhide", checkNoCrop: "false", afterRow: "showhide", checkNoCharts: "false",
-        checkNoLabelColors: "false", checkNoBracketNotes: false, checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
+        checkAddCustomFields: "false", checkNoLabelColors: "false", checkNoBracketNotes: false, checkOutputCardShortLink: "false", checkOutputBoardShortLink: "false", checkOutputReport: "false", outputFormat: "csv", checkOutputCardIdShort: "false",
         checkHideAnnotationTexts: "false", checkHideZoomArea: false, checkSyncBeforeQuery: "false", checkNoPartialE: "false"
     };
 
@@ -1629,7 +1653,19 @@ function loadReport(params) {
     updateDateState();
     var btn = $("#buttonFilter");
 
+    //g_msLastLoadedGlobals = Date.now();
     function onQuery(bFirstTime) {
+        if (Date.now() - g_msLastLoadedGlobals > 1000) {
+            //this helps when changing options from another tab and querying again, ie when enabling pro version we dont want to again say its not enabled
+            loadStorageGlobals(function () {
+                onQueryWorker(bFirstTime);
+            });
+        } else {
+            onQueryWorker(bFirstTime);
+        }
+        
+    }
+    function onQueryWorker(bFirstTime) {
         if (bFirstTime && g_bBuildSqlMode)
             bFirstTime = false;
 
@@ -2029,7 +2065,7 @@ function buildSql(elems) {
     sql += buildAllParams(state, true);
 
     if ((groupByLower != "" || g_bBuildSqlMode) &&
-        !elems["user"] && //these two imply s/e rows (except when using NOT, but even thewn it could be unexpected). Card count charts are better for finding those.
+        !elems["user"] && //these two imply s/e rows (except when using NOT, but even then it could be unexpected). Card count charts are better for finding those.
         !elems["keyword"] &&
         elems["checkNoPartialE"]!=="true" &&
         !bOrderByR) {
@@ -2061,17 +2097,46 @@ function buildSql(elems) {
     return { sql: sql, values: state.values, bByROpt: bByROpt, bHasUnion: bHasUnion, bOrderAsc: direction == "ASC" };
 }
 
+var g_progress = {
+    m_container: null,
+    m_text: null,
+    m_anim: null,
+    init: function () {
+        if (this.m_text)
+            return;
+        this.m_container = $("#progress");
+        this.m_text = $("#progressText");
+        this.m_anim = $("#progressAnim");
+    },
+    show: function (bShow) {
+        if (bShow)
+            this.m_container.show();
+        else
+            this.m_container.hide();
+    },
+    text: function (text) {
+        this.m_text.text(text);
+        if (!text)
+            this.anim("");
+    },
+    anim: function (text) {
+        this.m_anim.text(text);
+    }
+};
+
 function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     var elems = cloneObject(elemsParam);
     var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] === "true");
+    var bIncludeCustomFields = (elems["checkAddCustomFields"] == "true");
     var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
     if (customColumns.length == 1 && customColumns[0] == "")
         customColumns = [];
 
     if (!g_bProVersion) {
-        if (bSyncBeforeQuery || elems.customColumns) {
+        if (bSyncBeforeQuery || elems.customColumns || bIncludeCustomFields) {
             bSyncBeforeQuery = false;
-            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane in trello.com", 10000);
+            bIncludeCustomFields = false;
+            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane", 7000);
         }
     }
 
@@ -2087,7 +2152,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         elems["archived"] = "0"; //default to "Not archived"
 
     
-    var rgelemsFalse = ["checkNoCrop", "checkBGColorChart", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
+    var rgelemsFalse = ["checkAddCustomFields", "checkNoCrop", "checkBGColorChart", "checkNoCharts", "checkNoColorsChart", "checkNoLabelColors", "checkNoPartialE",
     "checkSyncBeforeQuery", "checkOutputCardShortLink", "checkOutputBoardShortLink", "checkOutputCSV", 
     "checkOutputCardIdShort", "checkHideAnnotationTexts", "checkHideZoomArea", "checkNoBracketNotes"];
 
@@ -2152,13 +2217,12 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 			        showError(response.status);
 			        return;
 			    }
-			    var elemProgress = $("#progress");
 			    if (bSyncBeforeQuery) {
-			        elemProgress.text("Syncing...").show();
+			        g_progress.text("Syncing...");
 			        sendExtensionMessage({ method: "plusMenuSync" }, function (response) {
 			            if (response.status != STATUS_OK)
 			                alert(response.status);
-			            elemProgress.text("").hide();
+			            g_progress.text("");
 			            doSQLReportPart();
 			        });
 
@@ -2167,10 +2231,10 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 			    }
 
 			    function doSQLReportPart() {
-			        elemProgress.text("Querying...").show();
+			        g_progress.text("Querying...");
 			        getSQLReport(sqlQuery.sql, sqlQuery.values,
                         function (response) {
-                            elemProgress.text("").hide();
+                            g_progress.text("");
                             if (response.status != STATUS_OK) {
                                 showError(response.status);
                                 return;
@@ -2181,6 +2245,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                 var options = {
                                     bNoTruncate: elems["checkNoCrop"] == "true",
                                     bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
+                                    bAddCustomFields: bIncludeCustomFields,
                                     bExcludeCardsWithPartialE: elems["checkNoPartialE"]=="true",
                                     bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
                                     bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
@@ -2192,10 +2257,10 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                     bCheckOutputXLS: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"] == "xls"
                                 };
 
-                                elemProgress.text("Filling...").show();
+                                g_progress.text("Filling...");
 
                                 setReportData(rows, options, elems, sqlQuery, function onOK() {
-                                    elemProgress.text("").hide();
+                                    g_progress.text("");
                                     if (options.bCheckOutputCSV || options.bCheckOutputXLS) {
                                         setTimeout(function () {
                                             var elem = $("#tabs-0 table")[0];
@@ -2462,6 +2527,38 @@ function skipRowsWithPartialE(rows, bOrderAsc) {
     }
 }
 
+function processThreadedItemsReport(items, onPreProcessItem, onProcessItem, onFinishedAll) {
+    var rg = ["◐", "◓", "◑", "◒"];
+    var msStart = 0;
+    var iFound = 0;
+    var msLast = 0;
+    function onFinishedEach(status) {
+        if (status == STATUS_OK) {
+            var msNow = Date.now();
+            if (msStart == 0) {
+                msStart = msNow;
+                msLast = msNow;
+            }
+            var msDelta = msNow - msLast;
+            if (msDelta > 50) {
+                msLast = msNow;
+                iFound=(iFound+1)%rg.length;
+            }
+            if (msNow - msStart > 4000) {
+                text = rg[iFound];
+                g_progress.anim(text);
+            }
+            }
+        }
+
+    function onFinishAllLocal(status) {
+        g_progress.text("");
+        onFinishedAll(status);
+    }
+
+    processThreadedItems(null, items, onPreProcessItem, onProcessItem, onFinishedAll, onFinishedEach, false);
+}
+
 function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
     var rowsGrouped = rowsOrig;
     const groupBy = urlParams["groupBy"];
@@ -2495,16 +2592,180 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
 
     var bShowCard = (groupBy == "" || groupBy.indexOf("idCardH") >= 0 || groupBy.indexOf("labels") >= 0); //review zig: dup elsewhere
     var bShowLabels = (bShowCard && g_bProVersion && (options.customColumns.length==0 || options.customColumns.indexOf("labels") >= 0));
-    if (!bShowLabels) {
-        stepGroup(null);
-    }
-    else {
-        fillMapCardsToLabels(rowsOrig, options, function (map) {
-            stepGroup(map);
+
+    stepCustomFields(function (status, cfmetaData, cardData) {
+        var customFieldsData = { cfmetaData: cfmetaData, cardData: cardData };
+        if (!bShowLabels) {
+            stepGroup(null, customFieldsData);
+        }
+        else {
+            fillMapCardsToLabels(rowsOrig, options, function (map) {
+                stepGroup(map, customFieldsData);
+            });
+        }
+    });
+
+    function stepCustomFields(callback) {
+        if (groupBy == "" || !options.bAddCustomFields) {
+            callback(STATUS_OK, {}, {});
+            return;
+        }
+        var boards = {};
+        var cards = {};
+        var row;
+        var i;
+        var prop;
+        for (i = 0; i < rowsOrig.length; i++) {
+            row = rowsOrig[i];
+            if (row.idBoardH && row.idBoardH != IDBOARD_UNKNOWN) {
+                if (!boards[row.idBoardH])
+                    boards[row.idBoardH] = true;
+            }
+            if (row.idCardH) {
+                if (!cards[row.idCardH])
+                    cards[row.idCardH] = true;
+            }
+        }
+
+        function doneGetCustomFieldsData(status, boardDataIn, cardDataIn) {
+            if (status != STATUS_OK) {
+                sendDesktopNotification("Custom fields missing because: " + status, 5000);
+                callback(status, {}, {});
+                return;
+            }
+            //transform boardData
+            var cfmetaDataOut = {};
+            var cardDataOut = {};
+            var mapFindDups = {};
+            
+
+            for (var idBoardShort in boardDataIn) {
+                var bf = boardDataIn[idBoardShort];
+                if (!bf)
+                    continue;
+                bf.forEach(function (entry) {
+                    //NOTE: we remap trellos checkbox type so it can be grouped
+                    var bCheckbox = (entry.type == "checkbox");
+                    var objSet = { type: bCheckbox ? "number" : entry.type, name: entry.name };
+                    if (entry.type == "list")
+                        objSet.options = entry.options;
+                    cfmetaDataOut[entry.id] = objSet;
+                    var idMap = (objSet.type + "-" + objSet.name.trim()).toLowerCase();
+                    var foundIdMap = mapFindDups[idMap];
+                    if (foundIdMap)
+                        objSet.idMaster = foundIdMap;
+                    else
+                        mapFindDups[idMap] = entry.id;
+                    if (bCheckbox)
+                        cfmetaDataOut[entry.id].bCheckbox = true;
+                });
+            }
+
+            var rgCFIds = [];
+            for (var idCF in cfmetaDataOut) {
+                if (!cfmetaDataOut[idCF].idMaster)
+                    rgCFIds.push(idCF);
+            }
+            rgCFIds.sort(function (a, b) {
+                var cmp = cfmetaDataOut[a].name.toLowerCase().trim().localeCompare(cfmetaDataOut[b].name.toLowerCase().trim());
+                if (cmp == 0)
+                    cmp = cfmetaDataOut[a].type.localeCompare(cfmetaDataOut[b].type);
+                return cmp;
+            });
+            cfmetaDataOut.sortedColumns = rgCFIds;
+            var messageErrorLast = "";
+            for (var idCardShort in cardDataIn) {
+                try {
+                    var cf = cardDataIn[idCardShort];
+                    if (cf && cf.customFieldItems) {
+                        cardDataOut[idCardShort] = {};
+
+                        cf.customFieldItems.forEach(function (entry) {
+                            var bdata = cfmetaDataOut[entry.idCustomField];
+                            if (bdata) {
+                                //warning: entry.value can be undefined
+                                var valSet = (bdata.bCheckbox ? (entry.value && entry.value.checked == "true" ? { number: 1 } : { number: 0 }) : entry.value);
+                                if (bdata.type == "list") {
+                                    for (var iOption = 0; iOption < bdata.options.length; iOption++) {
+                                        var bdataOptsCur = bdata.options[iOption];
+                                        if (bdataOptsCur.id == entry.idValue) {
+                                            valSet = { list: bdataOptsCur.value.text };
+                                            break;
+                                        }
+                                    }
+
+                                }
+
+                                if (valSet)
+                                    cardDataOut[idCardShort][entry.idCustomField] = valSet;
+                            }
+                        });
+                    }
+                } catch (ex) {
+                    logException(ex);
+                    messageErrorLast = ex.message;
+                }
+            }
+            if (messageErrorLast)
+                alert(messageErrorLast);
+            callback(STATUS_OK, cfmetaDataOut, cardDataOut);
+        }
+
+        chrome.runtime.getBackgroundPage(function (bkPage) {
+            var rgBoards = [];
+            var boardData = {};
+            for (prop in boards)
+                rgBoards.push({ id: prop });
+
+            stepBoards();
+
+            function stepCards(status) {
+                var rgCards = [];
+                var cardData = {};
+                if (status != STATUS_OK) {
+                    doneCards(status);
+                    return;
+                }
+                for (prop in cards)
+                    rgCards.push({ id: prop });
+                processThreadedItemsReport(rgCards, null, onProcessItem, doneCards);
+                function doneCards(status) {
+                    g_progress.text("Custom fields step 3 of 3: processing");
+                    g_progress.anim("");
+                    doneGetCustomFieldsData(status, boardData, cardData);
+                }
+
+                function onProcessItem(tokenTrello, item, iitem, postProcessItem) {
+                    var idCard = item.id;
+                    g_progress.text("Custom fields step 2 of 3: " + Math.round(iitem * 100 / rgCards.length) + "%");
+                    bkPage.getCardData(tokenTrello, idCard, "id&customFieldItems=true", false, function (response) {
+                        if (response.status == STATUS_OK)
+                            cardData[idCard] = response.card;
+                        postProcessItem(response.status, item, iitem);
+                    });
+                }
+            }
+
+            function stepBoards() {
+                processThreadedItemsReport(rgBoards, null, onProcessItem, doneBoards);
+                function doneBoards(status) {
+                    stepCards(status);
+                }
+
+                function onProcessItem(tokenTrello, item, iitem, postProcessItem) {
+                    var idBoard = item.id;
+                    g_progress.text("Custom fields step 1 of 3: " + Math.round(iitem * 100 / rgBoards.length) + "%");
+                    bkPage.getBoardData(tokenTrello, false, idBoard, "/customFields", function (response) {
+                        if (response.status == STATUS_OK)
+                            boardData[idBoard] = response.board;
+                        postProcessItem(response.status, item, iitem);
+                    });
+                }
+            }
         });
     }
 
-    function stepGroup(mapCardsToLabels) {
+    function stepGroup(mapCardsToLabels, customFieldsData) {
         var bGroupMultipleHashtags = groupBy.indexOf("hashtags") >= 0;
         var bGroupMultipleLabels = groupBy.indexOf("labels") >= 0;
         var cRowsOrigBefore = rowsOrig.length;
@@ -2519,10 +2780,10 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
         }
 
         if (rowsOrig.length > cRowsOrigBefore)
-            sendDesktopNotification("This grouped report has duplicated counts and S/E sums due to cards with multiple labels or hashtags.", 5000);
+            sendDesktopNotification("This report has duplicated counts and S/E sums due to grouping of cards with multiple labels or hashtags.", 8000);
 
         if (groupBy.length > 0 || (orderBy.length > 0 && orderBy != "date")) //assumes new rows are only inserted when grouping is set
-            rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards);
+            rowsGrouped = groupRows(rowsOrig, groupBy, orderBy, bCountCards, customFieldsData);
         if (rowsGrouped.length > 3000 && bPivotByWeek) { //week is the default. else user likely changed it on purpose so dont keep reminding this tip
             const bNoCharts = (urlParams["checkNoCharts"] == "true");
             var strAlert = "To speed up this report, consider:";
@@ -2532,13 +2793,13 @@ function setReportData(rowsOrig, options, urlParams, sqlQuery, callbackOK) {
                 strAlert += "\n• In this report options section, check 'No charts'";
             sendDesktopNotification(strAlert, 6000);
         }
-        fillDOM(mapCardsToLabels, options.customColumns, callbackOK);
+        fillDOM(mapCardsToLabels, customFieldsData, options.customColumns, callbackOK);
     }
 
-    function fillDOM(mapCardsToLabels, customColumns, callbackOK) {
+    function fillDOM(mapCardsToLabels, customFieldsData, customColumns, callbackOK) {
         var bShowMonth = (urlParams["sinceSimple"].toUpperCase() == FILTER_DATE_ADVANCED.toUpperCase() && (urlParams["monthStart"].length > 0 || urlParams["monthEnd"].length > 0));
         var headersSpecial = {};
-        var html = getHtmlDrillDownTooltip(customColumns, rowsGrouped, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
+        var html = getHtmlDrillDownTooltip(customColumns, rowsGrouped, mapCardsToLabels, customFieldsData, headersSpecial, options, groupBy, orderBy, urlParams["eType"], urlParams["archived"], urlParams["deleted"], bShowMonth, sqlQuery.bByROpt);
         var parentScroller = $(".agile_report_container");
         var container = makeReportContainer(html, 1300, true, parentScroller, true);
         updateSelectedReportTotals(); //some reports include row selections
@@ -4042,7 +4303,7 @@ function calculateTables(rows, pivotBy) {
 }
 
 
-function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
+function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, customFieldsData, headersSpecial, options, groupBy, orderBy, eType, archived, deleted, bShowMonth, bByROpt) {
     var bOrderR = (orderBy == "remain");
     var header = [];
     const partsGroup = groupBy.split("-");
@@ -4051,6 +4312,11 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var headersSpecialTemp = {};
     var idCardSelect = g_idCardSelect;
     g_idCardSelect = null;
+
+    var cfmetaData = null;
+
+    if (customFieldsData)
+        cfmetaData = customFieldsData.cfmetaData;
 
     function pushSpecialLinkHeader() {
         assert(header.length > 0);
@@ -4069,6 +4335,8 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     const bCustomColumns = (customColumns.length > 0);
     //see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
     function includeCol(strCol) {
+        if (strCol.indexOf(CF_PREFIX) == 0)
+            return true;
         var colData = g_columnData[strCol];
         assert(colData);
         if (!bCustomColumns)
@@ -4079,10 +4347,14 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     var rgColumnPositions = [];
     function pushHeader(name, base, bIsAggregate, bExtended) {
         base = base || name.toLowerCase();
+        
+        var bCF = (base.indexOf(CF_PREFIX) == 0);
+        if (bCF)
+            base = "cf";
         var colData = g_columnData[base];
         assert(colData);
         
-        if (bCustomColumns) {
+        if (bCustomColumns && !bCF) {
             var iColCustom = customColumns.indexOf(base);
             assert(iColCustom>=0);
             rgColumnPositions.push(iColCustom);
@@ -4268,15 +4540,26 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
     if (bShowDeleted)
         pushHeader("Deleted");
 
+    if (cfmetaData && cfmetaData.sortedColumns) {
+        cfmetaData.sortedColumns.forEach(function (id) {
+            pushHeader(CF_PREFIX + cfmetaData[id].name, null, cfmetaData[id].type=="number");
+        });
+    }
     var dateNowCache = new Date();
     const lengthCols = header.length;
     var iPosCol;
+    var iPosExtra = 0; //for cf
     if (bCustomColumns) {
         //alert: rgColumnPositions works only if we guarantee that custom columns are ALWAYS shown. make sure all uses above of 'bCustomColumns' force the column if specified, even if Plus cant show it.
         var headerSorted = new Array(lengthCols);
         for (var iHeader = 0; iHeader < lengthCols; iHeader++) {
-            assert(iHeader < rgColumnPositions.length);
-            iPosCol = rgColumnPositions[iHeader];
+            if (iHeader >= rgColumnPositions.length) {
+                assert(header[iHeader].name.indexOf(CF_PREFIX) == 0); //its a custom field
+                iPosCol = rgColumnPositions.length + iPosExtra;
+                iPosExtra++;
+            } else {
+                iPosCol = rgColumnPositions[iHeader];
+            }
             headerSorted[iPosCol] = header[iHeader];
         }
         header = headerSorted;
@@ -4317,8 +4600,11 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
             iColPushed++;
             var iPosCol;
             if (bCustomColumns) {
-                assert(iColPushed < rgColumnPositions.length);
-                iPosCol = rgColumnPositions[iColPushed];
+                if (iColPushed >= rgColumnPositions.length) {
+                    iPosCol = iColPushed; //custom fields
+                } else {
+                    iPosCol = rgColumnPositions[iColPushed];
+                }
             } else {
                 iPosCol = iColPushed;
             }
@@ -4463,6 +4749,20 @@ function getHtmlDrillDownTooltip(customColumns, rows, mapCardsToLabels, headersS
 
         if (bShowDeleted)
             pushCol({ name: row.bDeleted ? "Yes" : "No", bNoTruncate: true });
+
+        
+        if (cfmetaData && cfmetaData.sortedColumns) {
+            cfmetaData.sortedColumns.forEach(function (id) {
+                var valCF = "";
+                cfmetaDataCur = cfmetaData[id];
+                if (row.cfData && row.cfData[id]) {
+                    if (cfmetaDataCur) {
+                        valCF = row.cfData[id].val;
+                    }
+                }
+                pushCol({ name: valCF, bNoTruncate: bNoTruncate });
+            });
+        }
 
         if (!bShowComment) {
             var title = "Last: ";

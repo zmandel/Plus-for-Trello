@@ -1967,7 +1967,8 @@ function getCardData(tokenTrello, idCardLong, fields, bBoardShortLink, callback,
     assert(idCardLong);
     assert(fields);
     assert(callback);
-    var url = "https://trello.com/1/cards/" + idCardLong + "?fields=" + fields;
+    var bFieldsIsRoute = (fields && fields.charAt(0) == "/");
+    var url = "https://trello.com/1/cards/" + idCardLong + (bFieldsIsRoute? "" : "?fields=") + fields;
     if (bBoardShortLink)
         url = url + "&board=true&board_fields=shortLink";
     var xhr = new XMLHttpRequest();
@@ -2162,106 +2163,173 @@ function removeBracketsInNote(note) {
     return note.trim();
 }
 
-function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards) {
+function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards, customFieldsData) {
 
     var ret = [];
     var i = 0;
     const cMax = rowsOrig.length;
     var row = null;
+    var cfmetaData = {};
+    var cardCF = {};
+
+    if (customFieldsData) {
+        assert(propertyGroup.length > 0); //we cant group custom fields with history rows because we would duplicate sums of custom fields 
+        cfmetaData = customFieldsData.cfmetaData;
+        cardCF = customFieldsData.cardData;
+    }
 
     //group
     if (propertyGroup.length > 0) {
-
         var map = {};
         var mapCardsPerGroup = {};
         var pGroups = propertyGroup.split("-");
         var propDateString = "dateString"; //review zig: ugly to do it here, but elsewhere requires another pass to rowsOrig
         var propDateTimeString = "dtString";
 
-        for (i=0; i < cMax; i++) {
-            row = rowsOrig[i];
+        //we need to map whether a card row was assigned a custom value, because some reports (grouped by user, keyword, etc) can repeat the same card in multiple groups.
+        //with this map we will never duplicate the custom field in other
+        var mapCardCFHandled = {};
 
-            if (row.bSkip)
-                continue;
+        try {
+            for (i=0; i < cMax; i++) {
+                row = rowsOrig[i];
 
-            if (row.date !== undefined && (row[propDateString] === undefined || row[propDateTimeString] === undefined)) {
-                var dateRow = new Date(row.date * 1000); //db is in seconds
-                row[propDateString] = makeDateCustomString(dateRow);
-                row[propDateTimeString] = makeDateCustomString(dateRow, true);
-            }
+                if (row.bSkip)
+                    continue;
 
-            var key = "";
-            var iProp = 0;
+                if (row.date !== undefined && (row[propDateString] === undefined || row[propDateTimeString] === undefined)) {
+                    var dateRow = new Date(row.date * 1000); //db is in seconds
+                    row[propDateString] = makeDateCustomString(dateRow);
+                    row[propDateTimeString] = makeDateCustomString(dateRow, true);
+                }
 
-            for (; iProp < pGroups.length; iProp++) {
-                var propname = pGroups[iProp];
-                var valCur = "";
-                if (propname == "dowName") { //review zig: not yet in UI
-                    if (!row.dowName)
-                        row.dowName = getWeekdayName(new Date(row.date * 1000).getDay(), false); //NOTE we modify the row here. needed by reports
-                    valCur = row.dowName;
-                } else if (propname == "hashtagFirst" || propname == "hashtags") {
-                    if (row.hashtagFirst === undefined) { //splitRows might have already loaded them
-                        var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
-                        if (rgHash.length > 0)
-                            valCur = rgHash[0];
-                        else
-                            valCur = "";
-                        row.hashtagFirst = valCur; //NOTE we modify the row here. needed by reports
-                    } else {
-                        valCur = row.hashtagFirst;
+                if (cardCF && cfmetaData) {
+                    //strategy for grouping custom fields is to use the "last" value (like the other fields) when not numeric.
+                    //when numeric, it adds them keeping track if a card was already added within each group (as a group can repeat the same card)
+                    //checkbox items were previously converted to numeric
+                    //numeric values are converted to float in cfData, which is later use to paint each column
+                    var cardCFCur = cardCF[row.idCardH];
+                    if (cardCFCur) {
+                        for (var idCF in cardCFCur) {
+                            var cfmetaDataCur = cfmetaData[idCF];
+                            var idCFUse = idCF;
+                            if (cfmetaDataCur.idMaster)
+                                idCFUse = cfmetaDataCur.idMaster;
+                            var cardCFCurField = cardCFCur[idCF];
+                            var valCF = "";
+                            if (cardCFCurField)
+                                valCF=cardCFCurField[cfmetaDataCur.type];
+                            if (cfmetaDataCur.type == "number")
+                                valCF = parseFloat(valCF || "0.0") || 0.0;
+                            else if (cfmetaDataCur.type == "date")
+                                valCF = makeDateCustomString(new Date(valCF), true);
+                            if (!row.cfData) {
+                                row.cfData = {};
+                                row.cfCardsGrouped = {}; //during grouping, holds whether a card was already summed
+                                row.cfCardsGrouped[row.idCardH] = true;
+                            }
+                            row.cfData[idCFUse] = { type: cfmetaDataCur.type, val: valCF };
+                        }
                     }
-                } else if (propname == "labels") {
-                    //when grouping by labels, splitRows has always prepopulated labels, and without html decoration
-                    assert(row.labels !== undefined);
-                    valCur = row.labels;
-                } else if (propname == "comment") {
-                    valCur = removeBracketsInNote(row.comment); 
-                } else {
-                    valCur = row[propname];
                 }
 
-                key = key + "/" + String(valCur).toLowerCase();
-            }
-            var group = map[key];
-            if (group === undefined)
-                group = cloneObject(row);
-            else {
-                //rowid -1 when its a card row (from the query UNION)
-                if (group.rowid == -1 && row.rowid != -1) {
-                    var sSave = group.spent;
-                    var eSave = group.est;
-                    var eFirstSave = group.estFirst;
-                    var rowidSave = group.rowid;
-                    var dateDueSave = group.dateDue;
-                    var countCardsSave = group.countCards;
-                    group = cloneObject(row); //re-clone so rows with s/e always take precedence over card-only rows.
-                    group.spent = sSave;
-                    group.est = eSave;
-                    group.estFirst = eFirstSave;
-                    group.rowid = rowidSave;
-                    group.dateDue = dateDueSave;
-                    group.countCards = countCardsSave;
-                }
-                group.spent += row.spent;
-                group.est += row.est;
-                group.estFirst += row.estFirst;
+                var key = "";
+                var iProp = 0;
 
-                if (row.rowid !== undefined && row.rowid != ROWID_REPORT_CARD && (group.rowid === undefined || row.rowid > group.rowid)) {
-                    group.rowid = row.rowid; //maintanin rowid so that a "mark all read" on a grouped report will still find the largest rowid
+                for (; iProp < pGroups.length; iProp++) {
+                    var propname = pGroups[iProp];
+                    var valCur = "";
+                    if (propname == "dowName") { //review zig: not yet in UI
+                        if (!row.dowName)
+                            row.dowName = getWeekdayName(new Date(row.date * 1000).getDay(), false); //NOTE we modify the row here. needed by reports
+                        valCur = row.dowName;
+                    } else if (propname == "hashtagFirst" || propname == "hashtags") {
+                        if (row.hashtagFirst === undefined) { //splitRows might have already loaded them
+                            var rgHash = getHashtagsFromTitle(row.nameCard || "", true);
+                            if (rgHash.length > 0)
+                                valCur = rgHash[0];
+                            else
+                                valCur = "";
+                            row.hashtagFirst = valCur; //NOTE we modify the row here. needed by reports
+                        } else {
+                            valCur = row.hashtagFirst;
+                        }
+                    } else if (propname == "labels") {
+                        //when grouping by labels, splitRows has always prepopulated labels, and without html decoration
+                        assert(row.labels !== undefined);
+                        valCur = row.labels;
+                    } else if (propname == "comment") {
+                        valCur = removeBracketsInNote(row.comment); 
+                    } else {
+                        valCur = row[propname];
+                    }
+
+                    key = key + "/" + String(valCur).toLowerCase();
+                }
+                var group = map[key];
+                if (group === undefined)
+                    group = cloneObject(row);
+                else {
+                    //rowid -1 when its a card row (from the query UNION)
+                    if (group.rowid == -1 && row.rowid != -1) {
+                        var sSave = group.spent;
+                        var eSave = group.est;
+                        var eFirstSave = group.estFirst;
+                        var rowidSave = group.rowid;
+                        var dateDueSave = group.dateDue;
+                        var countCardsSave = group.countCards;
+                        var cfDataSave = group.cfData;
+                        var cfCardsGroupedSave = group.cfCardsGrouped;
+                        group = cloneObject(row); //re-clone so rows with s/e always take precedence over card-only rows. REVIEW: investigate & documment why?
+                        group.spent = sSave;
+                        group.est = eSave;
+                        group.estFirst = eFirstSave;
+                        group.rowid = rowidSave;
+                        group.dateDue = dateDueSave;
+                        group.countCards = countCardsSave;
+                        group.cfData = cfDataSave;
+                        group.cfCardsGrouped = cfCardsGroupedSave;
+                    }
+                    group.spent += row.spent;
+                    group.est += row.est;
+                    group.estFirst += row.estFirst;
+
+                    if (!group.cfData) {
+                        group.cfData = row.cfData;
+                        group.cfCardsGrouped = row.cfCardsGrouped;
+                    }
+                    else if (row.cfData && !group.cfCardsGrouped[row.idCardH]) {
+                        group.cfCardsGrouped[row.idCardH] = true;
+                        for (var idCFCur in row.cfData) {
+                            if (!group.cfData[idCFCur]) {
+                                group.cfData[idCFCur] = row.cfData[idCFCur];
+                            }
+                            else if (row.cfData[idCFCur].type == "number") {
+                                group.cfData[idCFCur].val += row.cfData[idCFCur].val;
+                            }
+                        }
+                    }
+
+                    if (row.rowid !== undefined && row.rowid != ROWID_REPORT_CARD && (group.rowid === undefined || row.rowid > group.rowid)) {
+                        group.rowid = row.rowid; //maintanin rowid so that a "mark all read" on a grouped report will still find the largest rowid
+                    }
+                }
+                map[key] = group;
+                if (bCountCards) {
+                    if (!mapCardsPerGroup[key]) {
+                        group.countCards = 0;
+                        mapCardsPerGroup[key] = {};
+                    }
+                    if (!mapCardsPerGroup[key][row.idCardH]) {
+                        mapCardsPerGroup[key][row.idCardH] = true;
+                        group.countCards++;
+                    }
                 }
             }
-            map[key] = group;
-            if (bCountCards) {
-                if (!mapCardsPerGroup[key]) {
-                    group.countCards = 0;
-                    mapCardsPerGroup[key] = {};
-                }
-                if (!mapCardsPerGroup[key][row.idCardH]) {
-                    mapCardsPerGroup[key][row.idCardH] = true;
-                    group.countCards++;
-                }
-            }
+        } catch (ex) {
+            logException(ex);
+            alert(ex.message);
+            throw ex;
         }
 
 

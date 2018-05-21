@@ -14,6 +14,8 @@ var SQLQUERY_PREFIX_LABELCARDDATA = "select idCardShort, idLabel ";
 var g_msDelayTrelloSearch = (1000 * 60 * 5); //trello takes sometimes over a minute to show changed cards in search, so use 5min as a safe delay
 var g_lastStatusSyncCache = {}; //needed for later checking if the last sync had errors easily (not async) statusRead, statusWrite, date could all be undefined)
 
+var g_strKeyTokenTrelloLast = "tokenTrelloLast";
+
 /* array of cards where card = {
         status: "OK", //ignore it
         shortLink: "H8gGOqNk",
@@ -221,8 +223,7 @@ function handleSyncBoards(request, sendResponseParam) {
 }
 
 function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) {
-    var strKeyTokenTrelloLast = "tokenTrelloLast";
-    var tokenTrelloStored = localStorage[strKeyTokenTrelloLast];
+    var tokenTrelloStored = localStorage[g_strKeyTokenTrelloLast];
 
     g_bUpdateSyncNotificationProgress = false; //reset
     if (!tokenTrello) {
@@ -235,7 +236,7 @@ function handleSyncBoardsWorker(tokenTrello, bUserInitiated, sendResponseParam) 
         tokenTrello = tokenTrelloStored;
     }
     if (!tokenTrelloStored)
-        localStorage[strKeyTokenTrelloLast] = tokenTrello;
+        localStorage[g_strKeyTokenTrelloLast] = tokenTrello;
 
     var boardsTrello = []; //boards the user has access. This list is later intersected with the db boards list.
     var boardsReport = [];
@@ -455,12 +456,12 @@ function processUndoAllCardsNameCleanup(tokenTrello, rgUndoCardRename, sendRespo
             saveAsFile(rgErrorRenamedCards.join("\r\n"), "error log - plus for trello undo renamed cards.txt", true);
             handleShowDesktopNotification({
                 notification: "Finished undo operation of " + rgUndoCardRename.length + " cards with errors (see downloaded file).",
-                timeout: 20000
+                timeout: 8000
             });
         } else {
             handleShowDesktopNotification({
                 notification: "Finished undo operation of " + rgUndoCardRename.length + " cards OK.",
-                timeout: 20000
+                timeout: 8000
             });
         }
         sendResponse({ status: status });
@@ -542,7 +543,7 @@ function processAllCardsNameCleanup(tokenTrello, bOnlyRenameCardsWithHistory, se
                     strNotify = "Finished renaming with errors (see downloaded errors file)." + rgRenamedCards.length + " cards.\nAs a backup, all renamed cards are in the file just downloaded.";
                 handleShowDesktopNotification({
                     notification: strNotify,
-                    timeout: 20000
+                    timeout: 15000
                 });
                 sendResponse({ status: status });
             }
@@ -1760,8 +1761,8 @@ function processResetCardCommands(tokenTrello, alldata, sendResponse) {
 
 function getBoardData(tokenTrello, bOnlyCards, idBoard, params, callback, waitRetry) {
     //https://trello.com/docs/api/board/index.html
-
-    var url = "https://trello.com/1/boards/" + idBoard + (bOnlyCards? "/cards?":"?") + params;
+    var bParamsIsPath = (params && params.charAt(0) == "/");
+    var url = "https://trello.com/1/boards/" + idBoard + (bOnlyCards? "/cards?":(bParamsIsPath?"":"?")) + params;
     var xhr = new XMLHttpRequest();
     xhr.withCredentials = true; //not needed but might be chrome bug? placing it for future
     xhr.onreadystatechange = function (e) {

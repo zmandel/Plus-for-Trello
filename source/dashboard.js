@@ -986,7 +986,7 @@ function getHtmlBurndownTooltipByUser(rowsParam, bReverse, colExclude, selection
 		rgRet.push({ type: "R", name: rPush});
 		return rgRet;
 	}
-	var rows = groupRows(rowsParam, "idCardH", "date", false);
+	var rows = groupRows(rowsParam, "idCardH", "date", false, null);
 	return getHtmlBurndownTooltipFromRows(true, rows, bReverse, header, callbackRowData);
 }
 

@@ -130,25 +130,25 @@ var Help = {
         var bDisabled = (g_bDisableSync || (g_strServiceUrl == "" && !g_optEnterSEByComment.IsEnabled()));
         return !bDisabled;
     },
-	display: function () {
-	    if (this.m_bShowing || !g_dbOpened) {
-			return;
-	    }
-	    this.m_bShowing = true;
-	    this.bStartSyncOnClose = false;
-	    removeAllGrumbleBubbles();
-		var thisObj = this;
-		testExtension(function () { //show help only if connected, plus this also commits pending log messages
-			chrome.storage.sync.getBytesInUse(null,
+    display: function () {
+        if (this.m_bShowing || !g_dbOpened) {
+            return;
+        }
+        this.m_bShowing = true;
+        this.bStartSyncOnClose = false;
+        removeAllGrumbleBubbles();
+        var thisObj = this;
+        testExtension(function () { //show help only if connected, plus this also commits pending log messages
+            chrome.storage.sync.getBytesInUse(null,
 				function (bytesInUse) {
-					thisObj.storageTotalSync = bytesInUse;
-					chrome.storage.local.getBytesInUse(null,
+				    thisObj.storageTotalSync = bytesInUse;
+				    chrome.storage.local.getBytesInUse(null,
 						function (bytesInUse2) {
-							thisObj.storageTotalLocal = bytesInUse2;
-							sendExtensionMessage({ method: "getlocalStorageSize" },
+						    thisObj.storageTotalLocal = bytesInUse2;
+						    sendExtensionMessage({ method: "getlocalStorageSize" },
 								function (response) {
-									thisObj.storageTotalLocalStorage = response.result;
-									sendExtensionMessage({ method: "getTotalDBRows" },
+								    thisObj.storageTotalLocalStorage = response.result;
+								    sendExtensionMessage({ method: "getTotalDBRows" },
 										function (response) {
 										    if (response.status != STATUS_OK)
 										        thisObj.totalDbRowsHistory = response.status; //review zig: ugly. dont allow plus to start
@@ -156,19 +156,19 @@ var Help = {
 										        thisObj.totalDbRowsHistory = response.cRowsTotal;
 										    }
 
-											sendExtensionMessage({ method: "getTotalDBRowsNotSync" },
+										    sendExtensionMessage({ method: "getTotalDBRowsNotSync" },
 												function (response) {
-													if (response.status != STATUS_OK)
-														thisObj.totalDbRowsHistoryNotSync = response.status;
-													else
-														thisObj.totalDbRowsHistoryNotSync = response.cRowsTotal;
+												    if (response.status != STATUS_OK)
+												        thisObj.totalDbRowsHistoryNotSync = response.status;
+												    else
+												        thisObj.totalDbRowsHistoryNotSync = response.cRowsTotal;
 
-													chrome.storage.local.get([LOCALPROP_DONTSHOWSYNCWARN], function (obj) {
-													    var value = obj[LOCALPROP_DONTSHOWSYNCWARN];
-													    if (value !== undefined)
-													        thisObj.bDontShowAgainSyncWarn = value;
+												    chrome.storage.local.get([LOCALPROP_DONTSHOWSYNCWARN], function (obj) {
+												        var value = obj[LOCALPROP_DONTSHOWSYNCWARN];
+												        if (value !== undefined)
+												            thisObj.bDontShowAgainSyncWarn = value;
 
-													    sendExtensionMessage({ method: "getTotalDBMessages" },
+												        sendExtensionMessage({ method: "getTotalDBMessages" },
 																function (response) {
 																    if (response.status != STATUS_OK)
 																        thisObj.totalDbMessages = response.status;
@@ -210,7 +210,7 @@ var Help = {
                                                                         });
                                                                     });
 																});
-													});
+												    });
 
 												});
 										});
@@ -219,8 +219,8 @@ var Help = {
 					);
 				}
 			);
-			});
-	},
+        });
+    },
 
 	enableIntervalScroll: function (bEnable) {
 	    if (bEnable) {
@@ -600,10 +600,11 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	            textEnablePro += ' <a href="" id="agile_pro_more">Tell me more</a>';
 
 	        textEnablePro += '<br><div id="agile_pro_more_content" style="display:none;">\
-&bull; Card labels in charts and reports (view, group, filter, stack).<br>\
+&bull; Trello custom fields in reports.<br>\
+&bull; Card labels in reports and charts (view, group, filter, stack).<br>\
 &bull; Custom report columns, extra export options useful for integrations.<br>\
 &bull; Custom board views. Pick which S, E, R boxes show in boards, lists and cards (see Preferences).<br>\
-&bull; Priority support and many planned "Pro" features.<br>\
+&bull; Priority support and consulting by our team of power-users using Trello since 2012.<br>\
 <A href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">More</A>';
 	        textEnablePro += '<br /></div></div><div id="sectionPayProNow" style="display:none;">➤ <A id="linkPayProNow" href="">Activate your "Pro" license now</A></div>\
 <a href="" id="agile_showLiDetails">Show license details</a> \
@@ -1191,6 +1192,18 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.para('&nbsp');
 	    helpWin.para('<hr class="agile_hr_help"><br>');
 
+	    helpWin.para('<b><h2 id="agile_help_reports">Reports & Charts</h2></b>');
+	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
+	    helpWin.para('&bull; Open the "Options" section for many useful customizations.');
+	    helpWin.para('&bull; Include <A href="http://www.plusfortrello.com/p/trello-custom-fields-in-plus-reports.html" target="_blank">Trello custom fields and many more options</A> ("Pro" version).');
+	    helpWin.paraSE('&bull; Pick the groups, pivot, sort, filters and options, then "Query".');
+	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to copy to the clipboard. Paste on a spreadsheet or email.');
+	    helpWin.para('&bull; Drill-down on Trello home chart bars or pivot cells.');
+	    helpWin.para('&bull; Reports and burndowns work offline from the Chrome Plus menu, can be bookmarked or emailed by URL or by pasting the report.');
+	    helpWin.paraEst('&bull; The <b>E. type</b> column tells if the row Estimate is new, increases (+E) or decreases (-E) the card estimate per user.');
+	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html"><b>More reports help</b></A>');
+	    helpWin.para('&nbsp');
+	    helpWin.para('<hr class="agile_hr_help"><br>');
 
 
 	    helpWin.paraSE('<b><h2 id="agile_help_timers">Card Timers</h2></b>');
@@ -1244,18 +1257,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.paraSE('<A href="http://www.plusfortrello.com/p/board-dimensions.html" target="_blank">More about "dimensions"</A>');
 	    helpWin.paraSE('&nbsp');
 	    helpWin.paraSE('<hr class="agile_hr_help"><br>');
-	    helpWin.para('<b><h2 id="agile_help_reports">Reports</h2></b>');
-	    helpWin.para('&bull; Open "Reports" from the Chrome Plus menu or from any board.');
-	    helpWin.para('&bull; Report pivots (Spent by...) are useful to teams using S/E.');
-	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to send to the clipboard. Paste on a spreadsheet or email.');
-	    helpWin.para('&bull; Drill-down on any chart bar or pivot cell to get a detailed report.');
-	    helpWin.para('&bull; Reports and burndowns work offline from the Chrome Plus menu and can be bookmarked or emailed by URL.');
-	    helpWin.paraEst('&bull; The <b>E. type</b> column tells if the row Estimate is new, increases (+E) or decreases (-E) the card estimate per user.');
-	    helpWin.paraEst('&bull; A blank E. type means the estimate was not affected.');
-	    helpWin.para('&bull; <A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html">Detailed report help</A>.');
-	    helpWin.para('&nbsp');
-	    helpWin.para('<hr class="agile_hr_help"><br>');
-
+	   
 	    helpWin.para('<b><h2 id="agile_help_moreless">Less - More </h2></b>');
 	    helpWin.para("&bull; Clicking 'Less' on the page top hides cards with last activity over 4 weeks ago.");
 	    helpWin.para('&bull; <A target="_blank" href="http://help.trello.com/article/820-card-aging">Enable the Card Aging power-up</A> on each board to hide cards.');
