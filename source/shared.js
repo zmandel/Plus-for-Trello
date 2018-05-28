@@ -2169,11 +2169,10 @@ function groupRows(rowsOrig, propertyGroup, propertySort, bCountCards, customFie
     var i = 0;
     const cMax = rowsOrig.length;
     var row = null;
-    var cfmetaData = {};
-    var cardCF = {};
+    var cfmetaData = null;
+    var cardCF = null;
 
     if (customFieldsData) {
-        assert(propertyGroup.length > 0); //we cant group custom fields with history rows because we would duplicate sums of custom fields 
         cfmetaData = customFieldsData.cfmetaData;
         cardCF = customFieldsData.cardData;
     }
