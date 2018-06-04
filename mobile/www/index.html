@@ -1,46 +1,38 @@
 ﻿<!DOCTYPE html>
 <html>
-<head>
-    <title>Plus for Trello</title>
-    <meta charset="utf-8" />
-    <link rel="apple-touch-startup-image" href="/apple-touch-icon.png">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="format-detection" content="telephone=no" />
-    <meta name="msapplication-tap-highlight" content="no" />
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#0079BF">
-    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-    <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
-    <!-- see https://github.com/EddyVerbruggen/Custom-URL-scheme/issues/137#issuecomment-165948942 -->
-    <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
-    <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
-    <link rel="stylesheet" type="text/css" href="css/trelloblue.min.css" />
-
-    <link rel="stylesheet" type="text/css" href="css/jquery.mobile.icons.min.css" />
-    <link rel="stylesheet" type="text/css" href="css/jquery.mobile.structure-1.4.5.min.css" />
-
-    <link rel="stylesheet" type="text/css" href="css/index.css" />
-
-    <script type="text/javascript" src="js/lib/jquery.js"></script>
-    <script type="text/javascript" src="js/lib/jquery.mobile-1.4.5.min.js"></script>
-
-    <script type="text/javascript" src="cordova.js"></script>
-    <script type="text/javascript" src="js/sharedlocal.js"></script>
-    <script defer type='text/javascript' src='js/lib/fastclick.js'></script>
-
-    <script defer type="text/javascript" src="js/lib/lz-string.min.js"></script>
-    <script type="text/javascript" src="js/trello.js"></script>
-    <script type="text/javascript" src="js/sharedmobile.js"></script>
-    <script type="text/javascript" src="js/sharedsync.js"></script>
-    <script defer type="text/javascript" src="js/lib/markdown-converter.js"></script>
-    <script type="text/javascript" src="js/index.js"></script>
-    <script type="text/javascript" src="js/card.js"></script>
-</head>
-<body>
+    <head>
+        <title>Plus for Trello</title>
+        <meta charset="utf-8" />
+        <link rel="apple-touch-startup-image" href="/apple-touch-icon.png">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="msapplication-tap-highlight" content="no" />
+        <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#0079BF">
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
+        <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        
+        <meta name="format-detection" content="telephone=no" />
+        <link rel="stylesheet" type="text/css" href="css/trelloblue.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/jquery.mobile.icons.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/jquery.mobile.structure-1.4.5.min.css" />
+        <link rel="stylesheet" type="text/css" href="css/index.css" />
+        <script type="text/javascript" src="js/lib/jquery.js"></script>
+        <script type="text/javascript" src="js/lib/jquery.mobile-1.4.5.min.js"></script>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script defer type='text/javascript' src='js/lib/fastclick.js'></script>
+        <script defer type="text/javascript" src="js/lib/lz-string.min.js"></script>
+        <script type="text/javascript" src="js/trello.js"></script>
+        <script type="text/javascript" src="js/sharedmobile.js"></script>
+        <script type="text/javascript" src="js/sharedsync.js"></script>
+        <script defer type="text/javascript" src="js/lib/markdown-converter.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript" src="js/card.js"></script>
+    </head>
+<body style="background-color:#0079BF;">
     <noscript>
         <h2>
             JavaScript is disabled. Please enable JavaScript in your web browser to use this app.
@@ -56,7 +48,7 @@
         </style>
     </noscript>
     <div class="plusHeader" data-add-back-btn="true" data-back-btn-text="Back" data-role="header" data-position="fixed" data-tap-toggle="false" width="100%" style="display:none;">
-        <span><a href="" id="openAsDesktopPopup" class="headerLink" style="margin-top:12px;margin-left:3px;">Popup</a></span>
+        <span><a href="" id="openAsDesktopPopup" class="headerLink" style="display:none;margin-top:12px;margin-left:3px;">Popup</a></span>
         <h1 style="font-weight:normal"><img src="img/login.png" class="imgHeader" width="20" align="top" />Home</h1>
         <a class="ui-btn-right noshadow ui-nodisc-icon" data-iconpos="middle" style="margin-top:11px;border:none;" data-mini="true" id="syncButton" href="#" data-role="button" data-icon="syncStatic" data-inline="true"></a>
         <a class="ui-btn-right noshadow" data-iconpos="right" style="margin-top:10px;border:none;margin-right: 30px;" data-mini="true" id="settings" href="#" data-role="button" data-icon="gear" data-inline="true"></a>

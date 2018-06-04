@@ -1,16 +1,23 @@
 ﻿<!DOCTYPE html>
 <html>
     <head>
-        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <title>Plus for Trello</title>
+        <meta charset="utf-8" />
+        <link rel="apple-touch-startup-image" href="/apple-touch-icon.png">
         <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+        <meta name="msapplication-tap-highlight" content="no" />
         <link rel="manifest" href="/manifest.json">
+        <meta name="theme-color" content="#0079BF">
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
-        <script type="text/javascript" src="js/sharedlocal.js"></script>
+
+        <script type="text/javascript" src="js/redirector.js"></script>
     </head>
-    <body>
+    <body style="background-color:#0079BF;">
         <div data-role="page" style="display:none;" class="plusPage" id="pageCardDetail" data-dialog="true">
             <div data-role="content" class="cardBackground">
             <div style="height:1em;"></div>

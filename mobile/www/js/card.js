@@ -129,6 +129,8 @@ function loadCardPage(page, params, bBack, urlPage) {
             var verFF = matchFF ? parseInt(matchFF[1]) : 0;
             if (verFF > 0 && verFF < 52)
                 return;
+            if (!navigator.serviceWorker || !navigator.serviceWorker.ready)
+                return; //no API support
 
             Notification.requestPermission(function (status) {  // status is "granted", if accepted by user
                 if (status != "granted")
@@ -306,7 +308,7 @@ function loadCardPage(page, params, bBack, urlPage) {
         event.preventDefault();
         return false;
     });
-    //why show? we special-case the card page to allow bookmarking it. in sharedlocal.js we detect and redirect to index so it navigates properly.
+    //why show? we special-case the card page to allow bookmarking it. in redirector.js we detect and redirect to index so it navigates properly.
     //however, that means that when the card.html page loads by itself, it will display ugly as it didnt go through index first for jqm.
     //the quick solution is to display:none in the card.html, then here show the page. Thus a refresh only shows a blank page and quickly redirects.
     page.show();

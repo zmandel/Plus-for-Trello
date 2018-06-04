@@ -22,7 +22,7 @@ var PROP_UNITSASPOINTS = "unitsAsPoints";
 var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
 var PROP_PLUSUNITS = "plusUnits";
-
+var PROP_NAVIDCARDLONG = "nav-idCardLong"; //duplicated from redirector.js
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
 var g_cPageNavigations = 0;
@@ -51,10 +51,12 @@ var g_loaderDetector = {
 
 function registerWorker() {
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', function (event) {
-            if (event.data.action && event.data.action=="pinnedCard")
-                changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
-        });
+        if (navigator.serviceWorker.addEventListener) {
+            navigator.serviceWorker.addEventListener('message', function (event) {
+                if (event.data.action && event.data.action == "pinnedCard")
+                    changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
+            });
+        }
 
         navigator.serviceWorker.register('service-worker.js').then(function (reg) {
             // updatefound is fired if service-worker.js changes.
@@ -694,7 +696,7 @@ var app = {
         document.addEventListener('deviceready', this.onDeviceReady, false);
         var thisApp = this;
         if (!isCordova())
-            setTimeout(function () { thisApp.onDeviceReady(); }, 10);
+            setTimeout(function () { thisApp.onDeviceReady(); }, 50);
     },
     // deviceready Event Handler
     //
@@ -750,7 +752,7 @@ var app = {
                 if (iFind >= 0)
                     params = urlNew.substr(iFind);
             }
-            if (g_fnCancelSEBar) {
+            if (typeof (g_fnCancelSEBar) != "undefined" && g_fnCancelSEBar) {
                 g_fnCancelSEBar();
 				g_fnCancelSEBar=null;
 			}
@@ -817,12 +819,12 @@ var app = {
                     delete localStorage[PROP_NAVIDCARDLONG];
                     bShowHome = false;
                     setTimeout(function () {
-                        $("#openAsDesktopPopup").hide();
+                        g_bShownPopupLink = true; //so we wont show it on this index.html
                         changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
                         setTimeout(function () {
                             pageLogin.children("div[data-role='content']").show();
                         }, 50);
-                    }, 100);
+                    }, 150);
                 }
             }
             if (bShowHome) {
@@ -882,8 +884,6 @@ function setupSettingsPage() {
         $("#plusVersionInfo").html(infoVersions);
     }
     var notesHelp = "";
-    if (!g_bLocalNotifications)
-        notesHelp = "Phone notifications are supported only in the native apps.";
     $("#plusHelpNotes").html(notesHelp);
     
     $("#allowNegativeR").attr("checked", g_bAllowNegativeRemaining).checkboxradio("refresh");

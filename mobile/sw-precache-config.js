@@ -11,6 +11,5 @@
       'css/*.css'
     ],
     ignoreUrlParametersMatching: [/./],
-    directoryIndex: false,
-    navigateFallback: "index.html"
+    directoryIndex: false
 };
