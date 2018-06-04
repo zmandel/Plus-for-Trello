@@ -106,13 +106,14 @@ function errFromXhr(xhr) {
 function addCardCommentByApi(idCard, comment, callback, waitRetry) {
     //https://trello.com/docs/api/card/index.html
     var urlParam = "cards/" + idCard + "/actions/comments?text=" + encodeURIComponent(comment);
-    callTrelloApi(urlParam, false, 0, callback, true, 0, true, null, false, null, true, true, true);
+                //urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost
+    callTrelloApi(urlParam, false,    0,           callback, true,          0,         true,       null,    false,                     true,              true,       true);
 }
 
 //bReturnErrors false (default): will display error and not call callback.
 //always changePane before calling this for a page
 function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache,
-    context, bReturnOnlyCachedIfExists, callbackOnUnchanged, bDontStoreInCache, bDontRetry, bPost) {
+    context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost) {
     var keyCached = "td:" + urlParam;
     var bReturnedCached = false;
     var objTransformedFirst = null;
@@ -215,7 +216,8 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                         var waitNew = (waitRetry || 500) * 2;
                         if (waitNew < 8001) {
                             console.log("Plus: retrying api call");
-                            callTrelloApi(urlParam, bContext, waitNew, callback, bReturnErrors, waitNew, true, context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost);
+                                        //urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost
+                            callTrelloApi(urlParam, bContext, waitNew,     callback, bReturnErrors, waitNew,   true,       context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost);
                             return;
                         }
                         else {

@@ -1089,7 +1089,7 @@ function refreshCurrentPage() {
 var g_lastPageInfo = {
     idPage: null,
     page: null,
-    params: null,
+    params: null, //string ?xxx=y&...
     bBack: false,
     urlNew: null
 };
@@ -1610,6 +1610,14 @@ function hiliteOnce(elem, msTime, strClass) {
     setTimeout(function () {
         elem.removeClass(classBlink);
     }, msTime);
+}
+
+/* cloneObject
+ *
+ * simple clone for serializable objects
+ **/
+function cloneObject(obj) {
+    return JSON.parse(JSON.stringify(obj));
 }
 
 app.initialize();

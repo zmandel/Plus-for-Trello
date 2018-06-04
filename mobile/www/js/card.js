@@ -18,6 +18,70 @@ function getAllKeywords(bExcludeLegacyLast) {
     return rgKeywords;
 }
 
+//recent s/e rows entered from the app. when a card s/e is read, its rows are removed from here.
+//purpose is to easily patch the offline s/e cache
+var g_recentRows = {
+    PROP: "recentRows",
+    MAXIMUM: 200,
+    pushRow: function (idCard, msDate, user, keyword, s, e, bENew) {
+        assert(this.bInited);
+        var rows = this.rows;
+        rows.push({ idCard: idCard, msDate: msDate, user: user, keyword: keyword, s: s, e: e, bENew: bENew });
+        while (rows.length > this.MAXIMUM)
+            rows.shift();
+        this.saveProp();
+    },
+    get: function (idCard) {
+        assert(this.bInited);
+        var rows = this.rows;
+        var rg=[];
+        var row;
+        for (var i = 0; i < rows.length; i++) {
+            row = rows[i];
+            if (row.idCard == idCard)
+                rg.push(row);
+        }
+        return rg;
+    },
+    remove: function (idCard) {
+        assert(this.bInited);
+        var rows = this.rows;
+        var rg = [];
+        var row;
+        var bUpdate = false;
+        for (var i = 0; i < rows.length; i++) {
+            row = rows[i];
+            if (row.idCard != idCard)
+                rg.push(row);
+            else
+                bUpdate = true;
+        }
+        if (bUpdate) {
+            this.rows = rg;
+            this.saveProp();
+        }
+    },
+    saveProp: function () {
+        assert(this.bInited);
+        localStorage[this.PROP] = JSON.stringify(this.rows);
+    },
+    init: function () {
+        if (this.bInited)
+            return;
+        this.bInited = true;
+        var store = localStorage[this.PROP];
+        if (store)
+            this.rows = JSON.parse(store);
+    },
+    reset: function () {
+        assert(this.bInited);
+        delete localStorage[this.PROP];
+        this.rows = [];
+    },
+    rows: [],
+    bInited: false
+};
+
 //information about s/e for the current card, per user
 var g_seCard = {
     clear: function() {
@@ -25,6 +89,7 @@ var g_seCard = {
         this.m_bRecurring = false;
         this.m_bVersion1 = false;
         this.m_bFresh = false;
+        this.m_iOrderNext = 0;
     },
     setNull: function () {
         this.clear();
@@ -76,7 +141,8 @@ var g_seCard = {
             mapCur.s = mapCur.s + s;
             mapCur.e = mapCur.e + e;
         }
-
+        mapCur.iOrder = this.m_iOrderNext;
+        this.m_iOrderNext++;
         if (keyword) {
             assert(mapCur.kw);
             var mapKW = mapCur.kw[keyword];
@@ -92,6 +158,18 @@ var g_seCard = {
             }
         } else {
             this.m_bVersion1 = true; //happens if the user had version1 data serialized in localStorage. once online, this gets overwritten by new format
+        }
+    },
+    forEachUser: function (callback) { //callback(user,map)
+        assert(this.m_mapUsers);
+        var rgRet=[];
+        for (var userMapped in this.m_mapUsers)
+            rgRet.push({ map: this.m_mapUsers[userMapped], user:userMapped });
+        rgRet.sort(function (a, b) {
+            return (a.map.iOrder - b.map.iOrder);
+        });
+        for (var i in rgRet) {
+            callback(rgRet[i].user, rgRet[i].map);
         }
     },
     isVersion1: function (user) { //old version1 didnt save s/e per kw. used by E autocomplete when adding new S/E
@@ -464,70 +542,92 @@ function handleSEBar(page, panelAddSE) {
     });
 
     //OK
-    panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {       
+    panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {
         if (!updateCurrentSEData(page, true, true)) //save to storage now (not async)
             return;
         var idCardCur = g_currentCardSEData.idCard;
         //review: would be nice to use window.navigator.onLine but on Chrome it was returning false when online :(
 
         if (g_seCard.isNull() || !g_seCard.isFresh()) {
-            alertMobile("Could not get card data from Trello. Check your internet connection.");
-            return;
+            //can happen when offline when the page was loaded from cache. try again.
+            var container = page.find("#seContainer");
+            var tbody = container.children("table").children("tbody");
+            assert(g_lastPageInfo.params);
+            assert(g_lastPageInfo.idPage == "pageCardDetail" && g_lastPageInfo.params);
+            var params = getUrlParams(g_lastPageInfo.params);
+            assert(params.id == idCardCur);
+            fillSEData(page, container, tbody, params, false, function (cRows, bCached) {
+                assert(!bCached);
+                assert(!g_seCard.isNull() && g_seCard.isFresh());
+                doit();
+            }, true); //true means skip cache
+        } else {
+            doit();
         }
 
-        assert(!g_seCard.isVersion1()); //since its fresh, it cant have the old format from storage
-        var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
-        var s = parseFixedFloat(g_currentCardSEData.s);
-        var e = parseFixedFloat(g_currentCardSEData.e);
-        if (s == 0 && e == 0 && g_currentCardSEData.note.trim().length == 0) {
-            hiliteOnce(panelAddSE.find("#plusCardCommentSpent"), 500);
-            hiliteOnce(panelAddSE.find("#plusCardCommentEst"), 500);
-            return;
-        }
-
-        var sTotal = parseFixedFloat(mapSe.s + s);
-        var eTotal = parseFixedFloat(mapSe.e + e);
-        if (!verifyValidInput(sTotal, eTotal))
-            return;
-
-        if (g_currentCardSEData.note && g_currentCardSEData.note.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
-            alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from the mobile app.");
-            hiliteOnce(panelAddSE.find("#plusCardCommentNote"), 1500);
-            return;
-        }
-
-        function onBeforeStartCommit() {
-            enableSEFormElems(false, page, true);
-        }
-
-        function onFinished(bOK, data) {
-            var bOutOfContext = (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard);
-            if (!bOK) {
-                alertMobile("Error entering S/E", 4000);
-                enableSEFormElems(true, page, true);
+        function doit() {
+            assert(!g_seCard.isVersion1()); //since its fresh, it cant have the old format from storage
+            var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
+            var s = parseFixedFloat(g_currentCardSEData.s);
+            var e = parseFixedFloat(g_currentCardSEData.e);
+            if (s == 0 && e == 0 && g_currentCardSEData.note.trim().length == 0) {
+                hiliteOnce(panelAddSE.find("#plusCardCommentSpent"), 500);
+                hiliteOnce(panelAddSE.find("#plusCardCommentEst"), 500);
                 return;
             }
-            if (bOutOfContext) {
-                alertMobile("Entered S/E OK", 2000);
+
+            var sTotal = parseFixedFloat(mapSe.s + s);
+            var eTotal = parseFixedFloat(mapSe.e + e);
+            if (!verifyValidInput(sTotal, eTotal))
+                return;
+
+            if (g_currentCardSEData.note && g_currentCardSEData.note.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
+                alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from the mobile app.");
+                hiliteOnce(panelAddSE.find("#plusCardCommentNote"), 1500);
                 return;
             }
-            
-            panelAddSE.find("#plusCardCommentUser").val(g_strUserMeOption);
-            panelAddSE.find("#plusCardCommentDays").val("0"); //now .note the chrome extension uses g_strNowOption as value
-            panelAddSE.find("#plusCardCommentSpent").val("");
-            panelAddSE.find("#plusCardCommentSpent2").val("");
-            panelAddSE.find("#plusCardCommentEst").val("");
-            panelAddSE.find("#plusCardCommentEst2").val("");
-            panelAddSE.find("#plusCardCommentNote").val("");
-            g_seCard.setSeCurForUser(data.member, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.keyword);
-            if (g_seCard.isRecurring() || !g_seCard.isUserMapped(data.member))
-                g_seCard.setEFirstForUser(data.member, parseFixedFloat(g_currentCardSEData.e));
-            g_currentCardSEData.removeValue(idCardCur); //forget draft
-            cancelPaneEdit(false);
 
+            function onBeforeStartCommit() {
+                enableSEFormElems(false, page, true);
+            }
+
+            function onFinished(bOK, data) {
+                if (!bOK) {
+                    alertMobile("Error entering S/E", 4000);
+                    enableSEFormElems(true, page, true);
+                    return;
+                }
+                var user = data.member;
+                var sParsed = parseFixedFloat(g_currentCardSEData.s);
+                var eParsed = parseFixedFloat(g_currentCardSEData.e);
+                var eFirstParsed = 0;
+                if (g_seCard.isRecurring() || !g_seCard.isUserMapped(user))
+                    eFirstParsed = eParsed;
+                g_recentRows.pushRow(idCardCur, Date.now(), user, g_currentCardSEData.keyword, sParsed, eParsed, eFirstParsed != 0);
+                var bOutOfContext = (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard);
+
+                if (bOutOfContext) {
+                    alertMobile("Entered S/E OK", 2000);
+                    return;
+                }
+
+                panelAddSE.find("#plusCardCommentUser").val(g_strUserMeOption);
+                panelAddSE.find("#plusCardCommentDays").val("0"); //now .note the chrome extension uses g_strNowOption as value
+                panelAddSE.find("#plusCardCommentSpent").val("");
+                panelAddSE.find("#plusCardCommentSpent2").val("");
+                panelAddSE.find("#plusCardCommentEst").val("");
+                panelAddSE.find("#plusCardCommentEst2").val("");
+                panelAddSE.find("#plusCardCommentNote").val("");
+                g_seCard.setSeCurForUser(user, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.keyword);
+                if (eFirstParsed)
+                    g_seCard.setEFirstForUser(user, eFirstParsed);
+                g_currentCardSEData.removeValue(idCardCur); //forget draft
+                cancelPaneEdit(false);
+
+            }
+            setNewCommentInCard(idCardCur, g_currentCardSEData.keyword, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.note,
+                g_currentCardSEData.delta, g_currentCardSEData.user, onBeforeStartCommit, onFinished);
         }
-        setNewCommentInCard(idCardCur, g_currentCardSEData.keyword, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.note,
-            g_currentCardSEData.delta, g_currentCardSEData.user, onBeforeStartCommit, onFinished);
     });
 
     function cancelPaneEdit(bUpdateCurrentSEData) {
@@ -575,6 +675,7 @@ function resetSEPanel(page) {
 
 function loadCardPage(page, params, bBack, urlPage) {
     assert(params.id); //note that the rest of params could be missing on some cases (cold navigation here from trello app)
+    g_recentRows.init(); //we delay loading this until the first card page is loaded
     var idCardLong = params.id;
     var cardCached = g_cardsById[idCardLong];
     if (cardCached) {
@@ -676,9 +777,11 @@ function loadCardPage(page, params, bBack, urlPage) {
                     });
                 }
             });
+
             return;
         }
 
+        assert(g_bLocalNotifications);
         if (bPinned) {
             var url = urlPage;
             //clean up url so it starts with the page
@@ -1140,11 +1243,11 @@ function enableSEFormElems(bEnable,
     }
 }
 
-function fillSEData(page, container, tbody, params, bBack, callback) {
+function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
     var idCard = params.id;
     g_seCard.setNull(); //means pending to load data
     assert(!g_seCard.isFresh());
-    function appendRow(user, s, eFirst, e, r) {
+    function appendRow(tbody, user, s, eFirst, e, r) {
         var row = $("<tr>");
         row.append("<td class='colUser'>" + user + "</td>");
         row.append("<td class='colSSum'>" + s + "</td>");
@@ -1156,20 +1259,34 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
 
     g_stateContext.idCard = idCard;
     //on back, dont call trello, rely on cache only
-    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack? -1: 200, callbackTrelloApi);
-
+    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 200,
+        callbackTrelloApi, false, null, bNoCache || false);
+    // bReturnErrors, waitRetry, bSkipCache,
+    //context, bReturnOnlyCachedIfExists, callbackOnUnchanged, bDontStoreInCache, bDontRetry, bPost
     function callbackTrelloApi(response, responseCached) {
         var rgComments = [];
         var rgRows = [];
         var objReturn = {};
         if (response.objTransformed) {
+            assert(response.bCached);
             rgRows = response.objTransformed.rgRows;
+            var rgRowsExtra = g_recentRows.get(idCard);
+            if (rgRowsExtra.length > 0) {
+                var rowExtra;
+                var rgCommentsPatch = [];
+                for (var iRE = 0; iRE < rgRowsExtra.length; iRE++) {
+                    rowExtra = rgRowsExtra[iRE];
+                    rgCommentsPatch.push(makeHistoryRowObject(new Date(rowExtra.msDate), rowExtra.user, rowExtra.s, rowExtra.e, "", "1", rowExtra.keyword, null)); //"1" is a fake id, not used
+                }
+                rgRows = calculateCardSEReport(rgCommentsPatch, rgRows); //recalculate, but do not save it again to storage
+            }
             objReturn.name = response.objTransformed.name;
             objReturn.nameList = response.objTransformed.nameList;
             objReturn.nameBoard = response.objTransformed.nameBoard;
             objReturn.desc = response.objTransformed.desc;
 
         } else {
+            assert(!response.bCached);
             //update params.id, as we might have received a shortLink (currently does not happen)
             params.id = response.obj.id;
             idCard = params.id;
@@ -1184,12 +1301,13 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
                 });
             }
 
-            rgRows = calculateCardSEReport(rgComments, responseCached != null);
+            rgRows = calculateCardSEReport(rgComments);
             objReturn.rgRows = rgRows;
             objReturn.name = response.obj.name;
             objReturn.nameList = response.obj.list.name;
             objReturn.nameBoard = response.obj.board.name;
-            objReturn.desc = response.obj.desc;   
+            objReturn.desc = response.obj.desc;
+            g_recentRows.remove(idCard); //remove now that we have a fresh copy
         }
 
         //review zig: ugly to have to update both objReturn and params
@@ -1202,9 +1320,11 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             return objReturn;
         }
         g_seCard.clear();
+        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
+
         if (!response.bCached)
             g_seCard.setFresh(true);
-        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
+
         page.find("#cardTitle").text(objReturn.name);
         
         var descElem = page.find("#cardDesc");
@@ -1231,7 +1351,6 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             });
             descElem.show();
         }
-        tbody.empty();
         rgRows.forEach(function (row) {
             var sLoop = parseFixedFloat(row.spent);
             var eLoop = parseFixedFloat(row.est);
@@ -1247,20 +1366,33 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
             var eFirstParsed = parseFixedFloat(row.estFirst);
             if (eFirstParsed)
                 g_seCard.setEFirstForUser(row.user, eFirstParsed);
-            appendRow(row.user, sLoop, eFirstParsed, eLoop, parseFixedFloat(row.est - row.spent));
         });
 
+        tbody.empty();
+        g_seCard.forEachUser(function (user, row) {
+            appendRow(tbody, user, row.s, row.eFirst || 0, row.e, parseFixedFloat(row.e - row.s));
+        });
         callback(rgRows.length, response.bCached);
         return objReturn;
     }
 }
 
-function calculateCardSEReport(rgComments, bFromCache) {
+function calculateCardSEReport(rgComments, rgRowsPatch) {
     //rgComments in date ascending (without -dX)
     var rgRows = [];
     var userSums = {};
-    var iOrder = 0;
     var bModifiedUsers = false;
+    var iLoop;
+    var user;
+    var userRow;
+
+    if (rgRowsPatch) {
+        for (iLoop = 0; iLoop < rgRowsPatch.length; iLoop++) {
+            userRow = rgRowsPatch[iLoop];
+            userSums[userRow.user] = cloneObject(userRow);
+        }
+    }
+
     rgComments.forEach(function (row) {
         userRow=userSums[row.user];
         if (userRow) {
@@ -1287,9 +1419,6 @@ function calculateCardSEReport(rgComments, bFromCache) {
         userRow.est = userRow.est + row.est;
         if (row.bENew)
             userRow.estFirst = userRow.estFirst + row.est;
-
-        userRow.iOrder = iOrder;
-        iOrder++;
         
         if (keyword) { //should always be one really as its card comment sync
             var mapKW = userRow.kw[keyword];
@@ -1306,10 +1435,10 @@ function calculateCardSEReport(rgComments, bFromCache) {
         }
     });
 
-    for ( var user in userSums) {
+    for (user in userSums) {
         var objSums = userSums[user];
         rgRows.push(objSums);
-        if (g_recentUsers.markRecent(user, objSums.idUser, objSums.sDateMost * 1000, false)) {
+        if (g_recentUsers.markRecent(user, objSums.idUser||null, objSums.sDateMost * 1000, false)) {
             //review zig: add check for bFromCache so it doesnt do double work. not here yet because it would cause already-cached card data to
             //not go through here, because older versions didnt have this code to update the users list storage.
             //by june 2015 the check could be added and most users wont notice the issue
@@ -1323,7 +1452,7 @@ function calculateCardSEReport(rgComments, bFromCache) {
         g_recentUsers.saveProp();
 
     rgRows.sort(function (a, b) {
-        return b.iOrder - a.iOrder;
+        return b.sDateMost - a.sDateMost;
     });
 
     return rgRows;
