@@ -340,12 +340,28 @@ function updateNoteR(page, bDontSaveToStorage) {
     //get data now, but dont save to storage yet
 
     function setHtml(html) {
-        var strLinkHelp = ""; //"&nbsp;&nbsp;<a href='' target='_blank'>Help</a>";
+        var strLinkHelp = "&nbsp;&nbsp;<a href='' target='_blank'>Help</a>";
         elem.html(html + strLinkHelp);
         var link = elem.find("a");
         link.off("click").click(function (e) {
             e.preventDefault();
-            alert("hi");
+            var elemPanelHelp = page.find("#helpCard_SE");
+            elemPanelHelp.find("*").removeClass("backgroundShader");
+            page.find("#cardBottomExtraHelpPadding").show(); //because the help pane is absolute, jqm can get confused so pretend we have space
+            elemPanelHelp.show();
+            elemPanelHelp.find("#okCardHelp_SE").click(function () {
+                page.find("#cardBottomExtraHelpPadding").hide();
+                elemPanelHelp.hide();
+            });
+            elemPanelHelp.find("#helpPlusCommentFormat_SE").off("click").click(function (e) {
+                openNoLocation("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html")
+            });
+            elemPanelHelp.find("#plusSESystemHelp_SE").off("click").click(function (e) {
+                openNoLocation("http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html");
+            });
+            elemPanelHelp.find("#plusAbout_SE").off("click").click(function (e) {
+                openNoLocation("http://www.plusfortrello.com");
+            });
         });
     }
 

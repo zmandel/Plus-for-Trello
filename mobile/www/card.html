@@ -14,7 +14,7 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
 
-        <script type="text/javascript" src="js/redirector-v24.js"></script>
+        <script type="text/javascript" src="js/redirector-v25.js"></script>
     </head>
     <body>
         <div data-role="page" style="display:none;" class="plusPage" id="pageCardDetail" data-dialog="true">
@@ -99,6 +99,7 @@
                         </div>
                     </div>
                     <div id="cardBottomPadding"></div>
+                    <div id="cardBottomExtraHelpPadding" style="display:none;"></div>
                 </div>
                 <div id="helpCard" style="display:none;font-size:95% !important;padding:1em;padding-bottom:0.5em !important;position:fixed;z-index: 2147483647;top:34px;left:0px;align-content:center;background-color:#e4f0f6;">
                     <p align="center">Configure Plus preferences and get help from the gear top-right.</p>
@@ -112,7 +113,23 @@
                     <p align="center">
                         <a id="okCardHelp" href="#" data-role="button" data-inline="true" data-icon="check">OK</a>
                     </p>
-</div>
+                </div>
+                <div id="helpCard_SE" style="color:black !important;display:none;width:100%;height:100%;font-size:90% !important;padding:1em !important;padding-bottom:0.5em !important;position:fixed;z-index: 2147483646;top:34px;left:0px;align-content:center;background-color:#e4f0f6;">
+                    <div class="floatRight" style="margin-right:1em;"><a id="okCardHelp_SE" href="#" data-role="button" data-inline="true" data-mini="true" data-icon="check">OK</a></div>
+                    <p align="left"><span class="helpDark">S</span>: Spent</p>
+                    <p align="left"><span class="helpDark">E</span>: Estimate</p>
+                    <p align="left"><span class="helpDark">R</span>: Remain = Estimate - Spent</p>
+                    <p><span class="helpDark">E 1<sup>st</sup></span>: First estimate (per user per card)</p>
+                    <p align="center"><b>Each S/E entry adds to the sums</b><br />(or substracts when negative)</p>
+                    <p align="center">A card is done when R is zero.<br />If not done, increase the estimate<br />so R is positive.</p>
+                    <p align="center">
+                        Enter transfers in Trello with<br />the <a id="helpPlusCommentFormat_SE" href="" data-transition="none">Plus card comment format</a>
+                        <br /><br />Read about<br />
+                        <a id="plusSESystemHelp_SE" href="">The Plus Spent / Estimate system</a>
+                        <br /><br />Use the gear top-right for more help.
+                    </p>
+                   
+                </div>
             </div><!-- /content -->
         </div><!-- /page -->
 </body>

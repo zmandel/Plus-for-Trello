@@ -11,6 +11,11 @@
     position: static !important; /* overwrite jqm */
 }
 
+.helpDark {
+    color: black !important;
+    font-weight: bold !important;
+}
+
 #panelAddSE input:disabled {
     background-color: white !important;
 }
@@ -510,6 +515,10 @@ margin-top: -11.5em !important;
 
 #cardBottomPadding {
     padding-bottom:9.6em !important;
+}
+
+#cardBottomExtraHelpPadding {
+    padding-bottom:5em !important;
 }
 
 .plusCardCommentUser-width {
