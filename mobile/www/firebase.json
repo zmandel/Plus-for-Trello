@@ -1,9 +1,38 @@
 {
   "hosting": {
-    "public": "."
-,  "redirects": [ {
-      "source" : "/",
-      "destination" : "/index.html",
-      "type" : 301
-    } ]
-}}
+    "public": ".",
+    "ignore": [
+      "firebase.json",
+      "*.bat",
+      "*.txt",
+      "*.tmp"
+    ],
+    "redirects": [
+      {
+        "source": "/",
+        "destination": "/index.html",
+        "type": 301
+      }
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(jpg|jpeg|gif|png|ico)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=86400"
+          }
+        ]
+      },
+      {
+        "source": "js/lib/*.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      }
+    ]
+  }
+}

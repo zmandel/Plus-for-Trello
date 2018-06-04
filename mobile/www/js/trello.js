@@ -197,7 +197,15 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
             }
         }
     }
-    var url = "https://trello.com/1/" + urlParam + "&key=" + TRELLO_APPKEY + "&token=" + localStorage[PROP_TRELLOKEY];
+    var objRet = { status: "unknown error", obj: [], bCached: false };
+    var keyTrello = localStorage[PROP_TRELLOKEY];
+    if (!keyTrello) {
+        //happens if logging out while deep in the page stack, then go "back"
+        objRet.status = "error: authorize the app first.";
+        callback(objRet);
+        return;
+    }
+    var url = "https://trello.com/1/" + urlParam + "&key=" + getAppKey() + "&token=" + keyTrello;
     var xhr = new XMLHttpRequest();
     var bOkCallback = false;
     xhr.onreadystatechange = function (e) {
@@ -206,7 +214,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
             handleFinishRequest();
 
             function handleFinishRequest() {
-                var objRet = { status: "unknown error", obj: [], bCached:false };
+
                 var bReturned = false;
                 var bQuotaExceeded = (xhr.status == 429);
                 g_analytics.hit({ t: "event", ec: "trelloApiCalls", ea: (bQuotaExceeded? "callRetry" : "call") }, 1000);

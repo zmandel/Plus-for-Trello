@@ -1,9 +1,9 @@
 /// <reference path="intellisense.js" />
 
-var TRELLO_APPKEY = "xxxxxxxxxxxxxxyyyyyyy";
-var g_idGlobalAnalytics = "UA-zzzzzzzz-1";
+var TRELLO_APPKEY = "xxxxxxx";
+var g_idGlobalAnalytics = "zzzzz";
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-//var g_idGlobalAnalytics = "UA-xxxxxxxx-y";
+//var g_idGlobalAnalytics = "xx-xxxxxxxx-x";
 
 //localStorage usage:
 //some items are stored directly with a fixed string, using global PROP_* properties
@@ -30,13 +30,15 @@ var g_user = null;
 var g_bAllowNegativeRemaining = false;
 var g_bDisplayPointUnits = false;
 
-g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
+var g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
+var g_urlInitial = "";
 
 var g_loaderDetector = {
     initLoader: function () {
         var thisLocal = this;
         if (!isCordova())
             try {
+                g_urlInitial = document.location.href; //save here, as later the framework might change it
                 registerWorker();
             } catch (e) {
 
@@ -46,11 +48,43 @@ var g_loaderDetector = {
 }.initLoader();
 
 function registerWorker() {
-    //wont use worker yet because safari ios doesnt yet support it, and android users can use the native app
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker
-                 .register('./service-worker.js')
-                 .then(function () { console.log('Service Worker Registered'); });
+        // Your service-worker.js *must* be located at the top-level directory relative to your site.
+        // It won't be able to control pages unless it's located at the same level or higher than them.
+        // *Don't* register service worker file in, e.g., a scripts/ sub-directory!
+        // See https://github.com/slightlyoff/ServiceWorker/issues/468
+        navigator.serviceWorker.register('service-worker.js').then(function (reg) {
+            // updatefound is fired if service-worker.js changes.
+            reg.onupdatefound = function () {
+                // The updatefound event implies that reg.installing is set; see
+                // https://slightlyoff.github.io/ServiceWorker/spec/service_worker/index.html#service-worker-container-updatefound-event
+                var installingWorker = reg.installing;
+
+                installingWorker.onstatechange = function () {
+                    switch (installingWorker.state) {
+                        case 'installed':
+                            if (navigator.serviceWorker.controller) {
+                                // At this point, the old content will have been purged and the fresh content will
+                                // have been added to the cache.
+                                // It's the perfect time to display a "New content is available; please refresh."
+                                // message in the page's interface.
+                                console.log('New or updated content is available.');
+                            } else {
+                                // At this point, everything has been precached.
+                                // It's the perfect time to display a "Content is cached for offline use." message.
+                                console.log('Content is now available offline!');
+                            }
+                            break;
+
+                        case 'redundant':
+                            console.error('The installing service worker became redundant.');
+                            break;
+                    }
+                };
+            };
+        }).catch(function (e) {
+            console.error('Error during service worker registration:', e);
+        });
     }
 }
 
@@ -155,13 +189,15 @@ function handleOpenURL(url) {
     }
 }
 
-function changePage(url, transition) {
+function changePage(url, transition, callback, bReplaceState) {
     if (g_bShownPopupLink)
         $("#openAsDesktopPopup").hide();
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
     //review zig: no longer needed as we only pass card long id in parameters
 	url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/\(/g, ' ').replace(/\)/g, ' ');
-    $.mobile.changePage(url, { transition: transition, showLoadMsg:false});
+	$.mobile.changePage(url, { transition: transition, showLoadMsg: false, changeHash: !bReplaceState });
+	if (callback)
+	    callback();
 }
 
 var g_titlesPage = {
@@ -214,7 +250,7 @@ var g_analytics = {
             return;
         msDelay = msDelay || 1000;
         this.init();
-        var payload = "v=1&tid=" + g_idGlobalAnalytics + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
+        var payload = "v=1&tid=" + "UA-" + g_idGlobalAnalytics + "zzz" + "-" + "1" + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         }
@@ -493,10 +529,14 @@ function alertMobile(message, msTimeout) {
 }
 
 $(document).bind("mobileinit", function () {
-    $.support.cors = true;
-    $.mobile.allowCrossDomainPages = true;
-    $.mobile.hoverDelay = 10;
-    $.mobile.phonegapNavigationEnabled = true;
+    try {
+        $.support.cors = true;
+        $.mobile.allowCrossDomainPages = true;
+        $.mobile.hoverDelay = 10;
+        $.mobile.phonegapNavigationEnabled = true;
+    } catch (e) {
+
+    }
 });
 
 
@@ -649,7 +689,7 @@ var app = {
         document.addEventListener('deviceready', this.onDeviceReady, false);
         var thisApp = this;
         if (!isCordova())
-            setTimeout(function () { thisApp.onDeviceReady(); }, 500);
+            setTimeout(function () { thisApp.onDeviceReady(); }, 10);
     },
     // deviceready Event Handler
     //
@@ -763,6 +803,16 @@ var app = {
         initUser(function () {
             onBeforePageChange(pageLogin);
             onAfterPageChange(pageLogin);
+            var paramsUrl = getUrlParams(g_urlInitial);
+            if (paramsUrl.idCard) {
+                //fix the url (so jqm doesnt get confused), then open the card.
+               // if (window.history && window.history.replaceState)
+
+                setTimeout(function () {
+                    changePage("card.html?id=" + encodeURIComponent(paramsUrl.idCard), "slidedown",null, true);
+                }, 500);
+                
+            }
         });
     },
 
@@ -775,7 +825,11 @@ function exitApp() {
     if (typeof (navigator) != "undefined" && navigator.app && navigator.app.exitApp)
         navigator.app.exitApp();
     else {
-        window.opener = window;
+        try {
+            window.opener = window;
+        } catch (e) {
+
+        }
         window.close();
     }
 }
@@ -1116,8 +1170,12 @@ function loadHomePage() {
         loginToTrello();
     });
 
+    var bAsStandaloneApp = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+    if (!bAsStandaloneApp && window.navigator && window.navigator.standalone)
+        bAsStandaloneApp = true;
+    
     var elemLinkPopup = $("#openAsDesktopPopup");
-    if (!g_bShownPopupLink && isDesktopVersion() && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0)) {
+    if (!g_bShownPopupLink && !bAsStandaloneApp && isDesktopVersion() && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0)) {
         g_bShownPopupLink = true;
         elemLinkPopup.show();
         elemLinkPopup.off("click").click(function () {
@@ -1276,70 +1334,73 @@ function handleBoardClick(idBoard, name) {
     $(".titleListLists").text(name);
     //idBoard is a "long id". we do not pass a shortLink because other code depends on using the id to map things (like api result caches)
     g_stateContext.idBoard = idBoard;
-    changePage("index.html#pageListLists", "slide");
-    callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name,shortLink", true, 3000, function (response) {
-        list.empty();
-        idBoard = response.obj.id; //refresh in case a shortLink was passed
-        g_mapShortLinks.setBoardId(response.obj.shortLink, idBoard); //useful for offline + opening plus from trello board link
-        name = response.obj.name;
-        g_recentBoards.markRecent(name, idBoard);
-        $(".titleListLists").text(name);
-        response.obj.lists.forEach(function (elem) {
-            if (elem.closed)
-                return;
-            var item = $("<li><a href='#'>" + elem.name + "</a></li>");
-            item.click(function () {
-                handleListClick(elem.id, name, elem.name);
+    
+    changePage("index.html#pageListLists", "slide", function () {
+        callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name,shortLink", true, 3000, function (response) {
+            list.empty();
+            idBoard = response.obj.id; //refresh in case a shortLink was passed
+            g_mapShortLinks.setBoardId(response.obj.shortLink, idBoard); //useful for offline + opening plus from trello board link
+            name = response.obj.name;
+            g_recentBoards.markRecent(name, idBoard);
+            $(".titleListLists").text(name);
+            response.obj.lists.forEach(function (elem) {
+                if (elem.closed)
+                    return;
+                var item = $("<li><a href='#'>" + elem.name + "</a></li>");
+                item.click(function () {
+                    handleListClick(elem.id, name, elem.name);
+                });
+                list.append(item);
             });
-            list.append(item);
+            list.listview("refresh");
         });
-        list.listview("refresh");
     });
 }
 
-function handleListClick(idList, nameBoard, nameList) {   
-    changePage("index.html#pageListCards", "slide");
-    var list = $("#cardsList");
-    var titleHeader = nameList;
+function handleListClick(idList, nameBoard, nameList) {
+    changePage("index.html#pageListCards", "slide", function () {
+        var list = $("#cardsList");
+        var titleHeader = nameList;
 
-    $(".titleListCards").text(nameBoard);
-    list.empty();
-    list.listview();
-    list.append($("<li data-role='list-divider'>" + titleHeader + "</li>"));
-    list.listview("refresh");
-    g_stateContext.idList = idList;
-    callTrelloApi("lists/" + idList + "?cards=open&card_fields=name,shortLink,closed", true, 3000, function (response) {
-        $('#cardsList li:not(:first)').remove();
-        var rgCards = [];
-        var objReturn = {};
-        var elemTitle = $('#cardsList li:first');
-        if (response.objTransformed) {
-            rgCards = response.objTransformed.rgCards;
-            elemTitle.text(response.objTransformed.name);
-        } else {
-            elemTitle.text(response.obj.name); //reset first element in case a previous pending ajax changed it
-            response.obj.cards.forEach(function (elem) {
-                if (elem.closed)
-                    return;
-                rgCards.push({ name: elem.name, id: elem.id, shortLink: elem.shortLink });
-            });
-            objReturn.rgCards = rgCards;
-            objReturn.name = response.obj.name;
-        }
-       
-        rgCards.forEach(function (elem) {
-            var item = $("<li><a href='#'>" + elem.name + "</a></li>");
-            item.click(function () {
-                handleCardClick(elem.id, elem.name, nameList, nameBoard, elem.shortLink);
-            });
-            list.append(item);
-            //note we do not remember the mapping because entering an unvisited card offline would just show all empty.
-            //instead, the card mapping is saved only when the card has been visited before
-            //g_mapShortLinks.setCardId(elem.shortLink, elem.id); 
-
-        });
+        $(".titleListCards").text(nameBoard);
+        list.empty();
+        list.listview();
+        list.append($("<li data-role='list-divider'>" + titleHeader + "</li>"));
         list.listview("refresh");
-        return objReturn;
+        g_stateContext.idList = idList;
+        callTrelloApi("lists/" + idList + "?cards=open&card_fields=name,shortLink,closed", true, 3000, function (response) {
+            $('#cardsList li:not(:first)').remove();
+            var rgCards = [];
+            var objReturn = {};
+            var elemTitle = $('#cardsList li:first');
+            if (response.objTransformed) {
+                rgCards = response.objTransformed.rgCards;
+                elemTitle.text(response.objTransformed.name);
+            } else {
+                elemTitle.text(response.obj.name); //reset first element in case a previous pending ajax changed it
+                response.obj.cards.forEach(function (elem) {
+                    if (elem.closed)
+                        return;
+                    rgCards.push({ name: elem.name, id: elem.id, shortLink: elem.shortLink });
+                });
+                objReturn.rgCards = rgCards;
+                objReturn.name = response.obj.name;
+            }
+
+            rgCards.forEach(function (elem) {
+                var item = $("<li><a href='#'>" + elem.name + "</a></li>");
+                item.click(function () {
+                    handleCardClick(elem.id, elem.name, nameList, nameBoard, elem.shortLink);
+                });
+                list.append(item);
+                //note we do not remember the mapping because entering an unvisited card offline would just show all empty.
+                //instead, the card mapping is saved only when the card has been visited before
+                //g_mapShortLinks.setCardId(elem.shortLink, elem.id); 
+
+            });
+            list.listview("refresh");
+            return objReturn;
+        });
     });
 }
 
@@ -1368,9 +1429,12 @@ function setTrelloToken(token) {
     initUser(refreshCurrentPage);
 }
 
+function getAppKey() {
+    return TRELLO_APPKEY + "xxxxxxx" + "yyyyyyy";
+}
 
 function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/authorizing-trello-with-angular/ for converting the trello coffescript
-    var key = TRELLO_APPKEY;
+    var key = getAppKey();
     var authWindow, authUrl, token, trello, height, left, origin, receiveMessage, ref1, top, width;
     width = 450;
     height = 520;
@@ -1379,7 +1443,8 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
     origin = (ref1 = /^[a-z]+:\/\/[^\/]*/.exec(location)) != null ? ref1[0] : void 0;
     //call_back=postMessage is necessary to enable cross-origin communication
     authUrl = 'https://trello.com/1/authorize?return_url=' + origin + '&callback_method=postMessage&expiration=never&name=Plus+for+Trello+mobile&scope=read,write&key=' + key;
-    authWindow = window.open(authUrl, 'trello', 'width='+width+',height='+height+',left='+left+',top='+top);
+    var bSafariStandalone = (window.navigator && window.navigator.standalone);
+    authWindow = window.open(authUrl, bSafariStandalone ? '_system' : 'trello', 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top);
     var receiveMessage = function (event) {
         var ref2;
         if ((ref2 = event.source) != null) {
@@ -1402,7 +1467,7 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
 
 function loginToTrello() {
     if (isCordova()) {
-        var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + TRELLO_APPKEY + "&name=Plus+for+Trello+mobile&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
+        var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + getAppKey() + "&name=Plus+for+Trello+mobile&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
         var bSkipError = false;
 
         function onErrorEvent(event) {

@@ -7,20 +7,18 @@
         <meta name="apple-mobile-web-app-capable" content="yes">
         <link rel="manifest" href="/manifest.json">
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
-        <!-- see https://github.com/EddyVerbruggen/Custom-URL-scheme/issues/137#issuecomment-165948942 -->
-        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
         <script type="text/javascript" src="js/sharedlocal.js"></script>
     </head>
     <body>
-        <div data-role="page" class="plusPage" id="pageCardDetail" data-dialog="true">
+        <div data-role="page" style="display:none;" class="plusPage" id="pageCardDetail" data-dialog="true">
             <div data-role="content" class="cardBackground">
             <div style="height:1em;"></div>
                 <div class="seSuperWrapper">
                     <div id="panelAddSEContainer" class="animateTransitions">
                         <a id="addSE" href="#" data-role="button" data-icon="plus" data-mini="true" data-inline="true" class="agile_button_leftmargin">add S/E</a>
                         <input type="checkbox" tabindex="-1" data-inline="true" data-theme="b" data-role="flipswitch" id="cardPin" data-on-text="pinned" data-off-text="pin" data-wrapper-class="custom-label-flipswitch">
-                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloOpen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="border:none;background-color: transparent;"></a>
+                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloopen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="border:none;background-color: transparent;"></a>
                     </div>
                 </div>
                 <form id="panelAddSE" class="opacityZero animateTransitions">
