@@ -1,18 +1,39 @@
 /// <reference path="intellisense.js" />
-
+var g_strOffline = "No connection";
 
 var g_syncProgress = {
-    total: 0,
+    m_total: 0,
+    m_totalOffline: 0,
+    m_markup: "syncStatic",
     start: function () {
-        this.total++;
-        $("#syncButton").buttonMarkup({ icon: "syncAnim" });
+        this.m_total++;
+        this.doMarkup("syncAnim");
     },
 
     end: function () {
-        this.total--;
-        if (this.total == 0)
-            $("#syncButton").buttonMarkup({ icon: "syncStatic" });
-    }
+        this.m_total--;
+        if (this.m_total == 0)
+            this.doMarkup("syncStatic");
+    },
+    
+    onOffline: function () {
+        var thisObj = this;
+        this.m_totalOffline++;
+        this.doMarkup("syncOffline");
+        setTimeout(function () {
+            thisObj.m_totalOffline--;
+            if (thisObj.m_totalOffline == 0 && thisObj.m_total == 0)
+                thisObj.doMarkup("syncStatic");
+        }, 3000);
+    },
+
+    //private
+    doMarkup: function (markup) {
+        this.m_markup = markup;
+        $("#syncButton").buttonMarkup({ icon: markup });
+    },
+
+
 };
 
 function parseColonFormatSE(val, bExact) {
@@ -70,7 +91,7 @@ function errFromXhr(xhr) {
     var errText = "";
 
     if (xhr.status == 0)
-        errText = "No connection";
+        errText = g_strOffline;
     else if (xhr.statusText)
         errText = xhr.statusText;
     else if (xhr.responseText)
@@ -82,9 +103,16 @@ function errFromXhr(xhr) {
     return errText;
 }
 
+function addCardCommentByApi(idCard, comment, callback, waitRetry) {
+    //https://trello.com/docs/api/card/index.html
+    var urlParam = "cards/" + idCard + "/actions/comments?text=" + encodeURIComponent(comment);
+    callTrelloApi(urlParam, false, 0, callback, true, 0, true, null, false, null, true, true, true);
+}
+
 //bReturnErrors false (default): will display error and not call callback.
 //always changePane before calling this for a page
-function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context, bReturnOnlyCachedIfExists) {
+function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache,
+    context, bReturnOnlyCachedIfExists, callbackOnUnchanged, bDontStoreInCache, bDontRetry, bPost) {
     var keyCached = "td:" + urlParam;
     var bReturnedCached = false;
     var objTransformedFirst = null;
@@ -168,24 +196,26 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                             objTransformedFirst = null; //invalidate if user navigated away since first cache return
                         var objTransformed = callback(objRet, objTransformedFirst);
                         bOkCallback = true; //covers exception from callback
-                        var cacheItem={compressed:null, bTransformed:false,now:Date.now(), b16: true};
-                        if (objTransformed) {
-                            cacheItem.bTransformed = true;
-                            cacheItem.compressed = LZString.compressToUTF16(JSON.stringify(objTransformed));
-                        } else {
-                            cacheItem.bTransformed = false;
-                            cacheItem.compressed = LZString.compressToUTF16(xhr.responseText);
+                        if (!bDontStoreInCache) {
+                            var cacheItem = { compressed: null, bTransformed: false, now: Date.now(), b16: true };
+                            if (objTransformed) {
+                                cacheItem.bTransformed = true;
+                                cacheItem.compressed = LZString.compressToUTF16(JSON.stringify(objTransformed));
+                            } else {
+                                cacheItem.bTransformed = false;
+                                cacheItem.compressed = LZString.compressToUTF16(xhr.responseText);
+                            }
+                            localStorage[keyCached] = JSON.stringify(cacheItem);
                         }
-                        localStorage[keyCached] = JSON.stringify(cacheItem);
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
                     }
                 } else {
-                    if (bQuotaExceeded) {
+                    if (bQuotaExceeded && !bDontRetry) {
                         var waitNew = (waitRetry || 500) * 2;
                         if (waitNew < 8001) {
                             console.log("Plus: retrying api call");
-                            callTrelloApi(urlParam, bContext, waitNew, callback, bReturnErrors, waitNew, true, context);
+                            callTrelloApi(urlParam, bContext, waitNew, callback, bReturnErrors, waitNew, true, context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost);
                             return;
                         }
                         else {
@@ -202,7 +232,10 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
 
                 if (!bReturned || !bOkCallback) {
                     if (objRet.status != STATUS_OK && !bReturnErrors) {
-                        alertMobile(objRet.status);
+                        if (objRet.status == g_strOffline)
+                            alertOffline();
+                        else
+                            alertMobile(objRet.status);
                         return;
                     }
                     if (!bReturned)
@@ -217,7 +250,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
             return;
 
         g_syncProgress.start();
-        xhr.open("GET", url);
+        xhr.open(bPost? "POST" : "GET", url);
         xhr.send();
     }
 

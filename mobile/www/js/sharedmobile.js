@@ -60,19 +60,24 @@ var UNITS = {
         if (callbackOnSet)
             callbackOnSet(unit);
     },
-    FormatWithColon: function (f) {
+    FormatWithColon: function (f, bShowZero) {
         assert(typeof f == "number");
-        assert(f >= 0); //floor would need to change
+        var pre = "";
+        var strZero = (bShowZero ? "0" : "");
+        if (f < 0) {
+            f = -f;
+            pre = "-";
+        }
         if (f == 0)
-            return "";
+            return strZero;
         var units = Math.floor(f);
         var str = "";
         var subunits = Math.round((f - units) * this.ColonFactor());
         if (subunits == 0)
             str = "" + units;
         else
-            str = "" + (units == 0 ? "" : units) + ":" + subunits;
-        return str;
+            str = "" + (units == 0 ? strZero : units) + ":" + subunits;
+        return pre + str;
     },
     ColonFactor: function () {
         return (this.current == "d" ? 24 : 60);
@@ -149,13 +154,14 @@ var g_storage = {
     }
 };
 
+
+//information about what is being edited in the s/e card. can load/restore from storage per card
 var g_currentCardSEData = {
     loadFromStorage: function (idCard, callback) {
         assert(idCard);
         var key = this.keyStoragePrefix + idCard;
-        this.idCard = idCard;
         this.clearValues();
-
+        this.idCard = idCard;
         var thisLocal = this;
         g_storage.get(key, function (strVal) {
             if (!strVal) {
@@ -165,8 +171,8 @@ var g_currentCardSEData = {
             var value = JSON.parse(strVal);
             assert(idCard == value.idCard);
             if (thisLocal.idCard != idCard) {
-                //should never happen but handle possible rare timing because of async storage
-                callback();
+                //should never happen but handle possible rare timing if async storage
+                //does not callback
                 return;
 
             }
@@ -237,6 +243,7 @@ var g_currentCardSEData = {
         this.s = "";
         this.e = "";
         this.note = "";
+        this.idCard = "";
     },
 
     msTime: 0,

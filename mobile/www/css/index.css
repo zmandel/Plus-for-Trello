@@ -11,6 +11,22 @@
     position: static !important; /* overwrite jqm */
 }
 
+#plusToasterMessage {
+    position: fixed;
+    z-index:2147483647;
+    top: 0;
+    width:100%;
+    height:auto;
+    background-color: #383838;
+    color: #F0F0F0;
+    padding:10px;
+    text-align:center;
+    border-radius: 2px;
+    -webkit-box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
+    -moz-box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
+    box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
+}
+
 .ui-toolbar-back-btn {
 border-top:0px !important;
 border-bottom:0px !important;
@@ -54,6 +70,13 @@ border-radius: 0 !important;
 pointer-events:none !important;
 }
 
+.seSeparator {
+    margin-left:1em;
+    margin-right:1em;
+    font-weight:bold;
+    color: #585858 !important;
+}
+
 .seInputStyles {
     box-shadow: none !important;
     border-image:none !important;
@@ -65,15 +88,21 @@ pointer-events:none !important;
     margin:4px !important;
 }
 
+.seLeftLabels {
+   margin:4px !important;
+   font-weight:bold !important;
+   color: #585858 !important;
+}
+
 .seNumbers {
     width: 3em !important;
-    text-align: right !important;
+    text-align: center !important;
     margin-right:0px !important;
     font-size:2em !important;
 }
 
 .hmsLabel {
-    color:#AEAEAE !important;
+    color:#d8d8d8 !important;
     overflow:hidden !important;
 }
 
@@ -143,6 +172,15 @@ font-weight:normal !important;
     -webkit-animation:spin .7s linear infinite;
     -moz-animation:spin .7s linear infinite;
     animation:spin .7s linear infinite;
+}
+
+.ui-icon-syncOffline {
+	background-image: url("../img/offline.png");
+    background-size: 17px 17px;
+    background-repeat:no-repeat;
+    padding-left:3.5px;
+    padding-top:6.5px;
+    margin-right:63px !important;
 }
 
 .ui-icon-trelloopen  {

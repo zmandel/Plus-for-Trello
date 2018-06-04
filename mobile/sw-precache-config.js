@@ -12,7 +12,9 @@
     ],
     ignoreUrlParametersMatching: [/./],
     directoryIndex: false,
-    dontCacheBustUrlsMatching: /cloudflare|\/lib\//,
+    navigateFallback: "/index.html",
+    navigateFallbackWhitelist: [/^\/$/],
+    dontCacheBustUrlsMatching: /cloudflare|\/lib\/|-v[0-9]/,
     runtimeCaching: [{
         urlPattern: /^https:\/\/cdnjs\.cloudflare\.com\/ajax\/libs\//,
         handler: 'cacheFirst'

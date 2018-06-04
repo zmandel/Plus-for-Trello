@@ -18,14 +18,17 @@ function getAllKeywords(bExcludeLegacyLast) {
     return rgKeywords;
 }
 
+//information about s/e for the current card, per user
 var g_seCard = {
     clear: function() {
         this.m_mapUsers = {};
         this.m_bRecurring = false;
+        this.m_bVersion1 = false;
+        this.m_bFresh = false;
     },
     setNull: function () {
+        this.clear();
         this.m_mapUsers = null;
-        this.m_bRecurring = false;
     },
     isNull : function () {
         return (this.m_mapUsers === null);
@@ -37,6 +40,25 @@ var g_seCard = {
     isRecurring: function () {
         assert(this.m_mapUsers);
         return (this.m_bRecurring);
+    },
+    //data comes from Trello, not the offline cache
+    setFresh: function (bFresh) {
+        assert(this.m_mapUsers);
+        this.m_bFresh = bFresh;
+    },
+    isFresh: function () {
+        return (this.m_bFresh);
+    },
+    isUserMapped(user) {
+        assert(this.m_mapUsers);
+        return !(!this.m_mapUsers[user]);
+    },
+    setEFirstForUser: function (user, eFirst) {
+        assert(user);
+        assert(this.m_mapUsers);
+        var mapCur = this.m_mapUsers[user];
+        assert(mapCur);
+        mapCur.eFirst = (mapCur.eFirst || 0)+eFirst;
     },
     setSeCurForUser: function (user, s, e, keyword) {
         //see extension fillCardSEStats
@@ -56,6 +78,7 @@ var g_seCard = {
         }
 
         if (keyword) {
+            assert(mapCur.kw);
             var mapKW = mapCur.kw[keyword];
             if (!mapKW) {
                 mapKW = {
@@ -67,35 +90,155 @@ var g_seCard = {
                 mapKW.s = mapKW.s + s;
                 mapKW.e = mapKW.e + e;
             }
+        } else {
+            this.m_bVersion1 = true; //happens if the user had version1 data serialized in localStorage. once online, this gets overwritten by new format
         }
     },
     isVersion1: function (user) { //old version1 didnt save s/e per kw. used by E autocomplete when adding new S/E
-        assert(m_mapUsers);
-        var map = this.m_mapUsers[user];
-        return (map && !map.kw);
+        assert(!this.isNull());
+        return this.m_bVersion1;
     },
     getSeCurForUser: function (user, keyword) {
         assert(this.m_mapUsers);
         var map = this.m_mapUsers[user] || { s: 0, e: 0, kw: {} };
-        if (keyword)
-            map = map.kw[keyword] || { s: 0, e: 0 };
-        return map;
+        var mapRet = map;
+
+        if (keyword) {
+            assert(mapRet.kw);
+            mapRet = mapRet.kw[keyword];
+            if (!mapRet) {
+                if (this.m_bVersion1) {
+                    //warning: this happens when the user has old version1 data and offline. pretend the old total card s/e was for that keyword,
+                    //for autocomplete scenarios. later before commit we verify that the data was upgraded and recalculated, otherwise it wont let commit
+                    //as the autocomplete could be incorrect on multiple-keyword scenarios
+                    mapRet = map;
+                }
+                else
+                    mapRet = { s: 0, e: 0 };
+            }
+        }
+        return mapRet;
     },
 
     //private:
     m_mapUsers: null,
-    m_bRecurring: false
+    m_bRecurring: false,
+    m_bVersion1: false,
+    m_bFresh: false
 };
 
-function updateEOnSChange(page) {
-    updateNoteR(page)
+function splitUnitParts(str) {
+    var parts = ("" + (str || "")).split(":");
+    while (parts.length < 2)
+        parts.push("");
+    assert(parts.length == 2);
+    return parts;
 }
 
-function updateNoteR(page) {
+function updateEOnSChange(page) {
+    var idCardCur = g_stateContext.idCard;
+
+    function finish() {
+        updateNoteR(page);
+    }
+
+    setTimeout(function () {
+        doUpdate(0);
+        function doUpdate(cRetry) {
+            var bHiliteEMain = false;
+            var bHiliteESub = false;
+            cRetry = cRetry || 0;
+            if (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard)
+                return;
+
+            if (g_seCard.isNull()) {
+                if (cRetry < 3) {
+                    setTimeout(function () {
+                        if (page.find("#plusCardCommentSpent").is(":focus") || page.find("#plusCardCommentSpent2").is(":focus"))
+                            doUpdate(cRetry + 1);
+                    }, 200);
+                }
+                return;
+            }
+            if (!updateCurrentSEData(page, true, false, true)) {
+                finish();
+                return;
+            }
+
+            var sParsed = parseFixedFloat(g_currentCardSEData.s);
+            var eParsed = parseFixedFloat(g_currentCardSEData.e);
+            var partsEOrig = splitUnitParts(g_currentCardSEData.e || "");
+            var parts = null;
+            if (g_seCard.isRecurring()) {
+                if (g_bDisplayPointUnits) {
+                    page.find("#plusCardCommentSpent").val(sParsed);
+                    if (sParsed != eParsed)
+                        bHiliteEMain = true;
+                }
+                else {
+                    parts = splitUnitParts(g_currentCardSEData.s);
+                    page.find("#plusCardCommentEst").val(parts[0]);
+                    page.find("#plusCardCommentEst2").val(parts[1]);
+                    if (partsEOrig[0] != parts[0])
+                        bHiliteEMain = true;
+                    if (partsEOrig[1] != parts[1])
+                        bHiliteESub = true;
+                }
+            } else if (!g_bAllowNegativeRemaining) {
+                var mapSeCur = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
+                if (!mapSeCur)
+                    return; //should not happen
+                var sNew = mapSeCur.s + sParsed;
+                var floatDiff = sNew - mapSeCur.e; //compare with original e
+                if (floatDiff <= 0)
+                    floatDiff = 0;
+                var diff = parseFixedFloat(floatDiff);
+                if (diff <= 0) {
+                    diff = "";
+                    floatDiff = 0;
+                }
+
+                if (eParsed != floatDiff) {
+                    if (g_bDisplayPointUnits) {
+                        page.find("#plusCardCommentEst").val(diff);
+                        if (floatDiff != eParsed)
+                            bHiliteEMain = true;
+                    }
+                    else {
+                        if (g_currentCardSEData.s.indexOf(":") >= 0)
+                            diff = UNITS.FormatWithColon(floatDiff);
+
+                        parts = splitUnitParts("" + diff);
+                        page.find("#plusCardCommentEst").val(parts[0]);
+                        page.find("#plusCardCommentEst2").val(parts[1]);
+                        if (partsEOrig[0] != parts[0])
+                            bHiliteEMain = true;
+                        if (partsEOrig[1] != parts[1])
+                            bHiliteESub = true;
+                    }
+                }
+            }
+
+            if (bHiliteEMain)
+                hiliteOnce(page.find("#plusCardCommentEst"), 500);
+            if (bHiliteESub)
+                hiliteOnce(page.find("#plusCardCommentEst2"), 500);
+
+            finish();
+        }
+    }, 1); //breathe
+}
+
+function updateNoteR(page, bDontSaveToStorage) {
     var elem = page.find("#plusCardEditMessage");
+    //get data now, but dont save to storage yet
     if (!updateCurrentSEData(page, true, false, true)) {
         elem.text("Format error.");
         return;
+    }
+    if (!bDontSaveToStorage) {
+        //save to storage async
+        updateCurrentSEData(page);
     }
     var sParsed = parseFixedFloat(g_currentCardSEData.s);
     var eParsed = parseFixedFloat(g_currentCardSEData.e);
@@ -107,7 +250,10 @@ function updateNoteR(page) {
     var sumS = sParsed + mapSe.s;
     var sumE = eParsed + mapSe.e;
     var rDiff = parseFixedFloat(sumE - sumS);
-    var noteFinal = "R will be " + rDiff + "." + (rDiff != 0 ? "" : " Increase E if not done.");
+    var rDiffFormatted = rDiff;
+    if (!g_bDisplayPointUnits && g_currentCardSEData.s.indexOf(".") < 0 && g_currentCardSEData.e.indexOf(".") < 0)
+        rDiffFormatted = UNITS.FormatWithColon(rDiff, true);
+    var noteFinal = " R will be " + rDiffFormatted + (g_bAllowNegativeRemaining ||  rDiff != 0 ? "" : ". Increase E if not done");
     elem.text(noteFinal);
 }
 
@@ -135,6 +281,17 @@ function getSEStringsFromEdits(page, bSilent) {
     var eMain = elemEstMain.val().trim();
     var eSub = g_bDisplayPointUnits ? "" : elemEstSub.val().trim();
 
+    function blankIfZero(str) {
+        if (str == "0")
+            return "";
+        return str;
+    }
+
+    //in case user "Blanks" the field by typing zero, this wont confuse the parser if main has "."
+    sMain = blankIfZero(sMain);
+    sSub = blankIfZero(sSub);
+    eMain = blankIfZero(eMain);
+    eSub = blankIfZero(eSub);
 
     if (sSub.length>0 &&  (sMain.indexOf(".") >= 0 || sSub.indexOf(".") >= 0))
         return errorRet(sSub);
@@ -195,95 +352,188 @@ function updateCurrentSEData(page, bForceNow, bShowErrors, bDontSaveToStorage) {
 function handleSEBar(page, panelAddSE) {
     var idCardCur = g_stateContext.idCard;
     var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
+    var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
+    var elemEstMain = panelAddSE.find("#plusCardCommentEst");
+    var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
+    var elemNote = panelAddSE.find("#plusCardCommentNote");
+    var listKeywords = page.find("#plusCardCommentKeyword").selectmenu("enable");
+    var listUsers = page.find("#plusCardCommentUser").selectmenu("enable");
+    var listDays = page.find("#plusCardCommentDays").selectmenu("enable");
+    var bChanged = false;
+    var msWaitMessage = 3000; //both draft message and hilite wait time must be the same to satisfy the eye
+
+    function hilite(elem) {
+        hiliteOnce(elem, msWaitMessage);
+        bChanged = true;
+    }
+
     //load draft
     g_currentCardSEData.loadFromStorage(idCardCur, function () {
         if (g_currentCardSEData.idCard != idCardCur)
             return; //timing when storage is async
-
-        if (!g_currentCardSEData.s && !g_currentCardSEData.e && !g_currentCardSEData.note && g_currentCardSEData.user == g_strUserMeOption) {
+        bChanged = false;
+        if (!g_currentCardSEData.s && !g_currentCardSEData.e) {
             setTimeout(function () {
                 if (isCordova())
                     cordova.plugins.Focus.focus(panelAddSE);
                 else
                     elemSpentMain.focus();
-            }, g_delayKB);
-            return;
+            }, isMobile()? g_delayKB:10);
         }
-            
 
-        var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
-        var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
-        var elemEstMain = panelAddSE.find("#plusCardCommentEst");
-        var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
-        var elemNote = panelAddSE.find("#plusCardCommentNote");
-        var listKeywords = page.find("#plusCardCommentKeyword").selectmenu("enable");
-        var listUsers = page.find("#plusCardCommentUser").selectmenu("enable");
-        var listDays = page.find("#plusCardCommentDays").selectmenu("enable");
-
-        if (g_currentCardSEData.keyword) {
-            listKeywords.val(g_currentCardSEData.keyword).selectmenu('refresh');
-            if (listKeywords.val() != g_currentCardSEData.keyword) {
-                return; //keyword no longer used. ignore
+        var keywords = getAllKeywords();
+        if (keywords.length > 0) {
+            if (g_currentCardSEData.keyword && keywords[0] != g_currentCardSEData.keyword) {
+                listKeywords.val(g_currentCardSEData.keyword).selectmenu('refresh');
+                if (listKeywords.val() != g_currentCardSEData.keyword) {
+                    return; //keyword no longer used. ignore
+                }
+                hilite(listKeywords);
+            } else {
+                listKeywords.val(keywords[0]);
             }
         }
 
-        if (g_currentCardSEData.user) {
+        if (g_currentCardSEData.user && g_currentCardSEData.user != g_strUserMeOption) {
             listUsers.val(g_currentCardSEData.user).selectmenu('refresh');
             if (listUsers.val() != g_currentCardSEData.user) {
                 g_recentUsers.markRecent(g_currentCardSEData.user, null, new Date().getTime(), true);
                 fillUserList(listUsers, g_currentCardSEData.user);
             }
+            hilite(listUsers);
+        } else {
+            listUsers.val(g_strUserMeOption);
         }
 
-        if (g_currentCardSEData.delta) {
+        if (g_currentCardSEData.delta && g_currentCardSEData.delta != "0") {
             listDays.val(g_currentCardSEData.delta).selectmenu('refresh');
             if (listDays.val() != g_currentCardSEData.delta) {
                 g_valDayExtra = g_currentCardSEData.delta;
                 fillDaysList(listDays, g_currentCardSEData.delta);
             }
+            hilite(listDays);
+        } else {
+            listDays.val("0");
         }
 
         var parts = null;
         if (g_currentCardSEData.s) {
-            if (g_bDisplayPointUnits)
+            if (g_bDisplayPointUnits) {
                 elemSpentMain.val(parseFixedFloat(g_currentCardSEData.s));
-            else {
-                parts = g_currentCardSEData.s.split(":");
-                elemSpentMain.val(parts[0]);
-                elemSpentSub.val(parts[1]);
+                hilite(elemSpentMain);
             }
+            else {
+                parts = splitUnitParts(g_currentCardSEData.s);
+                elemSpentMain.val(parts[0]);
+                if (parts[0])
+                    hilite(elemSpentMain);
+                elemSpentSub.val(parts[1]);
+                if (parts[1])
+                    hilite(elemSpentSub);
+            }
+        } else {
+            elemSpentMain.val("");
+            elemSpentSub.val("");
         }
 
         if (g_currentCardSEData.e) {
-            if (g_bDisplayPointUnits)
+            if (g_bDisplayPointUnits) {
                 elemEstMain.val(parseFixedFloat(g_currentCardSEData.e));
-            else {
-                parts = g_currentCardSEData.e.split(":");
-                elemEstMain.val(parts[0]);
-                elemEstSub.val(parts[1]);
+                hilite(elemEstMain);
             }
+            else {
+                parts = splitUnitParts(g_currentCardSEData.e);
+                elemEstMain.val(parts[0]);
+                if (parts[0])
+                    hilite(elemEstMain);
+                elemEstSub.val(parts[1]);
+                if (parts[1])
+                    hilite(elemEstSub);
+            }
+        } else {
+            elemEstMain.val("");
+            elemEstSub.val("");
         }
 
-        updateNoteR(page);
-
+        elemNote.val(g_currentCardSEData.note || "");
+        if (g_currentCardSEData.note)
+            hilite(elemNote);
+        updateNoteR(page, true);
+        if (bChanged)
+            alertMobile("Enter this draft", msWaitMessage);
     });
 
     //OK
     panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {       
-        if (!updateCurrentSEData(page, true, true))
+        if (!updateCurrentSEData(page, true, true)) //save to storage now (not async)
             return;
-        alertMobile("Soon the app will support entering S/E.");
+        var idCardCur = g_currentCardSEData.idCard;
+        //review: would be nice to use window.navigator.onLine but on Chrome it was returning false when online :(
 
-        function onDone(status) {
-            if (status == STATUS_OK)
-                g_currentCardSEData.removeValue(idCardCur);
+        if (g_seCard.isNull() || !g_seCard.isFresh()) {
+            alertMobile("Could not get card data from Trello. Check your internet connection.");
+            return;
         }
+
+        assert(!g_seCard.isVersion1()); //since its fresh, it cant have the old format from storage
+        var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
+        var s = parseFixedFloat(g_currentCardSEData.s);
+        var e = parseFixedFloat(g_currentCardSEData.e);
+        if (s == 0 && e == 0 && g_currentCardSEData.note.trim().length == 0) {
+            hiliteOnce(panelAddSE.find("#plusCardCommentSpent"), 500);
+            hiliteOnce(panelAddSE.find("#plusCardCommentEst"), 500);
+            return;
+        }
+
+        var sTotal = parseFixedFloat(mapSe.s + s);
+        var eTotal = parseFixedFloat(mapSe.e + e);
+        if (!verifyValidInput(sTotal, eTotal))
+            return;
+
+        if (g_currentCardSEData.note && g_currentCardSEData.note.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
+            alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from the mobile app.");
+            hiliteOnce(panelAddSE.find("#plusCardCommentNote"), 1500);
+            return;
+        }
+
+        function onBeforeStartCommit() {
+            enableSEFormElems(false, page, true);
+        }
+
+        function onFinished(bOK, data) {
+            var bOutOfContext = (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard);
+            if (!bOK) {
+                alertMobile("Error entering S/E", 4000);
+                enableSEFormElems(true, page, true);
+                return;
+            }
+            if (bOutOfContext) {
+                alertMobile("Entered S/E OK", 2000);
+                return;
+            }
+            
+            panelAddSE.find("#plusCardCommentUser").val(g_strUserMeOption);
+            panelAddSE.find("#plusCardCommentDays").val("0"); //now .note the chrome extension uses g_strNowOption as value
+            panelAddSE.find("#plusCardCommentSpent").val("");
+            panelAddSE.find("#plusCardCommentSpent2").val("");
+            panelAddSE.find("#plusCardCommentEst").val("");
+            panelAddSE.find("#plusCardCommentEst2").val("");
+            panelAddSE.find("#plusCardCommentNote").val("");
+            g_seCard.setSeCurForUser(data.member, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.keyword);
+            if (g_seCard.isRecurring() || !g_seCard.isUserMapped(data.member))
+                g_seCard.setEFirstForUser(data.member, parseFixedFloat(g_currentCardSEData.e));
+            g_currentCardSEData.removeValue(idCardCur); //forget draft
+            cancelPaneEdit(false);
+
+        }
+        setNewCommentInCard(idCardCur, g_currentCardSEData.keyword, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.note,
+            g_currentCardSEData.delta, g_currentCardSEData.user, onBeforeStartCommit, onFinished);
     });
 
-    //CANCEL
-    panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
+    function cancelPaneEdit(bUpdateCurrentSEData) {
         g_fnCancelSEBar = null;
-        updateCurrentSEData(page, true);
+        if (bUpdateCurrentSEData)
+            updateCurrentSEData(page, true);
         var delay = g_delayKB * 2;
         if (g_bNoAnimationDelay || g_bNoAnimations || !isMobile()) {
             g_bNoAnimationDelay = false;
@@ -292,16 +542,16 @@ function handleSEBar(page, panelAddSE) {
         setTimeout(function () {
             resetSEPanel(page);
         }, delay);
+    }
+
+    //CANCEL
+    panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
+        cancelPaneEdit(true);
         event.stopPropagation();
         event.preventDefault();
         return false;
     });
 
-    var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
-    var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
-    var elemEstMain = panelAddSE.find("#plusCardCommentEst");
-    var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
-    var elemNote = panelAddSE.find("#plusCardCommentNote");
     var allSEInputs = elemSpentMain.add(elemSpentSub).add(elemEstMain).add(elemEstSub); //numeric inputs
     //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
     allSEInputs.off("focus").on("focus", function () { $(this).select(); });
@@ -565,6 +815,98 @@ function loadCardPage(page, params, bBack, urlPage) {
     page.show();
 }
 
+function setNewCommentInCard(idCardCur, keywordUse, //blank uses default (first) keyword
+    sStr, eStr, //note: unlike extension code, this one takes strings which could include colon etc
+    commentBox,
+    prefix, //days 
+    member, //null means current user
+    onBeforeStartCommit, //called before all validation passed and its about to commit
+    onFinished) {        //called after commit finished or failed. onFinished(bOK)
+    if (prefix == "0" || prefix == null)
+        prefix = "";
+    var comment = ""; //trello card comment to add
+    var prefixComment = ""; //for transfer command
+
+    if (!g_user) {
+        onFinished(false);
+        return;
+    }
+       
+    if (!keywordUse) {
+        var kws = getAllKeywords(false);
+        if (kws.length > 0)
+            keywordUse = kws[0];
+        else {
+            assert(false);
+            onFinished(false);
+            return;
+        }
+    }
+    sStr = "" + sStr;
+    eStr = "" + eStr;
+    var sParts = splitUnitParts(sStr);
+    var eParts = splitUnitParts(eStr);
+    if (sParts[0]) {
+        assert(sParts[1].indexOf(".") < 0);
+        sParts[0] = ""+parseFixedFloat(sParts[0]); //normalize decimals
+    }
+    if (eParts[0]) {
+        assert(eParts[1].indexOf(".") < 0);
+        eParts[0] = ""+parseFixedFloat(eParts[0]); //normalize decimals
+    }
+
+    comment = keywordUse + " ";
+
+    if (member == g_strUserMeOption)
+        member = null; //defaults later to user
+    if (member && member.toLowerCase() != g_user.username.toLowerCase())
+        comment = comment + "@" + member + " ";
+    if (prefix.length > 0)
+        comment = comment + " -" + prefix + "d ";  //in chrome extension, the prefix already contains the format -xd
+    
+    var s = sParts[0];
+    if (sParts[1])
+        s = s + ":" + sParts[1];
+    var e = eParts[0];
+    if (eParts[1])
+        e = e + ":" + eParts[1];
+    comment = comment + s + "/" + e + " " + prefixComment + commentBox;
+    doEnterSEIntoCard(s, e, comment, idCardCur, keywordUse, member, onBeforeStartCommit, onFinished);
+}
+
+function doEnterSEIntoCard(s, e, comment, idCard, keyword, member, onBeforeStartCommit, onFinished) {
+    //weird function names is to match the older chrome extension commit structure
+    handleEnterCardComment(comment, idCard, s, e, keyword, member, onBeforeStartCommit, onFinished);
+}
+
+function handleEnterCardComment(comment, idCard, s, e, keyword, member, onBeforeStartCommit, onFinished) {
+
+    assert(onFinished);
+    if (onBeforeStartCommit)
+        onBeforeStartCommit();
+
+    function finished(bOK) {
+        onFinished(bOK, !bOK? null : { member: member });
+    }
+
+        addCardCommentByApi(idCard, comment, function (response) {
+            if (response.status != STATUS_OK) {
+                alertMobile("Failed to enter S/E: " + response.status);
+                finished(false);
+                return;
+            }
+
+            if (!member)
+                member = response.obj.memberCreator.username;
+            postAddCardComment(response.obj.id);
+        });
+
+        function postAddCardComment(idHistoryRowUse) {
+            //s, e, member, idHistoryRowUse, keyword
+            finished(true);
+        }
+}
+
 var g_bBackHooked=false;
 
 function onBackKeyDown() {
@@ -677,17 +1019,19 @@ function enableSEFormElems(bEnable,
         }
 
         function setUnitLabels() {
-            var u = UNITS.getCurrentShort(bAsPoints) + " ";
+            var u = UNITS.getCurrentShort(bAsPoints);
             var su = UNITS.GetSubUnit() + " ";
             var container = page.find("#panelAddSE");
             container.find("#spentUnit").text(u);
             container.find("#estUnit").text(u);
             if (bAsPoints) {
+                container.find("#seSeparator").hide();
                 container.find("#spentSubUnit").hide();
                 container.find("#estSubUnit").hide();
                 container.find("#plusCardCommentSpent2").hide();
                 container.find("#plusCardCommentEst2").hide();
             } else {
+                container.find("#seSeparator").show();
                 container.find("#plusCardCommentSpent2").show();
                 container.find("#spentSubUnit").text(su).show();
                 container.find("#plusCardCommentEst2").show();
@@ -799,6 +1143,7 @@ function enableSEFormElems(bEnable,
 function fillSEData(page, container, tbody, params, bBack, callback) {
     var idCard = params.id;
     g_seCard.setNull(); //means pending to load data
+    assert(!g_seCard.isFresh());
     function appendRow(user, s, eFirst, e, r) {
         var row = $("<tr>");
         row.append("<td class='colUser'>" + user + "</td>");
@@ -851,16 +1196,22 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         params.name = objReturn.name;
         params.nameList = objReturn.nameList;
         params.nameBoard = objReturn.nameBoard;
-        if (responseCached && JSON.stringify(responseCached.objTransformed) == JSON.stringify(objReturn))
+        if (responseCached && JSON.stringify(responseCached.objTransformed) == JSON.stringify(objReturn)) {
+            assert(!g_seCard.isNull());
+            g_seCard.setFresh(true);
             return objReturn;
+        }
         g_seCard.clear();
+        if (!response.bCached)
+            g_seCard.setFresh(true);
         g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
         page.find("#cardTitle").text(objReturn.name);
-        var converter = new Markdown.Converter();
+        
         var descElem = page.find("#cardDesc");
         if (!objReturn.desc)
             descElem.hide();
         else {
+            var converter = new Markdown.Converter();
             descElem.html(converter.makeHtml(objReturn.desc));
             var elems = descElem.find("a");
             elems.click(function (e) {
@@ -884,16 +1235,19 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         rgRows.forEach(function (row) {
             var sLoop = parseFixedFloat(row.spent);
             var eLoop = parseFixedFloat(row.est);
-            if (row.kw) { //version 2 of data
+            if (row.kw) { //version>=2 of data
                 for (var kwLoop in row.kw) {
                     sLoop = parseFixedFloat(row.kw[kwLoop].spent);
                     eLoop = parseFixedFloat(row.kw[kwLoop].est);
                     g_seCard.setSeCurForUser(row.user, sLoop, eLoop, kwLoop);
                 }
             } else {
-                g_seCard.setSeCurForUser(row.user, sLoop, eLoop, null); //old V1 format without kw
+                g_seCard.setSeCurForUser(row.user, sLoop, eLoop, null); //old version1 format without kw
             }
-            appendRow(row.user, sLoop, parseFixedFloat(row.estFirst), eLoop, parseFixedFloat(row.est - row.spent));
+            var eFirstParsed = parseFixedFloat(row.estFirst);
+            if (eFirstParsed)
+                g_seCard.setEFirstForUser(row.user, eFirstParsed);
+            appendRow(row.user, sLoop, eFirstParsed, eLoop, parseFixedFloat(row.est - row.spent));
         });
 
         callback(rgRows.length, response.bCached);
@@ -973,4 +1327,22 @@ function calculateCardSEReport(rgComments, bFromCache) {
     });
 
     return rgRows;
+}
+
+function verifyValidInput(sTotal, eTotal) {
+    var rTotal = parseFixedFloat(eTotal - sTotal);
+    var err = null;
+    if (sTotal < 0)
+        err = "Spent total will go negative.";
+    else if (eTotal < 0)
+        err = "Estimate total will go negative.";
+    else if (rTotal < 0 && !g_bAllowNegativeRemaining)
+        err = "Spent total will be larger than estimate total.\nTo avoid this see Plus Preferences 'Allow negative Remaining'";
+
+    if (err != null) {
+        err = err + "\n\nAre you sure you want to enter this S/E row?";
+        if (!confirm(err))
+            return false;
+    }
+    return true;
 }
