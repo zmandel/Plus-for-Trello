@@ -138,7 +138,7 @@ function loadCardPage(page, params, bBack, urlPage) {
             if (container.is(":visible"))
                 return;
 
-            if (bSlide)
+            if (bSlide && !bBack)
                 container.slideDown(200);
             else
                 container.show();
@@ -226,7 +226,7 @@ function loadCardPage(page, params, bBack, urlPage) {
     }
 
     g_stateContext.idCard = idCardLong;
-    refreshSE(true);
+    refreshSE(!g_bNoAnimations && g_transitionLastForward != "none");
     var elemPin = page.find("#cardPin");
     elemPin.flipswitch();
     var idNotification = g_pinnedCards.getIdNotification(idCardLong);
@@ -264,6 +264,11 @@ function loadCardPage(page, params, bBack, urlPage) {
             return false;
         }
     });
+
+    if (g_bNoAnimations)
+        page.find(".animateTransitions").removeClass("animateTransitions").addClass("undoAnimateTransitions");
+    else
+        page.find(".undoAnimateTransitions").addClass("animateTransitions");
 
     page.find("#addSE").off("click").click(function (event) {
         hookBack();
@@ -307,7 +312,7 @@ function loadCardPage(page, params, bBack, urlPage) {
     page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
         g_fnCancelSEBar = null;
         var delay = delayKB * 2;
-        if (g_bNoAnimationDelay) {
+        if (g_bNoAnimationDelay || g_bNoAnimations) {
             g_bNoAnimationDelay = false;
             delay = 0;
         }

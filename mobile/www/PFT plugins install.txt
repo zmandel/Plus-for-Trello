@@ -1,0 +1,33 @@
+plugins
+
+OK cordova plugin add https://github.com/florentvaldelievre/virtualartifacts-webIntent.git
+
+ok cordova plugin add https://github.com/katzer/cordova-plugin-local-notifications
+
+OK cordova plugin add cordova-plugin-app-version
+
+OK cordova plugin add cordova-plugin-x-toast
+
+OK cordova plugin add cordova-plugin-console
+
+OK cordova plugin add cordova-plugin-device
+
+OK cordova plugin add cordova-plugin-dialogs
+
+OK cordova plugin add cordova-plugin-inappbrowser
+
+OK cordova plugin add cordova-plugin-statusbar
+
+OK cordova plugin add https://github.com/46cl/cordova-android-focus-plugin
+
+OK cordova plugin add cordova-plugin-datepicker
+
+OK cordova plugin add cordova-plugin-customurlscheme --variable URL_SCHEME=plusfortrello
+
+android manifest debe tener para manejar card/board "send to" pft from trello app:
+<intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+

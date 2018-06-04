@@ -316,6 +316,7 @@ font-size:.7em;
     white-space: nowrap;
 }
 
+
 .animateTransitions {
     -webkit-transition: all 0.2s linear !important;
     -moz-transition: all 0.2s linear !important;

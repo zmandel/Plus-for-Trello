@@ -18,6 +18,7 @@ var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
 var PROP_ALLOWNEGATIVER = "allowNegativeR";
+var PROP_NOANIMATIONS = "noAnimations";
 var PROP_UNITSASPOINTS = "unitsAsPoints";
 var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
@@ -31,6 +32,7 @@ var g_mapLastActivityInfo = null;
 var g_user = null;
 var g_bAllowNegativeRemaining = false;
 var g_bDisplayPointUnits = false;
+var g_bNoAnimations = false;
 
 var g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
 
@@ -191,11 +193,14 @@ function handleOpenURL(url) {
     //needs to be stored in case user 1) clicks a notification 2) quickly quits app
     localStorage[PROP_LASTACTIVITYINFO] = JSON.stringify(g_mapLastActivityInfo);
     if (!bSkip) {
-        changePage(url, "slidedown");
+        changePage(url, g_bNoAnimations ? "none" : "slidedown");
     }
 }
 
+var g_transitionLastForward = "none";
+
 function changePage(url, transition, callback, bReplaceState) {
+    g_transitionLastForward = transition;
     if (g_bShownPopupLink)
         $("#openAsDesktopPopup").hide();
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
@@ -724,7 +729,7 @@ var app = {
                 cordova.plugins.notification.local.on("click", function (notification) {
                     if (notification.data) {
                         var data = JSON.parse(notification.data);
-                        changePage(data.url, "slidedown");
+                        changePage(data.url, g_bNoAnimations ? "none" : "slidedown");
                     }
                 });
             }
@@ -745,6 +750,7 @@ var app = {
         }
         g_bAllowNegativeRemaining = (localStorage[PROP_ALLOWNEGATIVER] || "") == "true";
         g_bDisplayPointUnits = (localStorage[PROP_UNITSASPOINTS] || "") == "true";
+        g_bNoAnimations = (localStorage[PROP_NOANIMATIONS] || "") == "true";
         g_analytics.init();
         g_recentBoards.init();
         g_recentUsers.init();
@@ -907,6 +913,7 @@ function setupSettingsPage() {
     
     $("#allowNegativeR").attr("checked", g_bAllowNegativeRemaining).checkboxradio("refresh");
     $("#unitsAsPoints").attr("checked", g_bDisplayPointUnits).checkboxradio("refresh");
+    $("#noAnimations").attr("checked", g_bNoAnimations).checkboxradio("refresh");
     var selectUnits = $("#selectUnits");
     selectUnits.val(UNITS.current);
     selectUnits.selectmenu("refresh");
@@ -982,6 +989,11 @@ function setupSettingsPage() {
     $("#unitsAsPoints").off("click").click(function () {
         g_bDisplayPointUnits = $("#unitsAsPoints").is(':checked');
         localStorage[PROP_UNITSASPOINTS] = g_bDisplayPointUnits ? "true" : "false";
+    });
+
+    $("#noAnimations").off("click").click(function () {
+        g_bNoAnimations = $("#noAnimations").is(':checked');
+        localStorage[PROP_NOANIMATIONS] = g_bNoAnimations ? "true" : "false";
     });
 
     $("#globaluser").off("click").click(function () {
@@ -1205,7 +1217,7 @@ function loadHomePage() {
     }
 
     $("#viewBoards").off("click").click(function () {
-        changePage("#pageListBoards", "slide");
+        changePage("#pageListBoards", g_bNoAnimations?"none":"slide");
     });
 
     var listBoardsRecent = $("#listBoardsRecent").listview();
@@ -1380,7 +1392,7 @@ function handleBoardClick(idBoard, name) {
     //idBoard is a "long id". we do not pass a shortLink because other code depends on using the id to map things (like api result caches)
     g_stateContext.idBoard = idBoard;
     
-    changePage("index.html#pageListLists", "slide", function () {
+    changePage("index.html#pageListLists", g_bNoAnimations ? "none" : "slide", function () {
         callTrelloApi("boards/" + idBoard + "?lists=all&list_fields=id,name,pos,closed&fields=name,shortLink", true, 3000, function (response) {
             list.empty();
             idBoard = response.obj.id; //refresh in case a shortLink was passed
@@ -1403,7 +1415,7 @@ function handleBoardClick(idBoard, name) {
 }
 
 function handleListClick(idList, nameBoard, nameList) {
-    changePage("index.html#pageListCards", "slide", function () {
+    changePage("index.html#pageListCards", g_bNoAnimations ? "none" : "slide", function () {
         var list = $("#cardsList");
         var titleHeader = nameList;
 
@@ -1462,7 +1474,7 @@ function handleCardClick(id, name, nameList, nameBoard, shortLink) {
         };
         g_cardsById[id] = cardCached;
     }
-    changePage("card.html?id=" + encodeURIComponent(id), "slidedown");
+    changePage("card.html?id=" + encodeURIComponent(id), g_bNoAnimations ? "none" : "slidedown");
 }
 
 function setTrelloToken(token) {

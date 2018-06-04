@@ -6,10 +6,10 @@
       '*.png',
       'js/*.js',
       'js/lib/*.js',
-      'img/*.png',
-      'img/*.gif',
+      'img/*.*',
       'css/*.css'
     ],
     ignoreUrlParametersMatching: [/./],
-    directoryIndex: false
+    directoryIndex: false,
+    dontCacheBustUrlsMatching: /cloudflare|\/lib\//
 };

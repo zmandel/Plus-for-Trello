@@ -5,7 +5,10 @@
       "firebase.json",
       "*.bat",
       "*.txt",
-      "*.tmp"
+      "*.tmp",
+      "**/.*",
+      "css/images/icons-png/**",
+      "jquery.*.*"
     ],
     "redirects": [
       {
@@ -35,6 +38,15 @@
       },
       {
         "source": "*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "*.js",
         "headers": [
           {
             "key": "Cache-Control",
