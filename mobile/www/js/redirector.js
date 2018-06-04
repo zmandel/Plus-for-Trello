@@ -24,8 +24,10 @@ window.onload = function () {
             var postPath = "";
             if (partLast.indexOf(strCardDetect) == 0) {
                 var idCardLong = partLast.split(strCardDetect)[1];
-                if (idCardLong)
+                if (idCardLong) {
+                    idCardLong = idCardLong.split("#")[0].split("&")[0]; //trello power-up adds extra parameters
                     localStorage[PROP_NAVIDCARDLONG] = idCardLong;
+                }
             }
         }
     }
