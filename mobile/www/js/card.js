@@ -19,26 +19,56 @@ function getAllKeywords(bExcludeLegacyLast) {
 
 var g_seCard = {
     clear: function() {
-        this.mapUsers = {};
+        this.m_mapUsers = {};
     },
-    setSeCurForUser: function (user, s, e) {
+    setNull: function () {
+        this.m_mapUsers = null;
+    },
+    isNull : function () {
+        return (this.m_mapUsers === null);
+    },
+    setSeCurForUser: function (user, s, e, keyword) {
+        //see extension fillCardSEStats
         assert(user);
-        var map = this.mapUsers[user];
-        if (map) {
-            map.s = s;
-            map.e = e;
+        assert(this.m_mapUsers);
+        var mapCur = this.m_mapUsers[user];
+        if (!mapCur) {
+            mapCur = {
+                s: s,
+                e: e,
+                kw: {}
+            };
+            this.m_mapUsers[user] = mapCur;
+        } else {
+            mapCur.s = mapCur.s + s;
+            mapCur.e = mapCur.e + e;
         }
-        else
-            this.mapUsers[user] = { s: s, e: e };
+
+        if (keyword) {
+            var mapKW = mapCur.kw[keyword];
+            if (!mapKW) {
+                mapKW = {
+                    s: s,
+                    e: e
+                };
+                mapCur.kw[keyword] = mapKW;
+            } else {
+                mapKW.s = mapKW.s + s;
+                mapKW.e = mapKW.e + e;
+            }
+        }
     },
-    getSeCurForUser: function (user) { //note returns null when not loaded yet
+    getSeCurForUser: function (user, keyword) {
         assert(user);
-        var map = this.mapUsers[user] || { s: 0, e: 0 };
+        assert(this.m_mapUsers);
+        var map = this.m_mapUsers[user] || { s: 0, e: 0, kw: {} };
+        if (keyword)
+            map = map.kw[keyword] || { s: 0, e: 0 };
         return map;
     },
 
     //private:
-    mapUsers: {}
+    m_mapUsers: null
 };
 
 function resetSEPanel(page) {
@@ -126,7 +156,7 @@ function loadCardPage(page, params, bBack, urlPage) {
 
             //firefox support for requireInteraction: in mozilla52 https://bugzilla.mozilla.org/show_bug.cgi?id=862395 https://wiki.mozilla.org/RapidRelease/Calendar
             var matchFF = window.navigator.userAgent.match(/Firefox\/([0-9]+)\./);
-            var verFF = matchFF ? parseInt(matchFF[1]) : 0;
+            var verFF = matchFF ? parseInt(matchFF[1],10) : 0;
             if (verFF > 0 && verFF < 52)
                 return;
             if (!navigator.serviceWorker || !navigator.serviceWorker.ready)
@@ -241,7 +271,7 @@ function loadCardPage(page, params, bBack, urlPage) {
         event.preventDefault();
         cTimesClickedAdd++;
         enableSEFormElems(true, page, cTimesClickedAdd > 1);
-        bNeedBounceFocus = true;
+        bNeedBounceFocus = isCordova();
         page.find("#panelAddSEContainer").addClass("shiftUp");
         page.find("#cardBottomContainer").addClass("plusShiftBottom");
         page.find("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
@@ -271,7 +301,7 @@ function loadCardPage(page, params, bBack, urlPage) {
     });
     
     page.find("#plusCardCommentEnterButton").off("click").click(function (event) {
-        alertMobile("Soon the app will support entering S/E.")
+        alertMobile("Soon the app will support entering S/E.");
     });
 
     page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
@@ -341,6 +371,7 @@ function unhookBack() {
 function enableSEFormElems(bEnable,
     page,
     bOnlyEnable) { //bOnlyEnable true and bEnable true will just show elements without repopulating (opt)
+    var bAsPoints = g_bDisplayPointUnits;
     if (bEnable) {
         page.find(".seFormElem").removeAttr('disabled');
         page.find("#plusCardCommentEnterButton").removeClass("ui-disabled");
@@ -358,17 +389,26 @@ function enableSEFormElems(bEnable,
         }
 
         function setUnitLabels() {
-            var u = UNITS.GetUnit() + " ";
+            var u = UNITS.getCurrentShort(bAsPoints) + " ";
             var su = UNITS.GetSubUnit() + " ";
             page.find("#spentUnit").text(u);
-            page.find("#spentSubUnit").text(su);
             page.find("#estUnit").text(u);
-            page.find("#estSubUnit").text(su);
+            if (bAsPoints) {
+                page.find("#spentSubUnit").hide();
+                page.find("#estSubUnit").hide();
+                page.find("#plusCardCommentSpent2").hide();
+                page.find("#plusCardCommentEst2").hide();
+            } else {
+                page.find("#plusCardCommentSpent2").show();
+                page.find("#spentSubUnit").text(su).show();
+                page.find("#plusCardCommentEst2").show();
+                page.find("#estSubUnit").text(su).show();
+            }
         }
 
         setUnitLabels();
-        var valUserOther = "other";
-        
+        var valUserOther = "other...";
+
         function appendUser(name, bSelected) {
             var item = $("<option value='" + name + "'" + (bSelected ? " selected='selected'" : "") + ">" + name + "</option>");
             listUsers.append(item);
@@ -384,7 +424,7 @@ function enableSEFormElems(bEnable,
             rgKeywords.forEach(function (keyword) {
                 appendKeyword(keyword, keywordSelected && keywordSelected == keyword);
             });
-            
+
             listKeywords.selectmenu("refresh");
             if (rgKeywords.length < 2)
                 listKeywords.parent().hide();
@@ -397,9 +437,13 @@ function enableSEFormElems(bEnable,
             g_recentUsers.users.sort(function (a, b) {
                 return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
             });
-            appendUser("me");
+            appendUser(g_strUserMeOption);
+            var userGlobal = getUserGlobal();
+            appendUser(userGlobal);
             g_recentUsers.users.forEach(function (user) {
                 var nameUse = user.name.toLowerCase();
+                if (nameUse == g_strUserMeOption || nameUse == userGlobal)
+                    return;
                 if (g_user && g_user.username.toLowerCase() == nameUse)
                     return;
                 appendUser(nameUse, userSelected && userSelected == nameUse);
@@ -426,7 +470,7 @@ function enableSEFormElems(bEnable,
                     fillUserList(userNew);
                 }
 
-                if (typeof(navigator) != "undefined" && navigator.notification) {
+                if (typeof (navigator) != "undefined" && navigator.notification) {
                     navigator.notification.prompt(
                         "Type username",  // message
                         function onPrompt(results) {
@@ -444,8 +488,8 @@ function enableSEFormElems(bEnable,
                 }
             }
         });
-        
-        var valDayOther = "other";
+
+        var valDayOther = "other...";
         var valMaxDaysCombo = 5;
         function appendDay(cDay, cDaySelected) {
             var nameOption = null;
@@ -495,7 +539,7 @@ function enableSEFormElems(bEnable,
 
                 if (typeof (datePicker) != "undefined") {
                     datePicker.show(options, function (date) {
-                        if (!date || date=="cancel") {
+                        if (!date || date == "cancel") {
                             date = "";
                         }
                         else if (date > dateNow) {
@@ -513,7 +557,7 @@ function enableSEFormElems(bEnable,
                 }
                 else {
                     var strValDelta = prompt("enter positive delta", "");
-                    process(parseInt(strValDelta,10) || 0);
+                    process(parseInt(strValDelta, 10) || 0);
                 }
             }
         });
@@ -530,7 +574,7 @@ function enableSEFormElems(bEnable,
 
 function fillSEData(page, container, tbody, params, bBack, callback) {
     var idCard = params.id;
-    g_seCard.clear();
+    g_seCard.setNull(); //means pending to load data
     function appendRow(user, s, eFirst, e, r) {
         var row = $("<tr>");
         row.append("<td class='colUser'>" + user + "</td>");
@@ -649,9 +693,11 @@ function calculateCardSEReport(rgComments, bFromCache) {
             userRow.estFirst = 0;
             userRow.user = row.user;
             userRow.sDateMost = row.date;
+            userRow.kw = {};   //note that existance of this property indicates it is version 2. Before 2017-01-03 it was not stored per-keyword. later we use this to detect stale serialized data.
             userSums[row.user] = userRow;
             row.bENew = true;
         }
+        var keyword = row.keyword;
         userRow.spent = userRow.spent + row.spent;
         userRow.est = userRow.est + row.est;
         if (row.bENew)
@@ -659,6 +705,20 @@ function calculateCardSEReport(rgComments, bFromCache) {
 
         userRow.iOrder = iOrder;
         iOrder++;
+        
+        if (keyword) { //should always be one really as its card comment sync
+            var mapKW = userRow.kw[keyword];
+            if (!mapKW) {
+                mapKW = {
+                    spent:row.spent,
+                    est: row.est
+                };
+                userRow.kw[keyword] = mapKW;
+            } else {
+                mapKW.spent = mapKW.spent + row.spent;
+                mapKW.est = mapKW.est + row.est;
+            }
+        }
     });
 
     for (var user in userSums) {

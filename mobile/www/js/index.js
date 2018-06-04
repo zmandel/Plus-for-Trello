@@ -33,68 +33,65 @@ var g_bAllowNegativeRemaining = false;
 var g_bDisplayPointUnits = false;
 
 var g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
-var g_urlInitial = "";
 
 var g_loaderDetector = {
     initLoader: function () {
-        var thisLocal = this;
-        if (!isCordova())
-            try {
-                g_urlInitial = document.location.href; //save here, as later the framework might change it
-                if (g_urlInitial.indexOf("#") >= 0 || g_urlInitial.indexOf("?") >= 0) {
-                    window.location.replace("/index.html");
-                    return;
-                }
-                registerWorker();
-            } catch (e) {
-
+        if (!isCordova()) {
+            var url = document.location.href;
+            if (url.indexOf("#") >= 0 || url.indexOf("?") >= 0) {
+                window.location.replace("/index.html");
+                return this;
             }
+        }
         return this;
     }
 }.initLoader();
 
 function registerWorker() {
-    if ('serviceWorker' in navigator) {
-        if (navigator.serviceWorker.addEventListener) {
-            navigator.serviceWorker.addEventListener('message', function (event) {
-                if (event.data.action && event.data.action == "pinnedCard")
-                    changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
-            });
-        }
-
-        navigator.serviceWorker.register('service-worker.js').then(function (reg) {
-            // updatefound is fired if service-worker.js changes.
-            reg.onupdatefound = function () {
-                // The updatefound event implies that reg.installing is set; see
-                // https://slightlyoff.github.io/ServiceWorker/spec/service_worker/index.html#service-worker-container-updatefound-event
-                var installingWorker = reg.installing;
-
-                installingWorker.onstatechange = function () {
-                    switch (installingWorker.state) {
-                        case 'installed':
-                            if (navigator.serviceWorker.controller) {
-                                // At this point, the old content will have been purged and the fresh content will
-                                // have been added to the cache.
-                                // It's the perfect time to display a "New content is available; please refresh."
-                                // message in the page's interface.
-                                console.log('New or updated content is available.');
-                            } else {
-                                // At this point, everything has been precached.
-                                // It's the perfect time to display a "Content is cached for offline use." message.
-                                console.log('Content is now available offline!');
-                            }
-                            break;
-
-                        case 'redundant':
-                            console.error('The installing service worker became redundant.');
-                            break;
-                    }
-                };
-            };
-        }).catch(function (e) {
-            console.error('Error during service worker registration:', e);
+    if (!('serviceWorker' in navigator))
+        return;
+    //caller already waited for window load (https://github.com/google/WebFundamentals/issues/3883)
+    if (navigator.serviceWorker.addEventListener) {
+        navigator.serviceWorker.addEventListener('message', function (event) {
+            if (event.data.action && event.data.action == "pinnedCard")
+                changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
         });
     }
+    navigator.serviceWorker.register('service-worker.js').then(function (reg) {
+        // updatefound is fired if service-worker.js changes.
+        reg.onupdatefound = function () {
+            // The updatefound event implies that reg.installing is set; see
+            // https://slightlyoff.github.io/ServiceWorker/spec/service_worker/index.html#service-worker-container-updatefound-event
+            var installingWorker = reg.installing;
+
+            installingWorker.onstatechange = function () {
+                switch (installingWorker.state) {
+                    case 'installed':
+                        if (navigator.serviceWorker.controller) {
+                            // At this point, the old content will have been purged and the fresh content will
+                            // have been added to the cache.
+                            // It's the perfect time to display a "New content is available; please refresh."
+                            // message in the page's interface.
+                            //console.log('New or updated content is available.');
+                        } else {
+                            // At this point, everything has been precached.
+                            // It's the perfect time to display a "Content is cached for offline use." message.
+                            //console.log('Content is now available offline!');
+                        }
+                        break;
+
+                    case 'redundant':
+                        console.error('The installing service worker became redundant.');
+                        break;
+                    default:
+                        //other states like 'activated'
+                        break;
+                }
+            };
+        };
+    }).catch(function (e) {
+        console.error('Error during service worker registration:', e);
+    });
 }
 
 function assert(val) {
@@ -687,6 +684,7 @@ function handleBoardOrCardActivity(text) {
 }
 
 var g_bHideHome = false; //hack to hide home while navigating directly to a card
+
 var app = {
     // Application Constructor
     initialize: function () {
@@ -697,10 +695,22 @@ var app = {
     // Bind any events that are required on startup. Common events are:
     // 'load', 'deviceready', 'offline', and 'online'.
     bindEvents: function () {
-        document.addEventListener('deviceready', this.onDeviceReady, false);
-        var thisApp = this;
-        if (!isCordova())
-            setTimeout(function () { thisApp.onDeviceReady(); }, 50);
+        g_loaderDetector.initLoader(); 
+        if (isCordova())
+            document.addEventListener('deviceready', this.onDeviceReady, false);
+        else {
+            var thisApp = this;
+            window.addEventListener('load', function load(event) {
+                window.removeEventListener("load", load, false); //remove listener, no longer needed
+                //must wait for load to initialize the page, otherwise jqm gets sometimes confused, specially when navigating directly to a card,
+                //as the redirection to card.html was sometimes re-navigating back to home.
+                thisApp.onDeviceReady();
+                //we want to initialize the worker after the page is fully initialized, otherwise the first time it will fight for resources as it caches.
+                //we further use setTimeout, thou Im not sure if that really makes any difference.
+                setTimeout(registerWorker,300);
+            }, false);
+        }
+            
     },
     // deviceready Event Handler
     //
@@ -747,6 +757,7 @@ var app = {
 
         function onBeforePageChange(page, urlNew, bBack) {
             var idPage = page.attr("id");
+            //console.log("onBeforePageChange " + idPage);
             g_cPageNavigations++;
             g_stateContext.idPage = idPage;
             setPageTitle(idPage);
@@ -757,8 +768,9 @@ var app = {
                     params = urlNew.substr(iFind);
             }
             if (typeof (g_fnCancelSEBar) != "undefined" && g_fnCancelSEBar) {
-                g_fnCancelSEBar();
-				g_fnCancelSEBar=null;
+                var fnCall = g_fnCancelSEBar;
+                g_fnCancelSEBar = null;
+                fnCall();
 			}
             defaultPageInit(idPage, page, params, bBack, urlNew);
         }
@@ -794,7 +806,6 @@ var app = {
         }
 
         header.show();
-        var paramsUrl = getUrlParams(g_urlInitial);
         var idCardNavigate = localStorage[PROP_NAVIDCARDLONG];
         
         pageLogin.show();
@@ -829,9 +840,9 @@ var app = {
                     g_bHideHome = true; //temporarily hide it
                     g_bShownPopupLink = true; //so we wont show it on this index.html
                     delete localStorage[PROP_NAVIDCARDLONG];
-                        setTimeout(function () {
-                            changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
-                        }, 150);
+                    setTimeout(function () {
+                        changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
+                    }, 50);
                 }
             }
             onBeforePageChange(pageLogin);
@@ -840,7 +851,7 @@ var app = {
     },
 
     receivedEvent: function (id) {
-        console.log('Received Event: ' + id);
+        //console.log('Received Event: ' + id);
     }
 };
 
@@ -855,6 +866,10 @@ function exitApp() {
         }
         window.close();
     }
+}
+
+function getUserGlobal() {
+    return (localStorage[PROP_GLOBALUSER] || DEFAULTGLOBAL_USER);
 }
 
 function setupSettingsPage() {
@@ -1067,6 +1082,7 @@ function defaultPageInit(idPage, page, params, bBack, urlNew) {
     else
         $("#settings").show();
 
+    //console.log("loading " + idPage);
     if (idPage == "pageHelp")
         loadHelpPage();
     else if (idPage == "pageLogin")
