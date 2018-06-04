@@ -167,9 +167,10 @@ var g_dataLastUrlHandledOpen = {
     pop: function () {
         var t = g_dataLastUrlHandledOpen;
         var urlLocal = t.url;
-        t.url = "";
-        if (Date.now() - t.ms < 1000)
+        if (Date.now() - t.ms < 1200) {
+            t.url = "";
             return "";
+        }
         return urlLocal;
     },
     set: function (str) {
@@ -182,7 +183,6 @@ var g_dataLastUrlHandledOpen = {
 //called when plusfortrello://activity is received (from cordova-plugin-customurlscheme) see PFT_ACTIVITY
 //used to be sent from onLocalNotification in v<=31
 function handleOpenURL(url) {
-    //alertMobile(url);
     if (url)
         g_dataLastUrlHandledOpen.set(url);
     var strFind = "://";
@@ -194,6 +194,7 @@ function handleOpenURL(url) {
         var token = url.substr(param_loginTk.length);
         //alert(token);
         setTrelloToken(token);
+        closeTrelloAuth();
         return;
     }
     //review: is this still true?
@@ -333,7 +334,7 @@ var g_analytics = {
         if (this.bDisableAnalytics || isDeveloper())
             return;
         this.init();
-        var payload = "v=1&tid=" + "UA-" + g_idGlobalAnalytics + "zzz" + "-" + "1" + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
+        var payload = "v=1&tid=" + "UA-" + g_idGlobalAnalytics + "888" + "-" + "1" + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         }
@@ -679,8 +680,11 @@ function setDefaultKeywords() {
 
 
 function handleBoardOrCardActivity(text) {
-    if (text && g_dataLastUrlHandledOpen.pop() == text) //some activities (ie token from webapp) can happen twice
+    if (text && text.indexOf(PFT_ACTIVITY) == 0) //handled by handleOpenURL
         return;
+
+    if (text && g_dataLastUrlHandledOpen.pop() == text) //some activities (ie token from webapp) can happen twice
+        return; //review: did this before rejecting all PFT_ACTIVITYes above. but kept it for future
 
     function getId(strFind) {
         var i = text.indexOf(strFind);
@@ -815,6 +819,7 @@ var app = {
         var header = $("[data-role='header']");
         header.toolbar();
         header.addClass("animateTransitions");
+        
         setDefaultKeywords();
         var pageLogin = $("#pageLogin");
 
@@ -874,7 +879,10 @@ var app = {
             g_analytics.hit({ t: "pageview", dp: idPage }, 1000);
         }
 
-        header.show();
+        if (g_bShowMagicAppLogin)
+            header.hide();
+        else
+            header.show();
 
         delete localStorage[PROP_NAVFROMPOWERUP];
         pageLogin.show();
@@ -903,9 +911,10 @@ var app = {
         });
 
         $("#loginToApp").click(function () {
-            setTimeout(function () { exitApp(); }, 500);
+            setTimeout(function () {
+                window.location.replace("about:blank"); //remove ourselves to avoid confusing the user if going "back" after log in in app
+            }, 700);
         });
-
 
         initUser(function (user) {
             onBeforePageChange(pageLogin);
@@ -1309,11 +1318,52 @@ function isDesktopVersion() {
 
 var g_bShownPopupLink = false;
 var g_bShowMagicAppLogin = false;
+var g_refGoogleLoginInApp = null;
+var g_bForceInAppGoogleLogin = false; //for testing purposes
 
 function doGoogleLogin() {
+    var url = "https://app.plusfortrello.com/index.html?applogin=1";
 
+    function fallbackInApp() {
+        if (g_refGoogleLoginInApp)
+            g_refGoogleLoginInApp.close();
+        
+        g_refGoogleLoginInApp = cordova.InAppBrowser.open(url, '_system');
+    }
+
+    cordova.plugins.browsertab.isAvailable(function(result) {
+        if (g_bForceInAppGoogleLogin || !result) {
+            fallbackInApp();
+        } else {
+            cordova.plugins.browsertab.openUrl(
+                url,
+                function (successResp) {
+
+                },
+                function(failureResp) {
+                    fallbackInApp();
+                });
+        }
+    },
+  function(isAvailableError) {
+      fallbackInApp();
+  });
 }
 
+function closeTrelloAuth() {
+    if (g_refGoogleLoginInApp) {
+            g_refGoogleLoginInApp.close();
+            g_refGoogleLoginInApp = null;
+            return;
+        }
+
+    cordova.plugins.browsertab.isAvailable(function (result) {
+        if (result)
+            cordova.plugins.browsertab.close();
+    },
+function (isAvailableError) {
+});
+}
 
 function loadHomePage() {
     var bHasKeyTrello = (!!localStorage[PROP_TRELLOKEY]);
@@ -1375,22 +1425,35 @@ function loadHomePage() {
     var listCardsPinned = $("#listCardsPinned").listview();
 
     $("#login").off("click").click(function () {
+        if (localStorage[PROP_TRELLOKEY]) {
+            //can happen if login happened through webapp magic login link
+            refreshCurrentPage();
+            return;
+        }
         var bDoRegularLogin = true;
         if (isCordova() && typeof (navigator) != "undefined" && navigator.notification) {
             bDoRegularLogin=false;
-            navigator.notification.prompt(
-                "Login with Google or with SSO?",  // message
-                function onPrompt(results) {
+            navigator.notification.confirm(
+                "Pick your log in method:",  // message
+                function onPrompt(buttonIndex) { //buttonIndex is 1-based
                     var text = null;
-                    if (results.buttonIndex == 0)
+                    if (buttonIndex == 1)
                         doGoogleLogin();
-                    else if (results.buttonIndex == 0)
+                    else if (buttonIndex == 2)
                         loginToTrello();
                 },                  // callback to invoke
-                'Login method',            // title
-                ['Yes', 'No'],             // buttonLabels
-                'No');                // defaultText
+                'Log in',            // title
+                ['Google/SSO', 'Trello']);
         } else {
+            if (!isCordova() && g_bFromPowerup) {
+                if (confirm("Log in using a code? Pick 'Cancel' if using from a web browser. Pick 'OK' if using the native Trello app.")) {
+                    var code = prompt("Enter the log in code:");
+                    if (code) {
+                        setTrelloToken(code);
+                        return;
+                    }
+                }
+            }
             loginToTrello();
         }
 
@@ -1660,7 +1723,7 @@ function setTrelloToken(token) {
 }
 
 function getAppKey() {
-    return TRELLO_APPKEY + "xxxxxxx" + "yyyyyyy";
+    return TRELLO_APPKEY + "b15b2d4" + "ab2ad779842";
 }
 
 function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/authorizing-trello-with-angular/ for converting the trello coffescript
