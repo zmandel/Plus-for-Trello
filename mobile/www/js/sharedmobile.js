@@ -156,6 +156,7 @@ var g_storage = {
 
 
 //information about what is being edited in the s/e card. can load/restore from storage per card
+//NOTE: g_currentCardSEData.user can be "me", must be manually mapped to g_user.username 
 var g_currentCardSEData = {
     loadFromStorage: function (idCard, callback) {
         assert(idCard);
@@ -243,7 +244,7 @@ var g_currentCardSEData = {
         this.s = "";
         this.e = "";
         this.note = "";
-        this.idCard = "";
+        //do not clear this.idCard, we want to leave it, as if the draft is all empty.
     },
 
     msTime: 0,
@@ -251,7 +252,7 @@ var g_currentCardSEData = {
     strLastSaved: "", //note: because it contains the idCard, its OK to not clear this cache when the card changes
     idCard: "",
     keyword: "",
-    user: "",
+    user: "", //note: can be "me". must be checked
     delta: "",
     s: "", //NOTE: s/e stored as strings. could contain ":"
     e: "",

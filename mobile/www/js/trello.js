@@ -1,5 +1,6 @@
 /// <reference path="intellisense.js" />
 var g_strOffline = "No connection";
+var g_bLastOffline = false;
 
 var g_syncProgress = {
     m_total: 0,
@@ -183,7 +184,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                 var bReturned = false;
                 var bQuotaExceeded = (xhr.status == 429);
                 g_analytics.hit({ t: "event", ec: "trelloApiCalls", ea: (bQuotaExceeded? "callRetry" : "call") }, 1000);
-               
+                g_bLastOffline = false;
                 if (!bOKContext())
                     return;
 
@@ -232,9 +233,12 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                     }
                 }
 
+                if (objRet.status == g_strOffline)
+                    g_bLastOffline = true;
+
                 if (!bReturned || !bOkCallback) {
                     if (objRet.status != STATUS_OK && !bReturnErrors) {
-                        if (objRet.status == g_strOffline)
+                        if (g_bLastOffline)
                             alertOffline();
                         else
                             alertMobile(objRet.status);

@@ -11,6 +11,10 @@
     position: static !important; /* overwrite jqm */
 }
 
+#panelAddSE input:disabled {
+    background-color: white !important;
+}
+
 #plusToasterMessage {
     position: fixed;
     z-index:2147483647;
@@ -25,6 +29,10 @@
     -webkit-box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
     -moz-box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
     box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
+}
+
+.hiliteNewReportRow {
+    background-color:#61BD4F !important;
 }
 
 .ui-toolbar-back-btn {

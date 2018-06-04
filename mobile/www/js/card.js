@@ -6,6 +6,7 @@ var SEKEYWORD_LEGACY = "plus s/e";
 var g_fnCancelSEBar = null;
 var g_cardsById = {}; //has name, nameBoard, nameList, shortLink. used for navigation as jqm cant yet store well params in url
 var g_delayKB = 350; //keyboard animation delay (aprox based on android)
+var g_delayDraftHilite = 2000;
 
 function getAllKeywords(bExcludeLegacyLast) {
     var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
@@ -19,7 +20,11 @@ function getAllKeywords(bExcludeLegacyLast) {
 }
 
 //recent s/e rows entered from the app. when a card s/e is read, its rows are removed from here.
-//purpose is to easily patch the offline s/e cache
+//purpose is to easily patch the offline s/e cache.
+//creates a smooth experience of updating the card s/e table without needing to call trello again.
+//for the user, while offline after entering rows, the s/e table continues to show the updated data.
+//once the user visits a card again while onine, its recent rows are removed.
+//oldest rows are purged when the stored list gets too big
 var g_recentRows = {
     PROP: "recentRows",
     MAXIMUM: 200,
@@ -28,7 +33,7 @@ var g_recentRows = {
         var rows = this.rows;
         rows.push({ idCard: idCard, msDate: msDate, user: user, keyword: keyword, s: s, e: e, bENew: bENew });
         while (rows.length > this.MAXIMUM)
-            rows.shift();
+            rows.shift(); //remove oldest ones first
         this.saveProp();
     },
     get: function (idCard) {
@@ -99,11 +104,9 @@ var g_seCard = {
         return (this.m_mapUsers === null);
     },
     setRecurring: function (bRecurring) {
-        assert(this.m_mapUsers);
         this.m_bRecurring = bRecurring;
     },
     isRecurring: function () {
-        assert(this.m_mapUsers);
         return (this.m_bRecurring);
     },
     //data comes from Trello, not the offline cache
@@ -115,20 +118,28 @@ var g_seCard = {
         return (this.m_bFresh);
     },
     isUserMapped(user) {
-        assert(this.m_mapUsers);
+        assert(user && g_user);
+        if (!this.m_mapUsers)
+            return false;
+        if (user == g_strUserMeOption)
+            user = g_user.username;
         return !(!this.m_mapUsers[user]);
     },
     setEFirstForUser: function (user, eFirst) {
-        assert(user);
         assert(this.m_mapUsers);
+        assert(user && g_user);
+        if (user == g_strUserMeOption)
+            user = g_user.username;
         var mapCur = this.m_mapUsers[user];
         assert(mapCur);
         mapCur.eFirst = (mapCur.eFirst || 0)+eFirst;
     },
     setSeCurForUser: function (user, s, e, keyword) {
         //see extension fillCardSEStats
-        assert(user);
         assert(this.m_mapUsers);
+        assert(user && g_user);
+        if (user == g_strUserMeOption)
+            user = g_user.username;
         var mapCur = this.m_mapUsers[user];
         if (!mapCur) {
             mapCur = {
@@ -172,13 +183,15 @@ var g_seCard = {
             callback(rgRet[i].user, rgRet[i].map);
         }
     },
-    isVersion1: function (user) { //old version1 didnt save s/e per kw. used by E autocomplete when adding new S/E
+    isVersion1: function () { //old version1 didnt save s/e per kw. used by E autocomplete when adding new S/E
         assert(!this.isNull());
         return this.m_bVersion1;
     },
     getSeCurForUser: function (user, keyword) {
-        assert(this.m_mapUsers);
-        var map = this.m_mapUsers[user] || { s: 0, e: 0, kw: {} };
+        assert(user && g_user);
+        if (user == g_strUserMeOption)
+            user = g_user.username;
+        var map = ((this.m_mapUsers || {})[user]) || { s: 0, e: 0, kw: {} };
         var mapRet = map;
 
         if (keyword) {
@@ -199,10 +212,11 @@ var g_seCard = {
     },
 
     //private:
-    m_mapUsers: null,
+    m_mapUsers: null, //null when offline or while data is being loaded
     m_bRecurring: false,
     m_bVersion1: false,
-    m_bFresh: false
+    m_bFresh: false,
+    m_iOrderNext: 0
 };
 
 function splitUnitParts(str) {
@@ -226,15 +240,24 @@ function updateEOnSChange(page) {
             var bHiliteEMain = false;
             var bHiliteESub = false;
             cRetry = cRetry || 0;
-            if (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard)
+
+            function bNoContext() {
+                if (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard)
+                    return true;
+                return false;
+            }
+
+            if (bNoContext())
                 return;
 
-            if (g_seCard.isNull()) {
+            if (!g_seCard.isFresh() && !g_bLastOffline) {
                 if (cRetry < 3) {
                     setTimeout(function () {
+                        if (bNoContext())
+                            return;
                         if (page.find("#plusCardCommentSpent").is(":focus") || page.find("#plusCardCommentSpent2").is(":focus"))
                             doUpdate(cRetry + 1);
-                    }, 200);
+                    }, 400);
                 }
                 return;
             }
@@ -321,17 +344,21 @@ function updateNoteR(page, bDontSaveToStorage) {
     var sParsed = parseFixedFloat(g_currentCardSEData.s);
     var eParsed = parseFixedFloat(g_currentCardSEData.e);
     var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
-    if (sParsed == 0 && eParsed == 0) {
-        elem.html("&nbsp;");
-        return;
-    }
     var sumS = sParsed + mapSe.s;
     var sumE = eParsed + mapSe.e;
     var rDiff = parseFixedFloat(sumE - sumS);
     var rDiffFormatted = rDiff;
+    var prefixNote = "R will be ";
+    if (sParsed == 0 && eParsed == 0) {
+        if (rDiff == 0) {
+            elem.html("&nbsp;");
+            return;
+        }
+        prefixNote = "R is ";
+    }
     if (!g_bDisplayPointUnits && g_currentCardSEData.s.indexOf(".") < 0 && g_currentCardSEData.e.indexOf(".") < 0)
         rDiffFormatted = UNITS.FormatWithColon(rDiff, true);
-    var noteFinal = " R will be " + rDiffFormatted + (g_bAllowNegativeRemaining ||  rDiff != 0 ? "" : ". Increase E if not done");
+    var noteFinal = " " + prefixNote + rDiffFormatted + (g_bAllowNegativeRemaining ||  rDiff != 0 ? "" : ". Increase E if not done.");
     elem.text(noteFinal);
 }
 
@@ -445,8 +472,31 @@ function handleSEBar(page, panelAddSE) {
         bChanged = true;
     }
 
-    //load draft
-    g_currentCardSEData.loadFromStorage(idCardCur, function () {
+    function refreshSETable(page, idCardCur, bHiliteNewest) {
+        var container = page.find("#seContainer");
+        var tbody = container.children("table").children("tbody");
+        assert(g_lastPageInfo.params);
+        assert(g_lastPageInfo.idPage == "pageCardDetail" && g_lastPageInfo.params);
+        var params = getUrlParams(g_lastPageInfo.params);
+        assert(params.id == idCardCur); //because !bOutOfContext
+        var bWasFresh = g_seCard.isFresh();
+        //this will recalculate g_seCard and the card front content
+        fillSEData(page, container, tbody, params, false,
+            function (cRows, bCached) {
+                assert(!g_seCard.isNull());
+                assert(bCached);
+                assert(!g_seCard.isFresh()); //because it came from the cache
+                g_seCard.setFresh(bWasFresh); //restore it. in case of patching (on OK enter) we dont want to lose freshness
+            },
+            false, //dont skip cache
+            true,  //only from cache.
+            false,
+            bHiliteNewest);
+    }
+
+    loadDraftToUI();
+
+    function loadDraftToUI() {
         if (g_currentCardSEData.idCard != idCardCur)
             return; //timing when storage is async
         bChanged = false;
@@ -538,8 +588,8 @@ function handleSEBar(page, panelAddSE) {
             hilite(elemNote);
         updateNoteR(page, true);
         if (bChanged)
-            alertMobile("Enter this draft", msWaitMessage);
-    });
+            alertMobile("Enter this draft", 1500);
+    }
 
     //OK
     panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {
@@ -548,7 +598,7 @@ function handleSEBar(page, panelAddSE) {
         var idCardCur = g_currentCardSEData.idCard;
         //review: would be nice to use window.navigator.onLine but on Chrome it was returning false when online :(
 
-        if (g_seCard.isNull() || !g_seCard.isFresh()) {
+        if (!g_seCard.isFresh()) {
             //can happen when offline when the page was loaded from cache. try again.
             var container = page.find("#seContainer");
             var tbody = container.children("table").children("tbody");
@@ -560,13 +610,16 @@ function handleSEBar(page, panelAddSE) {
                 assert(!bCached);
                 assert(!g_seCard.isNull() && g_seCard.isFresh());
                 doit();
-            }, true); //true means skip cache
+            }, true, //true means skip cache
+            false,
+            true); //do not null g_seCard. important because when offline we dont want to trash what we loaded already
         } else {
             doit();
         }
 
         function doit() {
             assert(!g_seCard.isVersion1()); //since its fresh, it cant have the old format from storage
+            updateNoteR(page, true); //could have changed after fillSEData
             var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
             var s = parseFixedFloat(g_currentCardSEData.s);
             var e = parseFixedFloat(g_currentCardSEData.e);
@@ -592,19 +645,22 @@ function handleSEBar(page, panelAddSE) {
             }
 
             function onFinished(bOK, data) {
+                var bOutOfContext = (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard);
                 if (!bOK) {
-                    alertMobile("Error entering S/E", 4000);
-                    enableSEFormElems(true, page, true);
+                    if (bOutOfContext)
+                        alertMobile("S/E not entered.");
+                    else
+                        enableSEFormElems(true, page, true);
                     return;
                 }
-                var user = data.member;
+                var user = data.member; //real user, not "me"
                 var sParsed = parseFixedFloat(g_currentCardSEData.s);
                 var eParsed = parseFixedFloat(g_currentCardSEData.e);
                 var eFirstParsed = 0;
                 if (g_seCard.isRecurring() || !g_seCard.isUserMapped(user))
                     eFirstParsed = eParsed;
                 g_recentRows.pushRow(idCardCur, Date.now(), user, g_currentCardSEData.keyword, sParsed, eParsed, eFirstParsed != 0);
-                var bOutOfContext = (g_stateContext.idPage != "pageCardDetail" || idCardCur != g_stateContext.idCard);
+                
 
                 if (bOutOfContext) {
                     alertMobile("Entered S/E OK", 2000);
@@ -618,19 +674,18 @@ function handleSEBar(page, panelAddSE) {
                 panelAddSE.find("#plusCardCommentEst").val("");
                 panelAddSE.find("#plusCardCommentEst2").val("");
                 panelAddSE.find("#plusCardCommentNote").val("");
-                g_seCard.setSeCurForUser(user, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.keyword);
-                if (eFirstParsed)
-                    g_seCard.setEFirstForUser(user, eFirstParsed);
+                assert(user && user != g_strUserMeOption);
+                assert(!g_seCard.isNull());
                 g_currentCardSEData.removeValue(idCardCur); //forget draft
                 cancelPaneEdit(false);
-
+                refreshSETable(page, idCardCur, true);
             }
             setNewCommentInCard(idCardCur, g_currentCardSEData.keyword, g_currentCardSEData.s, g_currentCardSEData.e, g_currentCardSEData.note,
                 g_currentCardSEData.delta, g_currentCardSEData.user, onBeforeStartCommit, onFinished);
         }
     });
 
-    function cancelPaneEdit(bUpdateCurrentSEData) {
+    function cancelPaneEdit(bUpdateCurrentSEData, bHiliteAddButton) {
         g_fnCancelSEBar = null;
         if (bUpdateCurrentSEData)
             updateCurrentSEData(page, true);
@@ -640,13 +695,15 @@ function handleSEBar(page, panelAddSE) {
             delay = 0;
         }
         setTimeout(function () {
-            resetSEPanel(page);
+            resetSEPanel(page, bHiliteAddButton);
         }, delay);
     }
 
     //CANCEL
     panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
-        cancelPaneEdit(true);
+        var idCardCur = g_currentCardSEData.idCard;
+        cancelPaneEdit(true, true);
+        refreshSETable(page, idCardCur, false); //to show hilited draft user
         event.stopPropagation();
         event.preventDefault();
         return false;
@@ -660,23 +717,33 @@ function handleSEBar(page, panelAddSE) {
     elemNote.off("input").on("input", function () { updateCurrentSEData(page); });
 }
 
-function resetSEPanel(page) {
+function resetSEPanel(page, bHiliteAddButton) {
     unhookBack();
     page.find("#panelAddSEContainer").removeClass("shiftUp");
     page.find("#cardBottomContainer").removeClass("plusShiftBottom");
     page.find(".cardBackground").removeClass("backgroundShader");
-    page.find("#seContainer table").removeClass("backgroundShader");
-    page.find("#seContainer table th").removeClass("backgroundShader");
-    page.find("#seContainer table td").removeClass("backgroundShader");
+    page.find("#seContainer table *").removeClass("backgroundShader");
     page.find("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
     enableSEFormElems(false, page);
+    if (bHiliteAddButton)
+        hiliteOnce(page.find("#addSE"), g_delayDraftHilite);
 }
 
-
 function loadCardPage(page, params, bBack, urlPage) {
-    assert(params.id); //note that the rest of params could be missing on some cases (cold navigation here from trello app)
-    g_recentRows.init(); //we delay loading this until the first card page is loaded
+    assert(params.id); // **NOTE** that the rest of params could be missing on some cases (cold navigation here from trello app)
     var idCardLong = params.id;
+    g_currentCardSEData.loadFromStorage(idCardLong, function () {
+        if (g_currentCardSEData.s || g_currentCardSEData.e)
+            hiliteOnce(page.find("#addSE"), g_delayDraftHilite);
+        loadCardPageWorker(page, params, bBack, urlPage);
+    });
+}
+
+function loadCardPageWorker(page, params, bBack, urlPage) {
+    assert(params.id); // **NOTE** that the rest of params could be missing on some cases (cold navigation here from trello app)
+    var idCardLong = params.id;
+    g_stateContext.idCard = idCardLong;
+    g_recentRows.init(); //we delay loading this until the first card page is loaded
     var cardCached = g_cardsById[idCardLong];
     if (cardCached) {
         params.name = cardCached.name;
@@ -817,7 +884,6 @@ function loadCardPage(page, params, bBack, urlPage) {
         }
     }
 
-    g_stateContext.idCard = idCardLong;
     refreshSE(!g_bNoAnimations && g_transitionLastForward != "none");
     var elemPin = page.find("#cardPin");
     elemPin.flipswitch();
@@ -868,10 +934,7 @@ function loadCardPage(page, params, bBack, urlPage) {
         var panelAddSE = page.find("#panelAddSE");
         panelAddSE.addClass("opacityFull").removeClass("opacityZero");
         page.find(".cardBackground").addClass("backgroundShader");
-        page.find("#seContainer table").addClass("backgroundShader");
-        page.find("#seContainer table th").addClass("backgroundShader");
-        page.find("#seContainer table td").addClass("backgroundShader");
-        
+        page.find("#seContainer table *").addClass("backgroundShader");  
         page.find("#seBarFeedback").off("click").click(function () {
             var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
         });
@@ -960,7 +1023,7 @@ function setNewCommentInCard(idCardCur, keywordUse, //blank uses default (first)
 
     comment = keywordUse + " ";
 
-    if (member == g_strUserMeOption)
+    if (member && member == g_strUserMeOption)
         member = null; //defaults later to user
     if (member && member.toLowerCase() != g_user.username.toLowerCase())
         comment = comment + "@" + member + " ";
@@ -994,12 +1057,15 @@ function handleEnterCardComment(comment, idCard, s, e, keyword, member, onBefore
 
         addCardCommentByApi(idCard, comment, function (response) {
             if (response.status != STATUS_OK) {
-                alertMobile("Failed to enter S/E: " + response.status);
+                if (response.status == g_strOffline)
+                    alertOffline();
+                else
+                    alertMobile("Failed to enter S/E: " + response.status);
                 finished(false);
                 return;
             }
 
-            if (!member)
+            if (!member || member == g_strUserMeOption)
                 member = response.obj.memberCreator.username;
             postAddCardComment(response.obj.id);
         });
@@ -1092,8 +1158,8 @@ function fillUserList(listUsers, userSelected) {
         var nameUse = user.name.toLowerCase();
         if (nameUse == g_strUserMeOption || nameUse == userGlobal)
             return;
-        if (g_user && g_user.username.toLowerCase() == nameUse)
-            return;
+        if (g_user && g_user.username.toLowerCase() == nameUse) //is it me?
+            return; //its not you, its me
         appendUser(nameUse, userSelected && userSelected == nameUse);
     });
 
@@ -1125,7 +1191,7 @@ function enableSEFormElems(bEnable,
             var u = UNITS.getCurrentShort(bAsPoints);
             var su = UNITS.GetSubUnit() + " ";
             var container = page.find("#panelAddSE");
-            container.find("#spentUnit").text(u);
+            container.find("#spentUnit").text(u );
             container.find("#estUnit").text(u);
             if (bAsPoints) {
                 container.find("#seSeparator").hide();
@@ -1243,26 +1309,33 @@ function enableSEFormElems(bEnable,
     }
 }
 
-function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
+function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, bOnlyCache, bDontNullSeCard, bHiliteNewest) {
     var idCard = params.id;
-    g_seCard.setNull(); //means pending to load data
-    assert(!g_seCard.isFresh());
+    if (!bDontNullSeCard) {
+        g_seCard.setNull(); //means pending to load data
+        assert(!g_seCard.isFresh());
+    }
     function appendRow(tbody, user, s, eFirst, e, r) {
-        var row = $("<tr>");
-        row.append("<td class='colUser'>" + user + "</td>");
-        row.append("<td class='colSSum'>" + s + "</td>");
-        row.append("<td class='colEFirst'>" + eFirst + "</td>");
-        row.append("<td class='colESum'>" + e + "</td>");
-        row.append("<td class='colR'>" + r + "</td>");
+        var classExtra = "";
+        if (tbody.hasClass("backgroundShader"))
+            classExtra = " backgroundShader ";
+        var row = $("<tr"+classExtra+">");
+        row.append("<td class='"+classExtra+"colUser'>" + user + "</td>");
+        row.append("<td class='" + classExtra + "colSSum'>" + s + "</td>");
+        row.append("<td class='" + classExtra + "colEFirst'>" + eFirst + "</td>");
+        row.append("<td class='" + classExtra + "colESum'>" + e + "</td>");
+        row.append("<td class='" + classExtra + "colR'>" + r + "</td>");
         tbody.append(row);
+        return row;
     }
 
     g_stateContext.idCard = idCard;
+    if (params.name)
+        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
+
     //on back, dont call trello, rely on cache only
     callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 200,
-        callbackTrelloApi, false, null, bNoCache || false);
-    // bReturnErrors, waitRetry, bSkipCache,
-    //context, bReturnOnlyCachedIfExists, callbackOnUnchanged, bDontStoreInCache, bDontRetry, bPost
+        callbackTrelloApi, false, null, bNoCache || false, null, bOnlyCache);
     function callbackTrelloApi(response, responseCached) {
         var rgComments = [];
         var rgRows = [];
@@ -1274,9 +1347,14 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
             if (rgRowsExtra.length > 0) {
                 var rowExtra;
                 var rgCommentsPatch = [];
+                var rowHistory;
                 for (var iRE = 0; iRE < rgRowsExtra.length; iRE++) {
                     rowExtra = rgRowsExtra[iRE];
-                    rgCommentsPatch.push(makeHistoryRowObject(new Date(rowExtra.msDate), rowExtra.user, rowExtra.s, rowExtra.e, "", "1", rowExtra.keyword, null)); //"1" is a fake id, not used
+                    assert(rowExtra.user && rowExtra.user != g_strUserMeOption);
+                    rowHistory = makeHistoryRowObject(new Date(rowExtra.msDate), rowExtra.user, rowExtra.s, rowExtra.e, "", "1", rowExtra.keyword, null);
+                    if (rowExtra.bENew)
+                        rowHistory.bENew = true;
+                    rgCommentsPatch.push(rowHistory); //"1" is a fake id, not used
                 }
                 rgRows = calculateCardSEReport(rgCommentsPatch, rgRows); //recalculate, but do not save it again to storage
             }
@@ -1307,7 +1385,11 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
             objReturn.nameList = response.obj.list.name;
             objReturn.nameBoard = response.obj.board.name;
             objReturn.desc = response.obj.desc;
-            g_recentRows.remove(idCard); //remove now that we have a fresh copy
+            //remove now that we have a fresh copy.
+            //This is done before returning to the callback, thus before the new rows are saved to storage.
+            //thats desided because it prevents the posibility of double-counting rows
+            //(versus tiny chance of computer freezing after this call and before storing the new api result)
+            g_recentRows.remove(idCard);
         }
 
         //review zig: ugly to have to update both objReturn and params
@@ -1320,7 +1402,7 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
             return objReturn;
         }
         g_seCard.clear();
-        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
+        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0); //refresh
 
         if (!response.bCached)
             g_seCard.setFresh(true);
@@ -1369,8 +1451,26 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache) {
         });
 
         tbody.empty();
+        var userDraft = g_currentCardSEData.user || "";
+        if (userDraft == g_strUserMeOption)
+            userDraft = g_user.username;
+        if (userDraft && !g_currentCardSEData.s && !g_currentCardSEData.e)
+            userDraft = "";
+
         g_seCard.forEachUser(function (user, row) {
-            appendRow(tbody, user, row.s, row.eFirst || 0, row.e, parseFixedFloat(row.e - row.s));
+            var elemRow = appendRow(tbody, user, row.s, row.eFirst || 0, row.e, parseFixedFloat(row.e - row.s));
+            var classHilite = "";
+            var delayHilite = g_delayDraftHilite;
+            if (bHiliteNewest) {
+                bHiliteNewest = false; //the first element is always the newest one
+                classHilite = "hiliteNewReportRow";
+                delayHilite = 1000;
+            } else if (user == userDraft) {
+                classHilite = "agile_box_input_hilite";
+            }
+
+            if (classHilite)
+                hiliteOnce(elemRow, delayHilite, classHilite);
         });
         callback(rgRows.length, response.bCached);
         return objReturn;
@@ -1385,6 +1485,7 @@ function calculateCardSEReport(rgComments, rgRowsPatch) {
     var iLoop;
     var user;
     var userRow;
+    var sDateNow = Math.floor(Date.now())+1; //+1 for safety if in future a floor here causes a negative below
 
     if (rgRowsPatch) {
         for (iLoop = 0; iLoop < rgRowsPatch.length; iLoop++) {
@@ -1414,6 +1515,7 @@ function calculateCardSEReport(rgComments, rgRowsPatch) {
             userSums[row.user] = userRow;
             row.bENew = true;
         }
+
         var keyword = row.keyword;
         userRow.spent = userRow.spent + row.spent;
         userRow.est = userRow.est + row.est;

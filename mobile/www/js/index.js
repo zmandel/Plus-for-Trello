@@ -103,9 +103,10 @@ function registerWorker() {
 function assert(val) {
 
     if (!val) {
+        var bDeveloper = (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel")); 
         //review zig: send to log
-        if (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel")) {
-            var str = "assert failed! ";
+        if (true) {
+            var str = "assert failed! write down and send to support@plusfortrello.com";
             try {
                 throw new Error();
             } catch (e) {
@@ -376,6 +377,8 @@ var g_recentUsers = {
         }
         else {
             if (users[iReplace].msDate < userNew.msDate) {
+                if (!userNew.id)
+                    userNew.id = (users[iReplace].id || null); //currently this doesnt happen, but since above we also match by name, this prevents losing the id
                 users[iReplace] = userNew;
                 bModified = true;
             }

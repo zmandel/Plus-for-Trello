@@ -4,7 +4,7 @@
       'cordova.js',
       '*.ico',
       '*.png',
-      'js/*.js',
+      'js/!(intellisense).js',
       'js/lib/*.js',
       'img/*.*',
       'css/*.css',

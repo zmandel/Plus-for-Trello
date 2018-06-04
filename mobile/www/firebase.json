@@ -8,7 +8,8 @@
       "*.tmp",
       "**/.*",
       "css/images/icons-png/**",
-      "jquery.*.*"
+      "jquery.*.*",
+      "js/intellisense.js"
     ],
     "redirects": [
       {
