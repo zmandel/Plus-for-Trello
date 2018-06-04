@@ -141,6 +141,11 @@ function assert(val) {
     }
 }
 
+function isIOS() {
+    var iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    return iOS;
+}
+
 //called when plusfortrello://activity is received
 function handleOpenURL(url) {
     //alertMobile(url);
@@ -1403,6 +1408,11 @@ function loadHomePage() {
 
     } else {
         $("#login").show();
+        if (isIOS()) 
+            $("#iOSLogin").show();
+        else
+            $("#iOSLogin").hide();
+        
         $("#productInfo").show();
         $("#viewBoardsContainer").hide();
         $("#listBoardsRecent").hide();
