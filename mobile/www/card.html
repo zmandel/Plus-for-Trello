@@ -14,7 +14,7 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
 
-        <script type="text/javascript" src="js/redirector.js"></script>
+        <script type="text/javascript" src="js/redirector-v14.js"></script>
     </head>
     <body>
         <div data-role="page" style="display:none;" class="plusPage" id="pageCardDetail" data-dialog="true">
@@ -24,7 +24,7 @@
                     <div id="panelAddSEContainer" class="animateTransitions">
                         <a id="addSE" href="#" data-role="button" data-icon="plus" data-mini="true" data-inline="true" class="agile_button_leftmargin">add S/E</a>
                         <input type="checkbox" tabindex="-1" data-inline="true" data-theme="b" data-role="flipswitch" id="cardPin" data-on-text="pinned" data-off-text="pin" data-wrapper-class="custom-label-flipswitch">
-                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloopen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="border:none;background-color: transparent;"></a>
+                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloopen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="display:none;border:none;background-color: transparent;"></a>
                     </div>
                 </div>
                 <form autocomplete="off" id="panelAddSE" class="opacityZero animateTransitions">
@@ -82,18 +82,21 @@
                                 <thead>
                                     <tr>
                                         <th class="colUser">User</th>
-                                        <th class="colSSum">S <span style="font-size:0.80em">sum</span></th>
+                                        <th class="colSSum">S <span style="font-size:80%">sum</span></th>
                                         <th class="colEFirst">E 1<sup>st</sup></th>
-                                        <th class="colESum">E <span style="font-size:0.80em">sum</span></th>
-                                        <th class="colR">R <span style="font-size:0.80em">(E-S)</span></th>
+                                        <th class="colESum">E <span style="font-size:80%">sum</span></th>
+                                        <th class="colR">R <span style="font-size:80%">(E-S)</span></th>
                                     </tr>
                                 </thead>
                                 <tbody></tbody>
                             </table>
                         </div>
-                        <h3 id="cardTitle"></h3>
-                        <div style="margin-bottom: 1em;"><span id="cardBoard"></span><span style="color:#BDBDBD;"> in </span><span id="cardList"></span></div>
-                        <div id="cardDesc" style="margin-bottom: .1em;word-wrap: break-word;"></div>
+                        <div id="cardTitleAndDesc">
+                            <h3 id="cardTitle"></h3>
+                            <div style="margin-bottom: 1em;"><span id="cardBoard"></span><span style="color:#BDBDBD;"> in </span><span id="cardList"></span></div>
+                            <div id="cardDesc" style="margin-bottom: .1em;word-wrap: break-word;">
+                            </div>
+                        </div>
                     </div>
                     <div id="cardBottomPadding"></div>
                 </div>

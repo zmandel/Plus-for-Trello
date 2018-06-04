@@ -18,4 +18,3 @@ del index.html
 del service-worker.js
 rename index.tmp index.html
 del cordova.js
-firebase use test

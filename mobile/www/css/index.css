@@ -31,6 +31,29 @@
     box-shadow: 0px 0px 24px -1px rgba(56, 56, 56, 1);
 }
 
+table {
+    font-size: 100% !important;
+}
+
+.shrinkElementFont {
+    font-size: 85% !important;
+}
+
+.shrinkElementScale {
+ -webkit-transform: scale(0.85) !important;
+ -moz-transform: scale(0.85) !important;
+ -ms-transform: scale(0.85) !important;
+ -o-transform: scale(0.85) !important;
+ transform: scale(0.85) !important;
+
+ -webkit-transform-origin: 0 0 !important;
+ -moz-transform-origin: 0 0 !important;
+ -ms-transform-origin: 0 0 !important;
+ -o-transform-origin: 0 0 !important;
+ transform-origin: 0 0 !important;
+ width: 117.64% !important;
+}
+
 .hiliteNewReportRow {
     background-color:#61BD4F !important;
 }
@@ -106,7 +129,15 @@ pointer-events:none !important;
     width: 3em !important;
     text-align: center !important;
     margin-right:0px !important;
-    font-size:2em !important;
+    font-size:200% !important;
+}
+
+.seNumbersWeb {
+    width: 2.6em !important;
+    text-align: center !important;
+    margin-right:0px !important;
+    font-size:150% !important;
+    height: 1.6em !important;
 }
 
 .hmsLabel {
@@ -335,7 +366,7 @@ text-overflow:clip !important;
 white-space: nowrap;
 overflow: hidden;
 width:100%;
-font-size:.7em;
+font-size:70%;
 }
 
 .userTrello img {
@@ -365,6 +396,9 @@ font-size:.7em;
     white-space: nowrap;
 }
 
+.hideElement {
+    display: none !important;
+}
 
 .animateTransitions {
     -webkit-transition: all 0.2s linear !important;
@@ -471,6 +505,7 @@ margin-top: -11.5em !important;
    	-webkit-transform: translate3d(0px,10.5em,0); /* Chrome, Safari, Opera */
     transform: translate3d(0px,10.5em,0);
 }
+
 
 #cardBottomPadding {
     padding-bottom:9.6em !important;

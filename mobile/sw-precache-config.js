@@ -8,7 +8,8 @@
       'js/lib/*.js',
       'img/*.*',
       'css/*.css',
-      'css/images/*.*'
+      'css/images/*.*',
+      'power-up/**'
     ],
     ignoreUrlParametersMatching: [/./],
     directoryIndex: false,

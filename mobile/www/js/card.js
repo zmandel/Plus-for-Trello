@@ -720,7 +720,7 @@ function handleSEBar(page, panelAddSE) {
 function resetSEPanel(page, bHiliteAddButton) {
     unhookBack();
     page.find("#panelAddSEContainer").removeClass("shiftUp");
-    page.find("#cardBottomContainer").removeClass("plusShiftBottom");
+    page.find("#cardBottomContainer").removeClass("plusShiftBottom plusShiftBottomPU");
     page.find(".cardBackground").removeClass("backgroundShader");
     page.find("#seContainer table *").removeClass("backgroundShader");
     page.find("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
@@ -752,6 +752,10 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
         params.shortLink = cardCached.shortLink;
     }
     var card = page.find("#cardTitle");
+    if (g_bFromPowerup) {
+        page.find("#cardTitleAndDesc").hide();
+        page.find(".seNumbers").removeClass("seNumbers").addClass("seNumbersWeb");
+    }
     var container = page.find("#seContainer");
     //warning: params is changed as data is refreshed. make sure to always use params and not a local cached value
     container.hide();
@@ -955,8 +959,10 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
     else
         page.find(".undoAnimateTransitions").addClass("animateTransitions");
 
-
-    page.find("#openTrelloCard").off("click").click(function (event) {
+    var elemOpenInTrello = page.find("#openTrelloCard");
+    if (!g_bFromPowerup)
+        elemOpenInTrello.show();
+    elemOpenInTrello.off("click").click(function (event) {
         var urlCard = "https://trello.com/c/" + (params.shortLink?params.shortLink: param.id);
         if (isCordova()) {
             window.plugins.webintent.startActivity({
@@ -1194,13 +1200,13 @@ function enableSEFormElems(bEnable,
             container.find("#spentUnit").text(u );
             container.find("#estUnit").text(u);
             if (bAsPoints) {
-                container.find("#seSeparator").hide();
+                container.find(".seSeparator").hide();
                 container.find("#spentSubUnit").hide();
                 container.find("#estSubUnit").hide();
                 container.find("#plusCardCommentSpent2").hide();
                 container.find("#plusCardCommentEst2").hide();
             } else {
-                container.find("#seSeparator").show();
+                container.find(".seSeparator").show();
                 container.find("#plusCardCommentSpent2").show();
                 container.find("#spentSubUnit").text(su).show();
                 container.find("#plusCardCommentEst2").show();
@@ -1307,8 +1313,8 @@ function enableSEFormElems(bEnable,
                     var strValDelta = prompt("Enter a positive delta", "");
                     strValDelta = strValDelta || "";
                     var numDeltaParsed = (parseInt(strValDelta, 10) || 0);
-                    if (numDeltaParsed <= 0) {
-                        alert("Invalid delta. Must be bigger than zero.");
+                    if (numDeltaParsed < 0) {
+                        alert("Invalid delta. Must be bigger than zero."); //note its zero when user cancels
                         numDeltaParsed=0; //let it process so selection resets to 0
                     }
                     process(numDeltaParsed);
@@ -1430,30 +1436,31 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
             g_seCard.setFresh(true);
 
         page.find("#cardTitle").text(objReturn.name);
-        
-        var descElem = page.find("#cardDesc");
-        if (!objReturn.desc)
-            descElem.hide();
-        else {
-            var converter = new Markdown.Converter();
-            descElem.html(converter.makeHtml(objReturn.desc));
-            var elems = descElem.find("a");
-            elems.click(function (e) {
-                //prevent jqm from handling it.
-                e.preventDefault();
-                e.stopPropagation();
-                var url = $(e.target).prop("href");
-                var urlLower = url.toLowerCase();
-                if (urlLower.indexOf("trello.com/" >= 0)) {
-                    if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
-                        handleBoardOrCardActivity(url);
+        if (!g_bFromPowerup) {
+            var descElem = page.find("#cardDesc");
+            if (!objReturn.desc)
+                descElem.hide();
+            else {
+                var converter = new Markdown.Converter();
+                descElem.html(converter.makeHtml(objReturn.desc));
+                var elems = descElem.find("a");
+                elems.click(function (e) {
+                    //prevent jqm from handling it.
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var url = $(e.target).prop("href");
+                    var urlLower = url.toLowerCase();
+                    if (urlLower.indexOf("trello.com/" >= 0)) {
+                        if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
+                            handleBoardOrCardActivity(url);
+                        else
+                            openNoLocation(url); //the trello app doesnt handle well activity links (other than boards or cards)
+                    }
                     else
-                        openNoLocation(url); //the trello app doesnt handle well activity links (other than boards or cards)
-                }
-                else
-                    openUrlAsActivity(url); //better as activity so drive attachments etc open native
-            });
-            descElem.show();
+                        openUrlAsActivity(url); //better as activity so drive attachments etc open native
+                });
+                descElem.show();
+            }
         }
         rgRows.forEach(function (row) {
             var sLoop = parseFixedFloat(row.spent);

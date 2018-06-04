@@ -2,6 +2,7 @@
 
 //CANNOT use any external functions here
 var PROP_NAVIDCARDLONG = "nav-idCardLong";
+var PROP_NAVFROMPOWERUP = "nav-fromPowerup";
 
 //using onload gives a chance for the page background to paint before we redirect, prevents white flash
 window.onload = function () {
@@ -27,6 +28,8 @@ window.onload = function () {
                 if (idCardLong) {
                     idCardLong = idCardLong.split("#")[0].split("&")[0]; //trello power-up adds extra parameters
                     localStorage[PROP_NAVIDCARDLONG] = idCardLong;
+                    if (path.indexOf("powerup=true") >= 0)
+                        localStorage[PROP_NAVFROMPOWERUP] = "true"; //used for testing the powerup without trello
                 }
             }
         }

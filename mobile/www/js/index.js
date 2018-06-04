@@ -2,6 +2,8 @@
 
 var TRELLO_APPKEY = "xxxxxxx";
 var g_idGlobalAnalytics = "zzzzz";
+var g_bFromPowerup = false;
+
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 //var g_idGlobalAnalytics = "xx-xxxxxxxx-x";
 
@@ -24,6 +26,8 @@ var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
 var PROP_PLUSUNITS = "plusUnits";
 var PROP_NAVIDCARDLONG = "nav-idCardLong"; //duplicated from redirector.js
+var PROP_NAVFROMPOWERUP = "nav-fromPowerup";
+
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
 var g_cPageNavigations = 0;
@@ -100,10 +104,14 @@ function registerWorker() {
     });
 }
 
+function isDeveloper() {
+    return (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel"));
+}
+
 function assert(val) {
 
     if (!val) {
-        var bDeveloper = (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel")); 
+        var bDeveloper = isDeveloper(); 
         //review zig: send to log
         if (true) {
             var str = "";
@@ -214,7 +222,7 @@ var g_transitionLastForward = "none";
 
 function changePage(url, transition, callback, bReplaceState) {
     g_transitionLastForward = transition;
-    if (g_bShownPopupLink)
+    if (g_bShownPopupLink && !g_bFromPowerup)
         $("#openAsDesktopPopup").hide();
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
     //review zig: no longer needed as we only pass card long id in parameters
@@ -271,7 +279,7 @@ var g_analytics = {
         }
     },
     hit: function (params, msDelay) {
-        if (this.bDisableAnalytics)
+        if (this.bDisableAnalytics || isDeveloper())
             return;
         this.init();
         var payload = "v=1&tid=" + "UA-" + g_idGlobalAnalytics + "zzz" + "-" + "1" + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
@@ -715,7 +723,6 @@ function handleBoardOrCardActivity(text) {
         alertMobile("No card or board url received.");
 }
 
-var g_bHideHome = false; //hack to hide home while navigating directly to a card
 var g_cHistoryPositionStart = 0;
 
 var app = {
@@ -779,7 +786,11 @@ var app = {
         }
         g_bAllowNegativeRemaining = (localStorage[PROP_ALLOWNEGATIVER] || "") == "true";
         g_bDisplayPointUnits = (localStorage[PROP_UNITSASPOINTS] || "") == "true";
-        g_bNoAnimations = (localStorage[PROP_NOANIMATIONS] || "") == "true";
+        g_bFromPowerup = ((localStorage[PROP_NAVFROMPOWERUP] || "") == "true");
+        g_bNoAnimations = ((localStorage[PROP_NOANIMATIONS] || "") == "true");
+        if (window.innerWidth<330 || g_bFromPowerup)
+           $("body").addClass("shrinkElementScale");
+
         g_analytics.init();
         g_recentBoards.init();
         g_recentUsers.init();
@@ -792,6 +803,9 @@ var app = {
 
         function onBeforePageChange(page, urlNew, bBack) {
             var idPage = page.attr("id");
+            //if (g_bFromPowerup)
+            //    page.addClass("shrinkElementScale");
+           
             //console.log("onBeforePageChange " + idPage);
             g_cPageNavigations++;
             g_stateContext.idPage = idPage;
@@ -837,12 +851,17 @@ var app = {
                 else
                     requestAnimationFrame(onScrollAction);
             });
-            g_analytics.hit({ t: "pageview", dp: page.attr("id") }, 1000);
+            var idPage = page.attr("id");
+            if (g_bFromPowerup && (idPage == "pageLogin" || idPage == "pageCardDetail"))
+                $(".ui-toolbar-back-btn").addClass("hideElement");
+            else
+                $(".ui-toolbar-back-btn").removeClass("hideElement");
+            g_analytics.hit({ t: "pageview", dp: idPage }, 1000);
         }
 
         header.show();
-        var idCardNavigate = localStorage[PROP_NAVIDCARDLONG];
-        
+
+        delete localStorage[PROP_NAVFROMPOWERUP];
         pageLogin.show();
         $(document).on("pagecontainerbeforetransition", function (event, ui) {
             header.removeClass("animateTransitions").removeClass("plusShiftTop");
@@ -869,17 +888,6 @@ var app = {
         });
 
         initUser(function (user) {
-            if (user) {
-                if (idCardNavigate) {
-                    //came from redirector
-                    g_bHideHome = true; //temporarily hide it
-                    g_bShownPopupLink = true; //so we wont show it on this index.html
-                    delete localStorage[PROP_NAVIDCARDLONG];
-                    setTimeout(function () {
-                        changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
-                    }, 50);
-                }
-            }
             onBeforePageChange(pageLogin);
             onAfterPageChange(pageLogin);
         });
@@ -891,6 +899,8 @@ var app = {
 };
 
 function exitApp() {
+    if (g_bFromPowerup)
+        return;
     if (typeof (navigator) != "undefined" && navigator.app && navigator.app.exitApp)
         navigator.app.exitApp();
     else {
@@ -940,6 +950,8 @@ function setupSettingsPage() {
         $("#loginInfo").text("Logged-in as " + g_user.fullName + " (" + g_user.username + ")");
     else
         $("#loginInfo").text("Not logged-in");
+
+    $("#openAsDesktopPopup").hide();
 
     var deviceVersion = "web version";
     if (typeof(device)!="undefined" && device.version)
@@ -1002,8 +1014,12 @@ function setupSettingsPage() {
         }
     });
         
-
-    $("#exitApp").off("click").click(function () {
+    var btnExit = $("#exitApp");
+    if (g_bFromPowerup) {
+        btnExit.hide();
+        $("#noAnimations").parent().hide();
+    }
+    btnExit.off("click").click(function () {
         exitApp();
     });
 
@@ -1164,9 +1180,6 @@ function loadHelpPage() {
         var appInBrowser = openNoLocation("https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf");
     });
 
-    $("#plusSurvey").off("click").click(function () {
-        var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
-    });
 
     $("#plusLicences").off("click").click(function () {
         var appInBrowserSurvey = openNoLocation("http://www.plusfortrello.com/p/licences.html");
@@ -1197,7 +1210,11 @@ function loadHelpPage() {
     //use separate window because otherwise it messes up the app header when going back from external page
     //also, an external window loads inmediately after click, then loads content, while jqm loads content first giving lag impression
     $("#helpPlusCommentFormat").off("click").click(function () {
-        var appInBrowserSurvey = openNoLocation("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html");
+        openNoLocation("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html");
+    });
+
+    $("#helpPlusSEConcepts").off("click").click(function () {
+        openNoLocation("http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html");
     });
 
     //note: should use unescape(encodeURIComponent( but cant because of the compression library generating invalid uris. not worth setting uri compression mode.
@@ -1211,7 +1228,13 @@ function loadHelpPage() {
 }
 
 function setPageTitle(idPage) {
-    $(".plusHeader h1").html(IMAGE_HEADER_TEMPLATE + g_titlesPage[idPage]);
+    var title;
+
+    if (g_bFromPowerup && (idPage == "pageLogin" || idPage == "pageCardDetail"))
+        title = "";
+    else
+        title = g_titlesPage[idPage];
+    $(".plusHeader h1").html(IMAGE_HEADER_TEMPLATE + title);
 }
 
 function populateUser(user) {
@@ -1220,7 +1243,7 @@ function populateUser(user) {
     g_user = user;
     if (!user)
         return;
-    if (user.avatarHash) {
+    if (user.avatarHash && !g_bFromPowerup) {
         var image = $("<img>").attr("src", "https://trello-avatars.s3.amazonaws.com/" + user.avatarHash + "/30.png");
         userElems.append(image);
     }
@@ -1258,29 +1281,12 @@ var g_bShownPopupLink = false;
 function loadHomePage() {
     var bHasKeyTrello = (!!localStorage[PROP_TRELLOKEY]);
 
-    if (g_bHideHome) {
-        g_bHideHome = false;
-        if (bHasKeyTrello)
-            return;
-    }
-
-    $("#viewBoards").off("click").click(function () {
-        changePage("#pageListBoards", g_bNoAnimations?"none":"slide");
-    });
-
-    var listBoardsRecent = $("#listBoardsRecent").listview();
-    var listCardsPinned = $("#listCardsPinned").listview();
-
-    $("#login").off("click").click(function () {
-        loginToTrello();
-    });
-
     var bAsStandaloneApp = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
     if (!bAsStandaloneApp && window.navigator && window.navigator.standalone)
         bAsStandaloneApp = true;
-    
+
     var elemLinkPopup = $("#openAsDesktopPopup");
-    if (!g_bShownPopupLink && !bAsStandaloneApp  && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0)) {
+    if (g_bFromPowerup || (!g_bShownPopupLink && !bAsStandaloneApp && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0))) {
         if (isDesktopVersion()) {
             g_bShownPopupLink = true;
             elemLinkPopup.show();
@@ -1296,13 +1302,37 @@ function loadHomePage() {
             });
         } else {
             elemLinkPopup.hide();
-            setTimeout(function () {
-                window.scrollTo(0, 1);
-            }, 30);
         }
     }
-    else
+    else {
         elemLinkPopup.hide();
+    }
+
+    if (bHasKeyTrello && g_user) {
+        var idCardNavigate = localStorage[PROP_NAVIDCARDLONG] || "";
+        delete localStorage[PROP_NAVIDCARDLONG];
+        if (idCardNavigate) {
+            //came from redirector
+            g_bShownPopupLink = true; //so we wont show it on this index.html in the non-powerup case
+                    
+            setTimeout(function () {
+                changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
+            }, 50);
+            return; //no need to init page if its hidden. back etc will re-init
+        }
+
+    }
+
+    $("#viewBoards").off("click").click(function () {
+        changePage("#pageListBoards", g_bNoAnimations?"none":"slide");
+    });
+
+    var listBoardsRecent = $("#listBoardsRecent").listview();
+    var listCardsPinned = $("#listCardsPinned").listview();
+
+    $("#login").off("click").click(function () {
+        loginToTrello();
+    });
 
     if (bHasKeyTrello) {
         $("#productInfo").hide();

@@ -12,10 +12,16 @@ self.onnotificationclick = function (event) {
             var strPrefix = 'card.html?id=' + idCardLong;
 
             var client = null;
+            var clientLoop = null;
             for (var i = 0; i < clientList.length; i++) {
-                client = clientList[i];
-                if (client.url && (client.url.indexOf(strPrefix) >= 0) && 'focus' in client) //the indexOf here isnt 100% perfect but chances are slim it will collide with another card
-                    return client.focus();
+                clientLoop = clientList[i];
+                //frameType "top-level" when inside a trello power-up
+                if (clientLoop.frameType && clientLoop.frameType != "top-level") {
+                    continue;
+                }
+                if (clientLoop.url && (clientLoop.url.indexOf(strPrefix) >= 0) && 'focus' in clientLoop) //the indexOf here isnt 100% perfect but chances are slim it will collide with another card
+                    return clientLoop.focus();
+                client= clientLoop;
             }
             if (client) {
                 client.postMessage({ action: "pinnedCard", idCardLong: idCardLong });

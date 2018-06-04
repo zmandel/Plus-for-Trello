@@ -20,7 +20,7 @@
     ],
     "headers": [
       {
-        "source": "power-up/**",
+        "source": "**",
         "headers": [
           {
             "key": "Access-Control-Allow-Origin",
