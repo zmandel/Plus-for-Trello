@@ -1,4 +1,32 @@
+.settingsElement {
+     text-align: left;
+}
 
+.plusPage {
+    max-width:50em !important;
+    margin-left:auto;margin-right:auto !important;
+    position: static !important; /* overwrite jqm */
+}
+
+.ui-toolbar-back-btn {
+border-top:0px !important;
+border-bottom:0px !important;
+border-right:0px !important;
+border-left:0px !important;
+border-color:transparent !important;
+border-radius: 0px 0px 0px 0px !important;
+border: 0px !important;
+box-shadow:0px 0px 0px 0px !important;
+color: white !important;
+}
+
+.headerLink {
+    color:white;
+    font-size:80%;
+    margin-top:8px;
+    text-decoration: none !important;
+    margin-right:1em;
+}
 
 #daysAndUser {
     width:4em;
@@ -108,7 +136,7 @@ font-weight:normal !important;
     background-repeat:no-repeat;
     padding-left:3.5px;
     padding-top:7.5px;
-    margin-right:40px !important;
+    margin-right:63px !important;
     -webkit-animation:spin .7s linear infinite;
     -moz-animation:spin .7s linear infinite;
     animation:spin .7s linear infinite;
@@ -238,9 +266,13 @@ border-collapse: collapse;
 }
 
 .userTrello {
-    float:left;
-    margin-top:6px;
-    width:20%;
+    margin-top:3px !important;
+}
+
+#openAsDesktopPopup {
+position:absolute;
+left:2px;
+top:2px;
 }
 
 .userTrello div {
@@ -252,12 +284,10 @@ text-overflow:clip !important;
 white-space: nowrap;
 overflow: hidden;
 width:100%;
-margin-top:2px;
 font-size:.7em;
 }
 
 .userTrello img {
-        margin-top: -7px;
         margin-left: 4px;
     }
 

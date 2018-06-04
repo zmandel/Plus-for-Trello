@@ -127,19 +127,28 @@ function loadCardPage(page, params, bBack, urlPage) {
             if (iFind >= 0) {
                 url = url.substr(iFind + strFind.length);
             }
-            //alertMobile("adding notif " + idNotification);
-            window.plugin.notification.local.add({
-                id: idNotification,
-                message:params.name,
-                title: params.nameBoard,
-                sound:null,
-                json: JSON.stringify({ url: url, action:"pinnedCard" })
+            cordova.plugins.notification.local.registerPermission(function (granted) {
+                if (!granted)
+                    return;
+
+                //https://github.com/katzer/cordova-plugin-local-notifications/wiki/04.-Scheduling
+                var objNotif = {
+                    id: idNotification,
+                    text: params.nameBoard,
+                    title: params.name,
+                    ongoing: true, //review iOS
+                    data: { url: url, action: "pinnedCard" },
+                    sound: null,
+                    smallIcon: "res://notif_pin", //https://romannurik.github.io/AndroidAssetStudio/icons-notification.html#source.type=image&source.space.trim=1&source.space.pad=0&name=notif_pin
+                    icon: "res://icon"
+                };
+
+                cordova.plugins.notification.local.schedule(objNotif);           
             });
         }
         else {
-            window.plugin.notification.local.cancel(idNotification, function () {
+            cordova.plugins.notification.local.cancel(idNotification, function () {
                 // The notification has been cancelled
-                //review zig: doesnt get called so not using it
             });
         }
     }
@@ -200,7 +209,7 @@ function loadCardPage(page, params, bBack, urlPage) {
         page.find("#seContainer table td").addClass("backgroundShader");
         
         page.find("#seBarFeedback").off("click").click(function () {
-            var appInBrowserSurvey = window.open("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form", '_blank', 'location=no');
+            var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
         });
 
         setTimeout(function () {
@@ -219,6 +228,10 @@ function loadCardPage(page, params, bBack, urlPage) {
         return false;
     });
     
+    page.find("#plusCardCommentEnterButton").off("click").click(function (event) {
+        alertMobile("Soon the app will support entering S/E.")
+    });
+
     page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
         g_fnCancelSEBar = null;
         var delay = delayKB * 2;
@@ -246,7 +259,7 @@ function loadCardPage(page, params, bBack, urlPage) {
         );
         }
         else {
-            window.open(urlCard, '_blank', 'location=yes');
+            window.open(urlCard, '_blank');
         }
 
         event.stopPropagation();
@@ -367,7 +380,7 @@ function enableSEFormElems(bEnable,
                     fillUserList(userNew);
                 }
 
-                if (navigator && navigator.notification) {
+                if (typeof(navigator) != "undefined" && navigator.notification) {
                     navigator.notification.prompt(
                         "Type username",  // message
                         function onPrompt(results) {
@@ -513,7 +526,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
                 });
             }
 
-            rgRows = calculateCardSEReport(rgComments, response.obj.name, responseCached != null);
+            rgRows = calculateCardSEReport(rgComments, responseCached != null);
             objReturn.rgRows = rgRows;
             objReturn.name = response.obj.name;
             objReturn.nameList = response.obj.list.name;
@@ -547,7 +560,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
                     if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
                         handleBoardOrCardActivity(url);
                     else
-                        window.open(url, '_blank', 'location=no'); //the trello app doesnt handle well activity links (other than boards or cards)
+                        openNoLocation(url); //the trello app doesnt handle well activity links (other than boards or cards)
                 }
                 else
                     openUrlAsActivity(url); //better as activity so drive attachments etc open native
@@ -567,9 +580,8 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
     }
 }
 
-function calculateCardSEReport(rgComments, nameCard, bFromCache) {
+function calculateCardSEReport(rgComments, bFromCache) {
     //rgComments in date ascending (without -dX)
-    var bRecurring = (nameCard.toLowerCase().indexOf(TAG_RECURRING_CARD)>=0);
     var rgRows = [];
     var userSums = {};
     var iOrder = 0;
@@ -579,24 +591,26 @@ function calculateCardSEReport(rgComments, nameCard, bFromCache) {
         if (userRow) {
             if (!userRow.idUser && row.idUser)
                 userRow.idUser = row.idUser;
-            userRow.spent = userRow.spent + row.spent;
-            userRow.est = userRow.est + row.est;
-            if (bRecurring)
-                userRow.estFirst = userRow.est;
             if (row.date>userRow.sDateMost)
                 userRow.sDateMost = row.date;
         }
         else {
             //first estimate row
             userRow = {};
-            userSums[row.user] = userRow;
-            userRow.spent = row.spent;
-            userRow.est =  row.est;
-            userRow.estFirst = row.est;
-            userRow.user = row.user;
             userRow.idUser = row.idUser;
+            userRow.spent = 0;
+            userRow.est =  0;
+            userRow.estFirst = 0;
+            userRow.user = row.user;
             userRow.sDateMost = row.date;
+            userSums[row.user] = userRow;
+            row.bENew = true;
         }
+        userRow.spent = userRow.spent + row.spent;
+        userRow.est = userRow.est + row.est;
+        if (row.bENew)
+            userRow.estFirst = userRow.estFirst + row.est;
+
         userRow.iOrder = iOrder;
         iOrder++;
     });

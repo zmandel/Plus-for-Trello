@@ -1,10 +1,19 @@
 ﻿<!DOCTYPE html>
 <html>
     <head>
+        <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+        <link rel="icon" href="/favicon.ico" type="image/x-icon">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="manifest" href="/manifest.json">
+        <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
+        <!-- see https://github.com/EddyVerbruggen/Custom-URL-scheme/issues/137#issuecomment-165948942 -->
+        <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
+        <script type="text/javascript" src="js/sharedlocal.js"></script>
     </head>
     <body>
-        <div data-role="page" id="pageCardDetail" data-dialog="true">
+        <div data-role="page" class="plusPage" id="pageCardDetail" data-dialog="true">
             <div data-role="content" class="cardBackground">
             <div style="height:1em;"></div>
                 <div class="seSuperWrapper">
@@ -54,7 +63,7 @@
                         <tr>
                             <td class="noWrapElem noMarginPaddingTop" style="width:100%;" valign="top">
                                 <input style="width:100%;" id="plusCardCommentNote" placeholder=" note" type="text" data-wrapper-class="ui-custom-noborders" class="agile_note_box_input seInputStyles seFormElem" data-role="none" />
-                                <div class="textSmaller">This is a mockup of the S/E bar.<br /><a id="seBarFeedback" href="" target="_blank">Please send UX feedback.</a>.</div>
+                                <div class="textSmaller">Soon the S/E bar will work.<br /><a id="seBarFeedback" href="" target="_blank">Please send UX feedback.</a>.</div>
                             </td>
                             <td valign="bottom" class="tdVisibleOverflow" align="right">
                                 <a id="plusCardCommentEnterButton" href="#" tabindex="9800" class="tdvisibleoverflow ui-btn ui-icon-check ui-btn-icon-notext ui-corner-all"></a>

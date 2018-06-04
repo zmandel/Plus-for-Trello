@@ -1,7 +1,15 @@
 ﻿<!DOCTYPE html>
 <html>
+<head>
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
+    <link rel="icon" href="/favicon.ico" type="image/x-icon">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
+</head>
     <body>
-    <div data-role="page" id="pageSettings">
+    <div data-role="page" id="pageSettings" class="plusPage">
         <div data-role="content">
             <div class="ui-field-contain">
                 <span class="pageText">Units:</span>
@@ -11,10 +19,18 @@
                     <option value="d">days</option>
                 </select>
             </div>
-            <a id="keywords" href="#" data-role="button" data-icon="edit">Keywords</a>
-            <a href="help.html" data-role="button" data-icon="info" data-transition="none">Help</a>
-            <a id="exitApp" href="#" data-role="button" data-icon="delete">Exit app</a>
-            <a id="logout" href="#" data-role="button" data-icon="arrow-l">Logout from Trello</a>
+            <label class="settingsElement">
+                <input id="unitsAsPoints" type="checkbox" name="unitsAsPoints">Call units "Points"
+            </label>
+            <label class="settingsElement">
+                <input id="allowNegativeR" type="checkbox" name="allowNegativeR">Do not autofill E when typing S<br />(Allow negative R)
+            </label>
+            <a id="keywords" href="#" data-role="button" class="settingsElement" data-icon="edit">Keywords</a>
+            <a id="globaluser" href="#" data-role="button" class="settingsElement" data-icon="edit">Global user</a>
+            <a href="help.html"  class="settingsElement" data-role="button" data-icon="info" data-transition="none">Help</a>
+            <a id="exitApp" class="settingsElement" href="#" data-role="button" data-icon="delete">Exit app</a>
+            <a id="logout" class="settingsElement" href="#" data-role="button" data-icon="arrow-l">Logout from Trello</a>
+            <div id="loginInfo" class="pageText"></div>
             <div id="plusVersionInfo" class="pageText"></div>
             <div id="plusHelpNotes" class="pageText"></div>
         </div><!-- /content -->

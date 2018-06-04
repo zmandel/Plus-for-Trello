@@ -17,6 +17,9 @@ var g_idGlobalAnalytics = "UA-zzzzzzzz-1";
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
+var PROP_ALLOWNEGATIVER = "allowNegativeR";
+var PROP_UNITSASPOINTS = "unitsAsPoints";
+var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
@@ -24,8 +27,32 @@ var g_cPageNavigations = 0;
 var g_bLocalNotifications = false;
 var g_mapLastActivityInfo = null;
 var g_user = null;
+var g_bAllowNegativeRemaining = false;
+var g_bDisplayPointUnits = false;
 
 g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
+
+var g_loaderDetector = {
+    initLoader: function () {
+        var thisLocal = this;
+        if (!isCordova())
+            try {
+                registerWorker();
+            } catch (e) {
+
+            }
+        return this;
+    }
+}.initLoader();
+
+function registerWorker() {
+    //wont use worker yet because safari ios doesnt yet support it, and android users can use the native app
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker
+                 .register('./service-worker.js')
+                 .then(function () { console.log('Service Worker Registered'); });
+    }
+}
 
 function assert(val) {
 
@@ -129,6 +156,8 @@ function handleOpenURL(url) {
 }
 
 function changePage(url, transition) {
+    if (g_bShownPopupLink)
+        $("#openAsDesktopPopup").hide();
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
     //review zig: no longer needed as we only pass card long id in parameters
 	url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/\(/g, ' ').replace(/\)/g, ' ');
@@ -189,9 +218,19 @@ var g_analytics = {
         for (p in params) {
             payload = payload + "&" + p + "=" + encodeURIComponent(params[p]);
         }
+
+        var PROP_LS_CD1LAST = "CD1LAST";
+
+        var valCD1Prev = localStorage[PROP_LS_CD1LAST] || "";
+        var cslCD1Cur = (isCordova() ? "MobileApp" : "WebApp");
+        if (valCD1Prev != cslCD1Cur) { //analytics docs recommend to only send the parameter when it changed, for performance.
+            payload = payload + "&cd1=" + cslCD1Cur;
+
+        }
         setTimeout(function () {
-        $.post("http://www.google-analytics.com/collect", payload, function (data) {
-            var x = data;
+        $.post("https://www.google-analytics.com/collect", payload, function (data) {
+            if (valCD1Prev != cslCD1Cur)
+                localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
         });
         }, msDelay);
     },
@@ -462,6 +501,10 @@ $(document).bind("mobileinit", function () {
 
 
 function openUrlAsActivity(url) {
+    if (!isCordova()) {
+        openNoLocation(url);
+        return;
+    }
     window.plugins.webintent.startActivity({
         action: window.plugins.webintent.ACTION_VIEW,
         url: url
@@ -487,6 +530,7 @@ function setDefaultKeywords() {
 
 
 function onLocalNotification(id, state, json) {
+    assert(false); //no longer used with new local notifications plugin 0.8x
     var url = "";
     var action = "unknown";
     if (json) {
@@ -612,28 +656,34 @@ var app = {
     // The scope of 'this' is the event. In order to call the 'receivedEvent'
     // function, we must explicitly call 'app.receivedEvent(...);'
     onDeviceReady: function () {
-        
         if (isCordova()) {
-            g_bLocalNotifications = (typeof (device) != "undefined" && device.platform == "Android" && device.version.indexOf("2.") != 0);
+            g_bLocalNotifications = (typeof (cordova) != "undefined" && cordova.plugins && cordova.plugins.notification);
             if (g_bLocalNotifications) {
-                window.plugin.notification.local.onclick = onLocalNotification;
-                //https://github.com/katzer/cordova-plugin-local-notifications/issues/357
-                //window.plugin.notification.local.oncancel = onLocalNotificationCancel;
+                //review no longer using onLocalNotification
+                cordova.plugins.notification.local.on("click", function (notification) {
+                    if (notification.data) {
+                        var data = JSON.parse(notification.data);
+                        changePage(data.url, "slidedown");
+                    }
+                });
             }
 
 
             window.plugins.webintent.getExtra(window.plugins.webintent.EXTRA_TEXT, function (text) {
-                handleBoardOrCardActivity(text);
+                if (text)
+                    handleBoardOrCardActivity(text);
             }, function() {
                 // There was no extra supplied.
             });
 
             window.plugins.webintent.onNewIntent(function (text) {
-                handleBoardOrCardActivity(text);
+                if (text)
+                    handleBoardOrCardActivity(text);
             });
 
         }
-
+        g_bAllowNegativeRemaining = (localStorage[PROP_ALLOWNEGATIVER] || "") == "true";
+        g_bDisplayPointUnits = (localStorage[PROP_UNITSASPOINTS] || "") == "true";
         g_analytics.init();
         g_recentBoards.init();
         g_recentUsers.init();
@@ -642,7 +692,6 @@ var app = {
         header.toolbar();
         header.addClass("animateTransitions");
         setDefaultKeywords();
-        initUser();
         var pageLogin = $("#pageLogin");
 
         function onBeforePageChange(page, urlNew, bBack) {
@@ -692,9 +741,7 @@ var app = {
             });
             g_analytics.hit({ t: "pageview", dp: page.attr("id") }, 1000);
         }
-   
-        onBeforePageChange(pageLogin);
-        onAfterPageChange(pageLogin);
+
         header.show();
         pageLogin.show();
         $(document).on("pagecontainerbeforetransition", function (event, ui) {
@@ -713,6 +760,10 @@ var app = {
         $("#settings").click(function () {
             changePage("settings.html", "none");
         });
+        initUser(function () {
+            onBeforePageChange(pageLogin);
+            onAfterPageChange(pageLogin);
+        });
     },
 
     receivedEvent: function (id) {
@@ -720,6 +771,14 @@ var app = {
     }
 };
 
+function exitApp() {
+    if (typeof (navigator) != "undefined" && navigator.app && navigator.app.exitApp)
+        navigator.app.exitApp();
+    else {
+        window.opener = window;
+        window.close();
+    }
+}
 
 function setupSettingsPage() {
     function buildKeywordString(rg) {
@@ -733,7 +792,12 @@ function setupSettingsPage() {
         return strKeywords;
     }
 
-    var deviceVersion = "unknown";
+    if (g_user)
+        $("#loginInfo").text("Logged-in as " + g_user.fullName + " (" + g_user.username + ")");
+    else
+        $("#loginInfo").text("Not logged-in");
+
+    var deviceVersion = "web version";
     if (typeof(device)!="undefined" && device.version)
         deviceVersion = device.version;
     var infoVersions = "Device version: " + deviceVersion;
@@ -748,9 +812,11 @@ function setupSettingsPage() {
     }
     var notesHelp = "";
     if (!g_bLocalNotifications)
-        notesHelp = "Notifications are not supported before Android version 4.0.";
+        notesHelp = "Phone notifications are supported only in the native apps.";
     $("#plusHelpNotes").html(notesHelp);
-   
+    
+    $("#allowNegativeR").attr("checked", g_bAllowNegativeRemaining).checkboxradio("refresh");
+    $("#unitsAsPoints").attr("checked", g_bDisplayPointUnits).checkboxradio("refresh");
     var selectUnits = $("#selectUnits");
     selectUnits.val(UNITS.current);
     selectUnits.selectmenu("refresh");
@@ -772,11 +838,10 @@ function setupSettingsPage() {
         var message = "Plus will also remove offline Trello data. Are you sure?";
         function worker() {
             logoutTrello();
-            navigator.app.exitApp(); //review zig: handle browser
         }
 
         
-        if (navigator && navigator.notification) { //review zig: fix navigator not loading //c plugin add  org.apache.cordova.dialogs
+        if (typeof (navigator) != "undefined" && navigator.notification) {
             navigator.notification.confirm(
                 message,
                 function onPrompt(buttonIndex) {
@@ -796,28 +861,48 @@ function setupSettingsPage() {
         
 
     $("#exitApp").off("click").click(function () {
-        navigator.app.exitApp();
+        exitApp();
+    });
+
+    function onGlobalUserClick(userGlobalDefault) {
+        var userOld = userGlobalDefault || localStorage[PROP_GLOBALUSER] || DEFAULTGLOBAL_USER;
+        var title = "Enter the name of the 'global' user";
+        var userNew = prompt(title, userOld);
+        userNew = (userNew || "").toLowerCase().trim();
+        if (userNew && /\s|@|,/.test(userNew)) {
+            alert("The global user cannot contain spaces, commas or @.");
+            setTimeout(onGlobalUserClick.bind(null,userNew), 100);
+            return;
+        }
+        saveUser(userNew);
+
+        function saveUser(userNew) {
+            if (!userNew)
+                userNew = DEFAULTGLOBAL_USER;
+
+            localStorage[PROP_GLOBALUSER] = userNew;
+        }
+    }
+
+    $("#allowNegativeR").off("click").click(function () {
+        g_bAllowNegativeRemaining = $("#allowNegativeR").is(':checked');
+        localStorage[PROP_ALLOWNEGATIVER] = g_bAllowNegativeRemaining?"true":"false";
+    });
+
+    $("#unitsAsPoints").off("click").click(function () {
+        g_bDisplayPointUnits = $("#unitsAsPoints").is(':checked');
+        localStorage[PROP_UNITSASPOINTS] = g_bDisplayPointUnits ? "true" : "false";
+    });
+
+    $("#globaluser").off("click").click(function () {
+        onGlobalUserClick();
     });
 
     $("#keywords").off("click").click(function () {
-        keywords = localStorage[PROP_PLUSKEYWORDS];
+        var keywords = localStorage[PROP_PLUSKEYWORDS];
         var title = "Enter your Plus S/E keywords separated by comma";
-        if (false) { //review zig: android plugin shows default text as placeholder, making it hard to edit or add more keywords
-            navigator.notification.prompt(
-                title,  // message
-                function onPrompt(results) {
-                    if (results.buttonIndex != 1)
-                        return;
-                    saveKeywords(results.input1);
-                },                  // callback to invoke
-                'Keywords',            // title
-                ['Ok', 'Cancel'],             // buttonLabels
-                keywords);                // defaultText
-        }
-        else {
-            var keywordsNew = prompt("Enter your Plus S/E keywords separated by comma", keywords);
-            saveKeywords(keywordsNew);
-        }
+        var keywordsNew = prompt(title, keywords);
+        saveKeywords(keywordsNew);
 
         function saveKeywords(keywordsNew) {
             if (!keywordsNew)
@@ -902,7 +987,7 @@ function defaultPageInit(idPage, page, params, bBack, urlNew) {
         params = getUrlParams(params);
 
 
-    if (idPage == "pageSettings" || idPage == "pageHelp")
+    if (!g_user || idPage == "pageSettings" || idPage == "pageHelp")
         $("#settings").hide();
     else
         $("#settings").show();
@@ -919,22 +1004,26 @@ function defaultPageInit(idPage, page, params, bBack, urlNew) {
         loadCardPage(page, params, bBack, urlNew);
 }
 
+function openNoLocation(url) {
+    return window.open(url, '_blank', isCordova()? 'location=no': undefined);
+}
+
 function loadHelpPage() {
     $("#openPlusChromeStore").off("click").click(function () {
-        var appInBrowser = window.open("https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf", '_blank', 'location=no');
+        var appInBrowser = openNoLocation("https://chrome.google.com/webstore/detail/plus-for-trello-time-trac/gjjpophepkbhejnglcmkdnncmaanojkf");
     });
 
     $("#plusSurvey").off("click").click(function () {
-        var appInBrowserSurvey = window.open("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form", '_blank', 'location=no');
+        var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
     });
 
     $("#plusLicences").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/licences.html", '_blank', 'location=no');
+        var appInBrowserSurvey = openNoLocation("http://www.plusfortrello.com/p/licences.html");
     });
 
     var cHelpClicked = 0;
     $("#helpMoreInfo").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/mobile-plus-for-trello.html", '_blank', 'location=no');
+        var appInBrowserSurvey = openNoLocation("http://www.plusfortrello.com/p/mobile-plus-for-trello.html");
         cHelpClicked++;
         if (cHelpClicked == 8) {
             if (!confirm("Are you sure you want to turn " + (g_analytics.bDisableAnalytics ? "ON" : "OFF") + " Google Analytics?"))
@@ -946,8 +1035,7 @@ function loadHelpPage() {
     $("#clearCache").off("click").click(function () {
         if (!confirm("All stored information including recent boards will be cleared from this device. Are your sure?"))
             return;
-        clearAllStorage(true);
-        refreshCurrentPage();
+        clearAllStorage(true, refreshCurrentPage);
     });
 
     $("#imgDonate").off("click").click(function () {
@@ -958,7 +1046,7 @@ function loadHelpPage() {
     //use separate window because otherwise it messes up the app header when going back from external page
     //also, an external window loads inmediately after click, then loads content, while jqm loads content first giving lag impression
     $("#helpPlusCommentFormat").off("click").click(function () {
-        var appInBrowserSurvey = window.open("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html", 'fs', 'location=no');
+        var appInBrowserSurvey = openNoLocation("http://www.plusfortrello.com/p/spent-estimate-card-comment-format.html");
     });
 
     //note: should use unescape(encodeURIComponent( but cant because of the compression library generating invalid uris. not worth setting uri compression mode.
@@ -981,31 +1069,40 @@ function populateUser(user) {
     g_user = user;
     if (!user)
         return;
-    var label = $("<div>").text(user.fullName.split(" ")[0]);
     if (user.avatarHash) {
         var image = $("<img>").attr("src", "https://trello-avatars.s3.amazonaws.com/" + user.avatarHash + "/30.png");
         userElems.append(image);
     }
-    userElems.append(label);
 }
 
-function initUser() {
+function initUser(callback) {
+
+    function fill(user) {
+        populateUser(user);
+        callback();
+    }
     if (localStorage[PROP_TRELLOKEY]) {
         var user = localStorage[PROP_TRELLOUSERDATA];
         if (user) {
             user = JSON.parse(user);
-            populateUser(user);
+            fill(user);
         } else {
-            callTrelloApi("members/me?fields=all", false, 0, function (response) {
+            callTrelloApi("members/me?fields=avatarHash,fullName,id,username,url", false, 0, function (response) {
                 user = response.obj;
                 localStorage[PROP_TRELLOUSERDATA] = JSON.stringify(user);
-                populateUser(user);
+                fill(user);
             }, undefined, undefined, true);
         }
     } else {
-        populateUser(null);
+        fill(null);
     }
 }
+
+function isDesktopVersion() {
+    return !(/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(navigator.userAgent));
+}
+
+var g_bShownPopupLink = false;
 
 function loadHomePage() {
     $("#viewBoards").off("click").click(function () {
@@ -1019,8 +1116,27 @@ function loadHomePage() {
         loginToTrello();
     });
 
+    var elemLinkPopup = $("#openAsDesktopPopup");
+    if (!g_bShownPopupLink && isDesktopVersion() && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0)) {
+        g_bShownPopupLink = true;
+        elemLinkPopup.show();
+        elemLinkPopup.off("click").click(function () {
+            var height = Math.floor(elemLinkPopup.height() * 37);
+            var width = Math.floor(elemLinkPopup.height() * 25);
+            var originCur = location.origin;
+            if (!originCur || originCur.indexOf("file://") == 0)
+                originCur = location.href; //file: case. not perfect but at least something
+            else
+                originCur += "/index.html";
+            window.open(originCur, "Plus for Trello", "scrollbars=no,menubar=no,personalbar=no,minimizable=yes,resizable=yes,location=no,toolbar=no,status=no,innerHeight=" + height + ",innerWidth=" + width);
+        });
+    }
+    else
+        elemLinkPopup.hide();
+
     if (localStorage[PROP_TRELLOKEY]) {
         $("#login").hide();
+
         $("#viewBoards").show();
         
         if (g_recentBoards.boards.length > 0) {
@@ -1059,7 +1175,7 @@ function loadHomePage() {
 }
 
 
-function clearAllStorage(bKeepLoginInfo) {
+function clearAllStorage(bKeepLoginInfo,callback) {
     var keywords = localStorage[PROP_PLUSKEYWORDS];
     var key = localStorage[PROP_TRELLOKEY];
     var idAnalytics = localStorage[g_analytics.PROP_IDANALYTICS];
@@ -1071,7 +1187,6 @@ function clearAllStorage(bKeepLoginInfo) {
 
     if (bKeepLoginInfo)
         localStorage[PROP_TRELLOKEY] = key;
-    initUser();
     //always preserve these
     if (keywords)
         localStorage[PROP_PLUSKEYWORDS] = keywords;
@@ -1081,10 +1196,12 @@ function clearAllStorage(bKeepLoginInfo) {
 
     if (bDisableAnalytics)
         g_analytics.setDisabled(true);
+
+    initUser(callback);
 }
 
 function logoutTrello() {
-    clearAllStorage(false);    
+    clearAllStorage(false, exitApp);
 }
 
 function loadBoardsPage(page, bBack) {
@@ -1242,33 +1359,73 @@ function handleCardClick(id, name, nameList, nameBoard, shortLink) {
     changePage("card.html?id=" + encodeURIComponent(id), "slidedown");
 }
 
-function loginToTrello() {
-    var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + TRELLO_APPKEY + "&name=Plus+for+Trello+mobile&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
-    var bSkipError = false;
-    function onEvent(event) {
-        var prefixToken = "#token=";
-        var i = event.url.indexOf(prefixToken);
-        if (i >= 0) {
-            bSkipError = true;
-            var token = event.url.substr(i + prefixToken.length);
-            appInBrowser.close();
-            delete localStorage[PROP_TRELLOUSERDATA];
-            if (!token)
-                delete localStorage[PROP_TRELLOKEY];
-            else
-                localStorage[PROP_TRELLOKEY] = token;
-            initUser();
-            refreshCurrentPage();
+function setTrelloToken(token) {
+    delete localStorage[PROP_TRELLOUSERDATA];
+    if (!token)
+        delete localStorage[PROP_TRELLOKEY];
+    else
+        localStorage[PROP_TRELLOKEY] = token;
+    initUser(refreshCurrentPage);
+}
+
+
+function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/authorizing-trello-with-angular/ for converting the trello coffescript
+    var key = TRELLO_APPKEY;
+    var authWindow, authUrl, token, trello, height, left, origin, receiveMessage, ref1, top, width;
+    width = 450;
+    height = 520;
+    left = window.screenX + (window.innerWidth - width) / 2;
+    top = window.screenY + (window.innerHeight - height) / 2;
+    origin = (ref1 = /^[a-z]+:\/\/[^\/]*/.exec(location)) != null ? ref1[0] : void 0;
+    //call_back=postMessage is necessary to enable cross-origin communication
+    authUrl = 'https://trello.com/1/authorize?return_url=' + origin + '&callback_method=postMessage&expiration=never&name=Plus+for+Trello+mobile&scope=read,write&key=' + key;
+    authWindow = window.open(authUrl, 'trello', 'width='+width+',height='+height+',left='+left+',top='+top);
+    var receiveMessage = function (event) {
+        var ref2;
+        if ((ref2 = event.source) != null) {
+            ref2.close();
         }
-    }
+        if ((event.data != null) && /[0-9a-f]{64}/.test(event.data)) {
+            
+            token= event.data;
+        } else {
+            token = null;
+        }
+        if (typeof window.removeEventListener === 'function') {
+            //remove event listener
+            window.removeEventListener('message', receiveMessage, false);
+        }
+        setTrelloToken(token);
+    };
+    return typeof window.addEventListener === 'function' ? window.addEventListener('message', receiveMessage, false) : void 0;
+}
 
-    function onErrorEvent(event) {
-        if (!bSkipError)
-            alertMobile("Cannot login. Please check your connection.");
-    }
+function loginToTrello() {
+    if (isCordova()) {
+        var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + TRELLO_APPKEY + "&name=Plus+for+Trello+mobile&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
+        var bSkipError = false;
 
-    appInBrowser.addEventListener('loadstart', onEvent);
-    appInBrowser.addEventListener('loaderror', onErrorEvent);
+        function onErrorEvent(event) {
+            if (!bSkipError)
+                alertMobile("Cannot login. Please check your connection.");
+        }
+
+        function onEvent(event) {
+            var prefixToken = "#token=";
+            var i = event.url.indexOf(prefixToken);
+            if (i >= 0) {
+                bSkipError = true;
+                var token = event.url.substr(i + prefixToken.length);
+                appInBrowser.close();
+                setTrelloToken(token);
+            }
+        }
+        appInBrowser.addEventListener('loadstart', onEvent);
+        appInBrowser.addEventListener('loaderror', onErrorEvent);
+
+    } else {
+        authorizeFromWeb();
+    }
 }
 
 

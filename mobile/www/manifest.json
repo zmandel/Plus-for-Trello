@@ -1,0 +1,43 @@
+{
+  "short_name": "Plus for Trello",
+  "name": "Plus for Trello",
+  "icons": [
+    {
+      "src": "img/icon48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "img/icon96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+        {
+      "src": "img/icon144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+        {
+      "src": "img/icon192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/icon128.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/index.html",
+  "display": "fullscreen",
+  "orientation": "portrait-primary",
+  "background_color": "#0079BF",
+  "theme_color": "#0079BF",
+  "prefer_related_applications": true,
+  "related_applications": [
+  {
+    "platform": "play",
+    "url": "https://play.google.com/store/apps/details?id=com.zigmandel.plusfortrello",
+    "id": "com.zigmandel.plusfortrello"
+  }]
+}
