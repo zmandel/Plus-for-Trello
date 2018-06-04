@@ -30,17 +30,31 @@
 
     <script type="text/javascript" src="cordova.js"></script>
     <script type="text/javascript" src="js/sharedlocal.js"></script>
-    <script type='text/javascript' src='js/lib/fastclick.js'></script>
+    <script defer type='text/javascript' src='js/lib/fastclick.js'></script>
 
-    <script type="text/javascript" src="js/lib/lz-string.min.js"></script>
+    <script defer type="text/javascript" src="js/lib/lz-string.min.js"></script>
     <script type="text/javascript" src="js/trello.js"></script>
     <script type="text/javascript" src="js/sharedmobile.js"></script>
     <script type="text/javascript" src="js/sharedsync.js"></script>
-    <script type="text/javascript" src="js/lib/markdown-converter.js"></script>
+    <script defer type="text/javascript" src="js/lib/markdown-converter.js"></script>
     <script type="text/javascript" src="js/index.js"></script>
     <script type="text/javascript" src="js/card.js"></script>
 </head>
 <body>
+    <noscript>
+        <h2>
+            JavaScript is disabled. Please enable JavaScript in your web browser to use this app.
+        </h2>
+
+        <style type="text/css">
+            .plusHeader {
+                display: none;
+            }
+            .plusPage {
+                display: none;
+            }
+        </style>
+    </noscript>
     <div class="plusHeader" data-add-back-btn="true" data-back-btn-text="Back" data-role="header" data-position="fixed" data-tap-toggle="false" width="100%" style="display:none;">
         <span><a href="" id="openAsDesktopPopup" class="headerLink" style="margin-top:12px;margin-left:3px;">Popup</a></span>
         <h1 style="font-weight:normal"><img src="img/login.png" class="imgHeader" width="20" align="top" />Home</h1>
@@ -50,7 +64,7 @@
     </div><!-- /header -->
 
     <div data-role="page" class="plusPage" id="pageLogin" style="display:none;overflow: auto;">
-        <div data-role="content" style="margin-left:auto;margin-right:auto;text-align:center !important;">
+        <div data-role="content" style="display:none;margin-left:auto;margin-right:auto;text-align:center !important;">
             <ul id=listCardsPinned data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
                 <li data-role="list-divider">Pinned cards</li>
             </ul>

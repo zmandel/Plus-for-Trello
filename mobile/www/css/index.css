@@ -142,7 +142,7 @@ font-weight:normal !important;
     animation:spin .7s linear infinite;
 }
 
-.ui-icon-  {
+.ui-icon-trelloopen  {
 	background-image: url("../img/trelloopen.png");
     background-size: 27px 17px;
     background-repeat:no-repeat;

@@ -21,6 +21,8 @@ var PROP_ALLOWNEGATIVER = "allowNegativeR";
 var PROP_UNITSASPOINTS = "unitsAsPoints";
 var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
+var PROP_PLUSUNITS = "plusUnits";
+
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
 var g_cPageNavigations = 0;
@@ -49,10 +51,11 @@ var g_loaderDetector = {
 
 function registerWorker() {
     if ('serviceWorker' in navigator) {
-        // Your service-worker.js *must* be located at the top-level directory relative to your site.
-        // It won't be able to control pages unless it's located at the same level or higher than them.
-        // *Don't* register service worker file in, e.g., a scripts/ sub-directory!
-        // See https://github.com/slightlyoff/ServiceWorker/issues/468
+        navigator.serviceWorker.addEventListener('message', function (event) {
+            if (event.data.action && event.data.action=="pinnedCard")
+                changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
+        });
+
         navigator.serviceWorker.register('service-worker.js').then(function (reg) {
             // updatefound is fired if service-worker.js changes.
             reg.onupdatefound = function () {
@@ -194,8 +197,9 @@ function changePage(url, transition, callback, bReplaceState) {
         $("#openAsDesktopPopup").hide();
     //review zig: jqm 1.4.5 does not fix this bug https://github.com/jquery/jquery-mobile/issues/1383
     //review zig: no longer needed as we only pass card long id in parameters
-	url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/\(/g, ' ').replace(/\)/g, ' ');
-	$.mobile.changePage(url, { transition: transition, showLoadMsg: false, changeHash: !bReplaceState });
+    url = url.replace(/'/g, ' ').replace(/"/g, ' ').replace(/\(/g, ' ').replace(/\)/g, ' ');
+    var optsChange = { transition: transition, showLoadMsg: false, changeHash: !bReplaceState };
+	$.mobile.changePage(url, optsChange);
 	if (callback)
 	    callback();
 }
@@ -554,7 +558,7 @@ function openUrlAsActivity(url) {
     );
 }
 
-$(function () {
+$(document).ready(function () {
     //review zig: apparently has to be here as dom is not built on mobileinit
     FastClick.attach(document.body);
 });
@@ -618,6 +622,7 @@ function onLocalNotification(id, state, json) {
 
     worker();
 }
+
 
 function handleBoardOrCardActivity(text) {
     function getId(strFind) {
@@ -783,6 +788,9 @@ var app = {
         }
 
         header.show();
+        var paramsUrl = getUrlParams(g_urlInitial);
+        var idCardNavigate = localStorage[PROP_NAVIDCARDLONG];
+        
         pageLogin.show();
         $(document).on("pagecontainerbeforetransition", function (event, ui) {
             header.removeClass("animateTransitions").removeClass("plusShiftTop");
@@ -794,24 +802,33 @@ var app = {
             header.addClass("animateTransitions");
         });
 
-        UNITS.InitOnce();
-
+        UNITS.current = (localStorage[PROP_PLUSUNITS] || UNITS.current);
+        UNITS.SetCallbackOnSet(function (unit) {
+            localStorage[PROP_PLUSUNITS] = unit;
+        });
 
         $("#settings").click(function () {
             changePage("settings.html", "none");
         });
-        initUser(function () {
-            onBeforePageChange(pageLogin);
-            onAfterPageChange(pageLogin);
-            var paramsUrl = getUrlParams(g_urlInitial);
-            if (paramsUrl.idCard) {
-                //fix the url (so jqm doesnt get confused), then open the card.
-               // if (window.history && window.history.replaceState)
-
-                setTimeout(function () {
-                    changePage("card.html?id=" + encodeURIComponent(paramsUrl.idCard), "slidedown",null, true);
-                }, 500);
-                
+        initUser(function (user) {
+            var bShowHome = true;
+            if (user) {
+                if (idCardNavigate) {
+                    delete localStorage[PROP_NAVIDCARDLONG];
+                    bShowHome = false;
+                    setTimeout(function () {
+                        $("#openAsDesktopPopup").hide();
+                        changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
+                        setTimeout(function () {
+                            pageLogin.children("div[data-role='content']").show();
+                        }, 50);
+                    }, 100);
+                }
+            }
+            if (bShowHome) {
+                onBeforePageChange(pageLogin);
+                onAfterPageChange(pageLogin);
+                pageLogin.children("div[data-role='content']").show();
             }
         });
     },
@@ -1133,7 +1150,7 @@ function initUser(callback) {
 
     function fill(user) {
         populateUser(user);
-        callback();
+        callback(user);
     }
     if (localStorage[PROP_TRELLOKEY]) {
         var user = localStorage[PROP_TRELLOUSERDATA];

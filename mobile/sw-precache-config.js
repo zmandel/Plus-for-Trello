@@ -1,15 +1,16 @@
 ﻿module.exports = {
     staticFileGlobs: [
-      '**.html',
+      '*.html',
       'cordova.js',
-      '**.ico',
-      '**.png',
-      'js/**.js',
-      'js/lib/**.js',
-      'img/**.png',
-      'img/**.gif',
-      'css/**.css'
+      '*.ico',
+      '*.png',
+      'js/*.js',
+      'js/lib/*.js',
+      'img/*.png',
+      'img/*.gif',
+      'css/*.css'
     ],
     ignoreUrlParametersMatching: [/./],
-    directoryIndex: false
+    directoryIndex: false,
+    navigateFallback: "index.html"
 };

@@ -53,9 +53,11 @@ function resetSEPanel(page) {
     enableSEFormElems(false, page);
 }
 
+
 function loadCardPage(page, params, bBack, urlPage) {
     assert(params.id); //note that the rest of params could be missing on some cases (cold navigation here from trello app)
-    var cardCached=g_cardsById[params.id];
+    var idCardLong = params.id;
+    var cardCached = g_cardsById[idCardLong];
     if (cardCached) {
         params.name = cardCached.name;
         params.nameList = cardCached.nameList;
@@ -114,8 +116,47 @@ function loadCardPage(page, params, bBack, urlPage) {
     }
 
     function setLocalNotification(idNotification, bPinned) {
-        if (!g_bLocalNotifications || !idNotification)
+        if (!idNotification)
             return;
+
+        if (!g_bLocalNotifications) {
+            if (!window.Notification)
+                return;
+
+
+            //firefox support for requireInteraction: in mozilla52 https://bugzilla.mozilla.org/show_bug.cgi?id=862395 https://wiki.mozilla.org/RapidRelease/Calendar
+            var matchFF = window.navigator.userAgent.match(/Firefox\/([0-9]+)\./);
+            var verFF = matchFF ? parseInt(matchFF[1]) : 0;
+            if (verFF > 0 && verFF < 52)
+                return;
+
+            Notification.requestPermission(function (status) {  // status is "granted", if accepted by user
+                if (status != "granted")
+                    return;
+                if (bPinned) {
+                    navigator.serviceWorker.ready.then(function (registration) {
+                        if (!registration.showNotification || !registration.getNotifications)
+                            return; //lame browser
+                        registration.showNotification(params.name, {
+                            body: params.nameBoard,
+                            icon: '../img/icon192.png',
+                            tag: idNotification,
+                            silent: true,
+                            requireInteraction: true,
+                            data: { idCardLong: idCardLong, action: "pinnedCard" }
+                        });
+                    });
+                } else {
+                    navigator.serviceWorker.ready.then(function (registration) {
+                        registration.getNotifications({ tag: idNotification }).then(function (list) {
+                            if (list && list.length > 0)
+                                list[0].close();
+                        });
+                    });
+                }
+            });
+            return;
+        }
 
         if (bPinned) {
             var url = urlPage;
@@ -152,16 +193,16 @@ function loadCardPage(page, params, bBack, urlPage) {
         }
     }
 
-    g_stateContext.idCard = params.id;
+    g_stateContext.idCard = idCardLong;
     refreshSE(true);
     var elemPin = page.find("#cardPin");
     elemPin.flipswitch();
-    var idNotification = g_pinnedCards.getIdNotification(params.id);
+    var idNotification = g_pinnedCards.getIdNotification(idCardLong);
     elemPin[0].checked = (idNotification != null);
     elemPin.flipswitch("refresh");
     elemPin.off("change.plusForTrello").on("change.plusForTrello", function () {
         var bChecked = elemPin.is(':checked');
-        idNotification = g_pinnedCards.pin(params.name, params.nameList, params.nameBoard, params.id, params.shortLink, bChecked);
+        idNotification = g_pinnedCards.pin(params.name, params.nameList, params.nameBoard, idCardLong, params.shortLink, bChecked);
         if (idNotification)
             setLocalNotification(idNotification, bChecked);
         else {

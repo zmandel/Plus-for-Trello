@@ -1,6 +1,7 @@
 ﻿/// <reference path="intellisense.js" />
 
 //CANNOT use any external functions here
+var PROP_NAVIDCARDLONG = "nav-idCardLong";
 
 window.onload = function () {
     if (typeof (cordova) != "undefined")
@@ -9,9 +10,6 @@ window.onload = function () {
     //fail. So instead redirect those requests to home, and handle the common case of a card url
     var path = window.location.href;
     var pathStart = "/index.html";
-    var strDetectIdCard = "?idCard=";
-    if (path.indexOf(pathStart + strDetectIdCard) >= 0)
-        return; //special-case this one, which we produce below
     var parts = path.split("/");
     if (parts.length > 0) {
         var partLast = parts.pop();
@@ -21,9 +19,12 @@ window.onload = function () {
             var prePath = parts.join("/");
             var postPath = "";
             if (partLast.indexOf(strCardDetect) == 0) {
-                postPath = strDetectIdCard + partLast.split(strCardDetect)[1];
+                var idCardLong = partLast.split(strCardDetect)[1];
+                if (idCardLong) {
+                    localStorage[PROP_NAVIDCARDLONG] = idCardLong;
+                    window.location.replace(pathStart);
+                }
             }
-            window.location.replace(prePath + pathStart + postPath);
         }
     }
 };
