@@ -11,7 +11,7 @@ del sw.tmp
 del service-worker.js
 cd ..
 call gulp
-pause
+
 cd www
 call firebase deploy
 del index.html

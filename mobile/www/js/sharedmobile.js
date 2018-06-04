@@ -12,6 +12,9 @@ var g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
 var TAG_RECURRING_CARD = "[R]";
 var DEFAULTGLOBAL_USER = "global";
+var g_strUserOtherOption = "other...";
+var g_strDateOtherOption = "other...";
+var g_valMaxDaysCombo = 5;
 
 var MAP_UNITS = {
     "m": 1000 * 60,
@@ -25,9 +28,9 @@ var UNITS = {
     hours: "h",
     days: "d",
     current: "h", //current units, hours by default
-    callbackOnSet: null, 
+    callbackOnSet: null,
 
-   getCurrentShort: function (bDisplayPointUnits) {
+    getCurrentShort: function (bDisplayPointUnits) {
         if (bDisplayPointUnits)
             return "p";
         return this.current;
@@ -162,7 +165,7 @@ var g_currentCardSEData = {
             var value = JSON.parse(strVal);
             assert(idCard == value.idCard);
             if (thisLocal.idCard != idCard) {
-                //should never happen but handle possible rare timing
+                //should never happen but handle possible rare timing because of async storage
                 callback();
                 return;
 
@@ -177,7 +180,7 @@ var g_currentCardSEData = {
             callback();
         });
     },
-    saveToStorage: function (bForce) {
+    saveToStorage: function () {
         assert(this.idCard);
         var stringified = JSON.stringify({
             idCard: this.idCard,
@@ -189,10 +192,7 @@ var g_currentCardSEData = {
             note: this.note,
             msTime: this.msTime
         });
-        if (!bForce) {
-            if (this.strLastSaved == stringified)
-                return;
-        }
+
         var key = this.keyStoragePrefix + this.idCard;
         var thisLocal = this;
         g_storage.set(key, stringified, function (strError) {
@@ -202,17 +202,7 @@ var g_currentCardSEData = {
         });
     },
 
-    setValues: function (idCard, keyword, user, delta, s, e, note) {
-        if (this.idCard == idCard &&
-            this.keyword == keyword &&
-            this.user == user &&
-            this.delta == delta &&
-            this.s == s &&
-            this.e == e &&
-            this.note == note) {
-            return;
-        }
-
+    setValues: function (bSaveToStorage, idCard, keyword, user, delta, s, e, note) {
         this.idCard = idCard;
         this.keyword = keyword;
         this.user = user;
@@ -221,7 +211,8 @@ var g_currentCardSEData = {
         this.e = e;
         this.note = note;
         this.msTime = Date.now();
-        this.saveToStorage();
+        if (bSaveToStorage)
+            this.saveToStorage();
     },
 
     removeValue: function (idCardCur) {
@@ -250,12 +241,12 @@ var g_currentCardSEData = {
 
     msTime: 0,
     keyStoragePrefix: "cardSEDraft:",
-    strLastSaved: "",
+    strLastSaved: "", //note: because it contains the idCard, its OK to not clear this cache when the card changes
     idCard: "",
     keyword: "",
     user: "",
     delta: "",
-    s: "",
+    s: "", //NOTE: s/e stored as strings. could contain ":"
     e: "",
     note: ""
 };

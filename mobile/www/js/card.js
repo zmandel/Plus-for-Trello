@@ -5,6 +5,7 @@ var g_bNoAnimationDelay = false; //to optimize animation when pressing back butt
 var SEKEYWORD_LEGACY = "plus s/e";
 var g_fnCancelSEBar = null;
 var g_cardsById = {}; //has name, nameBoard, nameList, shortLink. used for navigation as jqm cant yet store well params in url
+var g_delayKB = 350; //keyboard animation delay (aprox based on android)
 
 function getAllKeywords(bExcludeLegacyLast) {
     var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
@@ -31,11 +32,11 @@ var g_seCard = {
     },
     setRecurring: function (bRecurring) {
         assert(this.m_mapUsers);
-        this.m_bRecurring;
+        this.m_bRecurring = bRecurring;
     },
     isRecurring: function () {
         assert(this.m_mapUsers);
-        return (this.m_mapUsers === null);
+        return (this.m_bRecurring);
     },
     setSeCurForUser: function (user, s, e, keyword) {
         //see extension fillCardSEStats
@@ -86,28 +87,205 @@ var g_seCard = {
     m_bRecurring: false
 };
 
+function updateEOnSChange(page) {
+    updateNoteR(page)
+}
+
+function updateNoteR(page) {
+    var elem = page.find("#plusCardEditMessage");
+    if (!updateCurrentSEData(page, true, false, true)) {
+        elem.text("Format error.");
+        return;
+    }
+    var sParsed = parseFixedFloat(g_currentCardSEData.s);
+    var eParsed = parseFixedFloat(g_currentCardSEData.e);
+    var mapSe = g_seCard.getSeCurForUser(g_currentCardSEData.user, g_currentCardSEData.keyword);
+    if (sParsed == 0 && eParsed == 0) {
+        elem.html("&nbsp;");
+        return;
+    }
+    var sumS = sParsed + mapSe.s;
+    var sumE = eParsed + mapSe.e;
+    var rDiff = parseFixedFloat(sumE - sumS);
+    var noteFinal = "R will be " + rDiff + "." + (rDiff != 0 ? "" : " Increase E if not done.");
+    elem.text(noteFinal);
+}
+
+function getSEStringsFromEdits(page, bSilent) {
+    var objRet = { status: "error" };
+    var panelAddSE = page.find($("#panelAddSE"));
+    if (panelAddSE.length == 0)
+        return objRet;
+
+    function errorRet(elem) {
+        if (!bSilent) {
+            alertMobile("Format error");
+            hiliteOnce(elem); //dont set focus as keyboard can hide alert
+        }
+        return objRet;
+    }
+
+    var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
+    var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
+    var elemEstMain = panelAddSE.find("#plusCardCommentEst");
+    var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
+
+    var sMain = elemSpentMain.val().trim();
+    var sSub = g_bDisplayPointUnits? "" : elemSpentSub.val().trim();
+    var eMain = elemEstMain.val().trim();
+    var eSub = g_bDisplayPointUnits ? "" : elemEstSub.val().trim();
+
+
+    if (sSub.length>0 &&  (sMain.indexOf(".") >= 0 || sSub.indexOf(".") >= 0))
+        return errorRet(sSub);
+    if (eSub.length>0 &&  (eMain.indexOf(".") >= 0 || eSub.indexOf(".") >= 0))
+        return errorRet(eSub);
+
+    objRet.status = STATUS_OK;
+    objRet.strS = sMain;
+    if (sSub)
+        objRet.strS = objRet.strS + ":" + sSub;
+    objRet.strE = eMain;
+    if (eSub)
+        objRet.strE = objRet.strE + ":" + eSub;
+    return objRet;
+}
+
 var g_timeoutUpdateCurrentSEData = null;
-function updateEOnSChange() {
+function updateCurrentSEData(page, bForceNow, bShowErrors, bDontSaveToStorage) {
+    if (g_timeoutUpdateCurrentSEData) {
+        clearTimeout(g_timeoutUpdateCurrentSEData);
+        g_timeoutUpdateCurrentSEData = null;
+    }
 
+    function worker() {
+        var idCardCur = g_stateContext.idCard;
+        if (!idCardCur)
+            return false;
+
+        var elemUser = page.find("#plusCardCommentUser");
+        var elemDate = page.find("#plusCardCommentDays");
+        var valComment = page.find("#plusCardCommentNote").val() || "";
+        var valUser = elemUser.val() || "";
+        var valDays = elemDate.val() || "";
+        var valKeyword = page.find("#plusCardCommentKeyword").val() || "";
+
+        if (valUser == g_strUserOtherOption || valDays == g_strDateOtherOption)
+            return false;
+
+        var objSE = getSEStringsFromEdits(page, !bShowErrors);
+        if (objSE.status != STATUS_OK)
+            return false;
+
+        g_currentCardSEData.setValues(!bDontSaveToStorage, idCardCur, valKeyword, valUser, valDays, objSE.strS, objSE.strE, valComment);
+        return true;
+    }
+
+    if (bForceNow) {
+        return worker();
+    }
+    else {
+        assert(!bShowErrors);
+        g_timeoutUpdateCurrentSEData = setTimeout(worker, 300); //fast-typing users shall not suffer
+    }
+    return true;
 }
 
-function updateNoteR() {
-    //plusCardEditMessage
-}
-
-function updateCurrentSEData() {
-
-}
 
 function handleSEBar(page, panelAddSE) {
-    panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {
-        alertMobile("Soon the app will support entering S/E.");
+    var idCardCur = g_stateContext.idCard;
+    var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
+    //load draft
+    g_currentCardSEData.loadFromStorage(idCardCur, function () {
+        if (g_currentCardSEData.idCard != idCardCur)
+            return; //timing when storage is async
+
+        if (!g_currentCardSEData.s && !g_currentCardSEData.e && !g_currentCardSEData.note && g_currentCardSEData.user == g_strUserMeOption) {
+            setTimeout(function () {
+                if (isCordova())
+                    cordova.plugins.Focus.focus(panelAddSE);
+                else
+                    elemSpentMain.focus();
+            }, g_delayKB);
+            return;
+        }
+            
+
+        var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
+        var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
+        var elemEstMain = panelAddSE.find("#plusCardCommentEst");
+        var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
+        var elemNote = panelAddSE.find("#plusCardCommentNote");
+        var listKeywords = page.find("#plusCardCommentKeyword").selectmenu("enable");
+        var listUsers = page.find("#plusCardCommentUser").selectmenu("enable");
+        var listDays = page.find("#plusCardCommentDays").selectmenu("enable");
+
+        if (g_currentCardSEData.keyword) {
+            listKeywords.val(g_currentCardSEData.keyword).selectmenu('refresh');
+            if (listKeywords.val() != g_currentCardSEData.keyword) {
+                return; //keyword no longer used. ignore
+            }
+        }
+
+        if (g_currentCardSEData.user) {
+            listUsers.val(g_currentCardSEData.user).selectmenu('refresh');
+            if (listUsers.val() != g_currentCardSEData.user) {
+                g_recentUsers.markRecent(g_currentCardSEData.user, null, new Date().getTime(), true);
+                fillUserList(listUsers, g_currentCardSEData.user);
+            }
+        }
+
+        if (g_currentCardSEData.delta) {
+            listDays.val(g_currentCardSEData.delta).selectmenu('refresh');
+            if (listDays.val() != g_currentCardSEData.delta) {
+                g_valDayExtra = g_currentCardSEData.delta;
+                fillDaysList(listDays, g_currentCardSEData.delta);
+            }
+        }
+
+        var parts = null;
+        if (g_currentCardSEData.s) {
+            if (g_bDisplayPointUnits)
+                elemSpentMain.val(parseFixedFloat(g_currentCardSEData.s));
+            else {
+                parts = g_currentCardSEData.s.split(":");
+                elemSpentMain.val(parts[0]);
+                elemSpentSub.val(parts[1]);
+            }
+        }
+
+        if (g_currentCardSEData.e) {
+            if (g_bDisplayPointUnits)
+                elemEstMain.val(parseFixedFloat(g_currentCardSEData.e));
+            else {
+                parts = g_currentCardSEData.e.split(":");
+                elemEstMain.val(parts[0]);
+                elemEstSub.val(parts[1]);
+            }
+        }
+
+        updateNoteR(page);
+
     });
 
+    //OK
+    panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {       
+        if (!updateCurrentSEData(page, true, true))
+            return;
+        alertMobile("Soon the app will support entering S/E.");
+
+        function onDone(status) {
+            if (status == STATUS_OK)
+                g_currentCardSEData.removeValue(idCardCur);
+        }
+    });
+
+    //CANCEL
     panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
         g_fnCancelSEBar = null;
-        var delay = delayKB * 2;
-        if (g_bNoAnimationDelay || g_bNoAnimations) {
+        updateCurrentSEData(page, true);
+        var delay = g_delayKB * 2;
+        if (g_bNoAnimationDelay || g_bNoAnimations || !isMobile()) {
             g_bNoAnimationDelay = false;
             delay = 0;
         }
@@ -119,16 +297,17 @@ function handleSEBar(page, panelAddSE) {
         return false;
     });
 
-    var spentMain = panelAddSE.find("#plusCardCommentSpent");
-    var spentSub = panelAddSE.find("#plusCardCommentSpent2");
-    var estMain = panelAddSE.find("#plusCardCommentEst");
-    var estSub = panelAddSE.find("#plusCardCommentEst2");
-
-    var allSEInputs = spentMain.add(spentSub, estMain, estSub);
+    var elemSpentMain = panelAddSE.find("#plusCardCommentSpent");
+    var elemSpentSub = panelAddSE.find("#plusCardCommentSpent2");
+    var elemEstMain = panelAddSE.find("#plusCardCommentEst");
+    var elemEstSub = panelAddSE.find("#plusCardCommentEst2");
+    var elemNote = panelAddSE.find("#plusCardCommentNote");
+    var allSEInputs = elemSpentMain.add(elemSpentSub).add(elemEstMain).add(elemEstSub); //numeric inputs
     //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
     allSEInputs.off("focus").on("focus", function () { $(this).select(); });
-    spentMain.add(spentSub).off("input").on("input", function () { updateEOnSChange(); });
-    estMain.add(estSub).off("input").on("input", function () { updateNoteR(); });
+    elemSpentMain.add(elemSpentSub).off("input").on("input", function () { updateEOnSChange(page); });
+    elemEstMain.add(elemEstSub).off("input").on("input", function () { updateNoteR(page); });
+    elemNote.off("input").on("input", function () { updateCurrentSEData(page); });
 }
 
 function resetSEPanel(page) {
@@ -304,12 +483,11 @@ function loadCardPage(page, params, bBack, urlPage) {
     });
 
     var paramsAnim = { duration: 200, easing: "linear" };
-    var delayKB = 350;
 
     enableSEFormElems(false, page);
     var cTimesClickedAdd = 0;
     var bNeedBounceFocus = false;
-    var panelAddSE = page.find($("#panelAddSE")); //review zig test ios keyboard
+    var panelAddSE = page.find($("#panelAddSE"));
 
     //this is part of the hack to get the focus event into the spent box and display the android numeric keyboard
     //we simulate a click with the "focus" plugin https://github.com/46cl/cordova-android-focus-plugin/
@@ -324,11 +502,6 @@ function loadCardPage(page, params, bBack, urlPage) {
             return false;
         }
     });
-
-    if (g_bNoAnimations)
-        page.find(".animateTransitions").removeClass("animateTransitions").addClass("undoAnimateTransitions");
-    else
-        page.find(".undoAnimateTransitions").addClass("animateTransitions");
 
     page.find("#addSE").off("click").click(function (event) {
         hookBack();
@@ -350,13 +523,6 @@ function loadCardPage(page, params, bBack, urlPage) {
             var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
         });
 
-        setTimeout(function () {
-            if (isCordova())
-                cordova.plugins.Focus.focus(panelAddSE);
-            else
-                page.find("#plusCardCommentSpent").focus();
-        }, delayKB);
-
         function cancelSEBar() {
             g_fnCancelSEBar = null;
             resetSEPanel(page);
@@ -368,6 +534,12 @@ function loadCardPage(page, params, bBack, urlPage) {
     });
     
    
+    if (g_bNoAnimations)
+        page.find(".animateTransitions").removeClass("animateTransitions").addClass("undoAnimateTransitions");
+    else
+        page.find(".undoAnimateTransitions").addClass("animateTransitions");
+
+
     page.find("#openTrelloCard").off("click").click(function (event) {
         var urlCard = "https://trello.com/c/" + params.shortLink;
         if (isCordova()) {
@@ -417,6 +589,73 @@ function unhookBack() {
     document.removeEventListener("backbutton", onBackKeyDown, false);
 }
 
+function fillDaysList(listDays, cDaySelected) {
+    function appendDay(cDay, cDaySelected) {
+        var nameOption = null;
+        var bSelected = (cDay == cDaySelected);
+        if (cDay == g_strDateOtherOption) {
+            nameOption = cDay;
+        }
+        else if (cDay == 0)
+            nameOption = "now";
+        else
+            nameOption = "-" + cDay + "d";
+        var item = $("<option value='" + cDay + "'" + (bSelected ? " selected='selected'" : "") + ">" + nameOption + "</option>");
+        listDays.append(item);
+    }
+
+    listDays.empty();
+    for (var iDay = 0; iDay <= g_valMaxDaysCombo; iDay++)
+        appendDay(iDay, cDaySelected);
+    if (g_valDayExtra)
+        appendDay(g_valDayExtra, cDaySelected);
+    appendDay(g_strDateOtherOption, 0); //0 so it never selects it
+    listDays.selectmenu("refresh");
+}
+
+function fillKeywords(listKeywords, keywordSelected) {
+    function appendKeyword(keyword, bSelected) {
+        var item = $("<option value='" + keyword + "'" + (bSelected ? " selected='selected'" : "") + ">" + keyword + "</option>");
+        listKeywords.append(item);
+    }
+    var rgKeywords = getAllKeywords(true);
+    rgKeywords.forEach(function (keyword) {
+        appendKeyword(keyword, keywordSelected && keywordSelected == keyword);
+    });
+
+    listKeywords.selectmenu("refresh");
+    if (rgKeywords.length < 2)
+        listKeywords.parent().hide();
+    else
+        listKeywords.parent().show();
+}
+
+function fillUserList(listUsers, userSelected) {
+    function appendUser(name, bSelected) {
+        var item = $("<option value='" + name + "'" + (bSelected ? " selected='selected'" : "") + ">" + name + "</option>");
+        listUsers.append(item);
+    }
+
+    listUsers.empty();
+    g_recentUsers.users.sort(function (a, b) {
+        return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+    appendUser(g_strUserMeOption);
+    var userGlobal = getUserGlobal();
+    appendUser(userGlobal);
+    g_recentUsers.users.forEach(function (user) {
+        var nameUse = user.name.toLowerCase();
+        if (nameUse == g_strUserMeOption || nameUse == userGlobal)
+            return;
+        if (g_user && g_user.username.toLowerCase() == nameUse)
+            return;
+        appendUser(nameUse, userSelected && userSelected == nameUse);
+    });
+
+    appendUser(g_strUserOtherOption);
+    listUsers.selectmenu("refresh");
+}
+
 function enableSEFormElems(bEnable,
     page,
     bOnlyEnable) { //bOnlyEnable true and bEnable true will just show elements without repopulating (opt)
@@ -457,67 +696,24 @@ function enableSEFormElems(bEnable,
         }
 
         setUnitLabels();
-        var valUserOther = "other...";
 
-        function appendUser(name, bSelected) {
-            var item = $("<option value='" + name + "'" + (bSelected ? " selected='selected'" : "") + ">" + name + "</option>");
-            listUsers.append(item);
-        }
-
-        function appendKeyword(keyword, bSelected) {
-            var item = $("<option value='" + keyword + "'" + (bSelected ? " selected='selected'" : "") + ">" + keyword + "</option>");
-            listKeywords.append(item);
-        }
-
-        function fillKeywords(keywordSelected) {
-            var rgKeywords = getAllKeywords(true);
-            rgKeywords.forEach(function (keyword) {
-                appendKeyword(keyword, keywordSelected && keywordSelected == keyword);
-            });
-
-            listKeywords.selectmenu("refresh");
-            if (rgKeywords.length < 2)
-                listKeywords.parent().hide();
-            else
-                listKeywords.parent().show();
-        }
-
-        function fillUserList(userSelected) {
-            listUsers.empty();
-            g_recentUsers.users.sort(function (a, b) {
-                return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
-            });
-            appendUser(g_strUserMeOption);
-            var userGlobal = getUserGlobal();
-            appendUser(userGlobal);
-            g_recentUsers.users.forEach(function (user) {
-                var nameUse = user.name.toLowerCase();
-                if (nameUse == g_strUserMeOption || nameUse == userGlobal)
-                    return;
-                if (g_user && g_user.username.toLowerCase() == nameUse)
-                    return;
-                appendUser(nameUse, userSelected && userSelected == nameUse);
-            });
-
-            appendUser(valUserOther);
-            listUsers.selectmenu("refresh");
-        }
-
-        fillKeywords();
-        fillUserList();
-        listUsers.off("change.plusForTrello");
-        listUsers.on("change.plusForTrello", function () {
+        fillKeywords(listKeywords);
+        listKeywords.off("change.plusForTrello").on("change.plusForTrello", function () {
+            updateNoteR(page);
+        });
+        fillUserList(listUsers);
+        listUsers.off("change.plusForTrello").on("change.plusForTrello", function () {
             var combo = $(this);
             var val = combo.val();
-            if (!val)
-                return;
-            if (val == valUserOther) {
+            updateNoteR(page);
+            if (val && val == g_strUserOtherOption) {
                 function process(userNew) {
                     if (userNew)
                         userNew = userNew.trim().toLowerCase();
                     if (userNew)
                         g_recentUsers.markRecent(userNew, null, new Date().getTime(), true);
-                    fillUserList(userNew);
+                    fillUserList(listUsers, userNew);
+                    updateNoteR(page);
                 }
 
                 if (typeof (navigator) != "undefined" && navigator.notification) {
@@ -536,48 +732,26 @@ function enableSEFormElems(bEnable,
                 else {
                     process(prompt("Type username", ""));
                 }
+            } else {
+                updateNoteR(page);
             }
         });
 
-        var valDayOther = "other...";
-        var valMaxDaysCombo = 5;
-        function appendDay(cDay, cDaySelected) {
-            var nameOption = null;
-            var bSelected = (cDay == cDaySelected);
-            if (cDay == valDayOther) {
-                nameOption = cDay;
-            }
-            else if (cDay == 0)
-                nameOption = "now";
-            else
-                nameOption = "-" + cDay + "d";
-            var item = $("<option value='" + cDay + "'" + (bSelected ? " selected='selected'" : "") + ">" + nameOption + "</option>");
-            listDays.append(item);
-        }
-
-        function fillDaysList(cDaySelected) {
-            listDays.empty();
-            for (var iDay = 0; iDay <= valMaxDaysCombo; iDay++)
-                appendDay(iDay, cDaySelected);
-            if (g_valDayExtra)
-                appendDay(g_valDayExtra, cDaySelected);
-            appendDay(valDayOther, 0); //0 so it never selects it
-            listDays.selectmenu("refresh");
-        }
-        fillDaysList();
+        fillDaysList(listDays);
         listDays.off("change.plusForTrello");
         listDays.on("change.plusForTrello", function () {
             var combo = $(this);
             var val = combo.val();
+            updateCurrentSEData(page);
             if (!val)
                 return;
-            if (val == valDayOther) {
+            if (val == g_strDateOtherOption) {
                 function process(dayNew) {
                     if (dayNew) {
-                        if (dayNew > valMaxDaysCombo)
+                        if (dayNew > g_valMaxDaysCombo)
                             g_valDayExtra = dayNew;
                     }
-                    fillDaysList(dayNew);
+                    fillDaysList(listDays, dayNew);
                 }
 
                 var dateNow = new Date();
@@ -640,7 +814,6 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
     callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack? -1: 200, callbackTrelloApi);
 
     function callbackTrelloApi(response, responseCached) {
-        g_seCard.clear(); //might not be necessary but timing issues might require another clear
         var rgComments = [];
         var rgRows = [];
         var objReturn = {};
@@ -678,10 +851,10 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         params.name = objReturn.name;
         params.nameList = objReturn.nameList;
         params.nameBoard = objReturn.nameBoard;
-        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
         if (responseCached && JSON.stringify(responseCached.objTransformed) == JSON.stringify(objReturn))
             return objReturn;
-
+        g_seCard.clear();
+        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
         page.find("#cardTitle").text(objReturn.name);
         var converter = new Markdown.Converter();
         var descElem = page.find("#cardDesc");
