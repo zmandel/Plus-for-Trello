@@ -1,6 +1,6 @@
 ﻿
 
-self.onnotificationclick = function (event) {
+self.addEventListener('notificationclick', function (event) {
     if (event.notification.data && event.notification.data.action == "pinnedCard") {
         //See if any existing client window has the card open. if so, focus it.
         //else, try to reuse an existing client window.
@@ -31,5 +31,5 @@ self.onnotificationclick = function (event) {
                 return clients.openWindow(strPrefix); //see https://github.com/w3c/ServiceWorker/issues/720#issuecomment-269984307
         }));
     }
-};
+});
 

@@ -19,6 +19,7 @@ var g_bFromPowerup = false;
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
 var PROP_PLUSKEYWORDS = "plusKeywords";
+var PROP_PREVENTINCREASEDE = "preventIncreasedE";
 var PROP_ALLOWNEGATIVER = "allowNegativeR";
 var PROP_NOANIMATIONS = "noAnimations";
 var PROP_UNITSASPOINTS = "unitsAsPoints";
@@ -797,6 +798,8 @@ var app = {
             });
 
         }
+        //
+        g_bPreventIncreasedE = (localStorage[PROP_PREVENTINCREASEDE] || "") == "true";
         g_bAllowNegativeRemaining = (localStorage[PROP_ALLOWNEGATIVER] || "") == "true";
         g_bDisplayPointUnits = (localStorage[PROP_UNITSASPOINTS] || "") == "true";
         g_bFromPowerup = ((localStorage[PROP_NAVFROMPOWERUP] || "") == "true");
@@ -988,6 +991,7 @@ function setupSettingsPage() {
     var notesHelp = "";
     $("#plusHelpNotes").html(notesHelp);
     
+    $("#preventIncreasedE").attr("checked", g_bPreventIncreasedE).checkboxradio("refresh");
     $("#allowNegativeR").attr("checked", g_bAllowNegativeRemaining).checkboxradio("refresh");
     $("#unitsAsPoints").attr("checked", g_bDisplayPointUnits).checkboxradio("refresh");
     $("#noAnimations").attr("checked", g_bNoAnimations).checkboxradio("refresh");
@@ -1060,6 +1064,11 @@ function setupSettingsPage() {
             localStorage[PROP_GLOBALUSER] = userNew;
         }
     }
+
+    $("#preventIncreasedE").off("click").click(function () {
+        g_bPreventIncreasedE = $("#preventIncreasedE").is(':checked');
+        localStorage[PROP_PREVENTINCREASEDE] = g_bPreventIncreasedE ? "true" : "false";
+    });
 
     $("#allowNegativeR").off("click").click(function () {
         g_bAllowNegativeRemaining = $("#allowNegativeR").is(':checked');
@@ -1611,7 +1620,7 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
     top = window.screenY + (window.innerHeight - height) / 2;
     origin = (ref1 = /^[a-z]+:\/\/[^\/]*/.exec(location)) != null ? ref1[0] : void 0;
     //call_back=postMessage is necessary to enable cross-origin communication
-    authUrl = 'https://trello.com/1/authorize?return_url=' + origin + '&callback_method=postMessage&expiration=never&name=Plus+for+Trello+mobile&scope=read,write&key=' + key;
+    authUrl = 'https://trello.com/1/authorize?return_url=' + origin + '&callback_method=postMessage&expiration=never&name=Plus+for+Trello&scope=read,write&key=' + key;
     var bSafariStandalone = (window.navigator && window.navigator.standalone);
     authWindow = window.open(authUrl, bSafariStandalone ? '_system' : 'trello', 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top);
     var receiveMessage = function (event) {
@@ -1636,7 +1645,7 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
 
 function loginToTrello() {
     if (isCordova()) {
-        var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + getAppKey() + "&name=Plus+for+Trello+mobile&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
+        var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + getAppKey() + "&name=Plus+for+Trello&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
         var bSkipError = false;
 
         function onErrorEvent(event) {

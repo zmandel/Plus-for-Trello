@@ -299,7 +299,7 @@ function updateEOnSChange(page) {
                 if (floatDiff <= 0)
                     floatDiff = 0;
                 var diff = parseFixedFloat(floatDiff);
-                if (diff <= 0) {
+                if (diff <= 0 || (g_bPreventIncreasedE && mapSeCur.e > 0)) {
                     diff = "";
                     floatDiff = 0;
                 }
@@ -335,12 +335,16 @@ function updateEOnSChange(page) {
     }, 1); //breathe
 }
 
+function alertNoIncE() {
+    alert("You cannot increase the estimate.\nHey, just following your Preferences.\nYour manager can increase estimates for you.\n\nTip: Are you typing in Spent or Estimate?");
+}
+
 function updateNoteR(page, bDontSaveToStorage) {
     var elem = page.find("#plusCardEditMessage");
     //get data now, but dont save to storage yet
 
     function setHtml(html) {
-        var strLinkHelp = "&nbsp;&nbsp;<a href='' target='_blank'>Help</a>";
+        var strLinkHelp = "&emsp;<a href='' target='_blank'>Help</a>";
         elem.html(html + strLinkHelp);
         var link = elem.find("a");
         link.off("click").click(function (e) {
@@ -396,7 +400,7 @@ function updateNoteR(page, bDontSaveToStorage) {
         sSumFormatted = UNITS.FormatWithColon(sumS, true);
         eSumFormatted = UNITS.FormatWithColon(sumE, true);
     }
-    var noteFinal = prefixNote + "&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;<b>" + sSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E&nbsp;<b>" + eSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R&nbsp;<b>" + rDiffFormatted + "</b>";
+    var noteFinal = prefixNote + "&emsp;S&nbsp;<b>" + sSumFormatted + "</b>&emsp;E&nbsp;<b>" + eSumFormatted + "</b>&emsp;R&nbsp;<b>" + rDiffFormatted + "</b>";
     if (sumS < 0 || sumE < 0 || (!g_bAllowNegativeRemaining && rDiff < 0))
         elem.addClass("agile_SER_negative");
     else
@@ -676,6 +680,12 @@ function handleSEBar(page, panelAddSE) {
             if (!verifyValidInput(sTotal, eTotal))
                 return;
 
+            if (g_bPreventIncreasedE && mapSe.e > 0 && e > 0 && !g_seCard.isRecurring()) {
+                alertNoIncE();
+                hiliteOnce(panelAddSE.find("#plusCardCommentEst"), 500);
+                return;
+            }
+
             if (g_currentCardSEData.note && g_currentCardSEData.note.trim().indexOf(PREFIX_PLUSCOMMAND) == 0) {
                 alert("Plus commands (starting with " + PREFIX_PLUSCOMMAND + ") cannot be entered from the mobile app.");
                 hiliteOnce(panelAddSE.find("#plusCardCommentNote"), 1500);
@@ -762,7 +772,7 @@ function handleSEBar(page, panelAddSE) {
 function resetSEPanel(page, bHiliteAddButton) {
     unhookBack();
     page.find("#panelAddSEContainer").removeClass("shiftUp");
-    page.find("#cardBottomContainer").removeClass("plusShiftBottom plusShiftBottomPU");
+    page.find("#cardBottomContainer").removeClass("plusShiftBottom");
     page.find(".cardBackground").removeClass("backgroundShader");
     page.find("#seContainer table *").removeClass("backgroundShader");
     page.find("#panelAddSE").removeClass("opacityFull").addClass("opacityZero");
@@ -869,7 +879,7 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
             //firefox support for requireInteraction: in mozilla52 https://bugzilla.mozilla.org/show_bug.cgi?id=862395 https://wiki.mozilla.org/RapidRelease/Calendar
             var matchFF = window.navigator.userAgent.match(/Firefox\/([0-9]+)\./);
             var verFF = matchFF ? parseInt(matchFF[1],10) : 0;
-            if (verFF > 0 && verFF < 52)
+            if (verFF < 52)
                 return;
             if (!navigator.serviceWorker || !navigator.serviceWorker.ready)
                 return; //no API support
@@ -925,7 +935,7 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
                     ongoing: true, //review iOS
                     data: { url: url, action: "pinnedCard" },
                     sound: null,
-                    smallIcon: "res://notif_pin", //https://romannurik.github.io/AndroidAssetStudio/icons-notification.html#source.type=image&source.space.trim=1&source.space.pad=0&name=notif_pin
+                    smallIcon: "res://notif_pin",
                     icon: "res://icon"
                 };
 
@@ -987,9 +997,9 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
         page.find("#panelAddSEContainer").addClass("shiftUp");
         page.find("#cardBottomContainer").addClass("plusShiftBottom");
         var panelAddSE = page.find("#panelAddSE");
-        panelAddSE.addClass("opacityFull").removeClass("opacityZero");
         page.find(".cardBackground").addClass("backgroundShader");
-        page.find("#seContainer table *").addClass("backgroundShader");  
+        page.find("#seContainer table *").addClass("backgroundShader");
+        panelAddSE.addClass("opacityFull").removeClass("opacityZero");
         page.find("#seBarFeedback").off("click").click(function () {
             var appInBrowserSurvey = openNoLocation("https://docs.google.com/forms/d/1pIChF9MsRirj7OnF7VYHpK0wbGu9wNpUEJEmLQfeIQc/viewform?usp=send_form");
         });
@@ -1003,9 +1013,8 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
         handleSEBar(page, panelAddSE);
         return false;
     });
-    
-   
-    if (g_bNoAnimations)
+
+    if (g_bNoAnimations || navigator.userAgent.toLowerCase().indexOf('firefox') > -1)
         page.find(".animateTransitions").removeClass("animateTransitions").addClass("undoAnimateTransitions");
     else
         page.find(".undoAnimateTransitions").addClass("animateTransitions");

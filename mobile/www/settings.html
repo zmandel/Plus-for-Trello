@@ -6,7 +6,7 @@
     <link rel="manifest" href="/manifest.json">
     <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
-    <script type="text/javascript" src="js/redirector-v25.js"></script>
+    <script type="text/javascript" src="js/redirector-v29.js"></script>
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
 </head>
     <body>
@@ -22,6 +22,9 @@
             </div>
             <label class="settingsElement">
                 <input id="unitsAsPoints" type="checkbox" name="unitsAsPoints">Call units "Points"
+            </label>
+            <label class="settingsElement">
+                <input id="preventIncreasedE" type="checkbox" name="preventIncreasedE">Prevent me from increasing existing Estimates
             </label>
             <label class="settingsElement">
                 <input id="allowNegativeR" type="checkbox" name="allowNegativeR">Do not autofill E when typing S<br />(Allow negative R)

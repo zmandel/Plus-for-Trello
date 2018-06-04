@@ -407,16 +407,12 @@ font-size:70%;
 }
 
 .animateTransitions {
-    -webkit-transition: all 0.2s linear !important;
-    -moz-transition: all 0.2s linear !important;
-    -o-transition: all 0.2s linear !important;
-    transition: all 0.2s linear !important;
-    -webkit-backface-visibility: hidden;
-    -moz-backface-visibility: hidden;
-    -ms-backface-visibility: hidden;
-    -o-backface-visibility: hidden;
-    backface-visibility: hidden;
+    -webkit-transition: -webkit-transform 0.2s linear !important;
+    -moz-transition: -moz-transform 0.2s linear !important;
+    -o-transition: -o-transform 0.2s linear !important;
+    transition: transform 0.2s linear !important;
 }
+
 
 .clicks-not-active {
    pointer-events: none !important;
@@ -448,7 +444,7 @@ overflow-x:visible !important;
 }
 
 #panelAddSE {
-    z-index:9999;
+    z-index:2147483640;
     margin-top:-3.5em !important;
     transform-origin: left top !important;
     -webkit-transform-origin:left top !important;
@@ -468,18 +464,17 @@ overflow-x:visible !important;
 }
 
 .opacityFull {
-    opacity:1;
-    z-index:9999 !important;
+    z-index:2147483640 !important;
      -ms-transform: scale(1,1) translate3d(0, 0, 0) !important; /* IE 9 */
    	-webkit-transform: scale(1,1) translate3d(0, 0, 0) !important; /* Chrome, Safari, Opera */
     transform: scale(1,1) translate3d(0, 0, 0) !important;
 }
 
 .opacityZero {
-    opacity:0;
-    -ms-transform: scale(0.2,0.2) translate3d(0, 0, 0) !important; /* IE 9 */
-   	-webkit-transform: scale(0.2,0.2) translate3d(0, 0, 0) !important; /* Chrome, Safari, Opera */
-    transform: scale(0.2,0.2) translate3d(0, 0, 0) !important;
+    opacity:0 !important;
+    -ms-transform: scale(0,0) translate3d(0, 0, 0) !important; /* IE 9 */
+   	-webkit-transform: scale(0,0) translate3d(0, 0, 0) !important; /* Chrome, Safari, Opera */
+    transform: scale(0,0) translate3d(0, 0, 0) !important;
     z-index:-9999 !important;
     pointer-events: none;
 }
@@ -502,7 +497,7 @@ display:inline-block !important;
 }
 
 #cardBottomContainer {
-margin-top: -11.5em !important;
+margin-top: -12em !important;
 }
 
 
@@ -518,7 +513,7 @@ margin-top: -11.5em !important;
 }
 
 #cardBottomExtraHelpPadding {
-    padding-bottom:5em !important;
+    padding-bottom:12em !important;
 }
 
 .plusCardCommentUser-width {
@@ -591,4 +586,5 @@ text-overflow:clip !important;
     padding-top: 5px;
     padding-bottom: 5px;
     padding-left: 5px;
+    white-space: normal !important;
 }

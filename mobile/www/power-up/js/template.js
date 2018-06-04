@@ -9,7 +9,7 @@ TrelloPowerUp.initialize({
         return [
               {
                   icon: LOGOPLUS,
-                  text: 'Open in Plus',
+                  text: 'Spent/Estimate',
                   callback: function (t) {
                       return t.card('id', 'members')
                         .then(function (card) {
