@@ -1,4 +1,4 @@
-/// <reference path="intellisense.js" />
+﻿/// <reference path="intellisense.js" />
 //dont use const in this file, as mobile supports older browsers
 
 var g_deletedUserIdPrefix = "deleted"; //prefix for user id and user (when making up a username on deleted users)

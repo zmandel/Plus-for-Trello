@@ -1,4 +1,4 @@
-/// <reference path="intellisense.js" />
+﻿/// <reference path="intellisense.js" />
 //dont use const in this file, as mobile supports older browsers
 
 var SEP_IDHISTORY_MULTI = ".";

@@ -1,4 +1,4 @@
-/// <reference path="intellisense.js" />
+﻿/// <reference path="intellisense.js" />
 var g_strOffline = "No connection";
 var g_bLastOffline = false;
 
@@ -32,9 +32,7 @@ var g_syncProgress = {
     doMarkup: function (markup) {
         this.m_markup = markup;
         $("#syncButton").buttonMarkup({ icon: markup });
-    },
-
-
+    }
 };
 
 function parseColonFormatSE(val, bExact) {
@@ -140,8 +138,10 @@ function callTrelloApi(urlParams, bContext, msWaitStart, callback, bReturnErrors
         var cached = localStorage[keyCached];
         if (!cached && bMultiple && urlParams.length>1) {
             //try previous caches
-            //review: ok now since its only two, but later here needs a loop
+            //review: ok now since its only three, but later here needs a loop
             cached = localStorage["td:" + urlParams[1]];
+            if (!cached && urlParams.length>2)
+                cached = localStorage["td:" + urlParams[2]];
         }
         if (cached) {
             cached = JSON.parse(cached);
@@ -169,7 +169,9 @@ function callTrelloApi(urlParams, bContext, msWaitStart, callback, bReturnErrors
                 objRetCached.bCached = true;
                 objTransformedFirst = objRetCached;
                 bReturnedCached = true;
-                callback(objRetCached);
+                var newObjRet = callback(objRetCached); 
+                if (newObjRet)
+                    objTransformedFirst.objTransformed = newObjRet; //caller might have further modified the cache. remember without re-saving it, just to pass it later. See card detail patch case
                 if (bReturnOnlyCachedIfExists)
                     return; //dont make the request again
             }
@@ -222,9 +224,11 @@ function callTrelloApi(urlParams, bContext, msWaitStart, callback, bReturnErrors
                             localStorage[keyCached] = JSON.stringify(cacheItem);
                             if (bMultiple && urlParams.length > 1) {
                                 //delete previous caches
-                                //review: ok now since its only two, but later here needs a loop
+                                //review: ok now since its only three, but later here needs a loop
                                 //review zig: remove this after march 2017
                                 delete localStorage["td:" + urlParams[1]];
+                                if (urlParams.length > 2)
+                                    delete localStorage["td:" + urlParams[2]];
                             }
                         }
                     } catch (ex) {

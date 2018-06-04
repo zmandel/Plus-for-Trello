@@ -1,4 +1,4 @@
-/// <reference path="intellisense.js" />
+﻿/// <reference path="intellisense.js" />
 
 var g_valDayExtra = null;
 var g_bNoAnimationDelay = false; //to optimize animation when pressing back button
@@ -7,6 +7,8 @@ var g_fnCancelSEBar = null;
 var g_cardsById = {}; //has name, nameBoard, nameList, shortLink. used for navigation as jqm cant yet store well params in url
 var g_delayKB = 350; //keyboard animation delay (aprox based on android)
 var g_delayDraftHilite = 2000;
+var PROP_CARDHELPONCE = "showedCardHelp";
+var PROP_CARDDATAPOWERUP = "cardData-powerup";
 
 function getAllKeywords(bExcludeLegacyLast) {
     var strKeywords = localStorage[PROP_PLUSKEYWORDS] || "";
@@ -117,7 +119,7 @@ var g_seCard = {
     isFresh: function () {
         return (this.m_bFresh);
     },
-    isUserMapped(user) {
+    isUserMapped: function (user) {
         assert(user && g_user);
         if (!this.m_mapUsers)
             return false;
@@ -525,7 +527,7 @@ function handleSEBar(page, panelAddSE) {
         if (g_currentCardSEData.user && g_currentCardSEData.user != g_strUserMeOption) {
             listUsers.val(g_currentCardSEData.user).selectmenu('refresh');
             if (listUsers.val() != g_currentCardSEData.user) {
-                g_recentUsers.markRecent(g_currentCardSEData.user, null, new Date().getTime(), true);
+                g_recentUsers.markRecent(g_currentCardSEData.user, null, Date.now(), true, true);
                 fillUserList(listUsers, g_currentCardSEData.user);
             }
             hilite(listUsers);
@@ -771,6 +773,15 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
         card.text(params.name || strUnknown);
     }
     tbody.empty();
+
+    if (g_bFromPowerup && !localStorage["PROP_CARDHELPONCE"]) {
+        var elemPanelHelp=page.find("#helpCard");
+        elemPanelHelp.show();
+        elemPanelHelp.find("#okCardHelp").click(function () {
+            elemPanelHelp.hide();
+            localStorage["PROP_CARDHELPONCE"] = "true";
+        });
+    }
     updateTexts();
 
     function refreshSE(bSlide) {
@@ -962,6 +973,7 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
     var elemOpenInTrello = page.find("#openTrelloCard");
     if (!g_bFromPowerup)
         elemOpenInTrello.show();
+
     elemOpenInTrello.off("click").click(function (event) {
         var urlCard = "https://trello.com/c/" + (params.shortLink?params.shortLink: param.id);
         if (isCordova()) {
@@ -1237,7 +1249,7 @@ function enableSEFormElems(bEnable,
                         userNew = "";
                     }
                     if (userNew)
-                        g_recentUsers.markRecent(userNew, null, new Date().getTime(), true);
+                        g_recentUsers.markRecent(userNew, null, Date.now(), true, false);
                     fillUserList(listUsers, userNew);
                     updateNoteR(page);
                 }
@@ -1358,16 +1370,37 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
 
     var urlParamsV0 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name";
     var urlParamsV1 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc,shortLink&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name";
+    var urlParamsV2 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc,shortLink&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name&members=true&member_fields=username";
+
     //on back, dont call trello, rely on cache only
 
-    callTrelloApi([urlParamsV1,urlParamsV0], true, bBack ? -1 : 200,
+    callTrelloApi([urlParamsV2, urlParamsV1, urlParamsV0], true, bBack ? -1 : 200,
         callbackTrelloApi, false, null, bNoCache || false, null, bOnlyCache);
     function callbackTrelloApi(response, responseCached) {
         var rgComments = [];
         var rgRows = [];
         var objReturn = {};
+        var bModifiedUsers = false;
+        var objCardReport = null;
+
+        function loadMembers(members) {
+            objReturn.members = [];
+            if (members) {
+                var msNow = Date.now();
+                members.forEach(function (member) {
+                    objReturn.members.push({ id: member.id, username: member.username });
+                    if (g_recentUsers.markRecent(member.username, member.id, msNow, false, true)) {
+                        bModifiedUsers = true;
+                    }
+                });
+            } else {
+                objReturn.members = [];
+            }
+        }
+
         if (response.objTransformed) {
             assert(response.bCached);
+            loadMembers(response.objTransformed.members || []);
             rgRows = response.objTransformed.rgRows;
             var rgRowsExtra = g_recentRows.get(idCard);
             if (rgRowsExtra.length > 0) {
@@ -1382,8 +1415,12 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
                         rowHistory.bENew = true;
                     rgCommentsPatch.push(rowHistory); //"1" is a fake id, not used
                 }
-                rgRows = calculateCardSEReport(rgCommentsPatch, rgRows); //recalculate, but do not save it again to storage
+                objCardReport = calculateCardSEReport(rgCommentsPatch, rgRows, true); //recalculate, but do not save it again to storage
+                rgRows = objCardReport.rgRows;
+                if (objCardReport.bModifiedUsers)
+                    bModifiedUsers = true;
             }
+            objReturn.rgRows = rgRows;
             objReturn.name = response.objTransformed.name;
             objReturn.nameList = response.objTransformed.nameList;
             objReturn.nameBoard = response.objTransformed.nameBoard;
@@ -1406,8 +1443,13 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
                         rgComments.push(rowCur);
                 });
             }
+            var members = response.obj.members;
+            loadMembers(members);
+            objCardReport = calculateCardSEReport(rgComments, null, true);
+            if (objCardReport.bModifiedUsers)
+                bModifiedUsers = true;
 
-            rgRows = calculateCardSEReport(rgComments);
+            rgRows = objCardReport.rgRows;
             objReturn.rgRows = rgRows;
             objReturn.name = response.obj.name;
             objReturn.nameList = response.obj.list.name;
@@ -1419,6 +1461,22 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
             //(versus tiny chance of computer freezing after this call and before storing the new api result)
             g_recentRows.remove(idCard);
         }
+
+        var dataCard = JSON.parse(localStorage[PROP_CARDDATAPOWERUP] || "{}");
+        if (dataCard.members && dataCard.members.length > 0) {
+            delete localStorage[PROP_CARDDATAPOWERUP];
+            if (dataCard.idLong == idCard) {
+                var msNow = Date.now();
+                dataCard.members.forEach(function (member) {
+                    if (g_recentUsers.markRecent(member.username, member.id, msNow, false, true)) {
+                        bModifiedUsers = true;
+                    }
+                });
+            }
+        }
+
+        if (bModifiedUsers)
+            g_recentUsers.saveProp();
 
         //review zig: ugly to have to update both objReturn and params
         params.name = objReturn.name;
@@ -1506,7 +1564,7 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
     }
 }
 
-function calculateCardSEReport(rgComments, rgRowsPatch) {
+function calculateCardSEReport(rgComments, rgRowsPatch, bDontSaveRecentUsers) {
     //rgComments in date ascending (without -dX)
     var rgRows = [];
     var userSums = {};
@@ -1579,14 +1637,14 @@ function calculateCardSEReport(rgComments, rgRowsPatch) {
         }
     }
 
-    if (bModifiedUsers)
+    if (bModifiedUsers && !bDontSaveRecentUsers)
         g_recentUsers.saveProp();
 
     rgRows.sort(function (a, b) {
         return b.sDateMost - a.sDateMost;
     });
 
-    return rgRows;
+    return { rgRows: rgRows, bModifiedUsers: bModifiedUsers };
 }
 
 function verifyValidInput(sTotal, eTotal) {

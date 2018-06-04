@@ -1,4 +1,4 @@
-/// <reference path="intellisense.js" />
+﻿/// <reference path="intellisense.js" />
 
 var TRELLO_APPKEY = "xxxxxxx";
 var g_idGlobalAnalytics = "zzzzz";
@@ -85,7 +85,8 @@ function registerWorker() {
                         } else {
                             // At this point, everything has been precached.
                             setTimeout(function () {
-                                alertMobile("App can now be used offline");
+                                if (!g_bFromPowerup)
+                                    alertMobile("App can now be used offline");
                             }, 1000);
                         }
                         break;
@@ -158,7 +159,7 @@ function handleOpenURL(url) {
         url = url.substr(iFind + strFind.length);
 
     
-    var msNow = new Date().getTime();
+    var msNow = Date.now();
     var cRetry = 0;
     var idNotificationFrom = null;
     var splitted = url.split("&retryActivity=");
@@ -320,7 +321,7 @@ var g_recentBoards = {
     PROP: "recentBoards",
     MAXIMUM:8,
     markRecent: function (name, id) {
-        var msDate = new Date().getTime();
+        var msDate = Date.now();
         var boards=this.boards;
         var boardNew = { name: name, id: id, msDate: msDate };
         var msDateMin = msDate;
@@ -371,7 +372,7 @@ var g_recentBoards = {
 var g_recentUsers = {
     PROP: "recentUsers",
     MAXIMUM: 50,
-    markRecent: function (name, id, msDate, bSaveProp) {    //returns if users was modified.
+    markRecent: function (name, id, msDate, bSaveProp, bDontModifyIfOnlyDateChanged) {    //returns if users was modified.
         //note id can be null. search is done based both on id and name
         var users = this.users;
         name = name.toLowerCase();
@@ -392,16 +393,26 @@ var g_recentUsers = {
                 msDateMin = user.msDate;
             }
         }
+
         if (iReplace < 0 || (!bExact && users.length < this.MAXIMUM)) {
             users.push(userNew);
             bModified = true;
         }
         else {
             if (users[iReplace].msDate < userNew.msDate) {
+                var bMakeModification =true;
                 if (!userNew.id)
                     userNew.id = (users[iReplace].id || null); //currently this doesnt happen, but since above we also match by name, this prevents losing the id
-                users[iReplace] = userNew;
-                bModified = true;
+                else {
+                    if (bDontModifyIfOnlyDateChanged) {
+                        if (bExact && users[iReplace].id == id && users[iReplace].name == name)
+                            bMakeModification = false;
+                    }
+                }
+                if (bMakeModification) {
+                    users[iReplace] = userNew;
+                    bModified = true;
+                }
             }
         }
         if (bSaveProp && bModified)
@@ -481,7 +492,7 @@ var g_pinnedCards = {
         var bIncrementedId = false;
 
         if (bPin) {
-            msDate = new Date().getTime();
+            msDate = Date.now();
             idPinnedUse=this.idPinnedLast+1;
             bIncrementedId=true;
         }
@@ -640,7 +651,7 @@ function onLocalNotification(id, state, json) {
         if (bAlreadyHandled)
             return true;
 
-        var msNow = new Date().getTime();
+        var msNow = Date.now();
         var key = "rnid:" + id;
         var mapCur = g_mapLastActivityInfo[key];
         if (mapCur && msNow - mapCur.ms < g_msMaxHandleOpenUrl) {
@@ -746,9 +757,9 @@ var app = {
                 //must wait for load to initialize the page, otherwise jqm gets sometimes confused, specially when navigating directly to a card,
                 //as the redirection to card.html was sometimes re-navigating back to home.
                 thisApp.onDeviceReady();
-                //we want to initialize the worker after the page is fully initialized, otherwise the first time it will fight for resources as it caches.
-                //we further use setTimeout, thou Im not sure if that really makes any difference.
-                setTimeout(registerWorker,300);
+                //we want to initialize the worker after the page is fully initialized and first trello api call (Card details case) is made.
+                //otherwise the first time it will fight for resources as it caches.
+                setTimeout(registerWorker,600);
             }, false);
         }
             
@@ -788,8 +799,10 @@ var app = {
         g_bDisplayPointUnits = (localStorage[PROP_UNITSASPOINTS] || "") == "true";
         g_bFromPowerup = ((localStorage[PROP_NAVFROMPOWERUP] || "") == "true");
         g_bNoAnimations = ((localStorage[PROP_NOANIMATIONS] || "") == "true");
-        if (window.innerWidth<330 || g_bFromPowerup)
-           $("body").addClass("shrinkElementScale");
+        if (window.innerWidth < 330 || g_bFromPowerup) {
+            //The zoom method works a little better in Edge (otherwise a vertical scrollbar apperars on powerup)
+            $("body").addClass(isIE() ? "shrinkElementScaleWithZoom" : "shrinkElementScale");
+        }
 
         g_analytics.init();
         g_recentBoards.init();
@@ -803,8 +816,6 @@ var app = {
 
         function onBeforePageChange(page, urlNew, bBack) {
             var idPage = page.attr("id");
-            //if (g_bFromPowerup)
-            //    page.addClass("shrinkElementScale");
            
             //console.log("onBeforePageChange " + idPage);
             g_cPageNavigations++;
@@ -952,7 +963,7 @@ function setupSettingsPage() {
         $("#loginInfo").text("Not logged-in");
 
     $("#openAsDesktopPopup").hide();
-
+    
     var deviceVersion = "web version";
     if (typeof(device)!="undefined" && device.version)
         deviceVersion = device.version;
@@ -1285,6 +1296,7 @@ function loadHomePage() {
     if (!bAsStandaloneApp && window.navigator && window.navigator.standalone)
         bAsStandaloneApp = true;
 
+    var idCardNavigate = localStorage[PROP_NAVIDCARDLONG] || "";
     var elemLinkPopup = $("#openAsDesktopPopup");
     if (g_bFromPowerup || (!g_bShownPopupLink && !bAsStandaloneApp && (!document.referrer || document.referrer.indexOf(document.domain || "") < 0))) {
         if (isDesktopVersion()) {
@@ -1296,8 +1308,15 @@ function loadHomePage() {
                 var originCur = location.origin;
                 if (!originCur || originCur.indexOf("file://") == 0)
                     originCur = location.href; //file: case. not perfect but at least something
-                else
-                    originCur += "/index.html";
+                else {
+                    if (originCur.length==0 || originCur.charAt(originCur.length - 1) != "/")
+                        originCur += "/";
+
+                    if (idCardNavigate)
+                        originCur += "card.html?id=" + encodeURIComponent(idCardNavigate);
+                    else
+                        originCur += "index.html";
+                }
                 window.open(originCur, "Plus for Trello", "scrollbars=no,menubar=no,personalbar=no,minimizable=yes,resizable=yes,location=no,toolbar=no,status=no,innerHeight=" + height + ",innerWidth=" + width);
             });
         } else {
@@ -1309,9 +1328,8 @@ function loadHomePage() {
     }
 
     if (bHasKeyTrello && g_user) {
-        var idCardNavigate = localStorage[PROP_NAVIDCARDLONG] || "";
-        delete localStorage[PROP_NAVIDCARDLONG];
         if (idCardNavigate) {
+            delete localStorage[PROP_NAVIDCARDLONG];
             //came from redirector
             g_bShownPopupLink = true; //so we wont show it on this index.html in the non-powerup case
                     
@@ -1666,6 +1684,45 @@ function hiliteOnce(elem, msTime, strClass) {
  **/
 function cloneObject(obj) {
     return JSON.parse(JSON.stringify(obj));
+}
+
+function isIE() {
+    var ua = window.navigator.userAgent;
+
+    // Test values; Uncomment to check result …
+
+    // IE 10
+    // ua = 'Mozilla/5.0 (compatible; MSIE 10.0; Windows NT 6.2; Trident/6.0)';
+
+    // IE 11
+    // ua = 'Mozilla/5.0 (Windows NT 6.3; Trident/7.0; rv:11.0) like Gecko';
+
+    // Edge 12 (Spartan)
+    // ua = 'Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.71 Safari/537.36 Edge/12.0';
+
+    // Edge 13
+    // ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2486.0 Safari/537.36 Edge/13.10586';
+
+    var msie = ua.indexOf('MSIE ');
+    if (msie > 0) {
+        // IE 10 or older
+        return true;
+    }
+
+    var trident = ua.indexOf('Trident/');
+    if (trident > 0) {
+        // IE 11
+        return true;
+    }
+
+    var edge = ua.indexOf('Edge/');
+    if (edge > 0) {
+        // Edge (IE 12+)
+        return true;
+    }
+
+    // other browser
+    return false;
 }
 
 app.initialize();

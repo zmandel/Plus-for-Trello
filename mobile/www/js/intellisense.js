@@ -1,4 +1,4 @@
-/// <reference path="card-v6.js" />
+﻿/// <reference path="card-v6.js" />
 /// <reference path="index-v6.js" />
 /// <reference path="trello-v6.js" />
 /// <reference path="sharedsync-v6.js" />

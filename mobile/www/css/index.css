@@ -1,4 +1,4 @@
-
+﻿
 .settingsElement {
      text-align: left;
 }
@@ -35,9 +35,6 @@ table {
     font-size: 100% !important;
 }
 
-.shrinkElementFont {
-    font-size: 85% !important;
-}
 
 .shrinkElementScale {
  -webkit-transform: scale(0.85) !important;
@@ -52,6 +49,10 @@ table {
  -o-transform-origin: 0 0 !important;
  transform-origin: 0 0 !important;
  width: 117.64% !important;
+}
+
+.shrinkElementScaleWithZoom {
+    zoom: 0.85 !important;
 }
 
 .hiliteNewReportRow {

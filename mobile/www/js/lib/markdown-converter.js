@@ -1,4 +1,4 @@
-var Markdown; Markdown = "object" === typeof exports && "function" === typeof require ? exports : {};
+﻿var Markdown; Markdown = "object" === typeof exports && "function" === typeof require ? exports : {};
 (function () {
     function v(e) { return e } function A(e) { return !1 } function B() { } function C() { } B.prototype = { chain: function (e, m) { var t = this[e]; if (!t) throw Error("unknown hook " + e); this[e] = t === v ? m : function (e) { var l = Array.prototype.slice.call(arguments, 0); l[0] = t.apply(null, l); return m.apply(null, l) } }, set: function (e, m) { if (!this[e]) throw Error("unknown hook " + e); this[e] = m }, addNoop: function (e) { this[e] = v }, addFalse: function (e) { this[e] = A } }; Markdown.HookCollection = B; C.prototype = {
         set: function (e, m) { this["s_" + e] = m }, get: function (e) {

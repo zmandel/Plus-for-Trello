@@ -14,7 +14,7 @@
         <meta http-equiv="Content-Security-Policy" content="default-src 'self' plusfortrello: data: gap: https://ssl.gstatic.com https://cdnjs.cloudflare.com 'unsafe-eval'; style-src 'self' https://cdnjs.cloudflare.com 'unsafe-inline'; media-src blob: file:; connect-src * file:; child-src * file:;img-src * data: blob: file:;">
         <meta name="viewport" content="user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, target-densitydpi=device-dpi" />
 
-        <script type="text/javascript" src="js/redirector-v14.js"></script>
+        <script type="text/javascript" src="js/redirector-v17.js"></script>
     </head>
     <body>
         <div data-role="page" style="display:none;" class="plusPage" id="pageCardDetail" data-dialog="true">
@@ -24,7 +24,7 @@
                     <div id="panelAddSEContainer" class="animateTransitions">
                         <a id="addSE" href="#" data-role="button" data-icon="plus" data-mini="true" data-inline="true" class="agile_button_leftmargin">add S/E</a>
                         <input type="checkbox" tabindex="-1" data-inline="true" data-theme="b" data-role="flipswitch" id="cardPin" data-on-text="pinned" data-off-text="pin" data-wrapper-class="custom-label-flipswitch">
-                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloopen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="display:none;border:none;background-color: transparent;"></a>
+                        <a class="floatRight ui-btn ui-btn-icon-notext ui-icon-trelloopen ui-nodisc-icon agile_nofocusRing" id="openTrelloCard" href="#" data-iconshadow="false" style="display:none;border:none;background-color: transparent;"></a>                  
                     </div>
                 </div>
                 <form autocomplete="off" id="panelAddSE" class="opacityZero animateTransitions">
@@ -43,7 +43,7 @@
                             </td>
 
                             <td align="right" class="tdVisibleOverflow">
-                                <a id="plusCardCommentCancelButton" href="#" tabindex="9801" class="ui-btn ui-icon-delete ui-btn-icon-notext ui-corner-all"></a>
+                                <a id="plusCardCommentCancelButton" title="Cancel" href="#" tabindex="9801" class="ui-btn ui-icon-delete ui-btn-icon-notext ui-corner-all"></a>
                             </td>
                         </tr>
                     </table>
@@ -69,7 +69,7 @@
                                 <div id="plusCardEditMessage" style="font-weight:bold;" class="textSmaller">&nbsp;</div>
                             </td>
                             <td valign="bottom" class="tdVisibleOverflow" align="right">
-                                <a id="plusCardCommentEnterButton" href="#" tabindex="9800" class="tdvisibleoverflow ui-btn ui-icon-check ui-btn-icon-notext ui-corner-all"></a>
+                                <a id="plusCardCommentEnterButton" title="Enter" href="#" tabindex="9800" class="tdvisibleoverflow ui-btn ui-icon-check ui-btn-icon-notext ui-corner-all"></a>
                             </td>
                         </tr>
                     </table>
@@ -100,6 +100,19 @@
                     </div>
                     <div id="cardBottomPadding"></div>
                 </div>
+                <div id="helpCard" style="display:none;font-size:95% !important;padding:1em;padding-bottom:0.5em !important;position:fixed;z-index: 2147483647;top:34px;left:0px;align-content:center;background-color:#e4f0f6;">
+                    <p align="center">Configure Plus preferences and get help from the gear top-right.</p>
+                    <p align="center">Plus for Trello adds card comments to store the "Spent / Estimate" rows you enter here.</p>
+                    <p align="center">
+                        <a href="http://www.plusfortrello.com" target="_blank">About Plus for Trello</a>
+                        <br /><br />
+                        <a href="http://www.plusfortrello.com/p/how-plus-tracks-spent-and-estimate-in.html" target="_blank">The Plus Spent / Estimate system</a>
+                        <br />
+                    </p>
+                    <p align="center">
+                        <a id="okCardHelp" href="#" data-role="button" data-inline="true" data-icon="check">OK</a>
+                    </p>
+</div>
             </div><!-- /content -->
         </div><!-- /page -->
 </body>
