@@ -702,7 +702,7 @@ function handleSEBar(page, panelAddSE) {
     //CANCEL
     panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
         var idCardCur = g_currentCardSEData.idCard;
-        cancelPaneEdit(true, true);
+        cancelPaneEdit(true, !!(g_currentCardSEData.s || g_currentCardSEData.e));
         refreshSETable(page, idCardCur, false); //to show hilited draft user
         event.stopPropagation();
         event.preventDefault();

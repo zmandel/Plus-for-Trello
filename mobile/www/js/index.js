@@ -106,17 +106,25 @@ function assert(val) {
         var bDeveloper = (g_user && g_user.username && (g_user.username.toLowerCase() == "zmandel" || g_user.username.toLowerCase() == "zigmandel")); 
         //review zig: send to log
         if (true) {
-            var str = "assert failed! write down and send to support@plusfortrello.com";
+            var str = "";
             try {
                 throw new Error();
             } catch (e) {
-                str = str + " :: " + e.stack;
+                str = str + ":: " + e.stack;
                 //remove self/known callstack elements, and remove column from each line number
                 str = str.replace(/\n\s*(at assert).*\n/, "\n").replace(/:\d\)/g, ")");
                 //remove absolute paths
                 str = str.replace(/file:\/\/.*\//g, "");
             }
-            alert(str);
+            if (bDeveloper) {
+                alert("Assert failed! "+str);
+            } else {
+                if (str)
+                    g_analytics.hit({ t: "exception", exd: str, exf: "1" }, 0);
+
+                alert("Error detected :( and sent to Plus support.");
+            }
+            throw new Error();
         }
     }
 }
@@ -265,7 +273,6 @@ var g_analytics = {
     hit: function (params, msDelay) {
         if (this.bDisableAnalytics)
             return;
-        msDelay = msDelay || 1000;
         this.init();
         var payload = "v=1&tid=" + "UA-" + g_idGlobalAnalytics + "zzz" + "-" + "1" + "&cid=" + encodeURIComponent(g_analytics.idAnalytics);
         for (p in params) {
@@ -280,12 +287,18 @@ var g_analytics = {
             payload = payload + "&cd1=" + cslCD1Cur;
 
         }
-        setTimeout(function () {
-        $.post("https://www.google-analytics.com/collect", payload, function (data) {
-            if (valCD1Prev != cslCD1Cur)
-                localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
-        });
-        }, msDelay);
+
+        function doit() {
+            $.post("https://www.google-analytics.com/collect", payload, function (data) {
+                if (valCD1Prev != cslCD1Cur)
+                    localStorage[PROP_LS_CD1LAST] = cslCD1Cur;
+            });
+        }
+
+        if (!msDelay)
+            doit();
+        else
+            setTimeout(doit, msDelay);
     },
     //private
     generateQuickGuid: function () {

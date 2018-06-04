@@ -20,6 +20,15 @@
     ],
     "headers": [
       {
+        "source": "power-up/**",
+        "headers": [
+          {
+            "key": "Access-Control-Allow-Origin",
+            "value": "https://trello.com"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(jpg|jpeg|gif|png|ico)",
         "headers": [
           {
@@ -70,6 +79,42 @@
           {
             "key": "Cache-Control",
             "value": "max-age=31536000"
+          }
+        ]
+      },
+      {
+        "source": "power-up/images/*.*",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "power-up/*.html",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "power-up/js/*.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=300"
+          }
+        ]
+      },
+      {
+        "source": "power-up/css/*.css",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=300"
           }
         ]
       }

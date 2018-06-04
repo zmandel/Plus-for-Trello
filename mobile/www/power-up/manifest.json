@@ -1,0 +1,22 @@
+{
+  "name": "Plus for Trello",
+  "description": "Plus for Trello app",
+  "details": "Plus for Trello for mobile and non-Chrome users",
+  "icon": {
+    "url": "./images/logo.png"
+  },
+  "author": "Plus for Trello",
+  "capabilities": [
+    "board-buttons",
+    "callback",
+    "card-buttons"
+  ],
+  "connectors": {
+    "iframe": {
+      "url": "./index.html"
+    }
+  },
+  "recommend": {
+    "urls": []
+  }
+}
