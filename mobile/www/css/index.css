@@ -574,3 +574,12 @@ text-overflow:clip !important;
     color:black !important;
 }
 
+.agile_SER_negative {
+    background-color: #e69d9d !important;
+}
+
+#plusCardEditMessage {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-left: 5px;
+}

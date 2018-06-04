@@ -28,6 +28,10 @@ var g_syncProgress = {
         }, 3000);
     },
 
+    inProgress: function () {
+        return (this.m_total > 0);
+    },
+
     //private
     doMarkup: function (markup) {
         this.m_markup = markup;
@@ -260,10 +264,16 @@ function callTrelloApi(urlParams, bContext, msWaitStart, callback, bReturnErrors
 
                 if (!bReturned || !bOkCallback) {
                     if (objRet.status != STATUS_OK && !bReturnErrors) {
+                        if (xhr.status == 401 && xhr.responseText && xhr.responseText.indexOf("invalid token") >= 0) {
+                            logoutTrello();
+                            return;
+                        }
+
                         if (g_bLastOffline)
                             alertOffline();
                         else
                             alertMobile(objRet.status);
+
                         return;
                     }
                     if (!bReturned)

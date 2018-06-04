@@ -252,17 +252,20 @@ function updateEOnSChange(page) {
             if (bNoContext())
                 return;
 
-            if (!g_seCard.isFresh() && !g_bLastOffline) {
-                if (cRetry < 3) {
+            if (!g_seCard.isFresh() && !g_bLastOffline && g_syncProgress.inProgress()) {
+                if (cRetry < 8) {
                     setTimeout(function () {
                         if (bNoContext())
                             return;
                         if (page.find("#plusCardCommentSpent").is(":focus") || page.find("#plusCardCommentSpent2").is(":focus"))
                             doUpdate(cRetry + 1);
-                    }, 400);
+                    }, 200);
+                    return;
                 }
-                return;
+                //fall through
+                //if we waited too long for the trello api call, just go ahead and autofill based on cached info, better than nothing.
             }
+
             if (!updateCurrentSEData(page, true, false, true)) {
                 finish();
                 return;
@@ -274,7 +277,7 @@ function updateEOnSChange(page) {
             var parts = null;
             if (g_seCard.isRecurring()) {
                 if (g_bDisplayPointUnits) {
-                    page.find("#plusCardCommentSpent").val(sParsed);
+                    page.find("#plusCardCommentEst").val(sParsed);
                     if (sParsed != eParsed)
                         bHiliteEMain = true;
                 }
@@ -335,6 +338,17 @@ function updateEOnSChange(page) {
 function updateNoteR(page, bDontSaveToStorage) {
     var elem = page.find("#plusCardEditMessage");
     //get data now, but dont save to storage yet
+
+    function setHtml(html) {
+        var strLinkHelp = ""; //"&nbsp;&nbsp;<a href='' target='_blank'>Help</a>";
+        elem.html(html + strLinkHelp);
+        var link = elem.find("a");
+        link.off("click").click(function (e) {
+            e.preventDefault();
+            alert("hi");
+        });
+    }
+
     if (!updateCurrentSEData(page, true, false, true)) {
         elem.text("Format error.");
         return;
@@ -350,18 +364,28 @@ function updateNoteR(page, bDontSaveToStorage) {
     var sumE = eParsed + mapSe.e;
     var rDiff = parseFixedFloat(sumE - sumS);
     var rDiffFormatted = rDiff;
-    var prefixNote = "R will be ";
+    var sSumFormatted = parseFixedFloat(sumS);
+    var eSumFormatted = parseFixedFloat(sumE);
+    var prefixNote = "sums will be:";
     if (sParsed == 0 && eParsed == 0) {
-        if (rDiff == 0) {
-            elem.html("&nbsp;");
+        if (sumE == 0 && sumS == 0) {
+            setHtml("");
             return;
         }
-        prefixNote = "R is ";
+        prefixNote = "sums are:";
     }
-    if (!g_bDisplayPointUnits && g_currentCardSEData.s.indexOf(".") < 0 && g_currentCardSEData.e.indexOf(".") < 0)
+
+    if (!g_bDisplayPointUnits && g_currentCardSEData.s.indexOf(".") < 0 && g_currentCardSEData.e.indexOf(".") < 0) {
         rDiffFormatted = UNITS.FormatWithColon(rDiff, true);
-    var noteFinal = " " + prefixNote + rDiffFormatted + (g_bAllowNegativeRemaining ||  rDiff != 0 ? "" : ". Increase E if not done.");
-    elem.text(noteFinal);
+        sSumFormatted = UNITS.FormatWithColon(sumS, true);
+        eSumFormatted = UNITS.FormatWithColon(sumE, true);
+    }
+    var noteFinal = prefixNote + "&nbsp;&nbsp;&nbsp;&nbsp;S&nbsp;<b>" + sSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;E&nbsp;<b>" + eSumFormatted + "</b>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;R&nbsp;<b>" + rDiffFormatted + "</b>";
+    if (sumS < 0 || sumE < 0 || (!g_bAllowNegativeRemaining && rDiff < 0))
+        elem.addClass("agile_SER_negative");
+    else
+        elem.removeClass("agile_SER_negative");
+    setHtml(noteFinal);
 }
 
 function getSEStringsFromEdits(page, bSilent) {
@@ -1134,6 +1158,7 @@ function fillDaysList(listDays, cDaySelected) {
     }
 
     listDays.empty();
+    listDays.append($("<optgroup label='days ago:'></optgroup>"));
     for (var iDay = 0; iDay <= g_valMaxDaysCombo; iDay++)
         appendDay(iDay, cDaySelected);
     if (g_valDayExtra)
@@ -1148,6 +1173,8 @@ function fillKeywords(listKeywords, keywordSelected) {
         listKeywords.append(item);
     }
     var rgKeywords = getAllKeywords(true);
+    listKeywords.empty();
+    listKeywords.append($("<optgroup label='keyword:'></optgroup>"));
     rgKeywords.forEach(function (keyword) {
         appendKeyword(keyword, keywordSelected && keywordSelected == keyword);
     });
@@ -1166,6 +1193,7 @@ function fillUserList(listUsers, userSelected) {
     }
 
     listUsers.empty();
+    listUsers.append($("<optgroup label='user:'></optgroup>"));
     g_recentUsers.users.sort(function (a, b) {
         return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
     });
@@ -1200,8 +1228,11 @@ function enableSEFormElems(bEnable,
         if (bOnlyEnable) {
             listUsers[0].selectedIndex = 0;
             listDays[0].selectedIndex = 0;
+            listKeywords[0].selectedIndex = 0;
+
             listUsers.selectmenu("refresh");
             listDays.selectmenu("refresh");
+            listKeywords.selectmenu("refresh");
             return;
         }
 
@@ -1232,6 +1263,9 @@ function enableSEFormElems(bEnable,
         listKeywords.off("change.plusForTrello").on("change.plusForTrello", function () {
             updateNoteR(page);
         });
+        //NOTE: if the user quickly clicks the "Add S/E" button before the trello api call has finished, card members will not get loaded here
+        //it doesnt happen in the powerup case because we preload card members beforehand.
+        //issue also wont happen if user already had opened the card here and members didnt change since that time.
         fillUserList(listUsers);
         listUsers.off("change.plusForTrello").on("change.plusForTrello", function () {
             var combo = $(this);
@@ -1322,7 +1356,7 @@ function enableSEFormElems(bEnable,
                     });
                 }
                 else {
-                    var strValDelta = prompt("Enter a positive delta", "");
+                    var strValDelta = prompt("How many days ago? 1=yesterday.", "");
                     strValDelta = strValDelta || "";
                     var numDeltaParsed = (parseInt(strValDelta, 10) || 0);
                     if (numDeltaParsed < 0) {
@@ -1350,6 +1384,7 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
         g_seCard.setNull(); //means pending to load data
         assert(!g_seCard.isFresh());
     }
+
     function appendRow(tbody, user, s, eFirst, e, r) {
         var classExtra = "";
         if (tbody.hasClass("backgroundShader"))
@@ -1373,7 +1408,7 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
     var urlParamsV2 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc,shortLink&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name&members=true&member_fields=username";
 
     //on back, dont call trello, rely on cache only
-
+    //console.log("" + Date.now() + " callTrelloApi card");
     callTrelloApi([urlParamsV2, urlParamsV1, urlParamsV0], true, bBack ? -1 : 200,
         callbackTrelloApi, false, null, bNoCache || false, null, bOnlyCache);
     function callbackTrelloApi(response, responseCached) {
@@ -1400,7 +1435,7 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
 
         if (response.objTransformed) {
             assert(response.bCached);
-            loadMembers(response.objTransformed.members || []);
+            loadMembers(response.objTransformed.members || []); //note that members can be undefined if it came from an old cache
             rgRows = response.objTransformed.rgRows;
             var rgRowsExtra = g_recentRows.get(idCard);
             if (rgRowsExtra.length > 0) {
@@ -1544,7 +1579,9 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
         if (userDraft && !g_currentCardSEData.s && !g_currentCardSEData.e)
             userDraft = "";
 
+        var cRows = 0;
         g_seCard.forEachUser(function (user, row) {
+            cRows++;
             var elemRow = appendRow(tbody, user, row.s, row.eFirst || 0, row.e, parseFixedFloat(row.e - row.s));
             var classHilite = "";
             var delayHilite = g_delayDraftHilite;
@@ -1559,6 +1596,8 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
             if (classHilite)
                 hiliteOnce(elemRow, delayHilite, classHilite);
         });
+        if (cRows > 0)
+            container.show();
         callback(rgRows.length, response.bCached);
         return objReturn;
     }

@@ -56,13 +56,15 @@ var g_loaderDetector = {
 }.initLoader();
 
 function registerWorker() {
+    //console.log(""+Date.now()+" registerWorker");
     if (!('serviceWorker' in navigator))
         return;
     //caller already waited for window load (https://github.com/google/WebFundamentals/issues/3883)
     if (navigator.serviceWorker.addEventListener) {
         navigator.serviceWorker.addEventListener('message', function (event) {
-            if (event.data.action && event.data.action == "pinnedCard")
-                changePage("card.html?id=" + encodeURIComponent(event.data.idCardLong), "none", null);
+            if (event.data.action && event.data.action == "pinnedCard") {
+                handleCardClick(event.data.idCardLong, undefined, undefined, undefined, undefined, true);
+            }
         });
     }
     navigator.serviceWorker.register('service-worker.js').then(function (reg) {
@@ -717,13 +719,13 @@ function handleBoardOrCardActivity(text) {
             setTimeout(function () {
                 var idCardFull = g_mapShortLinks.getCardId(idCardShortLink);
                 if (idCardFull) {
-                    handleCardClick(idCardFull, "", "", "", idCardShortLink);
+                    handleCardClick(idCardFull, "", "", "", idCardShortLink, true);
                 }
                 else {
                     callTrelloApi("cards/" + idCardShortLink + "?fields=name,shortLink", false, 0, callbackTrelloApi, undefined, undefined, undefined, undefined, true);
 
                     function callbackTrelloApi(response, responseCached) {
-                        handleCardClick(response.obj.id, response.obj.name, "", "", response.obj.shortLink);
+                        handleCardClick(response.obj.id, response.obj.name, "", "", response.obj.shortLink, true);
                     }
                 }
             }, 400);
@@ -776,7 +778,7 @@ var app = {
                 cordova.plugins.notification.local.on("click", function (notification) {
                     if (notification.data) {
                         var data = JSON.parse(notification.data);
-                        changePage(data.url, g_bNoAnimations ? "none" : "slidedown");
+                        changePage(data.url, "none");
                     }
                 });
             }
@@ -910,19 +912,25 @@ var app = {
 };
 
 function exitApp() {
-    if (g_bFromPowerup)
-        return;
     if (typeof (navigator) != "undefined" && navigator.app && navigator.app.exitApp)
         navigator.app.exitApp();
     else {
         if (window.history) {
             var cPositionNow = window.history.length;
             if (cPositionNow >= g_cHistoryPositionStart && window.history.go) {
-                window.history.go(g_cHistoryPositionStart - cPositionNow - 1); //go before homw
-                setTimeout(function () {
-                    if (cPositionNow == window.history.length)
-                        window.history.go(g_cHistoryPositionStart - cPositionNow); //just go home
-                }, 1);
+                var cBeforeHome = 1;
+                if (g_bFromPowerup)
+                    cBeforeHome = 0;
+                //the idea is to try to go to the page before ours was entered. so we try to go back one before home
+                window.history.go(g_cHistoryPositionStart - cPositionNow - cBeforeHome);
+                //if call above succeeds, it stops, else it keeps executing below here
+                if (cBeforeHome != 0) {
+                    //if it failed going before home, try going just to home
+                    setTimeout(function () {
+                        if (cPositionNow == window.history.length)
+                            window.history.go(g_cHistoryPositionStart - cPositionNow); //go home
+                    }, 1);
+                }
                 return;
             }
         } else {
@@ -1028,7 +1036,6 @@ function setupSettingsPage() {
     var btnExit = $("#exitApp");
     if (g_bFromPowerup) {
         btnExit.hide();
-        $("#noAnimations").parent().hide();
     }
     btnExit.off("click").click(function () {
         exitApp();
@@ -1334,7 +1341,7 @@ function loadHomePage() {
             g_bShownPopupLink = true; //so we wont show it on this index.html in the non-powerup case
                     
             setTimeout(function () {
-                changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
+                handleCardClick(idCardNavigate, undefined, undefined, undefined, undefined, true);
             }, 50);
             return; //no need to init page if its hidden. back etc will re-init
         }
@@ -1566,7 +1573,7 @@ function handleListClick(idList, nameBoard, nameList) {
     });
 }
 
-function handleCardClick(id, name, nameList, nameBoard, shortLink) {
+function handleCardClick(id, name, nameList, nameBoard, shortLink, bForceNoAnimations) {
     assert(id); //note that the other fields could be blank on some offline scenarios
     var cardCached = g_cardsById[id];
     if (name && (!cardCached || (nameList && nameBoard && shortLink))) {
@@ -1579,7 +1586,7 @@ function handleCardClick(id, name, nameList, nameBoard, shortLink) {
         };
         g_cardsById[id] = cardCached;
     }
-    changePage("card.html?id=" + encodeURIComponent(id), g_bNoAnimations ? "none" : "slidedown");
+    changePage("card.html?id=" + encodeURIComponent(id), (g_bNoAnimations || bForceNoAnimations) ? "none" : "slidedown");
 }
 
 function setTrelloToken(token) {
