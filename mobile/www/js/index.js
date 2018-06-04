@@ -41,6 +41,10 @@ var g_loaderDetector = {
         if (!isCordova())
             try {
                 g_urlInitial = document.location.href; //save here, as later the framework might change it
+                if (g_urlInitial.indexOf("#") >= 0 || g_urlInitial.indexOf("?") >= 0) {
+                    window.location.replace("/index.html");
+                    return;
+                }
                 registerWorker();
             } catch (e) {
 
@@ -682,7 +686,7 @@ function handleBoardOrCardActivity(text) {
         alertMobile("No card or board url received.");
 }
 
-
+var g_bHideHome = false; //hack to hide home while navigating directly to a card
 var app = {
     // Application Constructor
     initialize: function () {
@@ -812,26 +816,26 @@ var app = {
         $("#settings").click(function () {
             changePage("settings.html", "none");
         });
+
+        $(".userTrello").click(function () {
+            if ($("#settings").is(":visible"))
+                changePage("settings.html", "none");
+        });
+
         initUser(function (user) {
-            var bShowHome = true;
             if (user) {
                 if (idCardNavigate) {
+                    //came from redirector
+                    g_bHideHome = true; //temporarily hide it
+                    g_bShownPopupLink = true; //so we wont show it on this index.html
                     delete localStorage[PROP_NAVIDCARDLONG];
-                    bShowHome = false;
-                    setTimeout(function () {
-                        g_bShownPopupLink = true; //so we wont show it on this index.html
-                        changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
                         setTimeout(function () {
-                            pageLogin.children("div[data-role='content']").show();
-                        }, 50);
-                    }, 150);
+                            changePage("card.html?id=" + encodeURIComponent(idCardNavigate), "none", null);
+                        }, 150);
                 }
             }
-            if (bShowHome) {
-                onBeforePageChange(pageLogin);
-                onAfterPageChange(pageLogin);
-                pageLogin.children("div[data-role='content']").show();
-            }
+            onBeforePageChange(pageLogin);
+            onAfterPageChange(pageLogin);
         });
     },
 
@@ -1176,6 +1180,14 @@ function isDesktopVersion() {
 var g_bShownPopupLink = false;
 
 function loadHomePage() {
+    var bHasKeyTrello = (!!localStorage[PROP_TRELLOKEY]);
+
+    if (g_bHideHome) {
+        g_bHideHome = false;
+        if (bHasKeyTrello)
+            return;
+    }
+
     $("#viewBoards").off("click").click(function () {
         changePage("#pageListBoards", "slide");
     });
@@ -1209,10 +1221,10 @@ function loadHomePage() {
     else
         elemLinkPopup.hide();
 
-    if (localStorage[PROP_TRELLOKEY]) {
+    if (bHasKeyTrello) {
         $("#login").hide();
 
-        $("#viewBoards").show();
+        $("#viewBoardsContainer").show();
         
         if (g_recentBoards.boards.length > 0) {
             $('#listBoardsRecent li:not(:first)').remove();
@@ -1243,7 +1255,7 @@ function loadHomePage() {
 
     } else {
         $("#login").show();
-        $("#viewBoards").hide();
+        $("#viewBoardsContainer").hide();
         $("#listBoardsRecent").hide();
         $("#listCardsPinned").hide();
     }

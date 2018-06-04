@@ -56,14 +56,14 @@
     </div><!-- /header -->
 
     <div data-role="page" class="plusPage" id="pageLogin" style="display:none;overflow: auto;">
-        <div data-role="content" style="display:none;margin-left:auto;margin-right:auto;text-align:center !important;">
-            <ul id=listCardsPinned data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
+        <div data-role="content" style="margin-left:auto;margin-right:auto;text-align:center !important;">
+            <ul id="listCardsPinned" data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
                 <li data-role="list-divider">Pinned cards</li>
             </ul>
-            <ul id=listBoardsRecent data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
+            <ul id="listBoardsRecent" data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
                 <li data-role="list-divider">Recent boards</li>
             </ul>
-            <ul data-role="listview" data-inset="true" data-divider-theme="a">
+            <ul id="viewBoardsContainer" data-role="listview" data-inset="true" data-divider-theme="a" style="display:none">
                 <li><a id="viewBoards" href="#">All boards</a></li>
             </ul>
             <a id="login" href="#" data-role="button" data-icon="arrow-r" style="display:none">Login to Trello</a>
@@ -72,21 +72,21 @@
 
     <div data-role="page" id="pageListBoards" class="plusPage">
         <div data-role="content">
-            <ul id=boardsList data-role="listview" data-inset="true" data-filter="true"></ul>
+            <ul id="boardsList" data-role="listview" data-inset="true" data-filter="true"></ul>
         </div><!-- /content -->
     </div><!-- /page -->
 
     <div data-role="page" id="pageListLists" class="plusPage">
         <div data-role="content">
             <div class="topPageTitle titleListLists" style="font-weight:bold"></div>
-            <ul id=listsList data-role="listview" data-inset="true" data-divider-theme="a"></ul>
+            <ul id="listsList" data-role="listview" data-inset="true" data-divider-theme="a"></ul>
         </div><!-- /content -->
     </div><!-- /page -->
 
     <div data-role="page" id="pageListCards" class="plusPage">
         <div data-role="content">
             <div class="topPageTitle titleListCards" style="font-weight:bold"></div>
-            <ul id=cardsList data-role="listview" data-inset="true"></ul>
+            <ul id="cardsList" data-role="listview" data-inset="true"></ul>
         </div><!-- /content -->
     </div><!-- /page -->
 

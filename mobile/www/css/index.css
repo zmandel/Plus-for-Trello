@@ -156,6 +156,7 @@ font-weight:normal !important;
 
 .ui-icon-syncStatic {
 	background-image: none;
+    display:none !important;
 }
 
 #plusCardCommentEnterButton {
@@ -266,6 +267,7 @@ border-collapse: collapse;
 }
 
 .userTrello {
+    cursor: pointer;
     margin-top:3px !important;
 }
 
