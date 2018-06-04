@@ -876,10 +876,10 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
                 return;
 
 
-            //firefox support for requireInteraction: in mozilla52 https://bugzilla.mozilla.org/show_bug.cgi?id=862395 https://wiki.mozilla.org/RapidRelease/Calendar
+            //firefox support for requireInteraction: in mozilla is wontfix as of 14-oct-2017 https://bugzilla.mozilla.org/show_bug.cgi?id=1346375 https://wiki.mozilla.org/RapidRelease/Calendar
             var matchFF = window.navigator.userAgent.match(/Firefox\/([0-9]+)\./);
             var verFF = matchFF ? parseInt(matchFF[1],10) : 0;
-            if (verFF < 52)
+            if (verFF>0)
                 return;
             if (!navigator.serviceWorker || !navigator.serviceWorker.ready)
                 return; //no API support

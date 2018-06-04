@@ -1,19 +1,21 @@
 ﻿/// <reference path="intellisense.js" />
-//dont use const in this file, as mobile supports older browsers
+//
+//DONT use const in this file, as mobile supports older browsers
 
 var SEP_IDHISTORY_MULTI = ".";
 var g_strUserMeOption = "me";
 var PREFIX_PLUSCOMMAND = "^"; //plus command starts with this (both card and board commands)
 var PLUSCOMMAND_RESET = "^resetsync";
 var PLUSCOMMAND_ETRANSFER = "^etransfer";
+var PLUSCOMMAND_ETRANSFER_FROMCARD = ".fromcard:";
 var g_prefixCommentTransfer = "[" + PLUSCOMMAND_ETRANSFER;
 var g_prefixCommentTransferTo = g_prefixCommentTransfer + " to ";
 var g_prefixCommentTransferFrom = g_prefixCommentTransfer + " from ";
 var g_dDaysMinimum = -10000; //sane limit of how many days back can be set on a S/E comment. limit is inclusive
 var TAG_RECURRING_CARD = "[R]";
 var DEFAULTGLOBAL_USER = "global";
-var g_strUserOtherOption = "other...";
-var g_strDateOtherOption = "other...";
+var g_strUserOtherOption = "other user...";
+var g_strDateOtherOption = "other date...";
 var g_valMaxDaysCombo = 5;
 
 var MAP_UNITS = {
@@ -161,6 +163,7 @@ var g_currentCardSEData = {
     loadFromStorage: function (idCard, callback) {
         assert(idCard);
         var key = this.keyStoragePrefix + idCard;
+        
         this.clearValues();
         this.idCard = idCard;
         var thisLocal = this;
@@ -283,16 +286,18 @@ function appendCommentBracketInfo(deltaParsed, comment, from, rgUsersProcess, iR
     return commentPush;
 }
 
+var g_regexDashCleanup = /-/g;
 function makeHistoryRowObject(dateNow, userCur, s, e, comment, idHistoryRowUse, keyword, idUser) {
+    //console.log(dateNow + " idCard:" + idCard + " idBoard:" + idBoard + " card:" + strCard + " board:" + strBoard);
     var obj = {};
-    var userForId = userCur.replace(/-/g, '~'); //replace dashes from username. should never happen since trello already strips dashes from trello username.
+    var userForId = replaceString(userCur, g_regexDashCleanup, '~'); //replace dashes from username. really should never happen since currently trello already strips dashes from trello username. see makeRowAtom
     if (idHistoryRowUse) {
-        idHistoryRowUse = idHistoryRowUse.replace(/-/g, '~'); //replace dashes just in case
+        idHistoryRowUse = replaceString(idHistoryRowUse, g_regexDashCleanup, '~'); //replace dashes just in case. we use them to store more info later
         obj.idHistory = 'idc' + idHistoryRowUse; //make up a unique 'notification' id across team users. start with string so it never confuses the spreadsheet, and we can also detect the ones with comment ids
     }
     else {
-        assert(s == 0 && e == 0); //without an id, must be 0/0 to not mess up the totals on reset. plus commands fall here
-        obj.idHistory = 'id' + dateNow.getTime() + userForId; //make up a unique 'notification' id across team users. start with a string so it will never be confused by a number in the ss
+        assert(IsStealthMode() || (s == 0 && e == 0)); //without an id, must be 0/0 to not mess up the totals on reset. plus commands fall here
+        obj.idHistory = 'id' + dateNow.getTime() + userForId; //make up a unique 'notification' id across team users. start with a string so it will never be confused by a number in the ss. user added to prevent multiple users with dup id
     }
 
     obj.keyword = keyword || null; //null will be handled later when is entered into history

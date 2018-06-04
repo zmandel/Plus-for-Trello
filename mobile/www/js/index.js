@@ -3,9 +3,9 @@
 var TRELLO_APPKEY = "xxxxxxx";
 var g_idGlobalAnalytics = "zzzzz";
 var g_bFromPowerup = false;
-
-//var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
-//var g_idGlobalAnalytics = "xx-xxxxxxxx-x";
+var param_loginTk = "logintk:";
+var param_url_applogin = "applogin";
+var PFT_ACTIVITY = "plusfortrello";
 
 //localStorage usage:
 //some items are stored directly with a fixed string, using global PROP_* properties
@@ -27,7 +27,8 @@ var PROP_GLOBALUSER = "globalUser";
 var PROP_LASTACTIVITYINFO = "lastActivityInfo";
 var PROP_PLUSUNITS = "plusUnits";
 var PROP_NAVIDCARDLONG = "nav-idCardLong"; //duplicated from redirector.js
-var PROP_NAVFROMPOWERUP = "nav-fromPowerup";
+var PROP_NAVFROMPOWERUP = "nav-fromPowerup"; //duplicated from redirector.js
+var PROP_NAVFROMAPPLOGIN = "nav-fromAppLogin"; //duplicated from redirector.js
 
 var STATUS_OK = "OK";
 var IMAGE_HEADER_TEMPLATE = '<img src="img/login.png" class="imgHeader" width="20" align="top" />';
@@ -38,23 +39,37 @@ var g_user = null;
 var g_bAllowNegativeRemaining = false;
 var g_bDisplayPointUnits = false;
 var g_bNoAnimations = false;
+var PROP_FROMAPPLOGIN = "nav_fromapplogin";
 
 var g_msMaxHandleOpenUrl = 2000; //max time we remember we opened this url already. since we use 500 intervals, really we could make it 600 but 2000 is safer
 
 var g_loaderDetector = {
     initLoader: function () {
         if (!isCordova()) {
+
+            if (localStorage[PROP_FROMAPPLOGIN]) {
+                g_bShowMagicAppLogin = true;
+            }
+
             var url = document.location.href;
             var pathName = document.location.pathname;
+            var paramsInit = getUrlParams(url);
+            //must get it here before we change the url below
+            if (paramsInit && paramsInit[param_url_applogin] == "1") {
+                localStorage[PROP_FROMAPPLOGIN] = "1";
+            } else {
+                delete localStorage[PROP_FROMAPPLOGIN];
+            }
+
             //pathName=="/" : when going directly to the root. sw-precache will return the index contents but url wont have it so jqm gets confused
             if (!pathName || pathName == "/" || url.indexOf("#") >= 0 || url.indexOf("?") >= 0) {
-                window.location.replace("/index.html");
+                window.location.replace("/index.html"); //causes app to re-initialize and call initLoader again
                 return this;
             }
         }
         return this;
     }
-}.initLoader();
+};
 
 function registerWorker() {
     //console.log(""+Date.now()+" registerWorker");
@@ -146,13 +161,45 @@ function isIOS() {
     return iOS;
 }
 
-//called when plusfortrello://activity is received
+var g_dataLastUrlHandledOpen = {
+    url: "",
+    ms: 0,
+    pop: function () {
+        var t = g_dataLastUrlHandledOpen;
+        var urlLocal = t.url;
+        t.url = "";
+        if (Date.now() - t.ms < 1000)
+            return "";
+        return urlLocal;
+    },
+    set: function (str) {
+        var t = g_dataLastUrlHandledOpen;
+        t.url = str;
+        t.ms = Date.now();
+    }
+};
+
+//called when plusfortrello://activity is received (from cordova-plugin-customurlscheme) see PFT_ACTIVITY
+//used to be sent from onLocalNotification in v<=31
 function handleOpenURL(url) {
     //alertMobile(url);
+    if (url)
+        g_dataLastUrlHandledOpen.set(url);
+    var strFind = "://";
+    var iFind = url.indexOf(strFind);
+    if (iFind >= 0)
+        url = url.substr(iFind + strFind.length);
 
+    if (url.indexOf(param_loginTk) == 0) {
+        var token = url.substr(param_loginTk.length);
+        //alert(token);
+        setTrelloToken(token);
+        return;
+    }
+    //review: is this still true?
     //duplicate detection is needed so that we can launch several identical activities into the app when a notification is clicked.
     //needed because on cold start it takes time for the app to load and would miss the notification callback if we didnt
-    //send many events. see onLocalNotification
+    //send many events. review: from old onLocalNotification, might not be needed. see cordova.plugins.notification.local.on
     if (g_mapLastActivityInfo === null) {
         var lai = localStorage[PROP_LASTACTIVITYINFO];
         if (lai)
@@ -160,11 +207,6 @@ function handleOpenURL(url) {
         else
             g_mapLastActivityInfo = {};
     }
-
-    var strFind = "://";
-    var iFind = url.indexOf(strFind);
-    if (iFind >= 0)
-        url = url.substr(iFind + strFind.length);
 
     
     var msNow = Date.now();
@@ -635,58 +677,11 @@ function setDefaultKeywords() {
 }
 
 
-function onLocalNotification(id, state, json) {
-    assert(false); //no longer used with new local notifications plugin 0.8x
-    var url = "";
-    var action = "unknown";
-    if (json) {
-        var parsed = JSON.parse(json);
-        url = parsed.url;
-        action = parsed.action;
-    }
-    //ALERT review zig: to work on a slow emulator (or very slow phone) this needs to be higher. it isnt so because it would cause plus to relaunch
-    //if user presses a notification and quickly exits the app.
-    var delay = 500; 
-
-    url = "plusfortrello://" + url;
-    //include the id, its needed so later detect the duplicates send below
-    //fromNotification serves also as a dummy parameter, so we can later know that idNotification is preceded by "&" and not "?"
-    url = url + (url.indexOf("?") < 0 ? "?" : "&") + "fromNotification=true&idNotification=" + id + "&notificationAction=" + action;
-    //https://github.com/katzer/cordova-plugin-local-notifications/issues/410
-
-    var bAlreadyHandled = false;
-    function isAlreadyHandled() {
-        if (bAlreadyHandled)
-            return true;
-
-        var msNow = Date.now();
-        var key = "rnid:" + id;
-        var mapCur = g_mapLastActivityInfo[key];
-        if (mapCur && msNow - mapCur.ms < g_msMaxHandleOpenUrl) {
-            //alertMobile("handled already!",800);
-            bAlreadyHandled = true;
-        }
-        bAlreadyHandled = false; //redundant
-        return bAlreadyHandled;
-    }
-
-    var cRetry = 0;
-
-    function worker() {
-        setTimeout(function () {
-            if (cRetry<4 && (cRetry == 0 || !isAlreadyHandled())) {
-                openUrlAsActivity(url+(cRetry==0?"":"&retryActivity="+cRetry));
-                cRetry++;
-                worker();
-            }
-        }, delay);
-    }
-
-    worker();
-}
-
 
 function handleBoardOrCardActivity(text) {
+    if (text && g_dataLastUrlHandledOpen.pop() == text) //some activities (ie token from webapp) can happen twice
+        return;
+
     function getId(strFind) {
         var i = text.indexOf(strFind);
         var split = null;
@@ -780,7 +775,6 @@ var app = {
         if (isCordova()) {
             g_bLocalNotifications = (typeof (cordova) != "undefined" && cordova.plugins && cordova.plugins.notification);
             if (g_bLocalNotifications) {
-                //review no longer using onLocalNotification
                 cordova.plugins.notification.local.on("click", function (notification) {
                     if (notification.data) {
                         var data = JSON.parse(notification.data);
@@ -907,6 +901,11 @@ var app = {
             if ($("#settings").is(":visible"))
                 changePage("settings.html", "none");
         });
+
+        $("#loginToApp").click(function () {
+            setTimeout(function () { exitApp(); }, 500);
+        });
+
 
         initUser(function (user) {
             onBeforePageChange(pageLogin);
@@ -1309,6 +1308,12 @@ function isDesktopVersion() {
 }
 
 var g_bShownPopupLink = false;
+var g_bShowMagicAppLogin = false;
+
+function doGoogleLogin() {
+
+}
+
 
 function loadHomePage() {
     var bHasKeyTrello = (!!localStorage[PROP_TRELLOKEY]);
@@ -1370,10 +1375,30 @@ function loadHomePage() {
     var listCardsPinned = $("#listCardsPinned").listview();
 
     $("#login").off("click").click(function () {
-        loginToTrello();
+        var bDoRegularLogin = true;
+        if (isCordova() && typeof (navigator) != "undefined" && navigator.notification) {
+            bDoRegularLogin=false;
+            navigator.notification.prompt(
+                "Login with Google or with SSO?",  // message
+                function onPrompt(results) {
+                    var text = null;
+                    if (results.buttonIndex == 0)
+                        doGoogleLogin();
+                    else if (results.buttonIndex == 0)
+                        loginToTrello();
+                },                  // callback to invoke
+                'Login method',            // title
+                ['Yes', 'No'],             // buttonLabels
+                'No');                // defaultText
+        } else {
+            loginToTrello();
+        }
+
     });
 
-    if (bHasKeyTrello) {
+    $("#loginToApp").hide();
+
+    if (bHasKeyTrello && !g_bShowMagicAppLogin) {
         $("#productInfo").hide();
         $("#login").hide();
 
@@ -1407,13 +1432,30 @@ function loadHomePage() {
             listCardsPinned.hide();
 
     } else {
-        $("#login").show();
-        if (isIOS()) 
-            $("#iOSLogin").show();
+        var bShowProductInfo = true;
+        if (bHasKeyTrello && g_bShowMagicAppLogin) {
+            g_bShowMagicAppLogin = false;
+            bShowProductInfo = false;
+            var elemOpenApp = $("#loginToApp");
+            elemOpenApp.attr("href", PFT_ACTIVITY + "://" + param_loginTk + localStorage[PROP_TRELLOKEY]);
+            elemOpenApp.show();
+        }
+
+        if (g_bShowMagicAppLogin)
+            bShowProductInfo = false;
+
+        if (!bHasKeyTrello) {
+            if (isCordova())
+                $("#login").text("Log in"); //make it different than the "Log in to Trello" that the webapp will display
+            $("#login").show();
+        }
         else
-            $("#iOSLogin").hide();
-        
-        $("#productInfo").show();
+            $("#login").hide();
+
+        if (bShowProductInfo)
+            $("#productInfo").show();
+        else
+            $("#productInfo").hide();
         $("#viewBoardsContainer").hide();
         $("#listBoardsRecent").hide();
         $("#listCardsPinned").hide();
@@ -1631,8 +1673,7 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
     origin = (ref1 = /^[a-z]+:\/\/[^\/]*/.exec(location)) != null ? ref1[0] : void 0;
     //call_back=postMessage is necessary to enable cross-origin communication
     authUrl = 'https://trello.com/1/authorize?return_url=' + origin + '&callback_method=postMessage&expiration=never&name=Plus+for+Trello&scope=read,write&key=' + key;
-    var bSafariStandalone = (window.navigator && window.navigator.standalone);
-    authWindow = window.open(authUrl, bSafariStandalone ? '_system' : 'trello', 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top);
+    authWindow = window.open(authUrl, 'trello', 'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top);
     var receiveMessage = function (event) {
         var ref2;
         if ((ref2 = event.source) != null) {
@@ -1654,6 +1695,12 @@ function authorizeFromWeb() { //thanks http://madebymunsters.com/blog/posts/auth
 }
 
 function loginToTrello() {
+    if (localStorage[PROP_TRELLOKEY]) {
+        //can happen if login happened through webapp magic login link
+        refreshCurrentPage();
+        return;
+    }
+
     if (isCordova()) {
         var appInBrowser = window.open("https://trello.com/1/authorize?return_url=https%3A%2F%2Flocalhost&key=" + getAppKey() + "&name=Plus+for+Trello&expiration=never&response_type=token&scope=read,write", '_blank', 'location=yes');
         var bSkipError = false;
@@ -1748,6 +1795,18 @@ function isIE() {
     }
 
     // other browser
+    return false;
+}
+
+function replaceString(string, regex, replace) {
+    if (typeof (string) != "string")
+        string = String(string);
+
+    regex.lastIndex = 0;
+    return string.replace(regex, replace);
+}
+
+function IsStealthMode() {
     return false;
 }
 
