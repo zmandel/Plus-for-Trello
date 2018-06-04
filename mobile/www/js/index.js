@@ -1305,6 +1305,7 @@ function loadHomePage() {
         elemLinkPopup.hide();
 
     if (bHasKeyTrello) {
+        $("#productInfo").hide();
         $("#login").hide();
 
         $("#viewBoardsContainer").show();
@@ -1338,6 +1339,7 @@ function loadHomePage() {
 
     } else {
         $("#login").show();
+        $("#productInfo").show();
         $("#viewBoardsContainer").hide();
         $("#listBoardsRecent").hide();
         $("#listCardsPinned").hide();

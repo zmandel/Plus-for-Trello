@@ -113,8 +113,15 @@ function addCardCommentByApi(idCard, comment, callback, waitRetry) {
 
 //bReturnErrors false (default): will display error and not call callback.
 //always changePane before calling this for a page
-function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache,
+function callTrelloApi(urlParams, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache,
     context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost) {
+    var bMultiple = (typeof(urlParams) != "string");
+    var urlParam;
+
+    if (bMultiple)
+        urlParam = urlParams[0];
+    else
+        urlParam = urlParams;
     var keyCached = "td:" + urlParam;
     var bReturnedCached = false;
     var objTransformedFirst = null;
@@ -131,6 +138,11 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
     if (!bSkipCache) {
         //if there is a cache, return it, and later return again the real results
         var cached = localStorage[keyCached];
+        if (!cached && bMultiple && urlParams.length>1) {
+            //try previous caches
+            //review: ok now since its only two, but later here needs a loop
+            cached = localStorage["td:" + urlParams[1]];
+        }
         if (cached) {
             cached = JSON.parse(cached);
             if ((msWaitStart > 250) && cached.now && (Date.now() - cached.now > 1000 * 60 * 10))
@@ -208,6 +220,12 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                                 cacheItem.compressed = LZString.compressToUTF16(xhr.responseText);
                             }
                             localStorage[keyCached] = JSON.stringify(cacheItem);
+                            if (bMultiple && urlParams.length > 1) {
+                                //delete previous caches
+                                //review: ok now since its only two, but later here needs a loop
+                                //review zig: remove this after march 2017
+                                delete localStorage["td:" + urlParams[1]];
+                            }
                         }
                     } catch (ex) {
                         objRet.status = "error: " + ex.message;
@@ -218,7 +236,7 @@ function callTrelloApi(urlParam, bContext, msWaitStart, callback, bReturnErrors,
                         if (waitNew < 8001) {
                             console.log("Plus: retrying api call");
                                         //urlParam, bContext, msWaitStart, callback, bReturnErrors, waitRetry, bSkipCache, context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost
-                            callTrelloApi(urlParam, bContext, waitNew,     callback, bReturnErrors, waitNew,   true,       context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost);
+                            callTrelloApi(urlParams, bContext, waitNew,     callback, bReturnErrors, waitNew,   true,       context, bReturnOnlyCachedIfExists, bDontStoreInCache, bDontRetry, bPost);
                             return;
                         }
                         else {

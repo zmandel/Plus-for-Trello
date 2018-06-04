@@ -773,7 +773,7 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
         fillSEData(page, container, tbody, params, bBack, function (cRows, bCached) {
             //params have been updated. Update the card cache as well
             //review zig: ugly. sometimes we have a partial cache
-            if (!cardCached || !bCached || !!cardCached.name || !cardCached.nameList || !cardCached.nameBoard) {
+            if (!cardCached || !bCached || !cardCached.name || !cardCached.nameList || !cardCached.nameBoard || (!cardCached.shortLink && params.shortLink)) {
                 cardCached = {
                     name: params.name,
                     nameList: params.nameList,
@@ -957,7 +957,7 @@ function loadCardPageWorker(page, params, bBack, urlPage) {
 
 
     page.find("#openTrelloCard").off("click").click(function (event) {
-        var urlCard = "https://trello.com/c/" + params.shortLink;
+        var urlCard = "https://trello.com/c/" + (params.shortLink?params.shortLink: param.id);
         if (isCordova()) {
             window.plugins.webintent.startActivity({
                 action: window.plugins.webintent.ACTION_VIEW,
@@ -1223,15 +1223,23 @@ function enableSEFormElems(bEnable,
                 function process(userNew) {
                     if (userNew)
                         userNew = userNew.trim().toLowerCase();
+                    userNew = userNew || "";
+
+                    if (userNew.indexOf("@") >= 0 || userNew.indexOf(",") >= 0 || userNew.indexOf(" ") >= 0) {
+                        alert("Names cannot contain @, comma or spaces.");
+                        //let it continue so it resets user
+                        userNew = "";
+                    }
                     if (userNew)
                         g_recentUsers.markRecent(userNew, null, new Date().getTime(), true);
                     fillUserList(listUsers, userNew);
                     updateNoteR(page);
                 }
 
+                var strQuestionUser = "Type the username";
                 if (typeof (navigator) != "undefined" && navigator.notification) {
                     navigator.notification.prompt(
-                        "Type username",  // message
+                        strQuestionUser,  // message
                         function onPrompt(results) {
                             var text = null;
                             if (results.buttonIndex == 1)
@@ -1243,13 +1251,16 @@ function enableSEFormElems(bEnable,
                         "");                // defaultText
                 }
                 else {
-                    process(prompt("Type username", ""));
+                    process(prompt(strQuestionUser, ""));
                 }
             } else {
                 updateNoteR(page);
             }
         });
 
+        var stepSubUnit = (UNITS.getCurrentShort(false) == UNITS.days ? 1 : 15);
+        page.find("#plusCardCommentSpent2")[0].step = stepSubUnit;
+        page.find("#plusCardCommentEst2")[0].step = stepSubUnit;
         fillDaysList(listDays);
         listDays.off("change.plusForTrello");
         listDays.on("change.plusForTrello", function () {
@@ -1293,8 +1304,14 @@ function enableSEFormElems(bEnable,
                     });
                 }
                 else {
-                    var strValDelta = prompt("enter positive delta", "");
-                    process(parseInt(strValDelta, 10) || 0);
+                    var strValDelta = prompt("Enter a positive delta", "");
+                    strValDelta = strValDelta || "";
+                    var numDeltaParsed = (parseInt(strValDelta, 10) || 0);
+                    if (numDeltaParsed <= 0) {
+                        alert("Invalid delta. Must be bigger than zero.");
+                        numDeltaParsed=0; //let it process so selection resets to 0
+                    }
+                    process(numDeltaParsed);
                 }
             }
         });
@@ -1333,8 +1350,11 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
     if (params.name)
         g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
 
+    var urlParamsV0 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name";
+    var urlParamsV1 = "cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc,shortLink&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name";
     //on back, dont call trello, rely on cache only
-    callTrelloApi("cards/" + idCard + "?actions=commentCard&actions_limit=900&fields=name,desc&action_fields=data,date,idMemberCreator&action_memberCreator_fields=username&board=true&board_fields=name&list=true&list_fields=name", true, bBack ? -1 : 200,
+
+    callTrelloApi([urlParamsV1,urlParamsV0], true, bBack ? -1 : 200,
         callbackTrelloApi, false, null, bNoCache || false, null, bOnlyCache);
     function callbackTrelloApi(response, responseCached) {
         var rgComments = [];
@@ -1367,6 +1387,8 @@ function fillSEData(page, container, tbody, params, bBack, callback, bNoCache, b
             assert(!response.bCached);
             //update params.id, as we might have received a shortLink (currently does not happen)
             params.id = response.obj.id;
+            if (response.obj.shortLink)
+                params.shortLink = response.obj.shortLink; //opening card directly (from powerup for example) might not have the shortLink until now. its not stored
             idCard = params.id;
             var rgKeywords = getAllKeywords();
             var cActions = response.obj.actions.length;

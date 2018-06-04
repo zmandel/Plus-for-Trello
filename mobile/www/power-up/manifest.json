@@ -1,13 +1,12 @@
-{
+﻿{
   "name": "Plus for Trello",
-  "description": "Plus for Trello app",
-  "details": "Plus for Trello for mobile and non-Chrome users",
+  "description": "",
+  "details": "**[Plus for Trello](http://www.plusfortrello.com) is free since 2013!** \n**Add card Points, Spent, Estimates.** \nAlso works on mobile and offline.  \n  \nThe Chrome extension has much more: timers, counts, charts, reports, scrum, burn-downs, projected end dates. \n***\nBurn-downs\n------ ![burndown](https://storage.googleapis.com/plusfortrello_images/power-up/1.png) \n***\nHome charts\n------ ![home](https://storage.googleapis.com/plusfortrello_images/power-up/2.png) \n***\nTimers\n------ ![home](https://storage.googleapis.com/plusfortrello_images/power-up/9.png) \n***\nSpent & Estimates\n------ ![SE](https://storage.googleapis.com/plusfortrello_images/power-up/22.png) \n***\nPivots\n------ ![pivotS](https://storage.googleapis.com/plusfortrello_images/power-up/4.png) \n***\nGroup\n------ ![bytag](https://storage.googleapis.com/plusfortrello_images/power-up/3.png) \n***\nFilter & Export\n------ ![report](https://storage.googleapis.com/plusfortrello_images/power-up/5.png) \n***\nEstimate changes\n------ ![echange](https://storage.googleapis.com/plusfortrello_images/power-up/6.png) \n***\nMeasure\n------ ![measure](https://storage.googleapis.com/plusfortrello_images/power-up/66.png) \n***\nBy user\n------ ![reportuser](https://storage.googleapis.com/plusfortrello_images/power-up/7.png) \n***\nReport columns\n------ ![report columns](https://storage.googleapis.com/plusfortrello_images/power-up/8.png)",
   "icon": {
     "url": "./images/logo.png"
   },
   "author": "Plus for Trello",
   "capabilities": [
-    "board-buttons",
     "callback",
     "card-buttons"
   ],

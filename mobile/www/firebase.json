@@ -87,7 +87,7 @@
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=300"
+            "value": "max-age=31536000"
           }
         ]
       },
@@ -101,7 +101,7 @@
         ]
       },
       {
-        "source": "power-up/js/*.js",
+        "source": "power-up/*.json",
         "headers": [
           {
             "key": "Cache-Control",
@@ -110,11 +110,20 @@
         ]
       },
       {
+        "source": "power-up/js/*.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=31536000"
+          }
+        ]
+      },
+      {
         "source": "power-up/css/*.css",
         "headers": [
           {
             "key": "Cache-Control",
-            "value": "max-age=300"
+            "value": "max-age=31536000"
           }
         ]
       }
