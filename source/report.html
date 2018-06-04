@@ -306,106 +306,121 @@ E 1ˢᵗ: rows with a first estimate
 
             <div style="display:none;" id="optionsContainer" class="agile_arrow_closed agile_arrow_container">
                 <p title="Click to change options.
-To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options (click)</b></p>
+To remember this custom report: click 'Query', change the tab below if needed, then make a Chrome bookmark." id="headerOptions" class="agile_arrow_title"><b>Options <span style="color:darkgray;">(click)</span></b></p>
                 <div style="display:none;" id="report_options_section">
                     <div><i>Click 'Query' after making changes.</i></div>
-                    <div class="report_options_item"  title="Check to prevent cropping text in results.">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
-                        <label class="agile_unselectable" for="checkNoCrop">No Crop (show full contents)</label>
-                    </div>
-                    <div class="report_options_item" title="Check to exclude S/E from cards with partial or no estimates when filtering by date.
+                    <table>
+                        <tr>
+                            <td valign="top" style="padding-right:3em;min-width:30em;">
+                                <div>
+                                    <button id="saveReport" style="margin-top:0.5em;margin-bottom:0.5em;">Bookmark report</button>
+                                </div>
+                                <div class="report_options_item" title="Check to prevent cropping text in results.">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCrop" />
+                                    <label class="agile_unselectable" for="checkNoCrop">No Crop (show full contents)</label>
+                                </div>
+                                <div class="report_options_item" title="Check to exclude S/E from cards with partial or no estimates when filtering by date.
 If checked, the report and chart will only include cards with a first estimate entered in the filtered date range.
 
 Not checking this option can produce unrealistic/negative E and R values when using date filters.
 Do not check this option if you are only looking at Spent or card counts.">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoPartialE" />
-                        <label class="agile_unselectable" for="checkNoPartialE">Exclude cards with partial or no <b>E</b> in the "Since" date range</label>
-                    </div>
-                    <div class="report_options_item" title="Check to not generate charts, which can speed-up huge reports.">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCharts" />
-                        <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
-                    </div>
-                    <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
-                    
-                    <div class="report_options_item">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkAddCustomFields" />
-                        <label class="agile_unselectable" for="checkAddCustomFields">Include Trello custom fields</label>
-                    </div>
-
-                    <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
-                        <label class="agile_unselectable" for="checkNoLabelColors">No color in labels in the Report tab</label>
-                    </div>
-                    <div class="report_options_item">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoBracketNotes" />
-                        <label class="agile_unselectable" for="checkNoBracketNotes">Remove all [bracket text] from notes in the Report tab</label>
-                    </div>
-                    <div class="report_options_item">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkSyncBeforeQuery" />
-                        <label class="agile_unselectable" for="checkSyncBeforeQuery">Sync before doing the query</label>
-                    </div>
-                    <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoPartialE" />
+                                    <label class="agile_unselectable" for="checkNoPartialE">Exclude cards with partial or no <b>E</b> in the "Since" range</label>
+                                </div>
+                                <div class="report_options_item" title="Check to not generate charts, which can speed-up huge reports.">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoCharts" />
+                                    <label class="agile_unselectable" for="checkNoCharts">No Charts</label>
+                                </div>
+                                <div class="report_options_item">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoBracketNotes" />
+                                    <label class="agile_unselectable" for="checkNoBracketNotes">Remove all [bracket text] from notes in the Report tab</label>
+                                </div>
+                                <div class="report_options_item" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
 After clicking 'Query' try sorting by board then shift-click the card number column.">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
-                        <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
-                    </div>
-                    
-                    <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
-                    <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideZoomArea" />
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardIdShort" />
+                                    <label class="agile_unselectable" for="checkOutputCardIdShort">Include card number</label>
+                                </div>
 
-                    <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
-                        <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
-                    </div>
-                    <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
-                        <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
-                    </div>
-                    <div class="report_options_item"  title="Download report as CSV or Excel.">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputReport" />
-                        <label class="agile_unselectable" for="checkOutputReport">Download report as </label>
-                        <select id="outputFormat">
-                        <option value="csv">CSV (text)</option>
-                        <option value="xls">XLS (Excel)</option>
-                        </select>
-                        <span id="noteExportFormat"></span>
-                    </div>
-                    <div class="report_options_item" style="width:40em;">
-                        <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkCustomColumns" />
-                        <label class="agile_unselectable" for="checkCustomColumns">Output custom columns</label>
-                        <div id="section_customColumns" style="display:none;margin-left:1.2em;">
-                            <select multiple="multiple" title="Pick columns..." id="selectAllColumns">
-                                /* https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing */
-                                <option  value="archived">Archived</option>
-                                <option  value="board">Board</option>
-                                <option  value="boardShortLink">Board shortLink</option>
-                                <option  value="card">Card</option>
-                                <option  value="cardNumber" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
-After clicking 'Query' try sorting by board then shift-click the card number column.">Card #</option>
-                                <option  value="cardCount">Card count</option>
-                                <option  value="cardShortLink">Card shortLink</option>
-                                <option value="dateCreated">Created date</option>
-                                <option  value="dateString">Date</option>
-                                <option  value="deleted">Deleted</option>
-                                <option  value="dateDue">Due date</option>
-                                <option  value="e">E</option>
-                                <option  value="e1st">E 1ˢᵗ</option>
-                                <option  value="eType">E. type</option>
-                                <option  value="hashtagFirst">Hashtag1</option>
-                                <option  value="keyword">Keyword</option>
-                                <option  value="labels">Labels</option>
-                                <option  value="nameList">List</option>
-                                <option  value="month">Month</option>
-                                <option  value="note">Note</option>
-                                <option  value="r">R</option>
-                                <option  value="s">S</option>
-                                <option  value="team">Team</option>
-                                <option  value="user">User</option>
-                                <option  value="week">Week</option>
-                            </select>
-                            <div><i>Pick, then drag to re-order. When grouping and the group does not include a custom column, the column name will end with <b>*</b> and show the value of the newest item in the group.</i></div>
-                        </div>
-                    </div>
+                                <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideAnnotationTexts" />
+                                <input style="display:none;" class="agile_report_checkbox" type="checkbox" value="checked" id="checkHideZoomArea" />
+
+                                <div class="report_options_item" title="The card 'shortLink' appears in a card URL as trello.com/c/shortLink/...">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputCardShortLink" />
+                                    <label class="agile_unselectable" for="checkOutputCardShortLink">Include card shortLink</label>
+                                </div>
+                                <div class="report_options_item" title="The board 'shortLink' appears in a board URL as trello.com/b/shortLink/...">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputBoardShortLink" />
+                                    <label class="agile_unselectable" for="checkOutputBoardShortLink">Include board shortLink</label>
+                                </div>
+                            </td>
+                            <td valign="top">
+                                <div id="labelOptionsProOnly" class="report_options_item" style="padding-top:.8em;"><a href="http://www.plusfortrello.com/p/plus-for-trello-pro-version.html" target="_blank">"Pro" version</a> only:</div>
+
+                                <div class="report_options_item">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkAddCustomFields" />
+                                    <label class="agile_unselectable" for="checkAddCustomFields">Include Trello custom fields</label>
+                                </div>
+
+                                <div class="report_options_item" title="Check if you paste to an app that does not fully support html colors (like Excel)">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkNoLabelColors" />
+                                    <label class="agile_unselectable" for="checkNoLabelColors">No color in labels in the Report tab</label>
+                                </div>
+                                
+                                <div class="report_options_item">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkSyncBeforeQuery" />
+                                    <label class="agile_unselectable" for="checkSyncBeforeQuery">Sync before doing the query</label>
+                                </div>
+                                
+                                <div class="report_options_item" title="Download report as CSV or Excel.">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkOutputReport" />
+                                    <label class="agile_unselectable" for="checkOutputReport">Download report as </label>
+                                    <select id="outputFormat">
+                                        <option value="csv">CSV (text)</option>
+                                        <option value="xls">XLS (Excel)</option>
+                                    </select>
+                                    <span id="noteExportFormat"></span>
+                                </div>
+                                <div class="report_options_item" style="width:40em;">
+                                    <input class="agile_report_checkbox" type="checkbox" value="checked" id="checkCustomColumns" />
+                                    <label class="agile_unselectable" for="checkCustomColumns">Output custom columns</label>
+                                    <div id="section_customColumns" style="display:none;margin-left:1.2em;">
+                                        <div><i>Drag to re-order.</i></div>
+                                        <select multiple="multiple" title="Pick columns..." id="selectAllColumns">
+                                            /* https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing */
+                                            <option value="archived">Archived</option>
+                                            <option value="board">Board</option>
+                                            <option value="boardShortLink">Board shortLink</option>
+                                            <option value="card">Card</option>
+                                            <option value="cardNumber" title="Card numbers are unique within a board and are assigned to cards in order of creation starting from '1'.
+After clicking 'Query' try sorting by board then shift-click the card number column.">
+                                                Card #
+                                            </option>
+                                            <option value="cardCount">Card count</option>
+                                            <option value="cardShortLink">Card shortLink</option>
+                                            <option value="dateCreated">Created date</option>
+                                            <option value="dateString">Date</option>
+                                            <option value="deleted">Deleted</option>
+                                            <option value="dateDue">Due date</option>
+                                            <option value="e">E</option>
+                                            <option value="e1st">E 1ˢᵗ</option>
+                                            <option value="eType">E. type</option>
+                                            <option value="hashtagFirst">Hashtag1</option>
+                                            <option value="keyword">Keyword</option>
+                                            <option value="labels">Labels</option>
+                                            <option value="nameList">List</option>
+                                            <option value="month">Month</option>
+                                            <option value="note">Note</option>
+                                            <option value="r">R</option>
+                                            <option value="s">S</option>
+                                            <option value="team">Team</option>
+                                            <option value="user">User</option>
+                                            <option value="week">Week</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
                 </div>
             </div>
             <div id="tabs" style="background: #E8EBEE;padding:0px;">

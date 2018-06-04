@@ -1,7 +1,7 @@
 {
   "name": "__MSG_extName__",
   "short_name": "Plus for Trello",
-  "version": "5.0.99",
+  "version": "5.1.0",
   "manifest_version": 2,
   "default_locale": "en",
   "description": "__MSG_extDescription__",
@@ -78,6 +78,6 @@
     "css/images/*.gif",
     "stripe-wrap.js"
   ],
-  "optional_permissions": [ "https://*.stripe.com/", "https://*.cloudfunctions.net/", "clipboardWrite", "https://spreadsheets.google.com/", "https://ssl.google-analytics.com/", "https://www.googleapis.com/", "alarms", "gcm" ],
+  "optional_permissions": [ "https://*.stripe.com/", "https://*.cloudfunctions.net/", "clipboardWrite", "https://spreadsheets.google.com/", "https://ssl.google-analytics.com/", "https://www.googleapis.com/", "alarms", "gcm", "bookmarks" ],
   "permissions": ["identity", "storage", "unlimitedStorage", "notifications", "webRequest", "webRequestBlocking", "https://trello.com/", "https://trello.com/1/*"]
 }

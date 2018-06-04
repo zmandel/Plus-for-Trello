@@ -1599,10 +1599,9 @@ function insertFrontpageChartsWorker(mainDiv, dataWeek, user) {
 
     var divInsertAfter = $(".boards-page-board-section");
     var divPrepend = $(".home-container"); //new trello home april 2018
-    var divCheckExists = $(".home-tab-container");
 
     if (divInsertAfter.length == 0) {
-        if (divPrepend.length == 0 || divCheckExists.length == 0) {
+        if (divPrepend.length == 0) {
             setTimeout(function () { insertFrontpageChartsWorker(mainDiv, dataWeek, user); }, 50); //wait until trello loads that div
             return false;
         }

@@ -1199,7 +1199,7 @@ Enable "➤ sync" below to see Reports, full Chrome Plus menu, team S/E and use 
 	    helpWin.paraSE('&bull; Pick the groups, pivot, sort, filters and options, then "Query".');
 	    helpWin.para('&bull; Use "Copy" <IMG border="none" align="top" src="' + chrome.extension.getURL("images/copy.png") + '"></IMG> on the top-right to copy to the clipboard. Paste on a spreadsheet or email.');
 	    helpWin.para('&bull; Drill-down on Trello home chart bars or pivot cells.');
-	    helpWin.para('&bull; Reports and burndowns work offline from the Chrome Plus menu, can be bookmarked or emailed by URL or by pasting the report.');
+	    helpWin.para('&bull; Reports and burndowns work offline from the Chrome Plus menu. Bookmark, email the report URL or copy & paste the report anywhere.');
 	    helpWin.paraEst('&bull; The <b>E. type</b> column tells if the row Estimate is new, increases (+E) or decreases (-E) the card estimate per user.');
 	    helpWin.para('<A target="_blank" href="http://www.plusfortrello.com/p/report-documentation-and-examples.html"><b>More reports help</b></A>');
 	    helpWin.para('&nbsp');

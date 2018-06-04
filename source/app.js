@@ -436,7 +436,7 @@ function newerStoreVersion(bUrgentOnly) {
                 if (vStore > vCur)
                     bNeedUpgrade = true;
                 if (bNeedUpgrade && bUrgentOnly && iPartsVersion == partsStore.length-1) {
-                    bNeedUpgrade = (vStore == 99); //overwrite previous. 99 is a special emergency value to force update
+                    bNeedUpgrade = (vStore > 90); //overwrite previous. 90+ is a special emergency value to force update
                 }
             }
         }

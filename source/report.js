@@ -642,6 +642,79 @@ function updateURLPart(part) {
     }
 }
 
+//Report bookmarks
+//
+//we create a special "Plus reports" folder inside Chrome Bookmarks bar.
+//we use chrome sync to store the folder id (assumes Chrome keeps folder id of synced bookmarks)
+//REVIEW: verify claim above
+//if the sync id is invalid or nonexistent, we search by folder name. If that fails we create the folder.
+//before saving the bookmark, the url is updated to reflect current report inputs
+
+function createReportBookmark() {
+    const SYNCPROP_idFolderParentBookmark = "idFolderParentBookmark";
+    const nameFolderParent = "Plus reports";
+    var url = buildUrlFromParams(getUrlParams(), true); //cleans up url
+    chrome.storage.sync.get([SYNCPROP_idFolderParentBookmark], function (objs) {
+        var idFolderPlus = objs[SYNCPROP_idFolderParentBookmark] || null;
+        if (idFolderPlus) {
+            chrome.bookmarks.get(idFolderPlus, function (bookmarks) {
+                if (bookmarks && bookmarks.length == 1)
+                    saveBookmark(bookmarks[0].id);
+                else
+                    stepFindFolder();
+            });
+        } else {
+            stepFindFolder();
+        }
+
+    });
+
+
+    function stepFindFolder() {
+        chrome.bookmarks.search({ url: null, title: nameFolderParent }, function (nodes) {
+            if (nodes && nodes.length > 0) {
+                stepSaveFolderAndBookmark(nodes[0].id);
+            } else {
+                stepCreateFolder();
+            }
+        });
+    }
+
+    function stepCreateFolder() {
+        const idChromeBookmarksBar = "1"; //https://bugs.chromium.org/p/chromium/issues/detail?id=21330#c4
+        chrome.bookmarks.create({ parentId: idChromeBookmarksBar, title: nameFolderParent }, function (bookmark) {
+            if (bookmark)
+                stepSaveFolderAndBookmark(bookmark.id);
+        });
+    }
+
+    function stepSaveFolderAndBookmark(idBookmark) {
+        var pair = {};
+        pair[SYNCPROP_idFolderParentBookmark] = idBookmark;
+        chrome.storage.sync.set(pair, function () {
+            var err = chrome.runtime.lastError; //just reference it, but we proceed even in failure
+            saveBookmark(idBookmark);
+        });
+    }
+
+    function saveBookmark(idParent) { 
+        var title = window.prompt('Bookmark name:');
+        if (!title)
+            return;
+        title = title.trim();
+        chrome.bookmarks.create({ parentId: idParent, title: title, url: url }, function (bookmark) {
+            if (!bookmark)
+                alert('Error saving bookmark :(');
+            else {
+                chrome.bookmarks.get(idParent, function (bookmarks) {
+                    if (bookmarks && bookmarks.length == 1)
+                        sendDesktopNotification("Saved in '"+bookmarks[0].title+"' Chrome bookmark folder.", 4000);
+                });
+            }
+        });
+    }
+}
+
 
 //see https://docs.google.com/a/plusfortrello.com/spreadsheets/d/1ECujO3YYTa3akMdnCrQ5ywgWnqybJDvXnVLwxZ2tT-M/edit?usp=sharing
 var g_mapNameFieldToInternal = {
@@ -848,11 +921,6 @@ function loadAll() {
         dockOut.attr("src", chrome.extension.getURL("images/dockout.png"));
         dockOut.show();
         dockOut.css("cursor", "pointer");
-        dockOut.off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
-            var urlDockout = buildUrlFromParams(getUrlParams(), true);
-            chrome.tabs.create({ url: urlDockout });
-            return false;
-        });
 
 
         var back = $("#backImg");
@@ -1119,7 +1187,6 @@ Team - Board - List - Card - Hashtag1 - Hashtags - Labels - User - Note - Keywor
         configAllPivotFormats();
         configChartTab();
         loadReport(params);
-
     });
 }
 
@@ -1653,19 +1720,50 @@ function loadReport(params) {
     updateDateState();
     var btn = $("#buttonFilter");
 
+    $("#dockoutImg").off().click(function () { //cant use setPopupClickHandler because url could have changed if user navigated inside 
+        onQuery(false, true, function (status) {
+            if (status == STATUS_OK) {
+                var urlDockout = buildUrlFromParams(getUrlParams(), true);
+                chrome.tabs.create({ url: urlDockout });
+            }
+
+        });
+        return false;
+    });
+
+    $("#saveReport").off().click(function () {
+        chrome.permissions.request({
+            permissions: ["bookmarks"]
+        }, function (granted) {
+            if (chrome.runtime.lastError) {
+                alert(chrome.runtime.lastError.message || "Error");
+                return;
+            }
+            if (!granted) {
+                alert("To use this feature, grant the permission to create Chrome bookmarks.");
+                return;
+            }
+            onQuery(false, true, function (status) {
+                if (status==STATUS_OK)
+                    createReportBookmark();
+            });
+
+        });
+    });
+
     //g_msLastLoadedGlobals = Date.now();
-    function onQuery(bFirstTime) {
+    function onQuery(bFirstTime, bOnlyUpdateUrl, callbackQuery) {
         if (Date.now() - g_msLastLoadedGlobals > 1000) {
             //this helps when changing options from another tab and querying again, ie when enabling pro version we dont want to again say its not enabled
             loadStorageGlobals(function () {
-                onQueryWorker(bFirstTime);
+                onQueryWorker(bFirstTime, bOnlyUpdateUrl, callbackQuery);
             });
         } else {
-            onQueryWorker(bFirstTime);
+            onQueryWorker(bFirstTime, bOnlyUpdateUrl, callbackQuery);
         }
         
     }
-    function onQueryWorker(bFirstTime) {
+    function onQueryWorker(bFirstTime, bOnlyUpdateUrl, callbackQuery) {
         if (bFirstTime && g_bBuildSqlMode)
             bFirstTime = false;
 
@@ -1683,14 +1781,15 @@ function loadReport(params) {
 
             handleFormsSubmit(0, forms);
         }
-
-        if (!g_bBuildSqlMode) {
-            setBusy(true, btn);
-            btn.attr('disabled', 'disabled');
+        
+        if (!bOnlyUpdateUrl) {
+            if (!g_bBuildSqlMode) {
+                setBusy(true, btn);
+                btn.attr('disabled', 'disabled');
+            }
+            if (bFirstTime)
+                btn.text("•••");
         }
-        if (bFirstTime)
-            btn.text("•••");
-
 
         for (var iobj in elems) {
             if (iobj == "tab")
@@ -1730,9 +1829,9 @@ function loadReport(params) {
             $(".agile_report_container_byUser").empty().html("&nbsp;&nbsp;&nbsp;•••");
             $(".agile_report_container_byBoard").empty().html("&nbsp;&nbsp;&nbsp;•••");
             $(".agile_topLevelTooltipContainer").empty().html("&nbsp;&nbsp;&nbsp;•••");
-            configReport(elems);
+            configReport(elems, undefined, undefined, callbackQuery);
         } else {
-            configReport(elems, !bFirstTime && !g_bBuildSqlMode);
+            configReport(elems, !bFirstTime && !g_bBuildSqlMode, bOnlyUpdateUrl, callbackQuery);
         }
     }
 
@@ -2124,19 +2223,28 @@ var g_progress = {
     }
 };
 
-function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
+function configReport(elemsParam, bRefreshPage, bOnlyUrl, callbackParam) {
     var elems = cloneObject(elemsParam);
     var bSyncBeforeQuery = (elems["checkSyncBeforeQuery"] === "true");
     var bIncludeCustomFields = (elems["checkAddCustomFields"] == "true");
     var customColumns = ((g_bProVersion ? elems.customColumns : "") || "").split(",");
     if (customColumns.length == 1 && customColumns[0] == "")
         customColumns = [];
+    var bCalledBackMain = false;
+    function callbackMain(status) {
+        if (bCalledBackMain)
+            return; //prevent double callback (on error cases maybe callback throws)
+        bCalledBackMain = true;
+        if (callbackParam)
+            callbackParam(status);
+    }
 
     if (!g_bProVersion) {
         if (bSyncBeforeQuery || elems.customColumns || bIncludeCustomFields) {
             bSyncBeforeQuery = false;
             bIncludeCustomFields = false;
-            sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane", 7000);
+            if (!bOnlyUrl)
+                sendDesktopNotification("To use 'Pro' report options, enable 'Pro' from the Plus help pane", 7000);
         }
     }
 
@@ -2179,8 +2287,10 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         updateUrlState(elems);
     }
 
-    if (bOnlyUrl)
+    if (bOnlyUrl) {
+        callbackMain(STATUS_OK);
         return;
+    }
     if (!g_bBuildSqlMode)
         setBusy(true);
     if (bRefreshPage) {
@@ -2188,6 +2298,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
         //we do this because jquery/DOM accumulates RAM from old table contents, which also take a long time to clear.
         //instead, just reload the page. clears RAM and speeds it up.
         location.reload(true);
+        //no callbackMain needed
         return;
     }
 
@@ -2196,6 +2307,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
     if (g_bBuildSqlMode) {
         refreshBuildSqlMode(elems);
         window.parent.setSql(sqlQuery.sql, sqlQuery.values, elems);
+        callbackMain(STATUS_OK);
         return;
     }
 
@@ -2215,6 +2327,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
 			function (response) {
 			    if (response.status != STATUS_OK) {
 			        showError(response.status);
+			        callbackMain(response.status);
 			        return;
 			    }
 			    if (bSyncBeforeQuery) {
@@ -2237,6 +2350,7 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                             g_progress.text("");
                             if (response.status != STATUS_OK) {
                                 showError(response.status);
+                                callbackMain(response.status);
                                 return;
                             }
                             var rows = response.rows;
@@ -2247,10 +2361,10 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                     bNoLabelColors: g_bProVersion && elems["checkNoLabelColors"] == "true",
                                     bAddCustomFields: bIncludeCustomFields,
                                     bExcludeCardsWithPartialE: elems["checkNoPartialE"]=="true",
-                                    bOutputCardShortLink: g_bProVersion && elems["checkOutputCardShortLink"] == "true",
-                                    bOutputBoardShortLink: g_bProVersion && elems["checkOutputBoardShortLink"] == "true",
-                                    bOutputCardIdShort: g_bProVersion && elems["checkOutputCardIdShort"] == "true",
-                                    bNoBracketNotes: g_bProVersion && elems["checkNoBracketNotes"] == "true",
+                                    bOutputCardShortLink: elems["checkOutputCardShortLink"] == "true",
+                                    bOutputBoardShortLink: elems["checkOutputBoardShortLink"] == "true",
+                                    bOutputCardIdShort: elems["checkOutputCardIdShort"] == "true",
+                                    bNoBracketNotes: elems["checkNoBracketNotes"] == "true",
                                     bCountCards: (groupBy.length > 0),
                                     customColumns: customColumns,
                                     bCheckOutputCSV: g_bProVersion && elems["checkOutputReport"] == "true" && elems["outputFormat"]=="csv",
@@ -2270,14 +2384,15 @@ function configReport(elemsParam, bRefreshPage, bOnlyUrl) {
                                                 ExcellentExport.excel(elem, elem);
                                         }, 1000);
                                     }
+                                    callbackMain(STATUS_OK);
                                 });
                             }
                             catch (e) {
                                 var strError = "error: " + e.message;
                                 logException(e);
                                 showError(strError);
+                                callbackMain(strError);
                             }
-
                         });
 			    }
 			});

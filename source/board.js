@@ -541,7 +541,7 @@ function showSFTDialog() {
         divDialog = $('\
 <dialog id="agile_dialog_SFTWarning" class="agile_dialog_DefaultStyle agile_dialog_Postit agile_dialog_Postit_Anim agile_dialog_Postit_Anim_SFT" style="opacity:0.96;">\
 <h2 tabindex="1" style="outline: none;">Plus for Trello</h2>\
-<br><p>Plus for Trello can show or hide your Scrum for Trello points.<br/ >Use the Plus preference to "Accept the Scrum for Trello format in card titles" (and checklists).\
+<br><p>Plus for Trello can show or hide Scrum for Trello points.<br/ >Use the Plus preference to "Accept the Scrum for Trello format in card titles" (and checklists).\
 <br /><br />Also, use Plus Dimensions to control what to see (points, S/E or a mix).<br /></p> \
 <a href="" class="button-link agile_dialog_Postit_button" id="agile_dialog_SFTWarning_OK">OK</a> <A style="float:right;margin-top:0.5em;" target="_blank" href="http://www.plusfortrello.com/p/notes-for-users-of-scrum-for-trello.html">Read more</A>\
 <br /><input style="vertical-align:middle;margin-bottom:0px;"  type="checkbox"  id="agile_check_SFTDontWarnAgain"><label style="display: inline-block;font-weight:500;"  for="agile_check_SFTDontWarnAgain">Dont show me again</label></input>\
