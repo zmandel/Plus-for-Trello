@@ -20,11 +20,21 @@ function getAllKeywords(bExcludeLegacyLast) {
 var g_seCard = {
     clear: function() {
         this.m_mapUsers = {};
+        this.m_bRecurring = false;
     },
     setNull: function () {
         this.m_mapUsers = null;
+        this.m_bRecurring = false;
     },
     isNull : function () {
+        return (this.m_mapUsers === null);
+    },
+    setRecurring: function (bRecurring) {
+        assert(this.m_mapUsers);
+        this.m_bRecurring;
+    },
+    isRecurring: function () {
+        assert(this.m_mapUsers);
         return (this.m_mapUsers === null);
     },
     setSeCurForUser: function (user, s, e, keyword) {
@@ -58,8 +68,12 @@ var g_seCard = {
             }
         }
     },
+    isVersion1: function (user) { //old version1 didnt save s/e per kw. used by E autocomplete when adding new S/E
+        assert(m_mapUsers);
+        var map = this.m_mapUsers[user];
+        return (map && !map.kw);
+    },
     getSeCurForUser: function (user, keyword) {
-        assert(user);
         assert(this.m_mapUsers);
         var map = this.m_mapUsers[user] || { s: 0, e: 0, kw: {} };
         if (keyword)
@@ -68,8 +82,54 @@ var g_seCard = {
     },
 
     //private:
-    m_mapUsers: null
+    m_mapUsers: null,
+    m_bRecurring: false
 };
+
+var g_timeoutUpdateCurrentSEData = null;
+function updateEOnSChange() {
+
+}
+
+function updateNoteR() {
+    //plusCardEditMessage
+}
+
+function updateCurrentSEData() {
+
+}
+
+function handleSEBar(page, panelAddSE) {
+    panelAddSE.find("#plusCardCommentEnterButton").off("click").click(function (event) {
+        alertMobile("Soon the app will support entering S/E.");
+    });
+
+    panelAddSE.find("#plusCardCommentCancelButton").off("click").click(function (event) {
+        g_fnCancelSEBar = null;
+        var delay = delayKB * 2;
+        if (g_bNoAnimationDelay || g_bNoAnimations) {
+            g_bNoAnimationDelay = false;
+            delay = 0;
+        }
+        setTimeout(function () {
+            resetSEPanel(page);
+        }, delay);
+        event.stopPropagation();
+        event.preventDefault();
+        return false;
+    });
+
+    var spentMain = panelAddSE.find("#plusCardCommentSpent");
+    var spentSub = panelAddSE.find("#plusCardCommentSpent2");
+    var estMain = panelAddSE.find("#plusCardCommentEst");
+    var estSub = panelAddSE.find("#plusCardCommentEst2");
+
+    var allSEInputs = spentMain.add(spentSub, estMain, estSub);
+    //selection on focus helps in case card is recurring, user types S and clicks on E to type it too. since we typed it for them, might get unexpected results
+    allSEInputs.off("focus").on("focus", function () { $(this).select(); });
+    spentMain.add(spentSub).off("input").on("input", function () { updateEOnSChange(); });
+    estMain.add(estSub).off("input").on("input", function () { updateNoteR(); });
+}
 
 function resetSEPanel(page) {
     unhookBack();
@@ -279,7 +339,8 @@ function loadCardPage(page, params, bBack, urlPage) {
         bNeedBounceFocus = isCordova();
         page.find("#panelAddSEContainer").addClass("shiftUp");
         page.find("#cardBottomContainer").addClass("plusShiftBottom");
-        page.find("#panelAddSE").addClass("opacityFull").removeClass("opacityZero");
+        var panelAddSE = page.find("#panelAddSE");
+        panelAddSE.addClass("opacityFull").removeClass("opacityZero");
         page.find(".cardBackground").addClass("backgroundShader");
         page.find("#seContainer table").addClass("backgroundShader");
         page.find("#seContainer table th").addClass("backgroundShader");
@@ -302,28 +363,11 @@ function loadCardPage(page, params, bBack, urlPage) {
         }
 
         g_fnCancelSEBar = cancelSEBar;
+        handleSEBar(page, panelAddSE);
         return false;
     });
     
-    page.find("#plusCardCommentEnterButton").off("click").click(function (event) {
-        alertMobile("Soon the app will support entering S/E.");
-    });
-
-    page.find("#plusCardCommentCancelButton").off("click").click(function (event) {
-        g_fnCancelSEBar = null;
-        var delay = delayKB * 2;
-        if (g_bNoAnimationDelay || g_bNoAnimations) {
-            g_bNoAnimationDelay = false;
-            delay = 0;
-        }
-        setTimeout(function () {
-            resetSEPanel(page);
-        }, delay);
-        event.stopPropagation();
-        event.preventDefault();
-        return false;
-    });
-
+   
     page.find("#openTrelloCard").off("click").click(function (event) {
         var urlCard = "https://trello.com/c/" + params.shortLink;
         if (isCordova()) {
@@ -396,18 +440,19 @@ function enableSEFormElems(bEnable,
         function setUnitLabels() {
             var u = UNITS.getCurrentShort(bAsPoints) + " ";
             var su = UNITS.GetSubUnit() + " ";
-            page.find("#spentUnit").text(u);
-            page.find("#estUnit").text(u);
+            var container = page.find("#panelAddSE");
+            container.find("#spentUnit").text(u);
+            container.find("#estUnit").text(u);
             if (bAsPoints) {
-                page.find("#spentSubUnit").hide();
-                page.find("#estSubUnit").hide();
-                page.find("#plusCardCommentSpent2").hide();
-                page.find("#plusCardCommentEst2").hide();
+                container.find("#spentSubUnit").hide();
+                container.find("#estSubUnit").hide();
+                container.find("#plusCardCommentSpent2").hide();
+                container.find("#plusCardCommentEst2").hide();
             } else {
-                page.find("#plusCardCommentSpent2").show();
-                page.find("#spentSubUnit").text(su).show();
-                page.find("#plusCardCommentEst2").show();
-                page.find("#estSubUnit").text(su).show();
+                container.find("#plusCardCommentSpent2").show();
+                container.find("#spentSubUnit").text(su).show();
+                container.find("#plusCardCommentEst2").show();
+                container.find("#estSubUnit").text(su).show();
             }
         }
 
@@ -633,7 +678,7 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         params.name = objReturn.name;
         params.nameList = objReturn.nameList;
         params.nameBoard = objReturn.nameBoard;
-
+        g_seCard.setRecurring(params.name.indexOf(TAG_RECURRING_CARD) >= 0);
         if (responseCached && JSON.stringify(responseCached.objTransformed) == JSON.stringify(objReturn))
             return objReturn;
 
@@ -666,7 +711,15 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
         rgRows.forEach(function (row) {
             var sLoop = parseFixedFloat(row.spent);
             var eLoop = parseFixedFloat(row.est);
-            g_seCard.setSeCurForUser(row.user, sLoop, eLoop);
+            if (row.kw) { //version 2 of data
+                for (var kwLoop in row.kw) {
+                    sLoop = parseFixedFloat(row.kw[kwLoop].spent);
+                    eLoop = parseFixedFloat(row.kw[kwLoop].est);
+                    g_seCard.setSeCurForUser(row.user, sLoop, eLoop, kwLoop);
+                }
+            } else {
+                g_seCard.setSeCurForUser(row.user, sLoop, eLoop, null); //old V1 format without kw
+            }
             appendRow(row.user, sLoop, parseFixedFloat(row.estFirst), eLoop, parseFixedFloat(row.est - row.spent));
         });
 
@@ -726,7 +779,7 @@ function calculateCardSEReport(rgComments, bFromCache) {
         }
     });
 
-    for (var user in userSums) {
+    for ( var user in userSums) {
         var objSums = userSums[user];
         rgRows.push(objSums);
         if (g_recentUsers.markRecent(user, objSums.idUser, objSums.sDateMost * 1000, false)) {

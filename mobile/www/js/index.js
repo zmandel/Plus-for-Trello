@@ -10,9 +10,9 @@ var g_idGlobalAnalytics = "zzzzz";
 //dinamically named properties are always prefixed by a string and a colon, plus one parameter.
 // rnid:id for notifications
 // td:url for caching trello api calls
-// mpc:shortLink maps card shortlink to id
-// mpb:shortLink maps board shortlink to id
-
+// mpc:shortLink maps card shortLink to id
+// mpb:shortLink maps board shortLink to id
+// cardSEDraft:shortLink maps card shortLink to the draft data for the given card
 
 var PROP_TRELLOKEY = "trellokey";
 var PROP_TRELLOUSERDATA = "trellouserdata";
