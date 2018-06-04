@@ -1,5 +1,7 @@
 /// <reference path="intellisense.js" />
 
+var TRELLO_APPKEY = "xxxxxxxxxxxxxxyyyyyyy";
+var g_idGlobalAnalytics = "UA-zzzzzzzz-1";
 //var TRELLO_APPKEY = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 //var g_idGlobalAnalytics = "UA-xxxxxxxx-y";
 

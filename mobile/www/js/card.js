@@ -543,8 +543,12 @@ function fillSEData(page, container, tbody, params, bBack, callback) {
                 e.stopPropagation();
                 var url = $(e.target).prop("href");
                 var urlLower = url.toLowerCase();
-                if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
-                    handleBoardOrCardActivity(url);
+                if (urlLower.indexOf("trello.com/" >= 0)) {
+                    if (urlLower.indexOf("trello.com/b/") >= 0 || urlLower.indexOf("trello.com/c/") >= 0)
+                        handleBoardOrCardActivity(url);
+                    else
+                        window.open(url, '_blank', 'location=no'); //the trello app doesnt handle well activity links (other than boards or cards)
+                }
                 else
                     openUrlAsActivity(url); //better as activity so drive attachments etc open native
             });
